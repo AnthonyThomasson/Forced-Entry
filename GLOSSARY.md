@@ -108,7 +108,7 @@ piece of furniture as one box per part (`PieceHeights`), a door's leaf, a vehicl
 posture (`BodyHeights`). Built by each domain from the same 2D shapes lifted by `PlanSpace`, synced from the 2D body each physics frame
 (written only when its body moved), and mapped back to its body by `TwinSpace.owner_of`. The 2D body is the truth until a class is
 flipped to a 3D body; then the 2D body becomes its footprint twin (ADR 0014).
-_Avoid_: mirror (the 3D view's meshes that follow the 2D bodies, `WorldMirror`), shadow, proxy (the mirror's box)
+_Avoid_: mirror (the old registry that followed the 2D bodies with meshes of its own; it is gone: a mesh is carried on the twin), shadow, proxy (the old stand-in box; there is none)
 
 **Twin space**:
 The 3D physics space of the twins (Jolt, the main window's 3D world), built by `MatchBuilder.stage` for every match and test world,
@@ -407,19 +407,13 @@ _Avoid_: visible region, culled
 ### The 3D render
 
 **3D render**:
-How every match is drawn: the near top-down view that mirrors the 2D sim, 80 degrees, wearing the 2D painters' flat art (there is no 2D render and no render mode: it was deleted, ADR 0013). The 2D world is
+How every match is drawn: the near top-down view of the twin space's 3D world, 80 degrees, wearing the 2D painters' flat art (there is no 2D render and no render mode: it was deleted, ADR 0013). The 2D world is
 hidden and never drawn; a test world is shown by the same view in a window.
 _Avoid_: render mode, view mode, graphics setting, 2D render
 
-**3D mirror**:
-The registry (`WorldMirror`, Art) that follows every drawn 2D body in a 3D world each frame, so the 3D view shows what the sim does
-without simulating it: 2D `(x, y)` becomes 3D `(x, 0, y)` at the one scale `RenderConfig.unit`, and height is visual only.
-_Avoid_: 3D world (the sim is still 2D), scene graph copy
-
-**Proxy**:
-The coloured box, cylinder or capsule the 3D mirror shows a collision shape as, sized from the shape (walls full height, floors flat),
-until a domain's own mesh replaces it through the mirror's hook.
-_Avoid_: placeholder, stand-in
+**Mesh carrier**:
+Art's `MeshCarrier`: the view draws the twin space's 3D world, and the carrier hangs each body's mesh (the one its domain's builder makes) on that body's twin, so the picture is where the twin is and nothing writes the mesh. A body no builder answers has no mesh (there is no stand-in box); the drawn things that are no body (a floor stencil, a lying item) are shown by Art's `MeshFollower`. 2D `(x, y)` is 3D `(x, 0, y)` at the one scale `RenderConfig.unit` (ADR 0015, which supersedes ADR 0013's mirror).
+_Avoid_: 3D mirror, proxy, 3D world (the sim is still 2D until its last class flips)
 
 **Mesh kit**:
 Art's code-built low-poly solids (`MeshKit`: box, wedge, cylinder, sphere, capsule, cone, extrude, loft, revolve, and `pose` to turn and place a solid), their cache (`MeshCache`: the same inputs, the same `Mesh`) and node helpers (`MeshNodes`: the

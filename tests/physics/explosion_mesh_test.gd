@@ -38,7 +38,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var mirror := _mirror(t)
 	var layer := PhysicsMeshes.install(mirror)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	t.expect_eq(layer.blasts.shown(), 0, "no burst, no blast")
 	t.check(not _any_visible(layer), "and no part showing")
 	await _check_a_frag(t, layer)
@@ -175,10 +175,10 @@ func _any_visible(layer: FxLayer) -> bool:
 	return false
 
 
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	return mirror

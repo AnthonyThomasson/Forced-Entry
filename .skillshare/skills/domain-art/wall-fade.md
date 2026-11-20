@@ -6,7 +6,7 @@ Side file of `domain-art`. #193 rule 9: walls, doors and tall pieces between the
 
 | File | Role |
 |---|---|
-| `wall_fade.gd` (`WallFade`, a `Node3D`) | The frame: the foci, the grid lookups, stepping the fades. Main's `View3D` makes it (`fade`; `rig`, `source`) and calls `listen(mirror)`. |
+| `wall_fade.gd` (`WallFade`, a `Node3D`) | The frame: the foci, the grid lookups, stepping the fades. Main's `View3D` makes it (`fade`; `rig`, `source`) and calls `listen(carrier)`. |
 | `fade_book.gd` (`FadeBook`) | What it looks after: `watch`ed meshes, their units, a rebuilt segment, a freed mesh, the fade carried to a mesh built again. |
 | `fade_grid.gd` (`FadeGrid`) | Where units are looked for: cells of `WallFadeConfig.cell` px, movable units re-filed by a polled slice. |
 | `fade_unit.gd`, `fade_box.gd` (`FadeUnit`, `FadeBox`) | One faded thing (its instances, level and footprint) and the ray-to-footprint question. |
@@ -16,7 +16,7 @@ Side file of `domain-art`. #193 rule 9: walls, doors and tall pieces between the
 
 ## Rules
 
-- **What is looked at.** `listen(mirror)` connects `WorldMirror.built(body, mesh)`, so every mesh a builder makes for a wall, a door or a furniture body is taken, whenever its builder was registered. A mesh with a signal `segment_replaced(index, part)` and a method `segments()` (`WallMesh`) is one unit per segment; any other mesh is one unit of every `GeometryInstance3D` under it (`TableMesh`, a furniture rig, `DoorMesh`). A unit under `tall_height` is dropped at once (a low table never hides anyone). A body that is no plain `StaticBody2D` (furniture, a door) is movable.
+- **What is looked at.** `listen(carrier)` connects `MeshCarrier.built(body, mesh)`, so every mesh a builder makes for a wall, a door or a furniture body is taken, whenever its builder was registered. A mesh with a signal `segment_replaced(index, part)` and a method `segments()` (`WallMesh`) is one unit per segment; any other mesh is one unit of every `GeometryInstance3D` under it (`TableMesh`, a furniture rig, `DoorMesh`). A unit under `tall_height` is dropped at once (a low table never hides anyone). A body that is no plain `StaticBody2D` (furniture, a door) is movable.
 - **Hung pieces.** A mesh with `hangs_on_wall == true` (a `FurnitureRig`: menu board, wall stain, mirror) is a hung unit, not filed in the grid and never looked at itself: each frame it is attached (`admit`) to the wall units whose footprint, grown `hang_pad` px, holds its middle, and is marked hit whenever one of them is, so it fades and returns with the wall (a rebuilt segment keeps its followers). A hung piece that finds no wall for `hang_frames` frames (shoved away) is filed as an ordinary tall unit.
 - **Foci.** `focus_targets()` of the sim's `Camera2D` (General): the player following, every combatant spectating; each read duck-typed, dead ones skipped.
 - **In the way.** The ground line from a focus toward the camera (the rig's yaw) first meets the unit's footprint, as a strip `half_width` to each side of it (`FadeBox.strip_entry`: the line grown across, not ahead), within `radius` and under the unit's top (the ray rises with the pitch: at 80 degrees a 96 px wall hides only what stands within about 17 px of it, so only a wall right in front or a piece hung over the focus, whose footprint holds it, fades). It fades over `fade_time` to `faded_amount` of its pixels (`MeshNodes.fade`, a dither) and back the same way, never a pop. A door fades as its leaf stands; a door swung or knocked flat keeps its closed footprint until it is polled again.
@@ -27,7 +27,7 @@ Side file of `domain-art`. #193 rule 9: walls, doors and tall pieces between the
 
 ## Seams (interface 27)
 
-`WorldMirror.built(body, mesh)` (Art); General's `CameraController.focus_targets() -> Array[Node2D]` (the camera's own list, read only); Objects' `WallMesh.segments()` and `segment_replaced`. Read-outs: `count()`, `fading`, `written`, `looked`, `unit_of(key, index)`, `grid`; `step(delta, yaw, foci)` is one frame (a test calls it by hand).
+`MeshCarrier.built(body, mesh)` (Art); General's `CameraController.focus_targets() -> Array[Node2D]` (the camera's own list, read only); Objects' `WallMesh.segments()` and `segment_replaced`. Read-outs: `count()`, `fading`, `written`, `looked`, `unit_of(key, index)`, `grid`; `step(delta, yaw, foci)` is one frame (a test calls it by hand).
 
 ## Tests and limits
 

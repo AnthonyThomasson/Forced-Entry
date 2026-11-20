@@ -2,7 +2,7 @@ extends GameTest
 ## The domestic furniture kinds are shown by kit-built meshes (#193 phase 2,
 ## `domain-art/meshes.md`): Objects registers a builder per art id (sofa, chair, cabinet, shelf,
 ## counter, appliance, bed, office chair, toilet, bath, rug, plant, lamp, coat rack, recliner,
-## fixture, hotplate) under `MirrorProxy.furniture_key(art)`, and the mirror shows a piece of each
+## fixture, hotplate) under `MeshKinds.furniture_key(art)`, and the mirror shows a piece of each
 ## by its rig in place of its proxy box. Each mesh stands within the piece's own footprint and
 ## covers most of it, at the
 ## height the how-to's table gives its class, in the colour the painter draws; pieces of one look
@@ -82,7 +82,7 @@ func run(t: TestContext) -> void:
 	var mirror := _mirror(t)
 	ObjectMeshes.register(mirror.builders)
 	_check_registered(t, mirror)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	for id: StringName in KINDS:
 		var rig := _rig_of(mirror, t.object(id))
@@ -99,16 +99,16 @@ func run(t: TestContext) -> void:
 
 
 ## Every art id has a builder under its own hook key.
-func _check_registered(t: TestContext, mirror: WorldMirror) -> void:
+func _check_registered(t: TestContext, mirror: MeshCarrier) -> void:
 	for id: StringName in KINDS:
-		var key := MirrorProxy.furniture_key(KINDS[id]["art"])
+		var key := MeshKinds.furniture_key(KINDS[id]["art"])
 		t.check(mirror.builders.has(key), "a builder is registered under %s" % key)
 		t.check(mirror.builders[key].is_valid(), "the builder of %s is callable" % key)
-	t.check(mirror.builders.has(MirrorProxy.furniture_key("table")), "the table's is still there")
+	t.check(mirror.builders.has(MeshKinds.furniture_key("table")), "the table's is still there")
 
 
 ## The rig of `body` when the mirror shows it by one (a `FurnitureRig`), else null (a proxy box).
-func _rig_of(mirror: WorldMirror, body: Node) -> FurnitureRig:
+func _rig_of(mirror: MeshCarrier, body: Node) -> FurnitureRig:
 	var shown := mirror.proxies_of(body)
 	if shown.size() != 1 or not shown[0] is FurnitureRig:
 		return null
@@ -146,7 +146,7 @@ func _check_shape(
 
 ## A face of the body carries the colour the painter draws the piece in (the lamp's shade is its
 ## tin, the painter's own constant).
-func _check_colours(t: TestContext, mirror: WorldMirror) -> void:
+func _check_colours(t: TestContext, mirror: MeshCarrier) -> void:
 	for id: StringName in KINDS:
 		var piece := t.object(id)
 		var rig := _rig_of(mirror, piece)
@@ -164,7 +164,7 @@ func _check_colours(t: TestContext, mirror: WorldMirror) -> void:
 
 
 ## Two pieces of one look share the one mesh; one of another look does not.
-func _check_sharing(t: TestContext, mirror: WorldMirror) -> void:
+func _check_sharing(t: TestContext, mirror: MeshCarrier) -> void:
 	var first := _rig_of(mirror, t.object(&"sofa"))
 	var second := _rig_of(mirror, t.object(&"sofa_b"))
 	t.check(
@@ -189,7 +189,7 @@ func _check_sharing(t: TestContext, mirror: WorldMirror) -> void:
 
 ## A resting piece costs nothing per frame: no `mirror_update` and no `_process` on a rig, except a
 ## bed's, which looks every few frames.
-func _check_static_pieces_cost_nothing(t: TestContext, mirror: WorldMirror) -> void:
+func _check_static_pieces_cost_nothing(t: TestContext, mirror: MeshCarrier) -> void:
 	for id: StringName in KINDS:
 		var rig := _rig_of(mirror, t.object(id))
 		if rig == null:
@@ -200,7 +200,7 @@ func _check_static_pieces_cost_nothing(t: TestContext, mirror: WorldMirror) -> v
 
 ## A lamp's glow node is lit by default, goes dark and lights again, and is written only when its
 ## state changes (a stale value left in the uniform shows a repeat write).
-func _check_lamp(t: TestContext, mirror: WorldMirror) -> void:
+func _check_lamp(t: TestContext, mirror: MeshCarrier) -> void:
 	var rig := _rig_of(mirror, t.object(&"lamp"))
 	if not t.require(rig != null and rig.glows.size() == 1, "the lamp has one glow node"):
 		return
@@ -239,7 +239,7 @@ func _check_lamp(t: TestContext, mirror: WorldMirror) -> void:
 
 
 ## A dent tints the solids as the 2D piece darkens, written only when the damage changes.
-func _check_dent_tint(t: TestContext, mirror: WorldMirror) -> void:
+func _check_dent_tint(t: TestContext, mirror: MeshCarrier) -> void:
 	var piece := t.object(&"sofa")
 	var rig := _rig_of(mirror, piece)
 	if not t.require(rig != null, "the sofa has a rig"):
@@ -265,7 +265,7 @@ func _check_dent_tint(t: TestContext, mirror: WorldMirror) -> void:
 
 ## A bed's blanket lies flat while a character lies on the bed (not while hiding under it) and
 ## rises when they get up.
-func _check_bed(t: TestContext, mirror: WorldMirror) -> void:
+func _check_bed(t: TestContext, mirror: MeshCarrier) -> void:
 	var bed := t.object(&"bed")
 	var rig := _rig_of(mirror, bed) as FurnitureBedRig
 	if not t.require(rig != null and rig.blanket != null, "the bed has a blanket part"):
@@ -306,7 +306,7 @@ func _check_half_scale(t: TestContext) -> void:
 	RenderConfig.unit = 0.5
 	var halved := _mirror(t)
 	ObjectMeshes.register(halved.builders)
-	halved.mirror(t.world)
+	halved.carry(t.world)
 	await t.frames(3)
 	for id: StringName in KINDS:
 		var rig := _rig_of(halved, t.object(id))
@@ -331,7 +331,7 @@ func _check_main(t: TestContext) -> void:
 	if t.require(view != null, "Main built the 3D view"):
 		for id: StringName in KINDS:
 			t.check(
-				view.mirror.builders.has(MirrorProxy.furniture_key(KINDS[id]["art"])),
+				view.carrier.builders.has(MeshKinds.furniture_key(KINDS[id]["art"])),
 				"Main's view registers the %s builder" % KINDS[id]["art"],
 			)
 	await MainProbe.close(t, window)
@@ -352,10 +352,10 @@ func _has_colour(mesh: ArrayMesh, want: Color) -> bool:
 	return false
 
 
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	return mirror

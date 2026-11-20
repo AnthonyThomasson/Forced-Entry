@@ -69,7 +69,7 @@ func run(t: TestContext) -> void:
 	await t.seconds(1.2)
 	var mirror := _mirror(t)
 	CharacterMeshes.register(mirror.builders)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	var east := _body_of(t, mirror, &"east")
 	var south := _body_of(t, mirror, &"south")
@@ -93,7 +93,7 @@ func run(t: TestContext) -> void:
 
 
 ## The body the mirror shows the actor `id` by (a `BodyMesh`), or null: it ends the test.
-func _body_of(t: TestContext, mirror: WorldMirror, id: StringName) -> BodyMesh:
+func _body_of(t: TestContext, mirror: MeshCarrier, id: StringName) -> BodyMesh:
 	var shown := mirror.proxies_of(t.actor(id))
 	if not t.require(
 		shown.size() == 1 and shown[0] is BodyMesh,
@@ -137,7 +137,7 @@ func _check_shape(t: TestContext, east: BodyMesh, south: BodyMesh) -> void:
 func _check_proportions(t: TestContext, east: BodyMesh, south: BodyMesh) -> void:
 	t.expect_near(
 		_bounds(east).end.y,
-		MirrorConfig.wall_height * 0.75,
+		ObjectStructureMeshConfig.wall_height * 0.75,
 		4.0,
 		"a standing body is about three quarters of a wall tall",
 	)
@@ -212,7 +212,7 @@ func _check_crouch(t: TestContext, east: BodyMesh, crouch: BodyMesh) -> void:
 
 
 ## The legs stride when the character walks and are still when it stands.
-func _check_gait(t: TestContext, mirror: WorldMirror) -> void:
+func _check_gait(t: TestContext, mirror: MeshCarrier) -> void:
 	var walker := _body_of(t, mirror, &"walker")
 	var east := _body_of(t, mirror, &"east")
 	if walker == null or east == null:
@@ -242,7 +242,7 @@ func _sample_feet(t: TestContext, body: BodyMesh) -> float:
 
 ## The style's colours reach the parts, an outfit's vest and plates show (and are not there
 ## undressed), and a changed outfit re-dresses the same body in place.
-func _check_dress(t: TestContext, mirror: WorldMirror) -> void:
+func _check_dress(t: TestContext, mirror: MeshCarrier) -> void:
 	var body := _body_of(t, mirror, &"dressed")
 	if body == null:
 		return
@@ -315,7 +315,7 @@ func _check_colours(t: TestContext, body: BodyMesh, dress: BodyDress) -> void:
 ## colours, on the same body.
 func _check_outfit(
 	t: TestContext,
-	mirror: WorldMirror,
+	mirror: MeshCarrier,
 	body: BodyMesh,
 	dress: BodyDress,
 ) -> void:
@@ -360,7 +360,7 @@ func _check_outfit(
 ## a
 ## part is overwritten only when the head's breath has drifted past `BodyMesh.MOVED`, so over a
 ## full breath period (3.8 s) fewer than one frame in ten writes.
-func _check_idle(t: TestContext, mirror: WorldMirror) -> void:
+func _check_idle(t: TestContext, mirror: MeshCarrier) -> void:
 	var body := _body_of(t, mirror, &"east")
 	if body == null:
 		return
@@ -384,7 +384,7 @@ func _check_idle(t: TestContext, mirror: WorldMirror) -> void:
 
 ## A part that is not shown is not placed, and is placed when a look shows it: a walker's hidden
 ## vest keeps its mark while its fists move, and the vest is on the trunk once an outfit shows it.
-func _check_hidden_parts(t: TestContext, mirror: WorldMirror) -> void:
+func _check_hidden_parts(t: TestContext, mirror: MeshCarrier) -> void:
 	var body := _body_of(t, mirror, &"walker")
 	if body == null:
 		return
@@ -408,7 +408,7 @@ func _check_hidden_parts(t: TestContext, mirror: WorldMirror) -> void:
 
 ## A look change swaps a cap for a helmet (a bigger covering), hides the hair under headwear, shows
 ## and hides a boot's shaft and a pack, on the same body.
-func _check_looks(t: TestContext, mirror: WorldMirror) -> void:
+func _check_looks(t: TestContext, mirror: MeshCarrier) -> void:
 	var body := _body_of(t, mirror, &"looks")
 	if body == null:
 		return
@@ -459,7 +459,7 @@ func _seed_with(key: StringName, value: Variant) -> int:
 
 ## A body far from the player: an outfit change still reaches the mesh (the mesh refreshes its own
 ## dress).
-func _check_culled(t: TestContext, mirror: WorldMirror) -> void:
+func _check_culled(t: TestContext, mirror: MeshCarrier) -> void:
 	var body := _body_of(t, mirror, &"culled")
 	if body == null:
 		return
@@ -474,7 +474,7 @@ func _check_culled(t: TestContext, mirror: WorldMirror) -> void:
 
 ## A body seated (its collision shapes disabled) is hidden and back when they are enabled; a dead
 ## one stays shown.
-func _check_hidden(t: TestContext, mirror: WorldMirror, east: BodyMesh) -> void:
+func _check_hidden(t: TestContext, mirror: MeshCarrier, east: BodyMesh) -> void:
 	var shape := _shape_of(t.actor(&"east"))
 	shape.set_deferred(&"disabled", true)
 	await t.frames(3)
@@ -496,7 +496,7 @@ func _check_scale(t: TestContext) -> void:
 	RenderConfig.unit = 0.5
 	var mirror := _mirror(t)
 	CharacterMeshes.register(mirror.builders)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	var body := _body_of(t, mirror, &"east")
 	if body != null:
@@ -525,11 +525,11 @@ func _check_main(t: TestContext) -> void:
 	var view := main.get_node_or_null("View3D")
 	if t.require(view != null, "Main built the 3D view"):
 		t.check(
-			view.mirror.builders.has(MirrorProxy.CHARACTER),
+			view.carrier.builders.has(MeshKinds.CHARACTER),
 			"Main's view registers the character's builder",
 		)
 		var character: Node = built["world"].find_children("*", "CharacterBody2D", true, false)[0]
-		var shown: Array = view.mirror.proxies_of(character)
+		var shown: Array = view.carrier.proxies_of(character)
 		t.check(
 			shown.size() == 1 and shown[0] is BodyMesh,
 			"a match's character is shown by the body",
@@ -593,10 +593,10 @@ func _shape_of(body: Node) -> CollisionShape2D:
 	return null
 
 
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	return mirror

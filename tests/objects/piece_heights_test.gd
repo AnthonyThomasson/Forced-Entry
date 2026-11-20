@@ -74,6 +74,18 @@ const LOOSE := { &"plant": 0.3, &"office_chair": 0.3, &"trash": 3.0, &"rubble": 
 const CELL := Vector2(300.0, 260.0)
 const PER_ROW := 11
 
+## The follower the stencils are shown by (made with the carrier, by `_mirror`).
+var _follower: MeshFollower
+
+
+## What the follower shows `node` by: its one mesh, or nothing.
+func _followed(node: Node) -> Array[Node3D]:
+	var out: Array[Node3D] = []
+	var mesh := _follower.mesh_of(node)
+	if mesh != null:
+		out.append(mesh)
+	return out
+
 
 func describe() -> Dictionary:
 	return {
@@ -113,8 +125,9 @@ func run(t: TestContext) -> void:
 	await t.frames(5)
 	var mirror := _mirror(t)
 	ObjectMeshes.register(mirror.builders)
-	ObjectMeshes.track(mirror)
-	mirror.mirror(t.world)
+	ObjectMeshes.track(_follower)
+	_follower.follow(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	for key: String in _kinds():
 		var rig := _rig_of(mirror, t.object(StringName(key)))
@@ -238,8 +251,8 @@ func _the_scale(t: TestContext) -> void:
 		BodyHeights.muzzle(BodyHeights.FIRE_OVER) > cover,
 		"a risen muzzle clears a counter's top",
 	)
-	t.expect_eq(MirrorConfig.wall_height, 96.0, "walls stay 96")
-	t.expect_eq(MirrorConfig.door_height, 84.0, "doors stay 84")
+	t.expect_eq(ObjectStructureMeshConfig.wall_height, 96.0, "walls stay 96")
+	t.expect_eq(ObjectStructureMeshConfig.door_height, 84.0, "doors stay 84")
 	for key: String in ["awning", "glyph_sign"]:
 		t.check(
 			PieceHeights.base_of(ObjectDefinitions.get_definition(key))
@@ -348,17 +361,19 @@ func _cover_clears_a_duck(t: TestContext) -> void:
 
 
 ## The rig of `body` when the mirror shows it by one (a `FurnitureRig`), else null (a proxy box).
-func _rig_of(mirror: WorldMirror, body: Node) -> FurnitureRig:
+func _rig_of(mirror: MeshCarrier, body: Node) -> FurnitureRig:
 	var shown := mirror.proxies_of(body)
 	if shown.size() != 1 or not shown[0] is FurnitureRig:
 		return null
 	return shown[0] as FurnitureRig
 
 
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
+	_follower = MeshFollower.new()
+	view.add_child(_follower)
 	return mirror

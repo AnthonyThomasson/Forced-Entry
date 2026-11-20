@@ -42,6 +42,18 @@ const MATCH := {
 	"invaders": { "count": 1 },
 }
 
+## The follower the stencils are shown by (made with the carrier, by `_mirror`).
+var _follower: MeshFollower
+
+
+## What the follower shows `node` by: its one mesh, or nothing.
+func _followed(node: Node) -> Array[Node3D]:
+	var out: Array[Node3D] = []
+	var mesh := _follower.mesh_of(node)
+	if mesh != null:
+		out.append(mesh)
+	return out
+
 
 func describe() -> Dictionary:
 	return {
@@ -74,8 +86,9 @@ func run(t: TestContext) -> void:
 	var fade := WallFade.new()
 	var mirror := _mirror(t, fade)
 	ObjectMeshes.register(mirror.builders)
-	ObjectMeshes.track(mirror)
-	mirror.mirror(t.world)
+	ObjectMeshes.track(_follower)
+	_follower.follow(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	var worn := _worn_rooms(t)
 	t.check(worn.size() >= 2, "the house has worn rooms (%d)" % worn.size())
@@ -85,7 +98,7 @@ func run(t: TestContext) -> void:
 	await _street_wear(t, mirror)
 	await _street_stacking(t, mirror)
 	await _street_under_a_room(t, mirror)
-	await _stencil(t, mirror)
+	await _stencil(t)
 	await _check_main(t)
 
 
@@ -119,7 +132,7 @@ func _worn_rooms(t: TestContext) -> Array:
 
 ## A room's floor marks are decals on its floor's mesh: one per 2D mark, at its rect, the floor's
 ## top plus the decal's lift, showing the very texture the 2D mark draws.
-func _floor_wear(t: TestContext, mirror: WorldMirror, worn: Array) -> void:
+func _floor_wear(t: TestContext, mirror: MeshCarrier, worn: Array) -> void:
 	var marks_seen := 0
 	for room: Dictionary in worn:
 		var wear: Node2D = room["wear"]
@@ -184,7 +197,7 @@ func _floor_mark(
 ## with the wall, each a child of the segment it lies on. A wall two rooms share is built once, so a
 ## mark on a stretch the room does not own stands on the owner's wall (`Wall.neighbour_wear`): the
 ## marks are found over the room's own wall and the walls that were lent them, one decal for each.
-func _wall_wear(t: TestContext, mirror: WorldMirror, worn: Array) -> void:
+func _wall_wear(t: TestContext, mirror: MeshCarrier, worn: Array) -> void:
 	var marks_seen := 0
 	var placed := 0
 	var walls: Array = []
@@ -220,7 +233,7 @@ func _carriers(room: Dictionary, worn: Array) -> Array:
 ## The decal on one of `carriers` (its position in its wall's frame) that stands for mark `index` of
 ## `wear`'s wall marks: on the face at its kind's height, a layer step up by its order; null for
 ## none.
-func _decal_of(mirror: WorldMirror, carriers: Array, wear: Node2D, index: int) -> MeshInstance3D:
+func _decal_of(mirror: MeshCarrier, carriers: Array, wear: Node2D, index: int) -> MeshInstance3D:
 	var mark: Dictionary = wear.wall_marks()[index]
 	var order := _order(index, wear.wall_marks().size())
 	var normal: Vector2 = mark["normal"]
@@ -246,7 +259,7 @@ func _decal_of(mirror: WorldMirror, carriers: Array, wear: Node2D, index: int) -
 ## height, as long and as tall as the spec says.
 func _wall_mark(
 	t: TestContext,
-	mirror: WorldMirror,
+	mirror: MeshCarrier,
 	carriers: Array,
 	wear: Node2D,
 	index: int,
@@ -268,7 +281,7 @@ func _wall_mark(
 ## rebuilt by a hit takes its marks (and their fade) over.
 func _wall_wear_fades(
 	t: TestContext,
-	mirror: WorldMirror,
+	mirror: MeshCarrier,
 	fade: WallFade,
 	worn: Array,
 ) -> void:
@@ -296,7 +309,7 @@ func _wall_wear_fades(
 
 
 ## The first wall with a wall mark on its mesh, or null.
-func _worn_wall(mirror: WorldMirror, worn: Array) -> Node2D:
+func _worn_wall(mirror: MeshCarrier, worn: Array) -> Node2D:
 	for room: Dictionary in worn:
 		var wall_mesh := _wall_mesh(mirror, room["wall"])
 		if wall_mesh != null and not _wall_decals(wall_mesh).is_empty():
@@ -338,7 +351,7 @@ func _rebuilt(t: TestContext, wall_mesh: WallMesh, wall: Node2D, decal: MeshInst
 
 ## The street's marks lie on the pavement at its height and on the road a kerb lower; the lane's
 ## dashes and the crossings (the street mesh draws them) are not decals; a glyph is.
-func _street_wear(t: TestContext, mirror: WorldMirror) -> void:
+func _street_wear(t: TestContext, mirror: MeshCarrier) -> void:
 	var road_def: Dictionary = GeneralCatalog.STREET["asphalt"].duplicate(true)
 	road_def["marks"] = {
 		"seed": 7, "lane": true, "edges": [Vector2.DOWN],
@@ -362,7 +375,7 @@ func _street_wear(t: TestContext, mirror: WorldMirror) -> void:
 
 ## A pavement that runs under a room's floor lays no mark there (the 2D draws the room over it, so
 ## none shows): the marks that lie under the room are skipped, the rest are laid.
-func _street_under_a_room(t: TestContext, mirror: WorldMirror) -> void:
+func _street_under_a_room(t: TestContext, mirror: MeshCarrier) -> void:
 	var room_rect := Rect2(3000, 900, 2400, 60)
 	var room_def := {
 		"art": "floor",
@@ -394,7 +407,7 @@ func _street_under_a_room(t: TestContext, mirror: WorldMirror) -> void:
 
 ## Long pavements of several seeds, whose marks overlap (a chip on a slab, a crack over both): none
 ## of the overlapping marks shares a height, and some overlap.
-func _street_stacking(t: TestContext, mirror: WorldMirror) -> void:
+func _street_stacking(t: TestContext, mirror: MeshCarrier) -> void:
 	var overlapping := 0
 	var pieces: Array[Node2D] = []
 	for seed_value in 8:
@@ -414,7 +427,7 @@ func _street_stacking(t: TestContext, mirror: WorldMirror) -> void:
 ## A stencil laid over `piece` (its lot) lies above every mark of the piece and never at the
 ## height of one, and is drawn once: one node of the mirror shows it, one decal holds its texture.
 func _stencil_over(
-	t: TestContext, mirror: WorldMirror, piece: Node2D, decals: Array
+	t: TestContext, mirror: MeshCarrier, piece: Node2D, decals: Array
 ) -> void:
 	var rect := Rect2(piece.position + Vector2(40, 5), Vector2(160, 40))
 	var stencil := DecalFactory.stencil(
@@ -424,13 +437,16 @@ func _stencil_over(
 		t.world,
 	)
 	await t.frames(3)
-	var shown := mirror.proxies_of(stencil)
+	var shown := _followed(stencil)
 	if not t.require(shown.size() == 1, "%s: a stencil is shown once" % piece.name):
 		return
 	var held := _decals(shown[0])
 	t.expect_eq(held.size(), 1, "%s: the stencil is one decal" % piece.name)
 	var texture := (stencil.get(&"texture") as Texture2D)
-	var copies := mirror.find_children("*", "MeshInstance3D", true, false).filter(
+	var drawn: Array[Node] = []
+	for root: Node in [mirror, _follower, t.world.twin_space()]:
+		drawn.append_array(root.find_children("*", "MeshInstance3D", true, false))
+	var copies := drawn.filter(
 		func(n: MeshInstance3D) -> bool: return (
 			n.material_override is ShaderMaterial and _texture_of(n) == texture
 		)
@@ -519,11 +535,11 @@ func _batched(t: TestContext, road_node: Node3D, walk_node: Node3D) -> void:
 
 
 ## A floor stencil lies on its floor at the floor's top, its rect.
-func _stencil(t: TestContext, mirror: WorldMirror) -> void:
+func _stencil(t: TestContext) -> void:
 	var rect := Rect2(5000, 0, 160, 90)
 	var stencil := DecalFactory.stencil(rect, { "text": "LOBBY" }, "Test Stencil", t.world)
 	await t.frames(3)
-	var shown := mirror.proxies_of(stencil)
+	var shown := _followed(stencil)
 	if t.require(shown.size() == 1, "the stencil is shown"):
 		var decals := _decals(shown[0])
 		t.expect_eq(decals.size(), 1, "the stencil is one decal")
@@ -561,7 +577,7 @@ func _check_main(t: TestContext) -> void:
 		await t.frames(3)
 		var shown: Node3D = view.follower.mesh_of(stencil)
 		t.check(shown != null, "Main's view shows a floor stencil by a decal")
-		t.check(view.mirror.proxies_of(stencil).is_empty(), "and the mirror shows it no more")
+		t.check(view.carrier.proxies_of(stencil).is_empty(), "and the mirror shows it no more")
 		t.check(view.follower.mesh_of(built["world"]) == null, "a node that is no stencil has none")
 	await MainProbe.close(t, window)
 
@@ -650,7 +666,7 @@ func _texture_of(decal: MeshInstance3D) -> Texture2D:
 
 
 ## The mesh `mirror` shows `floor_node` by (a kit mesh, not a proxy box).
-func _floor_mesh(mirror: WorldMirror, floor_node: Node) -> MeshInstance3D:
+func _floor_mesh(mirror: MeshCarrier, floor_node: Node) -> MeshInstance3D:
 	var shown := mirror.proxies_of(floor_node)
 	if shown.size() != 1 or not shown[0] is MeshInstance3D:
 		return null
@@ -658,17 +674,19 @@ func _floor_mesh(mirror: WorldMirror, floor_node: Node) -> MeshInstance3D:
 	return null if node.mesh is BoxMesh else node
 
 
-func _wall_mesh(mirror: WorldMirror, wall: Node) -> WallMesh:
+func _wall_mesh(mirror: MeshCarrier, wall: Node) -> WallMesh:
 	var shown := mirror.proxies_of(wall)
 	return shown[0] as WallMesh if shown.size() == 1 and shown[0] is WallMesh else null
 
 
-func _mirror(t: TestContext, fade: WallFade) -> WorldMirror:
+func _mirror(t: TestContext, fade: WallFade) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
+	_follower = MeshFollower.new()
+	view.add_child(_follower)
 	view.add_child(fade)
 	fade.set_process(false)
 	fade.listen(mirror)

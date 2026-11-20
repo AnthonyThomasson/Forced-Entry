@@ -7,9 +7,10 @@ class_name CharacterMeshConfig
 ## `CharacterPostureConfig`.
 
 ## How tall a standing body is (px, crown over the floor): three quarters of a wall
-## (`MirrorConfig.wall_height`, 96), under a door (`MirrorConfig.door_height`). The rig's own
-## heights (a body radius is 14 px and the head sits 100 px up) are the drawing's; the mesh squeezes
-## them to this, upright and human in proportion, the horizontal reach the 2D body's.
+## (`ObjectStructureMeshConfig.wall_height`, 96), under a door
+## (`ObjectStructureMeshConfig.door_height`). The rig's own heights (a body radius is 14 px and the
+## head sits 100 px up) are the drawing's; the mesh squeezes them to this, upright and human in
+## proportion, the horizontal reach the 2D body's.
 static var height: float = 74.0
 ## The head's size over the 2D art's head (`CharacterArtConfig.head_size`): the drawing's own.
 static var head_scale: float = 1.0

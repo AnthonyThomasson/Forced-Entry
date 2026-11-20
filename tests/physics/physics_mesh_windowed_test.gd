@@ -76,7 +76,7 @@ func run(t: TestContext) -> void:
 	_camera.set_physics_process(false)
 	await t.frames(30)
 	var view: Node = main.get_node("View3D")
-	var mirror: WorldMirror = view.mirror
+	var mirror: MeshCarrier = view.carrier
 	_hide_walls(built["world"], mirror)
 	victim.movement.controller = null
 	victim.movement.move_input = Vector2.ZERO
@@ -146,7 +146,7 @@ func _road(world: Node) -> Rect2:
 	for node: Node in get_tree_floors(world):
 		var opts: Variant = node.get("art_opts")
 		var kind := String(opts.get("kind", "asphalt")) if opts is Dictionary else "asphalt"
-		if MirrorProxy.art_of(node) == "street" and kind != "sidewalk":
+		if MeshKinds.art_of(node) == "street" and kind != "sidewalk":
 			return Rect2((node as Node2D).global_position, node.get("size"))
 	return Rect2()
 
@@ -218,9 +218,9 @@ func _save(t: TestContext, name: String) -> void:
 
 
 ## Hide the proxies of every wall, so the picture shows what stands inside the rooms.
-func _hide_walls(world: Node, mirror: WorldMirror) -> void:
+func _hide_walls(world: Node, mirror: MeshCarrier) -> void:
 	for body: Node in world.find_children("*", "PhysicsBody2D", true, false):
-		if MirrorProxy.kind_of(body) in [MirrorProxy.WALL, MirrorProxy.DOOR]:
+		if MeshKinds.kind_of(body) in [MeshKinds.WALL, MeshKinds.DOOR]:
 			for proxy in mirror.proxies_of(body):
 				proxy.visible = false
 

@@ -11,7 +11,7 @@ extends RefCounted
 const GROUPS: Array[StringName] = [&"dropped_items", &"live_grenades"]
 
 
-## Have `follower` (Art's `MeshFollower`; a `WorldMirror` has the same `track_group`) show every
+## Have `follower` (Art's `MeshFollower`) show every
 ## loose item by its mesh, those already in the match and each as it joins.
 static func register(follower: Node3D) -> void:
 	for group in GROUPS:

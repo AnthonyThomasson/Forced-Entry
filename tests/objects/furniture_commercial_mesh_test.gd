@@ -2,7 +2,7 @@ extends GameTest
 ## The commercial, shell and street kinds are shown by kit-built meshes (#193 phase 2,
 ## `domain-art/meshes.md`): Objects registers a builder per art id (tech, clinic, security, shop,
 ## noodle, stock, awning, street prop, podium, shell decor, decor, streetlight, car) under
-## `MirrorProxy.furniture_key(art)` and the floor stencils by a group; the mirror shows a piece of
+## `MeshKinds.furniture_key(art)` and the floor stencils by a group; the mirror shows a piece of
 ## each by its rig in place of its proxy box. Each mesh stands in the piece's own footprint (an
 ## overhead part beyond it, the footprint with the piece's overhang) and covers most of it,
 ## at the height the spec gives its class, in the colour its painter draws; pieces alike share the
@@ -108,6 +108,18 @@ const SHOP_HOLDER := "res://scenes/objects/art/object_art_shop_config.gd"
 const CELL := Vector2(230.0, 270.0)
 const PER_ROW := 11
 
+## The follower the stencils are shown by (made with the carrier, by `_mirror`).
+var _follower: MeshFollower
+
+
+## What the follower shows `node` by: its one mesh, or nothing.
+func _followed(node: Node) -> Array[Node3D]:
+	var out: Array[Node3D] = []
+	var mesh := _follower.mesh_of(node)
+	if mesh != null:
+		out.append(mesh)
+	return out
+
 
 func describe() -> Dictionary:
 	return {
@@ -166,9 +178,10 @@ func run(t: TestContext) -> void:
 	await t.frames(5)
 	var mirror := _mirror(t)
 	ObjectMeshes.register(mirror.builders)
-	ObjectMeshes.track(mirror)
+	ObjectMeshes.track(_follower)
 	_check_registered(t, mirror)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
+	_follower.follow(t.world)
 	await t.frames(3)
 	for id: StringName in KINDS:
 		var rig := _rig_of(mirror, t.object(id))
@@ -181,23 +194,23 @@ func run(t: TestContext) -> void:
 	_check_glows(t, mirror)
 	_check_facings(t, mirror)
 	_check_overhang_field(t)
-	await _check_stencil(t, mirror)
+	await _check_stencil(t)
 	await _check_dent_tint(t, mirror)
 	await _check_half_scale(t)
 	await _check_main(t)
 
 
 ## Every art id has a builder under its own hook key, and the stencil group is tracked.
-func _check_registered(t: TestContext, mirror: WorldMirror) -> void:
+func _check_registered(t: TestContext, mirror: MeshCarrier) -> void:
 	for id: StringName in KINDS:
-		var key := MirrorProxy.furniture_key(KINDS[id]["art"])
+		var key := MeshKinds.furniture_key(KINDS[id]["art"])
 		t.check(mirror.builders.has(key), "a builder is registered under %s" % key)
 		t.check(mirror.builders[key].is_valid(), "the builder of %s is callable" % key)
-	t.check(mirror.builders.has(MirrorProxy.furniture_key("sofa")), "the sofa's is still there")
+	t.check(mirror.builders.has(MeshKinds.furniture_key("sofa")), "the sofa's is still there")
 
 
 ## The rig of `body` when the mirror shows it by one (a `FurnitureRig`), else null (a proxy box).
-func _rig_of(mirror: WorldMirror, body: Node) -> FurnitureRig:
+func _rig_of(mirror: MeshCarrier, body: Node) -> FurnitureRig:
 	var shown := mirror.proxies_of(body)
 	if shown.size() != 1 or not shown[0] is FurnitureRig:
 		return null
@@ -274,7 +287,7 @@ func _bounds(rig: FurnitureRig) -> AABB:
 
 
 ## A face of the body carries the colour the painter draws the piece in.
-func _check_colours(t: TestContext, mirror: WorldMirror) -> void:
+func _check_colours(t: TestContext, mirror: MeshCarrier) -> void:
 	for id: StringName in KINDS:
 		var row: Dictionary = KINDS[id]
 		var piece := t.object(id)
@@ -295,7 +308,7 @@ func _check_colours(t: TestContext, mirror: WorldMirror) -> void:
 
 ## The painters that take their colours as given are drawn in them: the podium its concrete, the
 ## awning its stripes, the loose clutter and shell decor the colours of their own rows.
-func _check_given_colours(t: TestContext, mirror: WorldMirror) -> void:
+func _check_given_colours(t: TestContext, mirror: MeshCarrier) -> void:
 	var podium := _rig_of(mirror, t.object(&"podium"))
 	if podium != null:
 		var want := ObjectArtPodiumConfig.podium_color
@@ -305,7 +318,7 @@ func _check_given_colours(t: TestContext, mirror: WorldMirror) -> void:
 
 
 ## Two pieces of one look share the one mesh; one of another look does not.
-func _check_sharing(t: TestContext, mirror: WorldMirror) -> void:
+func _check_sharing(t: TestContext, mirror: MeshCarrier) -> void:
 	var first := _rig_of(mirror, t.object(&"server_rack"))
 	var second := _rig_of(mirror, t.object(&"rack_b"))
 	t.check(
@@ -326,7 +339,7 @@ func _check_sharing(t: TestContext, mirror: WorldMirror) -> void:
 
 
 ## A resting piece costs nothing per frame: no `mirror_update` and no `_process` on a rig.
-func _check_static_pieces_cost_nothing(t: TestContext, mirror: WorldMirror) -> void:
+func _check_static_pieces_cost_nothing(t: TestContext, mirror: MeshCarrier) -> void:
 	for id: StringName in KINDS:
 		var rig := _rig_of(mirror, t.object(id))
 		if rig == null:
@@ -338,7 +351,7 @@ func _check_static_pieces_cost_nothing(t: TestContext, mirror: WorldMirror) -> v
 ## A part that gives light is a glow node of its own strength, lit by default, dark when the rig
 ## is switched off and back at that strength when it is lit again, written only on change; a glow
 ## casts no shadow and each piece keeps the strengths of its own parts.
-func _check_glows(t: TestContext, mirror: WorldMirror) -> void:
+func _check_glows(t: TestContext, mirror: MeshCarrier) -> void:
 	for id: StringName in GLOWS:
 		var rig := _rig_of(mirror, t.object(id))
 		if rig == null:
@@ -389,7 +402,7 @@ func _one_of(value: float, allowed: Array) -> bool:
 
 ## A piece turned another way is another mesh turned that way: an awning facing up hangs from the
 ## wall at the top of its footprint, a streetlight facing up or left leans out to that side.
-func _check_facings(t: TestContext, mirror: WorldMirror) -> void:
+func _check_facings(t: TestContext, mirror: MeshCarrier) -> void:
 	var down := _rig_of(mirror, t.object(&"awning"))
 	var up := _rig_of(mirror, t.object(&"awning_up"))
 	if t.require(down != null and up != null, "an awning facing down and one facing up"):
@@ -433,7 +446,7 @@ func _check_overhang_field(t: TestContext) -> void:
 
 
 ## A floor stencil is shown by a flat decal over the area its sprite covers.
-func _check_stencil(t: TestContext, mirror: WorldMirror) -> void:
+func _check_stencil(t: TestContext) -> void:
 	var holder := Node2D.new()
 	holder.position = Vector2(300.0, 300.0)
 	t.world.add_child(holder)
@@ -445,7 +458,7 @@ func _check_stencil(t: TestContext, mirror: WorldMirror) -> void:
 	)
 	t.check(sprite.is_in_group(DecalFactory.STENCIL_GROUP), "a stencil joins the stencil group")
 	await t.frames(3)
-	var shown := mirror.proxies_of(sprite)
+	var shown := _followed(sprite)
 	t.check(shown.size() == 1, "a stencil is shown by one node: %d" % shown.size())
 	if shown.size() == 1:
 		var decals := shown[0].get_children()
@@ -470,14 +483,14 @@ func _check_stencil(t: TestContext, mirror: WorldMirror) -> void:
 				(decals[0] as Node3D).position.x, 60.0, 0.5, "its middle is the stencil's middle"
 			)
 	t.check(
-		not mirror.proxies_of(sprite).is_empty() and not shown[0].has_method(&"mirror_update"),
+		not _followed(sprite).is_empty() and not shown[0].has_method(&"mirror_update"),
 		"a stencil has no update of its own (the mirror only compares its transform)",
 	)
 	holder.free()
 
 
 ## A dent tints the solids as the 2D piece darkens, written only when the damage changes.
-func _check_dent_tint(t: TestContext, mirror: WorldMirror) -> void:
+func _check_dent_tint(t: TestContext, mirror: MeshCarrier) -> void:
 	var piece := t.object(&"lockers")
 	var rig := _rig_of(mirror, piece)
 	if not t.require(rig != null, "the lockers have a rig"):
@@ -503,7 +516,7 @@ func _check_half_scale(t: TestContext) -> void:
 	RenderConfig.unit = 0.5
 	var halved := _mirror(t)
 	ObjectMeshes.register(halved.builders)
-	halved.mirror(t.world)
+	halved.carry(t.world)
 	await t.frames(3)
 	for id: StringName in KINDS:
 		var rig := _rig_of(halved, t.object(id))
@@ -528,7 +541,7 @@ func _check_main(t: TestContext) -> void:
 	if t.require(view != null, "Main built the 3D view"):
 		for id: StringName in KINDS:
 			t.check(
-				view.mirror.builders.has(MirrorProxy.furniture_key(KINDS[id]["art"])),
+				view.carrier.builders.has(MeshKinds.furniture_key(KINDS[id]["art"])),
 				"Main's view registers the %s builder" % KINDS[id]["art"],
 			)
 		t.check(
@@ -553,10 +566,12 @@ func _has_colour(mesh: ArrayMesh, want: Color) -> bool:
 	return false
 
 
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
+	_follower = MeshFollower.new()
+	view.add_child(_follower)
 	return mirror

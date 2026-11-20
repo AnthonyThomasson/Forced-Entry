@@ -31,7 +31,7 @@ func _init(body: Node2D, row: Dictionary) -> void:
 
 
 ## How tall the vehicle stands (px): its roof, for a painter that does not know the kind
-## (`MirrorProxy`, duck-typed).
+## (`MeshKinds`, duck-typed).
 func roof_height() -> float:
 	return float(VehicleMeshConfig.heights[vehicle.kind]["roof"])
 

@@ -7,6 +7,6 @@ extends RefCounted
 ## registers it (`register`) before it mirrors the match.
 
 
-## Add the character's builder to `builders` (`WorldMirror.builders`) under the `CHARACTER` kind.
+## Add the character's builder to `builders` (`MeshCarrier.builders`) under the `CHARACTER` kind.
 static func register(builders: Dictionary) -> void:
-	builders[MirrorProxy.CHARACTER] = Callable(BodyMesh, &"build")
+	builders[MeshKinds.CHARACTER] = Callable(BodyMesh, &"build")

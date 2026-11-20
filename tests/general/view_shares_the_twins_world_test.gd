@@ -44,7 +44,7 @@ func run(t: TestContext) -> void:
 	t.check(shown == twins.find_world_3d(), "the view's viewport shares the twin space's world")
 	t.check(shown != t.world.get_viewport().find_world_3d(), "and it is not the window's world")
 	t.check(not view.viewport.own_world_3d, "the view has no world of its own")
-	t.check(view.mirror.get_world_3d() == twins.find_world_3d(), "the mirror's meshes stand in it")
+	t.check(view.carrier.get_world_3d() == twins.find_world_3d(), "the mirror's meshes stand in it")
 	t.check(view.rig.camera.get_world_3d() == twins.find_world_3d(), "the camera sees it")
 	t.check(
 		view.viewport.get_node_or_null("FxLayer") != null,
@@ -52,7 +52,7 @@ func run(t: TestContext) -> void:
 	)
 	t.check(view.viewport.get_node_or_null("ShotLayer") != null, "so is the shots' layer")
 	t.check(
-		view.mirror.get_child_count() == 0 or _no_layers(view.mirror),
+		view.carrier.get_child_count() == 0 or _no_layers(view.carrier),
 		"none is under the mirror",
 	)
 	t.check(view.follower.get_world_3d() == twins.find_world_3d(), "the follower stands in it too")

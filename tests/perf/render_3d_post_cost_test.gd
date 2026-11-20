@@ -6,7 +6,7 @@ extends GameTest
 ## render times of the root viewport and the 3D view's (Godot 4.4 on Metal reports the GPU render
 ## time as 0, so frame time is the measure) and the slowest of the frames just after the block
 ## starts. The view is Main's `View3D` (the toon material, the outline pass, the internal
-## resolution of `RenderConfig`, the supersample of `PixelPostConfig`) over the real `WorldMirror`,
+## resolution of `RenderConfig`, the supersample of `PixelPostConfig`) over the real `MeshCarrier`,
 ## the 2D world hidden (its scripts still running).
 ## Run: `tools/run_tests.sh --windowed --quiet --id=perf/render_3d_post_cost` (add `--verbose`);
 ## the numbers print as `POST` lines and, with `POST_PROBE_OUT=<file>` set, as JSON;
@@ -200,8 +200,8 @@ func _report(results: Dictionary) -> void:
 	var info := {
 		"machine": OS.get_processor_name(),
 		"gpu": RenderingServer.get_video_adapter_name(),
-		"proxies": _view.mirror.count,
-		"moving_proxies": _view.mirror.followed,
+		"meshes": _view.carrier.count,
+		"moving_meshes": _view.carrier.followed,
 		"texel_match": RenderConfig.texel_match,
 		"supersample": PixelPostConfig.supersample,
 		"frames_per_block": FRAMES,

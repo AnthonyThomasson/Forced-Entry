@@ -64,7 +64,7 @@ Everything not listed here is private to its domain. A signature lives only in i
 24. **Objects' `Door` ↔ Character, AI, Testing: the door contract.** Read to open, turn, hit or walk through a house door: `interfaces/24-door-contract.md`
 25. **Main / Testing → Vision: the player's view.** Read to build or read a view: `interfaces/25-vision.md`
 26. **Any domain → General: `Pointer`.** Read to convert a screen point to a world point (and back), read the mouse's world point or the visible rect, or inject one: `interfaces/26-pointer.md`
-27. **Main → Art: `WorldMirror`, and General's `CameraRig`: the 3D render.** Read for the 3D render, the 3D mirror of the 2D bodies (scale, update rule, hook) and the camera rig: `interfaces/27-render-3d.md`
+27. **Main → Art: `MeshCarrier`, `MeshFollower`, `CameraRig`: the 3D render.** Read for the 3D render (carried meshes, the hook) and the camera rig: `interfaces/27-render-3d.md`
 28. **Objects → AI, Projectile: `PieceHeights`.** Read for a piece's real top and parts: `interfaces/28-piece-heights.md`
 29. **Main → General, Objects, Vehicle, Character: `TwinSpace`.** Read for the twin 3D space: `interfaces/29-twin-space.md`
 
@@ -74,7 +74,7 @@ An arrow is "code references" (class names or preloads). No cycles.
 
 ```
 main ──▶ worldgen, navigation, lighting, vision, ai, items, character, audio, ui   (a match is built by MatchBuilder)
-main ──(3D view: main_view3d.gd)──▶ art (WorldMirror), general (CameraRig, RenderConfig), objects, vehicle, character, items, projectile, physics (the *Meshes): mirrors 2D bodies, duck-typed (27)
+main ──(3D view: main_view3d.gd)──▶ art (MeshCarrier, MeshFollower), general (CameraRig, RenderConfig), objects, vehicle, character, items, projectile, physics (the *Meshes): meshes on the twins, duck-typed (27)
 main ──(MatchBuilder.stage: twin space, 29)──▶ general (TwinSpace), objects, vehicle, character
 main ──(Tests button: scene change)──▶ testing (TestBrowser)
 testing ──▶ every domain; builds its worlds through MatchBuilder (a second composition root)

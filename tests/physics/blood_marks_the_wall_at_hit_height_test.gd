@@ -47,7 +47,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var mirror := _mirror(t)
 	var layer := PhysicsMeshes.install(mirror)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	var face := _wall_face(t)
 	if not t.require(face > 0.0, "premise: the west wall's face is found (x %.1f)" % face):
@@ -239,10 +239,10 @@ func _wall_face(t: TestContext) -> float:
 	return hit["position"].x if not hit.is_empty() else -1.0
 
 
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	return mirror

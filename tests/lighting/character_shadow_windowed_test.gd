@@ -219,7 +219,7 @@ func _changed(p: Array[Image]) -> Vector2:
 func _check_patch_shows(
 	t: TestContext, person: CharacterBody2D, spot: Dictionary, with: Image
 ) -> void:
-	var shown: Array = (_view.mirror as WorldMirror).proxies_of(person)
+	var shown: Array = (_view.carrier as MeshCarrier).proxies_of(person)
 	var patch: Node3D = null
 	if not shown.is_empty():
 		patch = (shown[0] as Node).get_node_or_null("DropShadow")

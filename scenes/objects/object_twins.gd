@@ -157,7 +157,7 @@ static func _turned(rect: Rect2, turns: int) -> Rect2:
 static func _floor(node: Node2D) -> Node3D:
 	var size: Vector2 = node.get("size")
 	var top := ObjectStructureMeshConfig.floor_lift
-	if MirrorProxy.art_of(node) == "street":
+	if MeshKinds.art_of(node) == "street":
 		top = -ObjectStreetMeshConfig.kerb if StreetGround.is_road(node) else 0.0
 	var thick := ObjectStructureMeshConfig.floor_thickness
 	var twin := StaticBody3D.new()

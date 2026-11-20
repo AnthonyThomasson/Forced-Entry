@@ -43,7 +43,7 @@ func run(t: TestContext) -> void:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	var layer := ProjectileMeshes.install(mirror, t.world)
 	await _tracers(t, layer)

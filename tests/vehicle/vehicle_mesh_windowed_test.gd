@@ -70,7 +70,7 @@ func run(t: TestContext) -> void:
 	var vehicles := await _park(t, main, camera, built["world"])
 	var view: Node = main.get_node("View3D")
 	for body in vehicles:
-		var shown: Array = view.mirror.proxies_of(body)
+		var shown: Array = view.carrier.proxies_of(body)
 		t.check(
 			shown.size() == 1 and shown[0] is VehicleMeshRig,
 			"%s is shown by a mesh of the kit, not its proxy box" % body.name,
@@ -86,7 +86,7 @@ func run(t: TestContext) -> void:
 	await _shot(t, window, "4_turned_other_way")
 	# the dents hidden: whatever dark marks remain on the road are not patches
 	for body in vehicles:
-		for patch in view.mirror.proxies_of(body)[0].patches:
+		for patch in view.carrier.proxies_of(body)[0].patches:
 			patch.visible = false
 	await _shot(t, window, "5_patches_hidden")
 	await MainProbe.close(t, window)
@@ -110,7 +110,7 @@ func _park(t: TestContext, main: Node, camera: Camera2D, world: Node) -> Array[A
 	camera.zoom = Vector2(zoom, zoom)
 	camera.global_position = spot
 	await t.frames(40)
-	var mirror: WorldMirror = main.get_node("View3D").mirror
+	var mirror: MeshCarrier = main.get_node("View3D").carrier
 	_hide_walls(world, mirror)  # full-height walls would stand between the camera and them
 	_hide_clutter(world, mirror, spot)
 	return [car, van]
@@ -161,18 +161,18 @@ func _open_floor(world: Node) -> Vector2:
 
 ## Hide the proxies of every wall, so the picture shows what stands inside the rooms (the walls
 ## fade round the player only in the wall-fade job).
-func _hide_walls(world: Node, mirror: WorldMirror) -> void:
+func _hide_walls(world: Node, mirror: MeshCarrier) -> void:
 	for body: Node in world.find_children("*", "PhysicsBody2D", true, false):
-		if MirrorProxy.kind_of(body) == MirrorProxy.WALL:
+		if MeshKinds.kind_of(body) == MeshKinds.WALL:
 			for proxy in mirror.proxies_of(body):
 				proxy.visible = false
 
 
 ## Hide furniture and characters near `at`, so the vehicles stand clear in the picture.
-func _hide_clutter(world: Node, mirror: WorldMirror, at: Vector2) -> void:
+func _hide_clutter(world: Node, mirror: MeshCarrier, at: Vector2) -> void:
 	for body: Node in world.find_children("*", "PhysicsBody2D", true, false):
 		var node := body as Node2D
 		if node.global_position.distance_to(at) < 450.0 and not node.is_in_group(&"vehicles"):
-			if MirrorProxy.kind_of(body) != MirrorProxy.WALL:
+			if MeshKinds.kind_of(body) != MeshKinds.WALL:
 				for proxy in mirror.proxies_of(body):
 					proxy.visible = false

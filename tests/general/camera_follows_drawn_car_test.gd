@@ -42,10 +42,10 @@ func run(t: TestContext) -> void:
 	var view := SubViewport.new()
 	view.world_3d = TwinSpace.of_world(t.world).find_world_3d()  # drawn in the twins' world
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	VehicleMeshes.register(mirror.builders)
 	view.add_child(mirror)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	var cam := Camera2D.new()
 	cam.set_script(CameraController)
 	cam.target_path = ^"../me"
@@ -75,7 +75,7 @@ func run(t: TestContext) -> void:
 ## Hold `SPEED` for a second: how far (px) the camera's followed place stood off the drawn seat (the
 ## car's mesh in the view, plus the driver's seat) at worst, how far the mesh led the footprint at
 ## most, and how many frames were sampled.
-func _drive(t: TestContext, mirror: WorldMirror, me: Node2D, cam: Camera2D) -> Array:
+func _drive(t: TestContext, mirror: MeshCarrier, me: Node2D, cam: Camera2D) -> Array:
 	var car := t.vehicle(&"car") as Node2D
 	var seen: Array = [0.0, 0.0, 0]
 	var plan := VehicleRide.hold(SPEED, 0.0, 1.0)

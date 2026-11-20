@@ -40,7 +40,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var mirror := _mirror(t)
 	var layer := PhysicsMeshes.install(mirror, _ground)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	_check_ink(t, layer)
 	await _check_pool(t, layer)
 	await _check_a_bit(t, layer)
@@ -129,10 +129,10 @@ func _check_flat(t: TestContext) -> void:
 	t.expect_eq(bad.ground_at(PAVEMENT), 0.0, "an invalid one too")
 
 
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	return mirror

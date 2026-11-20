@@ -196,7 +196,7 @@ func _left_out_if_world(node: Node) -> void:
 	if not is_instance_valid(node) or not is_instance_valid(_view) or not is_instance_valid(world):
 		return
 	if (node.has_meta("rooms") or node.has_meta("towers")) and is_instance_valid(world.house):
-		_view.mirror.leave_out(world.house)
+		_view.carrier.leave_out(world.house)
 		_view.follower.leave_out(world.house)
 
 

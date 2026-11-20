@@ -1,8 +1,8 @@
 class_name ViewLayers
 ## General domain: the visibility bits (`CanvasItem.visibility_layer`) that say what the player's
 ## view hides while it moves outside the cone, and the hook that makes a node a debug overlay.
-## Shared read-only infrastructure like `PhysicsLayers`. Art's `WorldMirror` reads `MOVING` off a 2D
-## node to hide its mesh outside the cone (`docs/player-vision.md`).
+## Shared read-only infrastructure like `PhysicsLayers`. Art's `MeshCarrier` and `MeshFollower` read
+## `MOVING` off a 2D node to hide its mesh outside the cone (`docs/player-vision.md`).
 
 ## What stays where it is: the house, its floors, walls and furniture, and what has come to rest.
 ## Godot's default, so an item that sets nothing is remembered.

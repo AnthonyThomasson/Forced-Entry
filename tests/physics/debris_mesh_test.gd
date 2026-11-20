@@ -57,7 +57,7 @@ func run(t: TestContext) -> void:
 	var kept := Despawner.max_scene_objects
 	var mirror := _mirror(t)
 	var layer := PhysicsMeshes.install(mirror)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	t.check(layer.debris.shown() == 0, "no chip, none shown")
 	await _check_one_hit(t, layer)
 	Despawner.max_scene_objects = KEPT
@@ -164,10 +164,10 @@ func _node_of(piece: FxPiece) -> Node2D:
 	return node as Node2D if is_instance_valid(node) else null
 
 
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	return mirror

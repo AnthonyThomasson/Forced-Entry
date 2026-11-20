@@ -5,18 +5,18 @@ extends CanvasLayer
 ## `TextureRect` that shows a `SubViewport` of the match's twin world (`TwinSpace`, interface 29;
 ## a world of its own until `mirror_world` finds that one): General's `CameraRig` (an
 ## orthographic `Camera3D` following the sim's `Camera2D`), the Lighting domain's dusk
-## (`WorldLighting3D`: the sky, the fixtures' and pieces' lights, the ambient) and Art's
-## `WorldMirror` of the match's 2D bodies (interface 27). The
-## picture is nearest-filtered and the viewport sized by the rig (a picture pixel is one art pixel
-## times the zoom, `RenderConfig.texel_match`), drawn through Art's toon material and an outline
-## quad under the camera (`PixelPost`, `PixelPostConfig`). The shimmer mitigation of a turning
-## camera is a supersample: the 3D picture is rendered that many times larger and averaged down,
-## through a filtered stage, to the picture's size before the nearest upscale
-## (`PixelPostConfig.supersample` at rest, `turn_supersample` while a quarter turn is under way: the
-## rig says which, and the view keeps the stage, the outline's widths and the shown picture in
-## step).
+## (`WorldLighting3D`: the sky, the fixtures' and pieces' lights, the ambient). Each body of the
+## match carries its mesh on its twin there (Art's `MeshCarrier`) and Art's `MeshFollower` shows the
+## drawn things that are no body (interface 27). The picture is nearest-filtered and the viewport
+## sized by the rig (a picture pixel is one art pixel times the zoom, `RenderConfig.texel_match`),
+## drawn through Art's toon material and an outline quad under the camera (`PixelPost`,
+## `PixelPostConfig`). The shimmer mitigation of a turning camera is a supersample: the 3D picture
+## is rendered that many times larger and averaged down, through a filtered stage, to the picture's
+## size before the nearest upscale (`PixelPostConfig.supersample` at rest, `turn_supersample` while
+## a quarter turn is under way: the rig says which, and the view keeps the stage, the outline's
+## widths and the shown picture in step).
 ##
-## Main builds it before the match (`begin`, so no frame of the 2D world is ever drawn) and mirrors
+## Main builds it before the match (`begin`, so no frame of the 2D world is ever drawn) and shows
 ## the match once it is built (`mirror_world`), which is also where the picture takes the match's
 ## twin space's 3D world (`_share_world`) in place of the world of its own it began in. The hard
 ## shadow filter is a global of the renderer: it is set here and put back to the project's value
@@ -26,9 +26,10 @@ extends CanvasLayer
 ## stage that averages the 3D picture down is sized in the frame the rig sizes the picture.
 const STAGE_PRIORITY := 200
 
-## The camera rig and the mirror, for a caller that reads them (the tests, the pixel post).
+## The camera rig and the carrier of the bodies' meshes, for a caller that reads them (the tests,
+## the pixel post).
 var rig: CameraRig
-var mirror: WorldMirror
+var carrier: MeshCarrier
 ## The follower of the drawn things that are no body (floor stencils, lying items).
 var follower: MeshFollower
 ## The wall fade: walls and tall pieces between the camera and the player fade.
@@ -104,8 +105,8 @@ func begin(camera: Camera2D) -> void:
 		viewport.set_positional_shadow_atlas_quadrant_subdiv(
 			quadrant, Viewport.SHADOW_ATLAS_QUADRANT_SUBDIV_4
 		)
-	mirror = WorldMirror.new()
-	viewport.add_child(mirror)
+	carrier = MeshCarrier.new()
+	viewport.add_child(carrier)
 	follower = MeshFollower.new()
 	viewport.add_child(follower)
 	# debris, bursts, blood and blasts show from the first frame, on the road a kerb lower
@@ -113,7 +114,7 @@ func begin(camera: Camera2D) -> void:
 	fade = WallFade.new()
 	fade.rig = rig
 	fade.source = camera
-	fade.listen(mirror)
+	fade.listen(carrier)
 	viewport.add_child(fade)
 	RenderingServer.directional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_HARD)
 	RenderingServer.positional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_HARD)
@@ -163,19 +164,20 @@ func _follow_oversample() -> void:
 	_show(now > 1)
 
 
-## Mirror the 2D bodies under `world`: from now on the view follows them, and the shots made in it
-## (tracers, casings) are shown by their layer.
+## Show the match's `world`: from now on its twinned bodies carry their meshes, the follower shows
+## its stencils and lying items, and the shots made in it (tracers, casings) are shown by their
+## layer.
 func mirror_world(world: Node) -> void:
 	_share_world(world)
 	_register_meshes()
 	_ground.refresh(world)
-	mirror.mirror(world)
+	carrier.carry(world)
 	follower.follow(world)
 	ProjectileMeshes.install(viewport, world)
 
 
 ## Draw `world`'s twin space's `World3D` (the nodes the view holds move into it: the rig, the
-## environment, the outline, the mirror), so what is drawn stands in the world the bodies are in.
+## environment, the outline, the carrier), so what is drawn stands in the world the bodies are in.
 ## A view that has only begun draws a world of its own (never the window's: views side by side
 ## would draw each other's rooms), given up here for the twins'; the old world is held until the
 ## swap is done, or the engine frees its scenario under it. A world with no twin space keeps the
@@ -193,13 +195,13 @@ func _share_world(world: Node) -> void:
 	_leaving = null  # the old world goes only now
 
 
-## Plug each domain's own meshes into the mirror (its builders, `WorldMirror.builders`), so a body
-## of a kind that has one is shown by it and the rest by their proxies.
+## Plug each domain's own meshes into the carrier (its builders, `MeshCarrier.builders`) and the
+## follower, so a body of a kind that has one is shown by it.
 func _register_meshes() -> void:
-	ObjectMeshes.register(mirror.builders)
+	ObjectMeshes.register(carrier.builders)
 	ObjectMeshes.track(follower)
-	VehicleMeshes.register(mirror.builders)
-	CharacterMeshes.register(mirror.builders)
+	VehicleMeshes.register(carrier.builders)
+	CharacterMeshes.register(carrier.builders)
 	ItemMeshes.register(follower)
 
 
@@ -219,7 +221,7 @@ func light_world(world: Node2D, seed_value: int, rooms: Array) -> void:
 
 ## A piece's light changed its level: its mesh's glow follows (a mesh without glows says nothing).
 func _dim_glow(piece: Node, level: float) -> void:
-	for mesh in mirror.proxies_of(piece):
+	for mesh in carrier.proxies_of(piece):
 		if mesh.has_method(&"set_glow_level"):
 			mesh.call(&"set_glow_level", level)
 

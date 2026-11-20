@@ -512,7 +512,7 @@ func _hide_pieces_in(rect: Rect2) -> void:
 	for body: Node in _world.find_children("*", "PhysicsBody2D", true, false):
 		var node := body as Node2D
 		if (rect.grow(20.0).has_point(node.global_position)
-				and MirrorProxy.kind_of(body) == MirrorProxy.FURNITURE):
+				and MeshKinds.kind_of(body) == MeshKinds.FURNITURE):
 			node.visible = false
 
 

@@ -47,14 +47,14 @@ func run(t: TestContext) -> void:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	var fade := WallFade.new()
 	view.add_child(mirror)
 	view.add_child(fade)
 	fade.set_process(false)
 	fade.listen(mirror)
 	ObjectMeshes.register(mirror.builders)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	var back := Vector2(0, 1)  # at camera yaw 0 the camera is on +z, the screen's down
 	for id: String in SPOTS:
@@ -86,7 +86,7 @@ func _run_fade(fade: WallFade, foci: Array, steps: int) -> void:
 
 
 ## Every geometry instance under the mesh shown for `body`.
-func _parts_of(mirror: WorldMirror, body: Node) -> Array:
+func _parts_of(mirror: MeshCarrier, body: Node) -> Array:
 	var parts: Array = []
 	for mesh: Node3D in mirror.proxies_of(body):
 		if mesh is GeometryInstance3D:

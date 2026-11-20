@@ -71,8 +71,8 @@ func run(t: TestContext) -> void:
 		return
 	await t.frames(PLAY_FRAMES)
 	t.check(
-		view.mirror.count > 100,
-		"the mirror follows the world (%d proxies)" % view.mirror.count,
+		view.carrier.count > 100,
+		"the mirror follows the world (%d proxies)" % view.carrier.count,
 	)
 	RenderingServer.force_draw(false)  # on demand: a covered window never draws
 	_check_picture(t, window.get_texture().get_image())

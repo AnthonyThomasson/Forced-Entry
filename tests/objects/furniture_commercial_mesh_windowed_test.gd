@@ -55,7 +55,7 @@ const STEP := Vector2(300.0, 320.0)
 
 var _window: SubViewport
 var _camera: Camera2D
-var _mirror: WorldMirror
+var _mirror: MeshCarrier
 var _follower: MeshFollower
 var _world: Node
 var _gallery: Dictionary = {}
@@ -110,7 +110,7 @@ func run(t: TestContext) -> void:
 	_camera.set_process(false)
 	_camera.set_physics_process(false)
 	await t.frames(30)
-	_mirror = main.get_node("View3D").mirror
+	_mirror = main.get_node("View3D").carrier
 	_follower = main.get_node("View3D").follower
 	_world = built["world"]
 	_hide_walls(_world)  # full-height walls would stand between the camera and the pieces
@@ -259,7 +259,7 @@ func _save(picture: String) -> void:
 ## fade round the player only in the wall-fade job).
 func _hide_walls(world: Node) -> void:
 	for body: Node in world.find_children("*", "PhysicsBody2D", true, false):
-		if MirrorProxy.kind_of(body) == MirrorProxy.WALL:
+		if MeshKinds.kind_of(body) == MeshKinds.WALL:
 			for proxy in _mirror.proxies_of(body):
 				proxy.visible = false
 

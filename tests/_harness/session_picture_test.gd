@@ -44,7 +44,7 @@ func run(t: TestContext) -> void:
 	if not t.require(view != null, "premise: the session shows a picture"):
 		session.queue_free()
 		return
-	var mirror: WorldMirror = view.get("mirror")
+	var mirror: MeshCarrier = view.get("carrier")
 	_check_shown(t, session, mirror)
 	await t.until(func() -> bool: return session.ctx != null and session.ctx.is_finished, 6.0)
 	var closed: Variant = weakref(mirror)
@@ -52,14 +52,14 @@ func run(t: TestContext) -> void:
 	await t.frames(2)
 	t.check(session.view() == null, "after close() the session holds no view")
 	t.expect_eq(
-		session.find_children("*", "WorldMirror", true, false).size(), 0, "and no mirror node",
+		session.find_children("*", "MeshCarrier", true, false).size(), 0, "and no mirror node",
 	)
 	t.check(closed.get_ref() == null, "the mirror is freed")
 	session.queue_free()
 
 
 ## The arena the test replaced is out of the picture, its district and its actor are in.
-func _check_shown(t: TestContext, session: Node, mirror: WorldMirror) -> void:
+func _check_shown(t: TestContext, session: Node, mirror: MeshCarrier) -> void:
 	var arena_floors := _floors(session.world.house)
 	var district_floors := _floors(Fixture.district)
 	t.require(

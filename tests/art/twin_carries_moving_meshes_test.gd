@@ -3,8 +3,7 @@ extends GameTest
 ## mesh is a child of its `PieceBody`, a standing door's of its `DoorBody`, and a door knocked down
 ## takes it to the `DoorSlab` that replaces the leader, with no transform of its own: the picture is
 ## where the twin is, tilted and swung with it, and the mirror writes nothing for it (`written` is
-## 0). A world no view looks at builds no mesh; a mirror drawn in a world of its own keeps
-## following its bodies.
+## 0). A world no view looks at builds no mesh.
 
 const Probe := preload("res://tests/_objects/piece_probe.gd")
 const SHELF_AT := Vector2(150, 200)
@@ -58,9 +57,8 @@ func run(t: TestContext) -> void:
 			TwinSpace.twin_for(body).find_children("*", "MeshInstance3D", true, false).is_empty(),
 			"with no view %s's twin carries no mesh" % body.name,
 		)
-	await _check_other_world(t, shelf, door)
 	var mirror := _view(t)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(4)
 	_check_carried(t, mirror, shelf, "the free piece")
 	_check_carried(t, mirror, door, "the standing door")
@@ -71,17 +69,17 @@ func run(t: TestContext) -> void:
 	await _check_fallen(t, mirror, door)
 
 
-func _view(t: TestContext) -> WorldMirror:
+func _view(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.world_3d = TwinSpace.of_world(t.world).find_world_3d()  # drawn in the twins' world
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	ObjectMeshes.register(mirror.builders)
 	view.add_child(mirror)
 	return mirror
 
 
-func _check_carried(t: TestContext, mirror: WorldMirror, body: Node, what: String) -> void:
+func _check_carried(t: TestContext, mirror: MeshCarrier, body: Node, what: String) -> void:
 	var twin := TwinSpace.twin_for(body)
 	var mesh := mirror.mesh_of(body)
 	if not t.require(mesh != null and twin != null, "premise: %s has a mesh and a twin" % what):
@@ -100,7 +98,7 @@ func _on(mesh: Node3D, twin: Node3D) -> bool:
 	return mesh.global_transform.is_equal_approx(twin.global_transform)
 
 
-func _check_tipped(t: TestContext, mirror: WorldMirror, shelf: Node2D) -> void:
+func _check_tipped(t: TestContext, mirror: MeshCarrier, shelf: Node2D) -> void:
 	Knockback.push(shelf, Vector2(9000.0, 0.0), Vector2.ZERO, Probe.top(shelf) - 4.0)
 	var off := 0
 	var written := 0
@@ -124,7 +122,7 @@ func _check_tipped(t: TestContext, mirror: WorldMirror, shelf: Node2D) -> void:
 
 ## A sleeping piece a script puts elsewhere (its twin is parked): the twin takes it up within the
 ## slow look (`TwinSpace.PARK_SPREAD` frames), upright, and its mesh stands with it.
-func _check_placed(t: TestContext, mirror: WorldMirror, shelf: Node2D) -> void:
+func _check_placed(t: TestContext, mirror: MeshCarrier, shelf: Node2D) -> void:
 	t.require(Probe.asleep(shelf), "premise: the shelf lies asleep")
 	var there := Vector2(250.0, 650.0)
 	shelf.global_position = there
@@ -141,7 +139,7 @@ func _check_placed(t: TestContext, mirror: WorldMirror, shelf: Node2D) -> void:
 ## A piece twinned again (its old twin is freed): its mesh moves to the new twin in the same call,
 ## so no frame draws without it (a retwin made after the mirror's own update included), one mesh
 ## for the body, nothing logged.
-func _check_retwinned(t: TestContext, mirror: WorldMirror, shelf: Node2D) -> void:
+func _check_retwinned(t: TestContext, mirror: MeshCarrier, shelf: Node2D) -> void:
 	var before := mirror.count
 	var old := TwinSpace.twin_for(shelf)
 	var mesh_then := mirror.mesh_of(shelf)
@@ -165,7 +163,7 @@ func _check_retwinned(t: TestContext, mirror: WorldMirror, shelf: Node2D) -> voi
 	t.check(_on(mesh, twin), "at the new twin's pose")
 
 
-func _check_swung(t: TestContext, mirror: WorldMirror, door: Node2D) -> void:
+func _check_swung(t: TestContext, mirror: MeshCarrier, door: Node2D) -> void:
 	var twin := TwinSpace.twin_for(door)
 	door.toggle(null)
 	var off := 0
@@ -192,7 +190,7 @@ func _check_swung(t: TestContext, mirror: WorldMirror, door: Node2D) -> void:
 	)
 
 
-func _check_fallen(t: TestContext, mirror: WorldMirror, door: Node2D) -> void:
+func _check_fallen(t: TestContext, mirror: MeshCarrier, door: Node2D) -> void:
 	var before := mirror.count
 	var felled_mesh := mirror.mesh_of(door)
 	door.take_blow(&"kick", 10_000.0, Vector2(2200.0, 0.0), 40.0)
@@ -224,30 +222,3 @@ func _check_fallen(t: TestContext, mirror: WorldMirror, door: Node2D) -> void:
 		"the door's mesh leans as its slab does (%.1f, %.1f degrees)" % [lean, Probe.lean(door)],
 	)
 	t.expect_eq(mirror.count, before, "still one mesh a body")
-
-
-## A mirror drawn in a world of its own is not in the twins' world: it follows by meshes of its own
-## and puts nothing on the twins.
-func _check_other_world(t: TestContext, shelf: Node, door: Node) -> void:
-	var view := SubViewport.new()
-	view.own_world_3d = true
-	t.world.add_child(view)
-	var mirror := WorldMirror.new()
-	ObjectMeshes.register(mirror.builders)
-	view.add_child(mirror)
-	mirror.mirror(t.world)
-	await t.frames(3)
-	for body: Node in [shelf, door]:
-		var mesh := mirror.mesh_of(body)
-		if not t.require(mesh != null, "premise: %s is meshed in its own world" % body.name):
-			continue
-		t.check(
-			mesh.get_parent() == mirror,
-			"a mirror in another world keeps %s's mesh" % body.name,
-		)
-		t.check(
-			TwinSpace.twin_for(body).find_children("*", "MeshInstance3D", true, false).is_empty(),
-			"and puts nothing on the twin of %s" % body.name,
-		)
-	view.queue_free()
-	await t.frames(2)

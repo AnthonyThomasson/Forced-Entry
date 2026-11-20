@@ -1,6 +1,6 @@
 extends GameTest
 ## D5 (#194 vehicles3d): one source for a vehicle's heights, `VehicleMeshConfig.heights`: the garage
-## prop car's mesh and the mirror's stand-in read it, and the vehicle's 3D body is the real shape:
+## prop car's mesh reads it, and the vehicle's 3D body is the real shape:
 ## the whole body to the belt, the cabin on to the roof over its own footprint (the glass and roof a
 ## grenade can rest on, a bullet can strike, a sight line is stopped by).
 
@@ -52,10 +52,4 @@ func run(t: TestContext) -> void:
 			row["belt"],
 			0.5,
 			"and over its bonnet as tall as its belt",
-		)
-		t.expect_near(
-			MirrorProxy.height_of(node, &"vehicle", Rect2()),
-			row["roof"],
-			0.01,
-			"the mirror's stand-in for a %s is as tall as its roof" % kind,
 		)

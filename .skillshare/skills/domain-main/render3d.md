@@ -2,10 +2,10 @@
 
 Side file of `domain-main`.
 
-The 3D render is the only render (ADR 0013; there is no render mode and no `render` key in a match spec). `start_match` hides the `World` before it is built (not one frame of
+The 3D render is the only render (ADR 0013, superseded by 0015; there is no render mode and no `render` key in a match spec). `start_match` hides the `World` before it is built (not one frame of
 the 2D world is drawn) and builds the 3D view first (`main_view3d.gd`: a `CanvasLayer` named `View3D` on `RenderConfig.canvas_layer`, below the HUD, with a `TextureRect` over a
-`SubViewport` (the match's twin space's `World3D`, taken in `mirror_world`: interface 29) holding General's `CameraRig`, the Lighting domain's dusk, Art's `WorldMirror` and the pixel post: a picture pixel is `round(zoom)` screen pixels (one art pixel at a whole zoom, `RenderConfig.texel_match`, at most `max_lines` rows) and the picture is shown nearest-filtered, with the toon material and the outline quad of Art's `post/`) and mirrors the match once it is
-built (`mirror_world`) and lights it (`light_world`); `MatchBuilder.stage` builds no 2D lights, and the player's view builds two masks the shaders read (interface 25), no 2D picture. The hard shadow filter is a renderer
+`SubViewport` (the match's twin space's `World3D`, taken in `mirror_world`: interface 29) holding General's `CameraRig`, the Lighting domain's dusk, Art's `MeshCarrier` and `MeshFollower` and the pixel post: a picture pixel is `round(zoom)` screen pixels (one art pixel at a whole zoom, `RenderConfig.texel_match`, at most `max_lines` rows) and the picture is shown nearest-filtered, with the toon material and the outline quad of Art's `post/`) and shows the match once it is
+built (`mirror_world`: the carrier and follower take the world) and lights it (`light_world`); `MatchBuilder.stage` builds no 2D lights, and the player's view builds two masks the shaders read (interface 25), no 2D picture. The hard shadow filter is a renderer
 global: the view sets it and puts it back to the project's value when it leaves the tree. `_teardown_world` and the next `start_match` take the view away
 (`_end_view3d`). The setup flow pre-warms the district's and the furniture's flat art at launch (`WorldGen.prewarm(true)`; headless skips it). The sim, the view cone and the AI are untouched; the player's view is drawn by the toon shaders (`domain-vision`, V12) and the debug overlays flat on the ground over the 3D view: each overlay is moved under a `GroundLayer` (`domain-general/camera3d.md`) that follows `Pointer.screen_transform`.
 

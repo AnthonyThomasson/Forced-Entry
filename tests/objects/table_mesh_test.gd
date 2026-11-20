@@ -1,6 +1,6 @@
 extends GameTest
 ## The mesh-kit pattern proved on one kind (#193 phase 2, `domain-art/meshes.md`): Objects registers
-## a builder for the table's own hook key (`MirrorProxy.furniture_key("table")`) and the mirror
+## a builder for the table's own hook key (`MeshKinds.furniture_key("table")`) and the mirror
 ## shows a table by a kit-built mesh in place of its proxy box: a top over four legs at the table's
 ## own footprint, the table's height (31 px, the how-to's furniture table), the colour the painter
 ## draws, the legs a darker tone, and every table of one size and colour sharing the one `Mesh`.
@@ -50,7 +50,7 @@ func run(t: TestContext) -> void:
 	await t.frames(5)
 	var mirror := _mirror(t)
 	ObjectMeshes.register(mirror.builders)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	var dining := t.object(&"dining")
 	var node := _mesh_of(mirror, dining)
@@ -79,7 +79,7 @@ func run(t: TestContext) -> void:
 	RenderConfig.unit = 0.5
 	var halved := _mirror(t)
 	ObjectMeshes.register(halved.builders)
-	halved.mirror(t.world)
+	halved.carry(t.world)
 	await t.frames(3)
 	var half := _mesh_of(halved, dining)
 	if t.require(half != null, "a table at half scale is shown by a mesh"):
@@ -88,7 +88,7 @@ func run(t: TestContext) -> void:
 	ObjectMeshConfig.table_height = 40.0
 	var taller := _mirror(t)
 	ObjectMeshes.register(taller.builders)
-	taller.mirror(t.world)
+	taller.carry(t.world)
 	await t.frames(3)
 	var tall := _mesh_of(taller, dining)
 	if t.require(tall != null, "a table is shown after the height is retuned"):
@@ -97,7 +97,7 @@ func run(t: TestContext) -> void:
 
 
 ## The mesh node of `body` when the mirror shows it by a furniture rig (its body solid), else null.
-func _mesh_of(mirror: WorldMirror, body: Node) -> MeshInstance3D:
+func _mesh_of(mirror: MeshCarrier, body: Node) -> MeshInstance3D:
 	var shown := mirror.proxies_of(body)
 	if shown.size() != 1 or not shown[0] is FurnitureRig:
 		return null
@@ -168,7 +168,7 @@ func _check_main(t: TestContext) -> void:
 	var view := main.get_node_or_null("View3D")
 	if t.require(view != null, "Main built the 3D view"):
 		t.check(
-			view.mirror.builders.has(MirrorProxy.furniture_key("table")),
+			view.carrier.builders.has(MeshKinds.furniture_key("table")),
 			"Main's view registers the table's builder",
 		)
 	await MainProbe.close(t, window)
@@ -188,10 +188,10 @@ func _near(a: Color, b: Color) -> bool:
 	return absf(a.r - b.r) + absf(a.g - b.g) + absf(a.b - b.b) < 0.04
 
 
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	return mirror

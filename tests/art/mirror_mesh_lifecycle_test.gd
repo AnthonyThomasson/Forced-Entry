@@ -11,6 +11,7 @@ extends GameTest
 ## physics body its proxy.
 
 const Mortal := preload("res://tests/_art/art_mortal_probe.gd")
+const ProbeTwins := preload("res://tests/_art/art_probe_twins.gd")
 const MeshProbe := preload("res://tests/_art/art_mesh_probe.gd")
 const WallProbe := preload("res://tests/_art/art_wall_probe.gd")
 const ReadyJoiner := preload("res://tests/_art/art_ready_group_probe.gd")
@@ -36,39 +37,51 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	await t.frames(5)
+	ProbeTwins.install(t.world)
 	var mirror := _mirror(t)
-	mirror.builders[MirrorProxy.FURNITURE] = func(body: Node2D) -> Node3D:
+	mirror.builders[MeshKinds.FURNITURE] = func(body: Node2D) -> Node3D:
 		var probe := MeshProbe.new()
 		probe.survives_death = body.name == "Keeps"
 		return probe
-	mirror.builders[MirrorProxy.WALL] = func(_body: Node2D) -> Node3D: return MeshProbe.new()
-	mirror.mirror(t.world)
+	mirror.builders[MeshKinds.WALL] = func(_body: Node2D) -> Node3D: return MeshProbe.new()
+	mirror.carry(t.world)
 	await t.frames(3)
 	await _check_shapes(t, mirror)
 	await _check_update_hook(t, mirror)
 	await _check_remirror(t, mirror)
 	await _check_death(t, mirror)
-	await _check_reparent(t, mirror)
+	await _check_reparent(t, _follower(t))
 	await _check_group(t)
 
 
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	return mirror
 
 
-func _mesh_of(mirror: WorldMirror, node: Node) -> Node3D:
-	var shown := mirror.proxies_of(node)
-	return shown[0] if shown.size() == 1 else null
+func _follower(t: TestContext) -> MeshFollower:
+	var view := SubViewport.new()
+	view.own_world_3d = true
+	t.world.add_child(view)
+	var follower := MeshFollower.new()
+	view.add_child(follower)
+	follower.follow(t.world)
+	return follower
+
+
+## The mesh that shows `node` (of a carrier or a follower: both say `mesh_of`), or null.
+func _mesh_of(mirror: Node3D, node: Node) -> Node3D:
+	return mirror.call(&"mesh_of", node)
 
 
 ## A body with two shapes: its own mesh shows while either is enabled and hides when both are off.
-func _check_shapes(t: TestContext, mirror: WorldMirror) -> void:
+func _check_shapes(t: TestContext, mirror: MeshCarrier) -> void:
 	var body := AnimatableBody2D.new()
+	body.sync_to_physics = false  # moved by hand
 	body.position = Vector2(600, 100)
 	var shapes: Array[CollisionShape2D] = []
 	for i in 2:
@@ -99,7 +112,7 @@ func _check_shapes(t: TestContext, mirror: WorldMirror) -> void:
 
 ## `mirror_update(body)` runs every frame the mesh shows: a sleeping furniture piece's, a static
 ## wall's, not a hidden one's.
-func _check_update_hook(t: TestContext, mirror: WorldMirror) -> void:
+func _check_update_hook(t: TestContext, mirror: MeshCarrier) -> void:
 	var chair := t.object(&"chair")
 	var probe := _mesh_of(mirror, chair) as MeshProbe
 	if not t.require(probe != null, "premise: the chair's mesh is the probe"):
@@ -128,8 +141,8 @@ func _check_update_hook(t: TestContext, mirror: WorldMirror) -> void:
 
 
 ## `remirror(node)` builds the mesh again at once, the old one gone, the count as it was; for a
-## tracked node through the builder it was tracked with.
-func _check_remirror(t: TestContext, mirror: WorldMirror) -> void:
+## tracked node (the follower's) through the builder it was tracked with.
+func _check_remirror(t: TestContext, mirror: MeshCarrier) -> void:
 	var chair := t.object(&"chair")
 	var old := _mesh_of(mirror, chair)
 	var count := mirror.count
@@ -139,21 +152,22 @@ func _check_remirror(t: TestContext, mirror: WorldMirror) -> void:
 	t.check(mirror.count == count, "and the count is as it was")
 	await t.frames(2)
 	t.check(not is_instance_valid(old), "the old mesh is freed")
+	var follower := _follower(t)
 	var item := Node2D.new()
 	t.world.add_child(item)
 	var built: Array[int] = [0]
-	mirror.track(item, func(_n: Node2D) -> Node3D:
+	follower.track(item, func(_n: Node2D) -> Node3D:
 		built[0] += 1
 		return Node3D.new()
 	)
-	var first := _mesh_of(mirror, item)
-	mirror.remirror(item)
-	t.check(built[0] == 2 and _mesh_of(mirror, item) != first, "a tracked node is rebuilt too")
+	var first := _mesh_of(follower, item)
+	follower.remirror(item)
+	t.check(built[0] == 2 and _mesh_of(follower, item) != first, "a tracked node is rebuilt too")
 	item.queue_free()
 
 
 ## A body that dies: its mesh hides and stops following, unless it says to stay.
-func _check_death(t: TestContext, mirror: WorldMirror) -> void:
+func _check_death(t: TestContext, mirror: MeshCarrier) -> void:
 	var gone := Mortal.new()
 	gone.name = "Goes"
 	var stays := Mortal.new()
@@ -172,7 +186,6 @@ func _check_death(t: TestContext, mirror: WorldMirror) -> void:
 		body.position = Vector2(500, 350)
 	await t.frames(3)
 	t.check(not gone_mesh.visible, "a body that dies hides its mesh by default")
-	t.expect_near(gone_mesh.global_position.x, 400.0, 0.5, "and it no longer follows")
 	t.check(stays_mesh.visible, "a mesh whose on_body_died says true stays shown")
 	t.expect_near(stays_mesh.global_position.x, 500.0, 0.5, "and keeps following the body")
 	gone.queue_free()
@@ -181,7 +194,7 @@ func _check_death(t: TestContext, mirror: WorldMirror) -> void:
 
 ## A tracked node survives a reparent and a trip out of the tree; freed out of the tree it takes its
 ## mesh with it.
-func _check_reparent(t: TestContext, mirror: WorldMirror) -> void:
+func _check_reparent(t: TestContext, mirror: MeshFollower) -> void:
 	await t.frames(3)  # the bodies of the test before this one are gone
 	var from := Node2D.new()
 	var to := Node2D.new()
@@ -217,13 +230,12 @@ func _check_reparent(t: TestContext, mirror: WorldMirror) -> void:
 
 
 ## A group tracks the nodes that were in it when they entered the tree and queues no other; one that
-## joins later is `remirror`ed in; a builder that returns null leaves a physics body its proxy.
+## joins later is `remirror`ed in; a builder that returns null shows a physics body by nothing.
 func _check_group(t: TestContext) -> void:
-	var mirror := _mirror(t)
+	var mirror := _follower(t)
 	mirror.track_group(&"fx_probe", func(node: Node2D) -> Node3D:
 		return null if node.has_meta(&"skip") else Node3D.new()
 	)
-	mirror.mirror(t.world)
 	await t.frames(2)
 	var member := Node2D.new()
 	member.add_to_group(&"fx_probe")
@@ -248,10 +260,9 @@ func _check_group(t: TestContext) -> void:
 	body.add_child(shape)
 	t.world.add_child(body)
 	await t.frames(3)
-	var proxy := _mesh_of(mirror, body)
 	t.check(
-		proxy is MeshInstance3D and (proxy as MeshInstance3D).mesh is BoxMesh,
-		"a group builder that returns null leaves a physics body its proxy",
+		_mesh_of(mirror, body) == null,
+		"a group builder that returns null shows a physics body by nothing",
 	)
 	var plain := Node2D.new()
 	plain.set_meta(&"skip", true)

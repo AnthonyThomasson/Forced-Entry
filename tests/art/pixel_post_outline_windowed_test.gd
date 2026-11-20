@@ -99,7 +99,7 @@ func run(t: TestContext) -> void:
 	_character = character
 	_quad = view.rig.camera.get_node(PixelPost.NODE) as MeshInstance3D
 	_oversample = view.rig.oversample
-	var shown: Array = (view.mirror as WorldMirror).proxies_of(character)
+	var shown: Array = (view.carrier as MeshCarrier).proxies_of(character)
 	if not t.require(
 		shown.size() == 1 and shown[0] is BodyMesh,
 		"the character is shown by a body",

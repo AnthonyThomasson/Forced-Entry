@@ -21,7 +21,7 @@ ground position. The **live mask** is a square window of the world about the cam
 **seen mask** (the memory) covers the floors' bounds, never cleared, and only gains where a cone was published. Nothing is
 photographed or laid over the picture: the world is lit and drawn as it stands and the shaders dim it by the masks (V12).
 The world's own things carry the rest: each moving thing's domain sets its `visibility_layer` (`ViewLayers.set_moving`), which Art's
-`WorldMirror` reads to hide a mover the cone does not reach, and each overlay owner makes its node an overlay (`ViewLayers.overlay`),
+`MeshCarrier` and `MeshFollower` read to hide a mover the cone does not reach, and each overlay owner makes its node an overlay (`ViewLayers.overlay`),
 which `GroundLayer` lays flat on the ground over the picture.
 
 The words the spec uses: the **view** is the whole of this; the **cone** is the polygon of what the viewer sees now (the cone
@@ -134,7 +134,7 @@ A headless run has no pixels: those tests read what the parts are told, and the 
 
 **V5. Never remembered while moving:** living characters (allied and hostile) and what they hold, bullets and tracers, grenades
 in flight, hit particles, flying debris, blood spray, an explosion's look, a shot's or a burst's flash light, and a vehicle while
-it moves. A body that moves sits on `ViewLayers.MOVING`, and Art's `WorldMirror` hides it while no part of a disc round it is in
+it moves. A body that moves sits on `ViewLayers.MOVING`, and Art's `MeshCarrier` and `MeshFollower` hides it while no part of a disc round it is in
 the cone (V12); what is not a body (a bullet, a burst's bits, a blast's parts, a casing in the air) is marked moving in its mesh
 (`MeshNodes.moving`) and cut by the shader outside the cone. Tests: `vision/moving_never_remembered` (the living puppets, a
 bullet and a grenade in flight are on `MOVING`; furniture, a wall and the blood already settled (a splatter) are on `WORLD`:
@@ -183,7 +183,7 @@ actor, or the actor `TestSetup.view` names. Tests: `vision/switch_off` (no `Play
 box reach it, so no repaint is skipped).
 
 **V11. The seen area, and the unseen runs on.** The seen area is General's `SeenArea`: Vision writes the cone's polygons each
-time a cone is published (a job done), bumps its `version()` and clears them on a lift; a disc (`reaches`) asks it, and `active()` says whether any view stands. What reads it is what hides by the view: Art's `WorldMirror`
+time a cone is published (a job done), bumps its `version()` and clears them on a lift; a disc (`reaches`) asks it, and `active()` says whether any view stands. What reads it is what hides by the view: Art's `MeshCarrier` and `MeshFollower`
 (a mover is hidden while no part of a disc round it reaches the area, V12) and the shot layer (a casing in the air or lying
 unseen). The one test of a point inside a polygon is `SeenArea.contains`, an even-odd rule (the view's `sees` asks it too),
 since the engine's `Geometry2D.is_point_in_polygon` said inside for points well outside a cone with many collinear corners.
@@ -210,7 +210,7 @@ seen it is black (`unseen_brightness` 0), its lines too (the outline's floor is 
 no clue to the unseen house).
 
 A thing that **moves** is drawn only inside the cone, as V5: its mesh is hidden when no part of a disc round it
-(`MirrorVisionConfig.moving_reach` 60, a vehicle's `vehicle_reach` 130) is in the cone (`WorldMirror`; the thing's sim node on
+(`MirrorVisionConfig.moving_reach` 60, a vehicle's `vehicle_reach` 130) is in the cone (`MeshCarrier`, `MeshFollower`; the thing's sim node on
 `ViewLayers.MOVING`: V5's list), and a thing the cone cuts is cut pixel by pixel by the shader, its shadow with it
 (`MeshNodes.moving`, which marks every part under a node and any part added later; bullets, a burst's bits and a blast are marked so,
 and a casing in the air is drawn no size outside the cone). What is **dynamic but at rest** (V6: a corpse once its ragdoll sleeps, a

@@ -71,7 +71,7 @@ func run(t: TestContext) -> void:
 	camera.set_process(false)
 	camera.set_physics_process(false)
 	var world: Node = built["world"]
-	var mirror: WorldMirror = main.get_node("View3D").mirror
+	var mirror: MeshCarrier = main.get_node("View3D").carrier
 	await t.frames(30)
 	var door := _first_door(world)
 	if (OS.get_environment("STRUCTURE_BROKEN_ONLY") != ""
@@ -145,7 +145,7 @@ func _broken_glass_shot(t: TestContext, camera: Camera2D, door: Node2D) -> void:
 
 
 ## The door is shown by its own mesh.
-func _check_door(t: TestContext, mirror: WorldMirror, door: Node) -> void:
+func _check_door(t: TestContext, mirror: MeshCarrier, door: Node) -> void:
 	var shown := mirror.proxies_of(door)
 	t.check(not shown.is_empty() and shown[0] is DoorMesh, "the door is shown by a DoorMesh")
 

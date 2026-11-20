@@ -540,7 +540,7 @@ func _floor_changed(t: TestContext, at: Vector2, tip: Vector2, tag: String) -> i
 	var box := MeshNodes.instance(_tall_box(), Color(0.8, 0.75, 0.7))
 	MeshNodes.moving(box)
 	box.position = Vector3(at.x, MOVER_HEIGHT * 0.5, at.y) * RenderConfig.unit
-	var stage: Node3D = _main.get_node("View3D").mirror
+	var stage: Node3D = _main.get_node("View3D").carrier
 	stage.add_child(box)
 	await t.frames(3)
 	_draw_twice()  # a node added shows in the second draw (its shadow too)

@@ -1,7 +1,7 @@
 extends GameTest
 ## The 3D render mirror follows a free piece's 3D body (#194 furn3d): a bookshelf knocked over is
 ## drawn lying on its side, its mesh turned with the body, not stood upright where its 2D footprint
-## is (`WorldMirror`, interface 27).
+## is (`MeshCarrier`, interface 27).
 
 const Probe := preload("res://tests/_objects/piece_probe.gd")
 const AT := Vector2(300, 200)
@@ -27,10 +27,10 @@ func run(t: TestContext) -> void:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	ObjectMeshes.register(mirror.builders)
 	view.add_child(mirror)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(5)
 	var shelf := t.object(&"shelf")
 	var proxies: Array = mirror.proxies_of(shelf)

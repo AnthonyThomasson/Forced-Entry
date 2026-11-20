@@ -52,7 +52,7 @@ func run(t: TestContext) -> void:
 	Despawner.max_scene_objects = CAPACITY
 	var mirror := _mirror(t)
 	var layer := ProjectileMeshes.install(mirror, t.world)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	t.check(layer.casing_count() == 0, "no casing, none shown")
 	await _check_one_casing(t, layer)
 	Despawner.max_scene_objects = KEPT  # raised after the layer was made: the batch is now short
@@ -145,10 +145,10 @@ func _kept(t: TestContext) -> int:
 	).size()
 
 
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	return mirror

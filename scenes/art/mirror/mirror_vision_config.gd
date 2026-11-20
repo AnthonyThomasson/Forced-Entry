@@ -1,5 +1,5 @@
 class_name MirrorVisionConfig
-## Art domain, the 3D mirror and the player's view (`world_mirror.gd`, interface 27): how the mirror
+## Art domain, the 3D mirror and the player's view (`mirror_sight.gd`, interface 27): how the mirror
 ## hides what the view does not show. A `class_name` holder of `static var`s, read as
 ## `MirrorVisionConfig.<name>`.
 

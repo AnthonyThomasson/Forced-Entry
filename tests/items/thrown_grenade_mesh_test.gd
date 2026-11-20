@@ -43,7 +43,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var mirror := _mirror(t)
 	ItemMeshes.register(mirror)
-	mirror.mirror(t.world)
+	mirror.follow(t.world)
 	Probe.arm(t.actor(&"thrower"), 0, 1)
 	await Probe.throw_at(t, &"thrower", Probe.FRAG, AIM)
 	if not t.require(
@@ -88,7 +88,7 @@ func _check_flight(t: TestContext, grenade: ThrownGrenade, shown: MeshInstance3D
 
 ## Lying, it is flat on the floor at its place, and nothing is written for it.
 func _check_lying(
-	t: TestContext, mirror: WorldMirror, grenade: ThrownGrenade, shown: MeshInstance3D
+	t: TestContext, mirror: MeshFollower, grenade: ThrownGrenade, shown: MeshInstance3D
 ) -> void:
 	await t.frames(3)
 	# The spoon the throw popped may still skid: it writes for itself.
@@ -115,7 +115,7 @@ func _check_lying(
 
 
 ## The spoon the throw popped lies on the floor as a strip as long as its art.
-func _check_spoon(t: TestContext, mirror: WorldMirror) -> void:
+func _check_spoon(t: TestContext, mirror: MeshFollower) -> void:
 	var spoons := t.world.get_children().filter(
 		func(n): return n is DroppedItem and n.item is GrenadeSpoon
 	)
@@ -131,7 +131,7 @@ func _check_spoon(t: TestContext, mirror: WorldMirror) -> void:
 
 ## The burst frees the grenade and its mesh with it.
 func _check_gone_with_the_burst(
-	t: TestContext, mirror: WorldMirror, shown: MeshInstance3D
+	t: TestContext, mirror: MeshFollower, shown: MeshInstance3D
 ) -> void:
 	var count := mirror.count
 	t.require(await Probe.wait_boom(t, &"frag", 5.0), "the grenade goes off")
@@ -146,8 +146,10 @@ func _at_rest(t: TestContext) -> bool:
 
 
 ## The mesh instance the mirror shows `node` by (null, and a failed requirement, when none).
-func _shown(t: TestContext, mirror: WorldMirror, node: Node2D, what: String) -> MeshInstance3D:
-	var proxies := mirror.proxies_of(node)
+func _shown(t: TestContext, mirror: MeshFollower, node: Node2D, what: String) -> MeshInstance3D:
+	var proxies: Array[Node3D] = []
+	if mirror.mesh_of(node) != null:
+		proxies.append(mirror.mesh_of(node))
 	if not t.require(proxies.size() == 1, "%s is shown by one mesh" % what):
 		return null
 	var found := proxies[0].find_children("*", "MeshInstance3D", true, false)
@@ -171,10 +173,10 @@ func _signature(shown: Node3D) -> Array:
 	return out
 
 
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshFollower:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshFollower.new()
 	view.add_child(mirror)
 	return mirror

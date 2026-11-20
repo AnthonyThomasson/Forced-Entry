@@ -12,7 +12,7 @@ const THIN := 20.0
 ## accepts all): per wall its body, its mesh, the segment's index and instance, its centre and
 ## (once `stand_behind` ran) the marker.
 static func walls(
-	mirror: WorldMirror, world: Node, apart: float, keep := Callable()
+	mirror: MeshCarrier, world: Node, apart: float, keep := Callable()
 ) -> Array:
 	var found: Array = []
 	for body: Node in world.find_children("*", "StaticBody2D", true, false):

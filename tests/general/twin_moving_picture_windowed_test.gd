@@ -1,15 +1,16 @@
 extends GameTest
-## The picture is the same when the bodies that move carry their meshes on their twins as when the
-## mirror follows them (#194 del2d-b2b, windowed only: the headless renderer draws nothing). A
+## The picture is the same when the bodies that move carry their meshes on their twins as when each
+## mesh is placed by hand (#194 del2d-b2b, windowed only: the headless renderer draws nothing). A
 ## furnished house shown by Main's `View3D` with its lights: a piece knocked over and lying on its
 ## side, a door swung open and a door knocked off its hinges (a slab lying where it fell) are drawn
-## carried by their twins and the picture is read back; then `MirrorConfig.carry_meshes` goes off
-## and those three are meshed again, now followed by the mirror, and the picture is read again in
-## the same process and view, the lights held still: the same pixels. Environment:
-## `CARRY_SHOT=<dir>` saves both pictures. Run:
+## carried by their twins and the picture is read back; then those three are shown by
+## `FollowedBaseline` (the same meshes, off their twins, standing where the bodies do), and the
+## picture is read again in the same process and view, the lights held still: the same pixels.
+## Environment: `CARRY_SHOT=<dir>` saves both pictures. Run:
 ## `tools/run_tests.sh --windowed --id=general/twin_moving_picture_windowed`.
 
 const MAIN_VIEW3D := preload("res://scenes/main_view3d.gd")
+const Baseline := preload("res://tests/_art/art_followed_baseline.gd")
 const Probe := preload("res://tests/_objects/piece_probe.gd")
 const SEED := 3
 ## Frames the picture settles for after the camera or the world is set, and seconds a body may take
@@ -39,7 +40,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.own_picture()
-	s.set_static(MirrorConfig, &"carry_meshes", true)  # put back as it was when the test ends
 	s.house(SEED)
 
 
@@ -55,7 +55,7 @@ func run(t: TestContext) -> void:
 	var movers: Array[Node2D] = [cast["piece"], cast["open"], cast["fell"]]
 	await _stage(t, cast)
 	for body in movers:
-		var mesh := view.mirror.mesh_of(body)
+		var mesh := view.carrier.mesh_of(body)
 		t.check(
 			mesh != null and mesh.get_parent() == TwinSpace.twin_for(body),
 			"premise: %s is carried by its twin" % body.name,
@@ -69,16 +69,7 @@ func run(t: TestContext) -> void:
 	var on_twins := _picture(view)
 	var again := _picture(view)
 	t.check(_differing(on_twins, again) == 0, "premise: a picture of the same world holds still")
-	MirrorConfig.carry_meshes = false
-	for body in movers:
-		view.mirror.remirror(body)
-	await t.frames(SETTLE)
-	for body in movers:
-		var mesh := view.mirror.mesh_of(body)
-		t.check(
-			mesh != null and mesh.get_parent() == view.mirror,
-			"premise: %s is followed again" % body.name,
-		)
+	await _follow_by_hand(t, view, movers)
 	var followed := _picture(view)
 	_save(on_twins, followed)
 	t.expect_eq(on_twins.get_size(), followed.get_size(), "the pictures are the same size")
@@ -89,6 +80,23 @@ func run(t: TestContext) -> void:
 	)
 	var tones := _tones(on_twins)
 	t.check(tones >= 8, "premise: the picture holds a world (%d tones)" % tones)
+
+
+## Show `movers` by `FollowedBaseline`: the same meshes, off their twins, placed by hand.
+func _follow_by_hand(t: TestContext, view: MAIN_VIEW3D, movers: Array[Node2D]) -> void:
+	var baseline := Baseline.new()
+	view.viewport.add_child(baseline)
+	t.expect_eq(
+		baseline.show_followed(view.carrier, movers), movers.size(),
+		"premise: every mover is placed by hand",
+	)
+	await t.frames(SETTLE)
+	for body in movers:
+		var mesh := baseline.mesh_of(body)
+		t.check(
+			mesh != null and mesh.get_parent() == baseline,
+			"premise: %s is followed again" % body.name,
+		)
 
 
 ## The bodies the picture is about, from the house: a tall free piece and the two doors nearest it,

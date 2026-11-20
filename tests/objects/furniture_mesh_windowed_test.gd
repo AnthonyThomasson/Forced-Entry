@@ -54,7 +54,7 @@ const HOMES := [
 
 var _window: SubViewport
 var _camera: Camera2D
-var _mirror: WorldMirror
+var _mirror: MeshCarrier
 var _world: Node
 
 
@@ -112,7 +112,7 @@ func _photograph(t: TestContext, home: Dictionary) -> void:
 	_camera.set_process(false)
 	_camera.set_physics_process(false)
 	await t.frames(30)
-	_mirror = main.get_node("View3D").mirror
+	_mirror = main.get_node("View3D").carrier
 	_hide_walls(built["world"])  # full-height walls would stand between the camera and it
 	_world = built["world"]
 	await _rooms(t, built["rooms"], home["rooms"])
@@ -184,7 +184,7 @@ func _save(picture: String) -> void:
 ## fade round the player only in the wall-fade job).
 func _hide_walls(world: Node) -> void:
 	for body: Node in world.find_children("*", "PhysicsBody2D", true, false):
-		if MirrorProxy.kind_of(body) == MirrorProxy.WALL:
+		if MeshKinds.kind_of(body) == MeshKinds.WALL:
 			for proxy in _mirror.proxies_of(body):
 				proxy.visible = false
 

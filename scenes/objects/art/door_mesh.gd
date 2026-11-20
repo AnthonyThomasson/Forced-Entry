@@ -8,7 +8,7 @@ extends Node3D
 ## door's body turns about its hinge, so the leaf's swing is the mirror following the body's
 ## transform: the leaf is built at the body's origin (the middle of the leaf, its x axis hinge to
 ## latch, its foot on the floor). A knocked-down door is the same leaf, lying as its free body does:
-## the mirror then follows that body's pose, tilt and all (`WorldMirror`, `TwinSpace.leader_of`).
+## the mesh then stands on that body, tilt and all (`MeshCarrier`, `TwinSpace.leader_of`).
 ## `mirror_update` shows a pane shattering.
 
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")

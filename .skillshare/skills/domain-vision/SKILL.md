@@ -32,7 +32,7 @@ read through `character.sight()`: any character can be the viewer.
 
 - **Physics, priority 100** (after the characters have moved): `ViewPipeline.tick` steps the cone's job a slice (or starts one
   when `ViewWatch.stale` says so); a completed job writes `SeenArea.set_area(polygons, bounds)`. Written in the physics tick, read
-  in `_process` (Art's `WorldMirror`, the shot layer), so what hides is decided on the frame's own area. **The cone shown is the exact
+  in `_process` (Art's `MeshCarrier` and `MeshFollower`, the shot layer), so what hides is decided on the frame's own area. **The cone shown is the exact
   cone of the pose its job started from, as old as its job** (V1 has the figures): tests compare to `published_pose()`.
 - **`_process`:** `ViewGround.follow` keeps the live window about the camera (`Pointer.screen_transform`, interface 26); the masks'
   painters draw the cone polygon when a cone is published, the live one once per tap of the feather (32 shifted copies, a disc,
@@ -75,7 +75,7 @@ read through `character.sight()`: any character can be the viewer.
 
 ## Gotchas
 
-- **A mover's place in the view is its sim node's `ViewLayers` bit, read by Art's `WorldMirror`**: a new moving thing sets
+- **A mover's place in the view is its sim node's `ViewLayers` bit, read by Art's `MeshCarrier` and `MeshFollower`**: a new moving thing sets
   `ViewLayers.set_moving` on its node (the mirror hides its mesh outside the cone) or, for a batch with no body, marks its mesh
   (`MeshNodes.moving`); a `MOVING` flash light is kept out of the world by nothing here: lights are Lighting's (`domain-lighting`).
 - **`ViewShapes` keeps a collider's top for its life** (`_rated`: `SightRay.top_of`, its twin's top; a character's is 0, it is looked over at any height), and `ViewWatch` does not watch it. That

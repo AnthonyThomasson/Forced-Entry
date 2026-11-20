@@ -50,14 +50,14 @@ func run(t: TestContext) -> void:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	var fade := WallFade.new()
 	view.add_child(mirror)
 	view.add_child(fade)
 	fade.set_process(false)
 	fade.listen(mirror)
 	ObjectMeshes.register(mirror.builders)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(4)
 	_look = -rig.camera.global_transform.basis.z
 	var you := t.actor(&"you")

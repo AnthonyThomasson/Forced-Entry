@@ -54,7 +54,7 @@ func run(t: TestContext) -> void:
 			"with no view %s's twin carries no mesh" % body.name,
 		)
 	var mirror := _view(t)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(4)
 	_check_carried(t, mirror, car, true)
 	_check_carried(t, mirror, walker, false)
@@ -65,11 +65,11 @@ func run(t: TestContext) -> void:
 	await _check_dead(t, mirror, t.actor(&"victim") as Node2D)
 
 
-func _view(t: TestContext) -> WorldMirror:
+func _view(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.world_3d = TwinSpace.of_world(t.world).find_world_3d()  # drawn in the twins' world
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	VehicleMeshes.register(mirror.builders)
 	CharacterMeshes.register(mirror.builders)
 	view.add_child(mirror)
@@ -92,7 +92,7 @@ func _off(mesh: Node3D, body: Node2D) -> Vector2:
 	)
 
 
-func _check_carried(t: TestContext, mirror: WorldMirror, body: Node2D, bare: bool) -> void:
+func _check_carried(t: TestContext, mirror: MeshCarrier, body: Node2D, bare: bool) -> void:
 	var twin := TwinSpace.twin_for(body)
 	var mesh := mirror.mesh_of(body)
 	if not t.require(
@@ -119,7 +119,7 @@ func _check_carried(t: TestContext, mirror: WorldMirror, body: Node2D, bare: boo
 
 ## A character walked and turned: the mesh is at the body's pose (its place and facing) every frame
 ## and the mirror writes nothing.
-func _check_walk(t: TestContext, mirror: WorldMirror, walker: Node2D) -> void:
+func _check_walk(t: TestContext, mirror: MeshCarrier, walker: Node2D) -> void:
 	var puppet := t.puppet(&"walker")
 	puppet.walk_to(WALKER_AT + Vector2(300, 200))
 	var off := 0
@@ -150,7 +150,7 @@ func _check_walk(t: TestContext, mirror: WorldMirror, walker: Node2D) -> void:
 ## A character twinned again (its old twin is freed) is drawn turned at once, the frame the new twin
 ## is made (the new twin holds no turn: the mirror puts its facing on it), and a mirror pointed at
 ## another world leaves the old twin space's signal alone.
-func _check_retwinned(t: TestContext, mirror: WorldMirror, walker: Node2D) -> void:
+func _check_retwinned(t: TestContext, mirror: MeshCarrier, walker: Node2D) -> void:
 	var old := TwinSpace.twin_for(walker)
 	walker.global_rotation += 1.3  # turned this frame: the mesh has not been written yet
 	t.check(_off(mirror.mesh_of(walker), walker).y > TURNED, "premise: the mesh holds the old turn")
@@ -172,18 +172,18 @@ func _check_retwinned(t: TestContext, mirror: WorldMirror, walker: Node2D) -> vo
 	var listening := twins.retwinned.get_connections().size()
 	var bare := Node2D.new()
 	t.world.get_parent().add_child(bare)
-	mirror.mirror(bare)  # a world of no twin space: the mirror leaves this one's signal
+	mirror.carry(bare)  # a world of no twin space: the mirror leaves this one's signal
 	t.expect_eq(
 		twins.retwinned.get_connections().size(), listening - 1, "a re-pointed mirror disconnects"
 	)
 	bare.queue_free()
-	mirror.mirror(t.world)  # and listens again
+	mirror.carry(t.world)  # and listens again
 	t.expect_eq(twins.retwinned.get_connections().size(), listening, "and listens again")
 	await t.frames(2)
 
 
 ## A car driven forward and round: its mesh is its twin's pose every frame.
-func _check_drive(t: TestContext, mirror: WorldMirror, car: Node2D) -> void:
+func _check_drive(t: TestContext, mirror: MeshCarrier, car: Node2D) -> void:
 	var puppet := t.puppet(&"driver")
 	if not t.require(
 		await VehicleRide.board_by(t, &"driver", car, &"front_left"), "premise: the driver boards"
@@ -215,7 +215,7 @@ func _check_drive(t: TestContext, mirror: WorldMirror, car: Node2D) -> void:
 
 ## A character in a seat has no circle that counts: the shown rules hide its mesh (it stays on its
 ## twin).
-func _check_seated(t: TestContext, mirror: WorldMirror, car: Node2D, driver: Node2D) -> void:
+func _check_seated(t: TestContext, mirror: MeshCarrier, car: Node2D, driver: Node2D) -> void:
 	var mesh := mirror.mesh_of(driver)
 	if not t.require(mesh != null, "premise: the driver has a mesh"):
 		return
@@ -225,7 +225,7 @@ func _check_seated(t: TestContext, mirror: WorldMirror, car: Node2D, driver: Nod
 
 
 ## A character that dies keeps its mesh (the corpse's), on the twin that goes with the body.
-func _check_dead(t: TestContext, mirror: WorldMirror, victim: Node2D) -> void:
+func _check_dead(t: TestContext, mirror: MeshCarrier, victim: Node2D) -> void:
 	var mesh := mirror.mesh_of(victim)
 	if not t.require(mesh != null, "premise: the victim has a mesh"):
 		return

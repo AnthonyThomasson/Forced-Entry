@@ -1,15 +1,16 @@
 extends GameTest
 ## The picture is the same when a vehicle and the characters carry their meshes on their twins as
-## when the mirror follows them (#194 del2d-b3, windowed only: the headless renderer draws nothing).
-## An arena shown by Main's `View3D`: a car driven round and left at rest, a character that walked
-## and stopped, one crouched and one fallen (a ragdoll) are drawn carried by their twins and the
-## picture is read back; then `MirrorConfig.carry_meshes` goes off, those five are meshed again,
-## now followed by the mirror, and the picture is read again in the same process and view: the same
-## pixels (both are of meshes built just now: a mesh remembers how it got to its pose). Environment:
-## `CARRY_SHOT=<dir>` saves both pictures. Run:
+## when each mesh is placed by hand (#194 del2d-b3, windowed only: the headless renderer draws
+## nothing). An arena shown by Main's `View3D`: a car driven round and left at rest, a character
+## that walked and stopped, one crouched and one fallen (a ragdoll) are drawn carried by their twins
+## and the picture is read back; then those five are shown by `FollowedBaseline` (the same meshes
+## built anew, off their twins, placed by hand from the 2D bodies), and the picture is read again in
+## the same process and view: the same pixels (both are of meshes built just now: a mesh remembers
+## how it got to its pose). Environment: `CARRY_SHOT=<dir>` saves both pictures. Run:
 ## `tools/run_tests.sh --windowed --id=general/twin_vehicle_character_picture_windowed`.
 
 const MAIN_VIEW3D := preload("res://scenes/main_view3d.gd")
+const Baseline := preload("res://tests/_art/art_followed_baseline.gd")
 const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 ## Frames the picture settles for after the camera or the world is set.
 const SETTLE := 20
@@ -36,7 +37,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.own_picture()
-	s.set_static(MirrorConfig, &"carry_meshes", true)  # put back as it was when the test ends
 	s.arena(Rect2(0, 0, 900, 520), { "floor": "concrete" })
 	s.switch(&"nav.rebake", false)
 	s.vehicle(&"car", &"car", CAR_AT)
@@ -62,7 +62,7 @@ func run(t: TestContext) -> void:
 		car, t.actor(&"walker"), t.actor(&"duck"), t.actor(&"fallen"), t.actor(&"driver"),
 	]
 	for body in movers:
-		var mesh := view.mirror.mesh_of(body)
+		var mesh := view.carrier.mesh_of(body)
 		t.check(
 			mesh != null and mesh.get_parent() == TwinSpace.twin_for(body),
 			"premise: %s is carried by its twin" % body.name,
@@ -93,23 +93,28 @@ func run(t: TestContext) -> void:
 	t.check(tones >= 8, "premise: the picture holds a world (%d tones)" % tones)
 
 
-## Mesh `movers` again with carrying off: the mirror follows them.
+## Show `movers` by `FollowedBaseline`: the same meshes built anew, placed by hand from the 2D
+## bodies.
 func _follow_again(t: TestContext, view: MAIN_VIEW3D, movers: Array[Node2D]) -> void:
-	MirrorConfig.carry_meshes = false
-	_mesh_again(view, movers)
+	var baseline := Baseline.new()
+	view.viewport.add_child(baseline)
+	t.expect_eq(
+		baseline.show_followed(view.carrier, movers), movers.size(),
+		"premise: every mover is placed by hand",
+	)
 	await t.frames(EASE)
 	for body in movers:
-		var mesh := view.mirror.mesh_of(body)
+		var mesh := baseline.mesh_of(body)
 		t.check(
-			mesh != null and mesh.get_parent() == view.mirror,
+			mesh != null and mesh.get_parent() == baseline,
 			"premise: %s is followed again" % body.name,
 		)
 
 
-## Build the meshes of `movers` anew (carried or followed as `MirrorConfig.carry_meshes` says).
+## Build the meshes of `movers` anew on their twins.
 func _mesh_again(view: MAIN_VIEW3D, movers: Array[Node2D]) -> void:
 	for body in movers:
-		view.mirror.remirror(body)
+		view.carrier.remirror(body)
 
 
 ## The driver takes the car round and stops it; the walker walks and stops, one ducks, one is shot

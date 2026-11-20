@@ -64,7 +64,7 @@ func run(t: TestContext) -> void:
 		return
 	if not await _start(t):
 		return
-	var walls := Probe.walls(_main.get_node("View3D").mirror, _world, APART, _inside_house)
+	var walls := Probe.walls(_main.get_node("View3D").carrier, _world, APART, _inside_house)
 	if not t.require(walls.size() >= 3, "the house has three walls to stand behind"):
 		return
 	var yaw := _rig.yaw

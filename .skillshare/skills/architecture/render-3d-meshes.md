@@ -8,9 +8,9 @@ A mesh node the mirror shows may carry (all duck-typed, all optional):
 
 - `mirror_update(body)` runs each frame the mesh shows;
 - `on_body_died(body) -> bool` decides its death (true: stay shown);
-- `remirror(node)` (a `WorldMirror` method) rebuilds a mesh at once through its builder;
+- `remirror(node)` (a `MeshCarrier` or `MeshFollower` method) rebuilds a mesh at once through its builder;
 - `follows_shapes() -> true` spares it the rebuild when a collision shape comes or goes (a wall's mesh replaces the one segment that changed);
-- the signal `WorldMirror.built(body, mesh)` says each mesh a builder made for a body (the wall fade listens).
+- the signal `MeshCarrier.built(body, mesh)` says each mesh a builder made for a body (the wall fade listens).
 
 ## Which domain has meshes (the rest are still proxies)
 

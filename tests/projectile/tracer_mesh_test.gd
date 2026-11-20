@@ -49,7 +49,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var mirror := _mirror(t)
 	var layer := ProjectileMeshes.install(mirror, t.world)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	t.check(layer.tracer_count() == 0, "no bullet, no tracer")
 	t.check(not layer.is_processing(), "and the layer does nothing while there is none")
 	await _check_a_flight(t, layer)
@@ -137,10 +137,10 @@ func _shoot(t: TestContext, at: Vector2, direction: Vector2, range_px: float) ->
 	return ProjectileSpawner.spawn(at, direction, t.world, shot)
 
 
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	return mirror

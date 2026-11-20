@@ -44,10 +44,10 @@ func run(t: TestContext) -> void:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	CharacterMeshes.register(mirror.builders)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	var stander := _body_of(t, mirror, &"stander")
 	var dying := _body_of(t, mirror, &"dying")
@@ -122,7 +122,7 @@ func _check_no_light_casts(t: TestContext, body: BodyMesh) -> void:
 	t.expect_eq(casting, 0, "no part of the body casts a shadow from a light")
 
 
-func _body_of(t: TestContext, mirror: WorldMirror, id: StringName) -> BodyMesh:
+func _body_of(t: TestContext, mirror: MeshCarrier, id: StringName) -> BodyMesh:
 	var shown := mirror.proxies_of(t.actor(id))
 	if not t.require(shown.size() == 1 and shown[0] is BodyMesh, "%s is shown by a body" % id):
 		return null

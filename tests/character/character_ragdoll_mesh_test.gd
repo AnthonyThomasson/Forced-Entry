@@ -47,7 +47,7 @@ func run(t: TestContext) -> void:
 	await t.seconds(1.0)
 	var mirror := _mirror(t)
 	CharacterMeshes.register(mirror.builders)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	var shown := mirror.proxies_of(dying)
 	if not t.require(shown.size() == 1 and shown[0] is BodyMesh, "the character has a body"):
@@ -158,10 +158,10 @@ func _check_rest(t: TestContext, body: BodyMesh, dying: Node) -> void:
 	t.check(trunk.transform != mark, "a blast that wakes the ragdoll moves the body again")
 
 
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	return mirror

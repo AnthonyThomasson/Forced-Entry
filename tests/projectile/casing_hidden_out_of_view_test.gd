@@ -42,10 +42,10 @@ func run(t: TestContext) -> void:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	var layer := ProjectileMeshes.install(mirror, t.world)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	var box := _box(SEEN)
 	SeenArea.set_area([box], SEEN)
 	CasingSpawner.spawn(IN_VIEW, Vector2.RIGHT, t.world)

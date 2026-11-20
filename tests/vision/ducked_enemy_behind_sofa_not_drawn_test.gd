@@ -11,7 +11,7 @@ const SOFA_AT := Vector2(600, 350)
 const ENEMY_AT := Vector2(645, 350)
 const OPEN_AT := Vector2(645, 150)
 
-var _mirror: WorldMirror
+var _mirror: MeshCarrier
 
 
 func describe() -> Dictionary:
@@ -45,10 +45,10 @@ func run(t: TestContext) -> void:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	_mirror = WorldMirror.new()
+	_mirror = MeshCarrier.new()
 	view.add_child(_mirror)
 	CharacterMeshes.register(_mirror.builders)
-	_mirror.mirror(t.world)
+	_mirror.carry(t.world)
 	await t.frames(4)
 	var enemy := _shown_of(t.actor(&"enemy"))
 	var open := _shown_of(t.actor(&"open"))

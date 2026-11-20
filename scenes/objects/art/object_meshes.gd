@@ -75,20 +75,20 @@ const BUILDERS := {
 }
 
 
-## Add every builder to `builders` (`WorldMirror.builders`) under the finer key of its art id, and
+## Add every builder to `builders` (`MeshCarrier.builders`) under the finer key of its art id, and
 ## the building's structure (walls, doors, floors: `StructureMeshes`).
 static func register(builders: Dictionary) -> void:
 	StructureMeshes.register(builders)
 	for art: String in BUILDERS:
 		var builder := Callable(BUILDERS[art], &"build")
 		if builder.is_valid():
-			builders[MirrorProxy.furniture_key(art)] = builder
+			builders[MeshKinds.furniture_key(art)] = builder
 		else:
 			push_error("ObjectMeshes: the mesh script of '%s' has no static build(piece)" % art)
 
 
 ## Show the floor stencils (`DecalFactory.STENCIL_GROUP`: plain `StencilDecal` nodes, no physics
-## body) by `StencilMesh`: `follower` (Art's `MeshFollower`; a `WorldMirror` has the same
-## `track_group`) shows every one of that group under the world it follows.
+## body) by `StencilMesh`: `follower` (Art's `MeshFollower`) shows every one of that group under
+## the world it follows.
 static func track(follower: Node3D) -> void:
 	follower.track_group(DecalFactory.STENCIL_GROUP, Callable(StencilMesh, &"build"))

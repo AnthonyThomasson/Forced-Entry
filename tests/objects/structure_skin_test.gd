@@ -53,10 +53,10 @@ func run(t: TestContext) -> void:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	ObjectMeshes.register(mirror.builders)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	_walls(t, mirror)
 	_floors(t, mirror)
@@ -81,7 +81,7 @@ func _wall_painter(t: TestContext) -> void:
 
 ## Every wall segment wears the cap tile, along its length: a wall along z the tile turned a
 ## quarter; the segments of a direction share one material.
-func _walls(t: TestContext, mirror: WorldMirror) -> void:
+func _walls(t: TestContext, mirror: MeshCarrier) -> void:
 	var materials := {}
 	var checked := 0
 	for wall in t.world.find_children("*", "StaticBody2D", true, false):
@@ -182,7 +182,7 @@ func _oriented(
 
 ## A floor wears its painter's flat tile repeated from its `tile_offset`; floors of one look
 ## share the material.
-func _floors(t: TestContext, mirror: WorldMirror) -> void:
+func _floors(t: TestContext, mirror: MeshCarrier) -> void:
 	var materials := {}
 	for floor_node in t.world.get_tree().get_nodes_in_group(&"floors"):
 		if not t.world.is_ancestor_of(floor_node):
@@ -215,7 +215,7 @@ func _floors(t: TestContext, mirror: WorldMirror) -> void:
 
 
 ## The door's leaf wears the door painter's flat art over the leaf; the handle is a plain mesh.
-func _door(t: TestContext, mirror: WorldMirror) -> void:
+func _door(t: TestContext, mirror: MeshCarrier) -> void:
 	var door := t.object(&"front")
 	var node := mirror.proxies_of(door)[0] as DoorMesh
 	var leaf := node.get_child(0) as MeshInstance3D

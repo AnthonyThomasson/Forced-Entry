@@ -136,7 +136,7 @@ func _zones(t: TestContext) -> void:
 ## The mirror's body is as tall as a standing person (one number, not two).
 func _stand_matches_the_mirror_body(t: TestContext) -> void:
 	t.expect_near(
-		MirrorConfig.character_height,
+		BodyHeights.person_px,
 		BodyHeights.head_top(BodyHeights.STAND),
 		0.001,
 		"the 3D mirror's character is a standing person's height",

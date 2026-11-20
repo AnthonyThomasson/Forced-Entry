@@ -82,15 +82,15 @@ func run(t: TestContext) -> void:
 	await t.frames(5)
 	var mirror := _mirror(t)
 	ObjectMeshes.register(mirror.builders)
-	var wall_builder: Callable = mirror.builders[MirrorProxy.WALL]
-	mirror.builders[MirrorProxy.WALL] = func(body: Node2D) -> Node3D:
+	var wall_builder: Callable = mirror.builders[MeshKinds.WALL]
+	mirror.builders[MeshKinds.WALL] = func(body: Node2D) -> Node3D:
 		wall_builds += 1
 		return wall_builder.call(body)
 	for key: StringName in [
-		MirrorProxy.WALL, MirrorProxy.DOOR, MirrorProxy.FLOOR, MirrorProxy.floor_key("street"),
+		MeshKinds.WALL, MeshKinds.DOOR, MeshKinds.FLOOR, MeshKinds.floor_key("street"),
 	]:
 		t.check(mirror.builders.has(key), "Objects registers a builder under '%s'" % key)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	_walls(t, mirror)
 	_floors(t, mirror)
@@ -102,7 +102,7 @@ func run(t: TestContext) -> void:
 
 
 ## Every wall of the layout, shown by one node of a separable instance per segment.
-func _walls(t: TestContext, mirror: WorldMirror) -> void:
+func _walls(t: TestContext, mirror: MeshCarrier) -> void:
 	var walls := _walls_of(t)
 	t.check(walls.size() >= 2, "the layout has walls (%d)" % walls.size())
 	var covered := 0
@@ -180,7 +180,7 @@ func _check_wall_colours(t: TestContext, node: Node3D, wall: Node) -> void:
 
 
 ## Each room's floor: a flat slab level with the ground at the floor's footprint and colour.
-func _floors(t: TestContext, mirror: WorldMirror) -> void:
+func _floors(t: TestContext, mirror: MeshCarrier) -> void:
 	var floors := t.world.get_tree().get_nodes_in_group(&"floors").filter(
 		func(node: Node) -> bool: return t.world.is_ancestor_of(node)
 	)
@@ -226,7 +226,7 @@ func _floors(t: TestContext, mirror: WorldMirror) -> void:
 
 ## A door's leaf: 84 px tall at the 2D leaf's length, following its swing, lying as its free body
 ## does when knocked down, losing the glass when it shatters.
-func _doors(t: TestContext, mirror: WorldMirror) -> void:
+func _doors(t: TestContext, mirror: MeshCarrier) -> void:
 	var door := t.object(&"front")
 	var shown := mirror.proxies_of(door)
 	if not t.require(not shown.is_empty() and shown[0] is DoorMesh, "the door is a DoorMesh"):
@@ -260,7 +260,7 @@ func _doors(t: TestContext, mirror: WorldMirror) -> void:
 
 
 ## A glass-panel door loses its glass when its panes shatter.
-func _glass(t: TestContext, mirror: WorldMirror) -> void:
+func _glass(t: TestContext, mirror: MeshCarrier) -> void:
 	var glassy := t.object(&"glassy")
 	var pane := mirror.proxies_of(glassy)[0]
 	var whole := (pane.get_child(0) as MeshInstance3D).mesh
@@ -309,7 +309,7 @@ func _at_door(t: TestContext, node: Node3D, door: Node2D, when: String) -> void:
 
 
 ## The road lies a kerb below the pavement, paint flat on it.
-func _street(t: TestContext, mirror: WorldMirror) -> void:
+func _street(t: TestContext, mirror: MeshCarrier) -> void:
 	var road_def: Dictionary = GeneralCatalog.STREET["asphalt"].duplicate(true)
 	road_def["marks"] = {
 		"seed": 1, "lane": true, "edges": [],
@@ -361,7 +361,7 @@ func _check_road(t: TestContext, road_node: MeshInstance3D) -> void:
 
 ## A wall hit meshes only the struck segment, once: the node stays, the builder is not asked
 ## again, one segment instance is replaced and the others are the very same.
-func _hit_wall(t: TestContext, mirror: WorldMirror) -> void:
+func _hit_wall(t: TestContext, mirror: MeshCarrier) -> void:
 	var wall := _walls_of(t)[0]
 	var before := _own_mesh(mirror, wall) as WallMesh
 	var ids: Array[int] = []
@@ -396,7 +396,7 @@ func _half_scale(t: TestContext) -> void:
 	RenderConfig.unit = 0.5
 	var halved := _mirror(t)
 	ObjectMeshes.register(halved.builders)
-	halved.mirror(t.world)
+	halved.carry(t.world)
 	await t.frames(3)
 	var wall := _own_mesh(halved, _walls_of(t)[0])
 	if t.require(wall != null, "a wall at half scale is shown by a mesh"):
@@ -425,11 +425,11 @@ func _check_main(t: TestContext) -> void:
 	await t.frames(4)
 	var view := main.get_node_or_null("View3D")
 	if t.require(view != null, "Main built the 3D view"):
-		for key: StringName in [MirrorProxy.WALL, MirrorProxy.DOOR, MirrorProxy.FLOOR]:
-			t.check(view.mirror.builders.has(key), "Main's view registers the '%s' builder" % key)
+		for key: StringName in [MeshKinds.WALL, MeshKinds.DOOR, MeshKinds.FLOOR]:
+			t.check(view.carrier.builders.has(key), "Main's view registers the '%s' builder" % key)
 		var shown := 0
 		for body: Node in (built["world"] as Node).find_children("*", "StaticBody2D", true, false):
-			if body.has_method(&"segment_shapes") and _own_mesh(view.mirror, body) != null:
+			if body.has_method(&"segment_shapes") and _own_mesh(view.carrier, body) != null:
 				shown += 1
 		t.check(shown > 0, "the match's walls are shown by their meshes")
 	await MainProbe.close(t, window)
@@ -445,7 +445,7 @@ func _walls_of(t: TestContext) -> Array[Node]:
 
 
 ## The mesh node of `body` when the mirror shows it by one of a domain's own (not a plain proxy).
-func _own_mesh(mirror: WorldMirror, body: Node) -> Node3D:
+func _own_mesh(mirror: MeshCarrier, body: Node) -> Node3D:
 	var shown := mirror.proxies_of(body)
 	if shown.size() != 1 or shown[0] is MeshInstance3D:
 		return null
@@ -453,7 +453,7 @@ func _own_mesh(mirror: WorldMirror, body: Node) -> Node3D:
 
 
 ## The `MeshInstance3D` of `floor_node` when the mirror shows it by a kit mesh.
-func _mesh_of(mirror: WorldMirror, floor_node: Node) -> MeshInstance3D:
+func _mesh_of(mirror: MeshCarrier, floor_node: Node) -> MeshInstance3D:
 	var shown := mirror.proxies_of(floor_node)
 	if shown.size() != 1 or not shown[0] is MeshInstance3D:
 		return null
@@ -478,10 +478,10 @@ func _vertex_count(mesh: Mesh) -> int:
 	return (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
 
 
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	return mirror

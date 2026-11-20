@@ -1,5 +1,5 @@
 extends GameTest
-## What the wall fade is given by the mirror (#193 rule 9, interface 27): `WorldMirror.built(body,
+## What the wall fade is given by the mirror (#193 rule 9, interface 27): `MeshCarrier.built(body,
 ## mesh)` says each mesh a builder made for a body, and the fade (`WallFade.listen`) looks after the
 ## walls', doors' and furniture's, so a builder registered after the fade started still fades, and a
 ## character's, a vehicle's or a body that got no mesh is left alone. A shoved piece (not a
@@ -31,7 +31,7 @@ func run(t: TestContext) -> void:
 	view.own_world_3d = true
 	t.world.add_child(view)
 	t.world.find_child("Arena Walls", true, false).free()  # only the bodies below are mirrored
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	var fade := WallFade.new()
 	view.add_child(mirror)
 	view.add_child(fade)
@@ -40,9 +40,9 @@ func run(t: TestContext) -> void:
 	fade.listen(mirror)  # twice is once
 	mirror.built.connect(func(body: Node, mesh: Node3D) -> void: _built.append([body, mesh]))
 	# every builder is registered after the fade started listening
-	mirror.builders[MirrorProxy.FURNITURE] = _builder
-	mirror.builders[MirrorProxy.WALL] = _builder
-	mirror.builders[MirrorProxy.DOOR] = _builder
+	mirror.builders[MeshKinds.FURNITURE] = _builder
+	mirror.builders[MeshKinds.WALL] = _builder
+	mirror.builders[MeshKinds.DOOR] = _builder
 	var bodies := {
 		"piece": _body(t, StaticBody2D.new(), "piece", Vector2(0, 24)),
 		"shoved": _body(t, RigidBody2D.new(), "shoved", Vector2(2000, 40)),
@@ -51,7 +51,7 @@ func run(t: TestContext) -> void:
 		"bare": _body(t, StaticBody2D.new(), "bare", Vector2(0, 1600)),
 	}
 	bodies["door"].add_to_group(&"doors")
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	fade.step(0.0, 0.0, PackedVector2Array())
 	_kept(t, fade, bodies)
@@ -100,6 +100,8 @@ func _builder(body: Node2D) -> Node3D:
 
 
 func _body(t: TestContext, body: PhysicsBody2D, body_name: String, at: Vector2) -> PhysicsBody2D:
+	if body is AnimatableBody2D:
+		(body as AnimatableBody2D).sync_to_physics = false  # moved by hand
 	body.name = body_name
 	body.position = at
 	var shape := CollisionShape2D.new()

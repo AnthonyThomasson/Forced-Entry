@@ -1,14 +1,15 @@
 extends GameTest
-## The picture is the same when the static classes carry their meshes on their twins as when the
-## mirror shows them by meshes of its own (#194 del2d-b2, windowed only: the headless renderer
+## The picture is the same when the static classes carry their meshes on their twins as when each
+## mesh is placed by hand from its 2D body (#194 del2d-b2, windowed only: the headless renderer
 ## draws nothing). A furnished house shown by Main's `View3D` with its lights, the picture read back
-## (its walls, floors and anchored pieces carried by their twins); then `MirrorConfig.carry_meshes`
-## goes off and every body and floor is meshed again, now followed by the mirror, and the picture
-## is read again in the same process, the same view and the same instant of the lights: the same
-## pixels. Environment: `CARRY_SHOT=<dir>` saves both pictures. Run:
+## (its walls, floors and anchored pieces carried by their twins); then every body and floor is
+## shown by `FollowedBaseline` instead (the same mesh, off its twin, standing where the 2D body
+## does), and the picture is read again in the same process, the same view and the same instant of
+## the lights: the same pixels. Environment: `CARRY_SHOT=<dir>` saves both pictures. Run:
 ## `tools/run_tests.sh --windowed --id=general/twin_carried_picture_windowed`.
 
 const MAIN_VIEW3D := preload("res://scenes/main_view3d.gd")
+const Baseline := preload("res://tests/_art/art_followed_baseline.gd")
 const SEEDS: Array[int] = [3, 7]
 ## Frames the picture settles for after the camera or the world is set.
 const SETTLE := 20
@@ -30,7 +31,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.own_picture()
-	s.set_static(MirrorConfig, &"carry_meshes", true)  # put back as it was when the test ends
 	s.house(SEEDS[0])
 
 
@@ -44,7 +44,7 @@ func run(t: TestContext) -> void:
 		view.viewport.find_world_3d() == t.world.twin_space().find_world_3d(),
 		"premise: the view draws the twins' world",
 	)
-	var carried := _carried(view.mirror, t.world)
+	var carried := _carried(view.carrier, t.world)
 	t.check(carried["wall"] > 0, "premise: the walls are carried (%d)" % carried["wall"])
 	t.check(carried["floor"] > 0, "premise: the floors are carried (%d)" % carried["floor"])
 	# the lights flicker: held still, the two pictures stand at the same instant of them
@@ -53,12 +53,16 @@ func run(t: TestContext) -> void:
 	var on_twins := _picture(view)
 	var again := _picture(view)
 	t.check(_differing(on_twins, again) == 0, "premise: a picture of the same world holds still")
-	MirrorConfig.carry_meshes = false
-	for node in _static_bodies(t.world):
-		view.mirror.remirror(node)
+	var baseline := Baseline.new()
+	view.viewport.add_child(baseline)
+	var bodies := _static_bodies(t.world)
+	t.expect_eq(
+		baseline.show_followed(view.carrier, bodies), bodies.size(),
+		"premise: every body is placed by hand",
+	)
 	await t.frames(SETTLE)
 	t.expect_eq(
-		_carried(view.mirror, t.world),
+		_carried(view.carrier, t.world),
 		{ "wall": 0, "floor": 0, "piece": 0 },
 		"premise: nothing is carried any more",
 	)
@@ -120,7 +124,7 @@ func _static_bodies(world: Node) -> Array[Node2D]:
 
 
 ## How many walls, floors and pieces have their mesh on their twin.
-func _carried(mirror: WorldMirror, world: Node) -> Dictionary:
+func _carried(mirror: MeshCarrier, world: Node) -> Dictionary:
 	var count := { "wall": 0, "floor": 0, "piece": 0 }
 	for node in _static_bodies(world):
 		var mesh := mirror.mesh_of(node)

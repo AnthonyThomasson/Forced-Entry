@@ -50,14 +50,14 @@ func run(t: TestContext) -> void:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	var fade := WallFade.new()
 	view.add_child(mirror)
 	view.add_child(fade)
 	fade.set_process(false)
 	fade.listen(mirror)
 	ObjectMeshes.register(mirror.builders)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(4)
 	var you := t.actor(&"you")
 	var parts := _parts_of(mirror, t.object(&"wardrobe"))
@@ -121,7 +121,7 @@ func _run(fade: WallFade, foci: Array) -> void:
 		fade.step(STEP, 90.0, PackedVector2Array(foci))
 
 
-func _parts_of(mirror: WorldMirror, body: Node) -> Array:
+func _parts_of(mirror: MeshCarrier, body: Node) -> Array:
 	var parts: Array = []
 	for mesh: Node3D in mirror.proxies_of(body):
 		if mesh is GeometryInstance3D:

@@ -1,23 +1,22 @@
 extends GameTest
-## The 3D mirror follows a body whose colliders are rebuilt (#193, Art's `WorldMirror`, interface
-## 27). A wall that is hit rebuilds a segment's colliders (the old `CollisionShape2D`s are freed
-## and new ones added under the same `StaticBody2D`, `wall.gd`), and a static body is never
-## followed frame by frame, so the mirror must notice the change itself: the proxies of the wall
-## afterwards are one box for each of its current collision shapes, in the places and sizes those
-## shapes have, and none is left for a shape that is gone. Read off the proxies' world boxes and the
-## wall's shapes (a hit as `tests/objects/wall_dents_share_a_rebuild_test.gd` lands one).
+## The carried wall mesh follows a wall whose colliders are rebuilt (#193, Art's `MeshCarrier`,
+## interface 27). A wall that is hit rebuilds a segment's colliders (the old `CollisionShape2D`s are
+## freed and new ones added under the same `StaticBody2D`, `wall.gd`), and the wall's mesh says
+## `follows_shapes() -> true` (it replaces the one segment that changed itself): so the carrier
+## leaves it be, one mesh on the wall's twin, the same instance before and after, never built again
+## (`built` is said once). A wall hit as `tests/objects/wall_dents_share_a_rebuild_test.gd` lands
+## one.
 
-const SCALE := 0.5
 const SHOTS := 5
 
-var _mirror: Node3D
+var _mirror: MeshCarrier
 
 
 func describe() -> Dictionary:
 	return {
-		"name": "The 3D mirror re-mirrors a wall whose colliders were rebuilt by a hit",
-		"description": "After a wall is dented and its segment colliders are rebuilt, its proxies "
-			+ "are one box per current collision shape (place and size) and none is left over.",
+		"name": "The carried wall mesh survives a wall whose colliders were rebuilt by a hit",
+		"description": "After a wall is dented and its segment colliders are rebuilt, it still has "
+			+ "its one mesh on its twin, the same instance, never built again.",
 		"tags": ["mirror", "3d", "render", "wall"],
 		"timeout": 10.0,
 	}
@@ -27,7 +26,6 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 600, 400))
 	s.switch(&"physics.debris", false)
 	s.switch(&"nav.rebake", false)
-	s.set_static(RenderConfig, &"unit", SCALE)
 
 
 func run(t: TestContext) -> void:
@@ -42,26 +40,27 @@ func run(t: TestContext) -> void:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	_mirror = WorldMirror.new()
+	_mirror = MeshCarrier.new()
+	StructureMeshes.register(_mirror.builders)
+	var built: Array[Node] = []
+	_mirror.built.connect(func(body: Node, _mesh: Node3D) -> void: built.append(body))
 	view.add_child(_mirror)
-	_mirror.mirror(t.world)
+	_mirror.carry(t.world)
 	await t.frames(3)
 	var before := _shape_ids(wall)
-	t.expect_eq(
-		_mirror.proxies_of(wall).size(), before.size(), "premise: a proxy for each wall collider"
-	)
+	var mesh := _mirror.mesh_of(wall)
+	if not t.require(mesh != null, "premise: the wall has a mesh"):
+		return
+	t.check(mesh.get_parent() == TwinSpace.twin_for(wall), "premise: it stands on the wall's twin")
+	t.check(mesh.has_method(&"follows_shapes"), "premise: it follows the wall's shapes itself")
 	await _hit(t, wall)
 	await t.frames(4)
-	var after := _shape_ids(wall)
-	if not t.require(after != before, "premise: the hits rebuilt the wall's colliders"):
+	if not t.require(_shape_ids(wall) != before, "premise: the hits rebuilt the wall's colliders"):
 		return
-	var proxies: Array = _mirror.proxies_of(wall)
-	t.expect_eq(proxies.size(), after.size(), "the wall has a proxy for each current collider")
-	t.check(
-		proxies.all(func(p): return is_instance_valid(p) and p.is_inside_tree()),
-		"and none of them is a freed one's",
-	)
-	t.expect_eq(_boxes_of_proxies(proxies), _boxes_of_shapes(wall), "in the colliders' places")
+	t.check(_mirror.mesh_of(wall) == mesh, "the wall keeps the same mesh")
+	t.expect_eq(_mirror.proxies_of(wall).size(), 1, "and has one mesh")
+	t.expect_eq(built.count(wall), 1, "the carrier built it once")
+	t.check(is_instance_valid(mesh) and mesh.is_inside_tree(), "and it is in the tree")
 
 
 ## Three volleys of hits along the wall's top, each landing in one frame.
@@ -95,42 +94,3 @@ func _shape_ids(wall: Node) -> Array:
 	var ids: Array = _live_shapes(wall).map(func(c): return c.get_instance_id())
 	ids.sort()
 	return ids
-
-
-## Where and how big each live shape is on the ground, in 3D units: the centre and size of its
-## points' bounding box (x, z, width, depth), rounded to a tenth, sorted.
-func _boxes_of_shapes(wall: Node) -> Array:
-	var out: Array = []
-	for node: CollisionShape2D in _live_shapes(wall):
-		var rect := _bounds(node.shape)
-		var centre: Vector2 = node.global_transform * rect.get_center()
-		out.append(_key(centre * SCALE, rect.size * SCALE))
-	out.sort()
-	return out
-
-
-## The same for the proxies: each one's world box on the ground.
-func _boxes_of_proxies(proxies: Array) -> Array:
-	var out: Array = []
-	for proxy: MeshInstance3D in proxies:
-		var box: AABB = proxy.global_transform * proxy.get_aabb()
-		var centre := box.get_center()
-		out.append(_key(Vector2(centre.x, centre.z), Vector2(box.size.x, box.size.z)))
-	out.sort()
-	return out
-
-
-## A comparable key: place and size rounded to a tenth of a unit.
-func _key(centre: Vector2, size: Vector2) -> String:
-	return "%.1f,%.1f %.1fx%.1f" % [centre.x, centre.y, size.x, size.y]
-
-
-## The rectangle a rectangle or convex polygon shape covers in its own frame, read off the shape.
-func _bounds(shape: Shape2D) -> Rect2:
-	if shape is RectangleShape2D:
-		return Rect2(-(shape as RectangleShape2D).size * 0.5, (shape as RectangleShape2D).size)
-	var points := (shape as ConvexPolygonShape2D).points
-	var rect := Rect2(points[0], Vector2.ZERO)
-	for p in points:
-		rect = rect.expand(p)
-	return rect

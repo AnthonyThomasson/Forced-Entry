@@ -1,8 +1,10 @@
 extends GameTest
-## The mirror's rule for a body whose collision shapes change (#193, Art's `WorldMirror`, interface
+## The mirror's rule for a body whose collision shapes change (#193, Art's `MeshCarrier`, interface
 ## 27), on its own: a shape added to a mirrored body builds its mesh again, unless the mesh says
 ## `follows_shapes() -> true` (a wall's, which replaces the one segment that changed itself), and a
 ## shape that is queued to be freed is never a change. Counted by how often the builder is asked.
+
+const ProbeTwins := preload("res://tests/_art/art_probe_twins.gd")
 
 var _asked := 0
 var _follows := false
@@ -23,11 +25,12 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
+	ProbeTwins.install(t.world)
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
-	mirror.builders[MirrorProxy.FURNITURE] = func(_body: Node2D) -> Node3D:
+	var mirror := MeshCarrier.new()
+	mirror.builders[MeshKinds.FURNITURE] = func(_body: Node2D) -> Node3D:
 		_asked += 1
 		var mesh := StandIn.new()
 		mesh.follows = _follows
@@ -36,7 +39,7 @@ func run(t: TestContext) -> void:
 	var body := StaticBody2D.new()
 	body.add_child(_shape())
 	t.world.add_child(body)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(2)
 	t.expect_eq(_asked, 1, "premise: the body's mesh was built once")
 	body.add_child(_shape())

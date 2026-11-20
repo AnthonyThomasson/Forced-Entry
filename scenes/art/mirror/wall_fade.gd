@@ -16,7 +16,7 @@ extends Node3D
 ## lookups and no writes; nothing is allocated per frame.
 ##
 ## What it fades it is told by the mirror: `listen(mirror)` takes every mesh a builder makes for a
-## wall, a door or a furniture body (`WorldMirror.built`), whenever the builder was registered, and
+## wall, a door or a furniture body (`MeshCarrier.built`), whenever the builder was registered, and
 ## `FadeBook` makes units of them (a wall's segments, or a piece's instances; a rebuilt segment or
 ## a piece built again keeps its fade).
 
@@ -51,18 +51,18 @@ func _process(delta: float) -> void:
 	step(delta, rig.yaw if rig != null else RenderConfig.yaw_degrees, _foci)
 
 
-## Take the meshes `mirror` builds for walls, doors and furniture from now on. Call it before the
-## mirror starts: every builder, registered before or after, is then looked after.
-func listen(mirror: WorldMirror) -> void:
-	if not mirror.built.is_connected(on_built):
-		mirror.built.connect(on_built)
+## Take the meshes `carrier` builds for walls, doors and furniture from now on. Call it before the
+## carrier starts: every builder, registered before or after, is then looked after.
+func listen(carrier: MeshCarrier) -> void:
+	if not carrier.built.is_connected(on_built):
+		carrier.built.connect(on_built)
 
 
-## A builder made `mesh` for `body` (`WorldMirror.built`): a wall, a door or a piece of furniture is
+## A builder made `mesh` for `body` (`MeshCarrier.built`): a wall, a door or a piece of furniture is
 ## looked after, a movable one (a rigid body, a door: not a plain `StaticBody2D`) polled for a move.
 func on_built(body: Node, mesh: Node3D) -> void:
-	var kind := MirrorProxy.kind_of(body)
-	if kind == MirrorProxy.WALL or kind == MirrorProxy.DOOR or kind == MirrorProxy.FURNITURE:
+	var kind := MeshKinds.kind_of(body)
+	if kind == MeshKinds.WALL or kind == MeshKinds.DOOR or kind == MeshKinds.FURNITURE:
 		watch(mesh, body.get_instance_id(), not body is StaticBody2D or body is AnimatableBody2D)
 
 

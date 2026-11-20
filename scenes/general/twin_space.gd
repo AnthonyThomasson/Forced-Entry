@@ -55,8 +55,14 @@ extends SubViewport
 
 ## A body's twin was replaced (`retwin`): its 2D body, with the new twin already in place and the
 ## old one still standing until the frame ends, so a mesh carried on it can be moved to the new in
-## the same call (Art's `WorldMirror`).
+## the same call (Art's `MeshCarrier`).
 signal retwinned(body: Node2D, old: Node3D)
+## A body (or a member of a tracked group) got its twin, which stands in the space with its row
+## made and its 2D body taken over: what Art's `MeshCarrier` hangs the body's mesh on.
+signal twinned(body: Node2D, twin: Node3D)
+## A body (or a member of a tracked group) was looked at and no builder gave it a twin (a rug or a
+## mat: a non-solid piece, which never moves): what Art's `MeshCarrier` places its mesh for, once.
+signal untwinned(body: Node2D)
 
 ## The physics priority of the update: before every body's own `_physics_process` (a vehicle's is
 ## -1), so the frame's scripts, a bullet's among them, read twins that stand where the physics step
@@ -106,6 +112,8 @@ var _look := 0
 ## Bodies (and members of a tracked group's kind: they join their group in their own `_ready`) that
 ## entered the tree since the last update, twinned next.
 var _pending: Dictionary = {}
+## Bodies looked at that got no twin (instance id -> body), for a listener that starts late.
+var _bare: Dictionary = {}
 
 
 func _init() -> void:
@@ -412,8 +420,8 @@ func _twin_pending() -> void:
 ## Move every free piece that overlaps the new twin `twin` (a character's, a vehicle's) clear of it.
 func _clear_pieces_from(twin: Node3D) -> void:
 	var solid := twin as CollisionObject3D
-	var bodies := PhysicsLayers.TWIN_VEHICLE | PhysicsLayers.TWIN_CHARACTER
-	if solid == null or (solid.collision_layer & bodies) == 0:
+	var movers := PhysicsLayers.TWIN_VEHICLE | PhysicsLayers.TWIN_CHARACTER
+	if solid == null or (solid.collision_layer & movers) == 0:
 		return
 	var query := PhysicsShapeQueryParameters3D.new()
 	query.collision_mask = PhysicsLayers.TWIN_WORLD
@@ -428,6 +436,27 @@ func _clear_pieces_from(twin: Node3D) -> void:
 			var piece := found["collider"] as Object
 			if piece is RigidBody3D and (piece as Object).has_method(&"settle_out"):
 				piece.call(&"settle_out")
+
+
+## The 2D bodies that have a twin now (what a late listener of `twinned` takes up).
+func bodies() -> Array[Node2D]:
+	var out: Array[Node2D] = []
+	for row: Dictionary in _rows.values():
+		if is_instance_valid(row["body"]):
+			out.append(row["body"])
+	return out
+
+
+## The 2D bodies looked at that got no twin (what a late listener of `untwinned` takes up).
+func bodies_without_twin() -> Array[Node2D]:
+	var out: Array[Node2D] = []
+	for id: int in _bare.keys():
+		var body: Variant = _bare[id]
+		if is_instance_valid(body) and (body as Node).is_inside_tree():
+			out.append(body)
+		else:
+			_bare.erase(id)
+	return out
 
 
 ## Whether `node` is a physics body or a member of a tracked group.
@@ -452,6 +481,8 @@ func _twin(node: Node2D) -> void:
 			made = built
 			break
 	if made == null:
+		_bare[id] = node
+		untwinned.emit(node)
 		return
 	made.set_meta(OWNER_META, node)
 	node.set_meta(TWIN_META, made)
@@ -478,13 +509,13 @@ func _twin(node: Node2D) -> void:
 			row["wake"] = _on_sleeping.bind(row)
 			(lead as RigidBody3D).sleeping_state_changed.connect(row["wake"])
 		_moving.append(row)
-		return
-	if driven and made.has_method(&"take_over"):
+	elif driven and made.has_method(&"take_over"):
 		# a kinematic leader (a standing door): its own script turns it and writes the 2D follower
 		# in the one step, so this space has nothing to follow
 		made.call(&"take_over", node)
-		return
-	_follow_body(row, node)
+	else:
+		_follow_body(row, node)
+	twinned.emit(node, made)
 
 
 ## Have `row`'s 2D body `node` followed as the sim moves it: a rigid body that is not frozen, a

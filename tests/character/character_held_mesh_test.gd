@@ -68,7 +68,7 @@ func run(t: TestContext) -> void:
 	await t.seconds(1.2)
 	var mirror := _mirror(t)
 	CharacterMeshes.register(mirror.builders)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(4)
 	_check_each_item(t, mirror)
 	_check_shared(t, mirror)
@@ -82,7 +82,7 @@ func run(t: TestContext) -> void:
 
 ## Every gun and grenade is a mesh of its row's length; fists and an empty hand show none; the mesh
 ## is lit and tinted as the figure's other parts are (a figure, no shadow).
-func _check_each_item(t: TestContext, mirror: WorldMirror) -> void:
+func _check_each_item(t: TestContext, mirror: MeshCarrier) -> void:
 	for slot: int in ALL:
 		var held := _held(t, mirror, StringName("slot%d" % slot))
 		if not t.require(
@@ -125,7 +125,7 @@ func _check_wears_its_art(t: TestContext, held: MeshInstance3D, item: Item) -> v
 
 
 ## Two pistols share one mesh; a rifle has its own.
-func _check_shared(t: TestContext, mirror: WorldMirror) -> void:
+func _check_shared(t: TestContext, mirror: MeshCarrier) -> void:
 	var a := _held(t, mirror, &"slot3")
 	var b := _held(t, mirror, &"pistol2")
 	var rifle := _held(t, mirror, &"slot6")
@@ -137,7 +137,7 @@ func _check_shared(t: TestContext, mirror: WorldMirror) -> void:
 
 ## The mesh sits at the weapon hand and its muzzle leads along the weapon's facing: east for the
 ## ones aimed east, south (3D +z) for the south one.
-func _check_in_the_hand(t: TestContext, mirror: WorldMirror) -> void:
+func _check_in_the_hand(t: TestContext, mirror: MeshCarrier) -> void:
 	for id: StringName in [&"slot3", &"slot5", &"slot6", &"south"]:
 		var body := _body_of(t, mirror, id)
 		var held := body.held() if body != null else null
@@ -168,7 +168,7 @@ func _check_in_the_hand(t: TestContext, mirror: WorldMirror) -> void:
 
 ## A long gun raised off a wall points up (the 2D art foreshortens it, from above a barrel pointing
 ## up), as the one in the open stays level.
-func _check_raised(t: TestContext, mirror: WorldMirror) -> void:
+func _check_raised(t: TestContext, mirror: MeshCarrier) -> void:
 	var walled := _held(t, mirror, &"walled")
 	var open := _held(t, mirror, &"slot6")
 	if walled == null or open == null:
@@ -182,7 +182,7 @@ func _check_raised(t: TestContext, mirror: WorldMirror) -> void:
 
 
 ## A grenade follows the hand as it winds up to throw: the hand moves, the mesh with it.
-func _check_thrown(t: TestContext, mirror: WorldMirror) -> void:
+func _check_thrown(t: TestContext, mirror: MeshCarrier) -> void:
 	var body := _body_of(t, mirror, &"thrower")
 	if body == null:
 		return
@@ -202,7 +202,7 @@ func _check_thrown(t: TestContext, mirror: WorldMirror) -> void:
 
 
 ## A slot change swaps the mesh: the pistol's for the rifle's, and nothing for the empty hand.
-func _check_swap(t: TestContext, mirror: WorldMirror) -> void:
+func _check_swap(t: TestContext, mirror: MeshCarrier) -> void:
 	var body := _body_of(t, mirror, &"swapper")
 	if body == null:
 		return
@@ -225,7 +225,7 @@ func _check_swap(t: TestContext, mirror: WorldMirror) -> void:
 
 ## A gun held still (the rifle and the pistol) is written on few frames: a mark put on the mesh is
 ## overwritten only when the hand drifts (breath), under one frame in ten.
-func _check_idle(t: TestContext, mirror: WorldMirror) -> void:
+func _check_idle(t: TestContext, mirror: MeshCarrier) -> void:
 	for id: StringName in [&"slot6", &"slot3"]:
 		var held := _held(t, mirror, id)
 		if held == null:
@@ -245,7 +245,7 @@ func _check_idle(t: TestContext, mirror: WorldMirror) -> void:
 
 
 ## A seated body (shapes disabled) has no item shown, and it is back when the shapes are.
-func _check_seated(t: TestContext, mirror: WorldMirror) -> void:
+func _check_seated(t: TestContext, mirror: MeshCarrier) -> void:
 	var held := _held(t, mirror, &"seated")
 	if held == null:
 		return
@@ -259,7 +259,7 @@ func _check_seated(t: TestContext, mirror: WorldMirror) -> void:
 
 
 ## The body the mirror shows the actor `id` by, or null (it ends the test).
-func _body_of(t: TestContext, mirror: WorldMirror, id: StringName) -> BodyMesh:
+func _body_of(t: TestContext, mirror: MeshCarrier, id: StringName) -> BodyMesh:
 	var shown := mirror.proxies_of(t.actor(id))
 	if not t.require(shown.size() == 1 and shown[0] is BodyMesh, "%s is shown by a body" % id):
 		return null
@@ -267,7 +267,7 @@ func _body_of(t: TestContext, mirror: WorldMirror, id: StringName) -> BodyMesh:
 
 
 ## The held-item node of the body of `id`, or null.
-func _held(t: TestContext, mirror: WorldMirror, id: StringName) -> MeshInstance3D:
+func _held(t: TestContext, mirror: MeshCarrier, id: StringName) -> MeshInstance3D:
 	var body := _body_of(t, mirror, id)
 	return body.held() if body != null else null
 
@@ -280,10 +280,10 @@ func _shape_of(body: Node) -> CollisionShape2D:
 	return null
 
 
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	return mirror

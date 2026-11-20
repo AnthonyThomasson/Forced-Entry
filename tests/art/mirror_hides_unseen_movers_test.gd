@@ -1,6 +1,6 @@
 extends GameTest
 ## The 3D mirror shows what the player's view has seen, and what moves only where it sees now
-## (#193 vision-mask, Art's `WorldMirror`, `docs/player-vision.md` V5, V6 and V12): a character the
+## (#193 vision-mask, Art's `MeshCarrier`, `docs/player-vision.md` V5, V6 and V12): a character the
 ## cone and the bubble do not reach is hidden as the 2D view hides it, and shown when it is in the
 ## cone; a corpse, a dropped item or a character at rest (a thing on `ViewLayers.WORLD`) that the
 ## cone has never reached is hidden too, and once it has been in the cone it stays shown where it
@@ -10,6 +10,7 @@ extends GameTest
 ## never hidden. The viewer faces east along a hall; one puppet
 ## stands behind it, one ahead in the cone, a corpse and a dropped rifle lie behind, a table too.
 
+const ProbeTwins := preload("res://tests/_art/art_probe_twins.gd")
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 const EYE_AT := Vector2(700, 350)
 const BEHIND := Vector2(250, 350)
@@ -20,7 +21,8 @@ const RIFLE_AT := Vector2(400, 200)
 const CAR_SEEN_AT := Vector2(1000, 250)
 const CAR_PARKED_AT := Vector2(300, 500)
 
-var _mirror: WorldMirror
+var _mirror: MeshCarrier
+var _follower: MeshFollower
 
 
 func describe() -> Dictionary:
@@ -54,18 +56,13 @@ func run(t: TestContext) -> void:
 		"premise: the viewer faces east",
 	):
 		return
-	var view := SubViewport.new()
-	view.own_world_3d = true
-	t.world.add_child(view)
-	_mirror = WorldMirror.new()
-	view.add_child(_mirror)
-	CharacterMeshes.register(_mirror.builders)
-	ItemMeshes.register(_mirror)
+	_start_drawers(t)
 	var corpse := t.actor(&"corpse")
 	corpse.take_damage(1000.0)
 	var rifle := DroppedItem.spawn(ItemRegistry.create(6), 0.0, Vector2.ZERO)
 	rifle.place(t.world, RIFLE_AT, RIFLE_AT)
-	_mirror.mirror(t.world)
+	_mirror.carry(t.world)
+	_follower.follow(t.world)
 	await t.frames(4)
 	var behind := _shown_of(t.actor(&"behind"))
 	var ahead := _shown_of(t.actor(&"ahead"))
@@ -125,6 +122,7 @@ func _walks_in(t: TestContext, behind: Node3D) -> void:
 ## hidden, it must be reached again.
 func _car_seen_then_parked_out_of_view(t: TestContext) -> Node3D:
 	var car := AnimatableBody2D.new()
+	car.sync_to_physics = false  # moved by hand
 	car.add_to_group(&"vehicles")
 	var shape := CollisionShape2D.new()
 	var box := RectangleShape2D.new()
@@ -190,7 +188,25 @@ func _remembered(t: TestContext, dead: Node3D, lying: Node3D) -> void:
 	t.check(lying.visible, "and the rifle")
 
 
+## The carrier of the characters' meshes and the follower of the lying items, in a view of their
+## own.
+func _start_drawers(t: TestContext) -> void:
+	ProbeTwins.install(t.world)  # the hand-made car moves: it needs a twin to carry its mesh
+	var view := SubViewport.new()
+	view.own_world_3d = true
+	t.world.add_child(view)
+	_mirror = MeshCarrier.new()
+	view.add_child(_mirror)
+	CharacterMeshes.register(_mirror.builders)
+	ObjectMeshes.register(_mirror.builders)
+	# the hand-made car is no `Vehicle`: a plain mesh stands for it
+	_mirror.builders[MeshKinds.VEHICLE] = func(_body: Node2D) -> Node3D: return Node3D.new()
+	_follower = MeshFollower.new()
+	view.add_child(_follower)
+	ItemMeshes.register(_follower)
+
+
 ## The one mesh `body` is shown by (null: the test ends).
 func _shown_of(body: Node) -> Node3D:
 	var found := _mirror.proxies_of(body)
-	return null if found.is_empty() else found[0]
+	return _follower.mesh_of(body) if found.is_empty() else found[0]

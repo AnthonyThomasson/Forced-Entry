@@ -79,7 +79,7 @@ func run(t: TestContext) -> void:
 	camera.set_physics_process(false)
 	await t.frames(30)
 	var view: Node = main.get_node("View3D")
-	var mirror: WorldMirror = view.mirror
+	var mirror: MeshCarrier = view.carrier
 	_hide_walls(built["world"], mirror)  # full-height walls would stand between the camera and it
 	var shown := mirror.proxies_of(character)
 	if not t.require(shown.size() == 1 and shown[0] is BodyMesh, "the character has a body"):
@@ -166,9 +166,9 @@ func _shoot(
 
 
 ## Hide the proxies of every wall, so the picture shows what stands inside the rooms.
-func _hide_walls(world: Node, mirror: WorldMirror) -> void:
+func _hide_walls(world: Node, mirror: MeshCarrier) -> void:
 	for body: Node in world.find_children("*", "PhysicsBody2D", true, false):
-		if MirrorProxy.kind_of(body) in [MirrorProxy.WALL, MirrorProxy.DOOR]:
+		if MeshKinds.kind_of(body) in [MeshKinds.WALL, MeshKinds.DOOR]:
 			for proxy in mirror.proxies_of(body):
 				proxy.visible = false
 

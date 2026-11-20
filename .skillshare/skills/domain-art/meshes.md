@@ -38,16 +38,16 @@ sides a darker tone, its legs the shadow tone. A face's colour is the painter's,
    one). Nothing else changes: a body with no builder keeps its proxy, and the builder returning null does too.
 
 **The hook keys, floors, drawn things that are no physics body** (`track`, `track_group`: a domain's spawner only `add_to_group`s and Main's `_register_meshes()` tracks the group) and
-the rules the mirror follows: `mesh-hook.md`. A finer key is for one art id (`MirrorProxy.furniture_key("table")`) and wins over the `FURNITURE` kind.
+the rules the mirror follows: `mesh-hook.md`. A finer key is for one art id (`MeshKinds.furniture_key("table")`) and wins over the `FURNITURE` kind.
 A mesh whose parts move with a pose is the character's: `CharacterMeshes.register` plugs `BodyMesh`, which `mirror_update` places between the 2D rig's joints (`domain-character`).
 
-## Heights (px; 42.3 a metre, a character 74, a wall 96: `BodyHeights`, `MirrorConfig`)
+## Heights (px; 42.3 a metre, a character 74, a wall 96: `BodyHeights`, `ObjectStructureMeshConfig`)
 
 Real sizes (`docs/research/3d-cover-heights.md`), one number per class in its domain's holder; `PieceHeights` (28) reads them back.
 
 | Class | Height | Class | Height |
 |---|---|---|---|
-| Wall | 96 (`MirrorConfig.wall_height`) | Door leaf | 84 |
+| Wall | 96 (`ObjectStructureMeshConfig.wall_height`) | Door leaf | 84 |
 | Character standing | 74 (`BodyHeights`) | Character ducked | head top 36 |
 | Table, desk top | 31 | Coffee table, side table | 18 / 22 |
 | Chair seat / back | 18 / 38 | Sofa seat / arm / back | 18 / 28 / 38 |

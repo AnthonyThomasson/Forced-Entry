@@ -55,10 +55,10 @@ func run(t: TestContext) -> void:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	ObjectMeshes.register(mirror.builders)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	var sofa := _rig(t, mirror, &"sofa")
 	var other := _rig(t, mirror, &"sofa_b")
@@ -82,7 +82,7 @@ func run(t: TestContext) -> void:
 
 
 ## A table wears its painter's art too (it once was a plain slab: no rig, no art).
-func _check_table(t: TestContext, mirror: WorldMirror) -> void:
+func _check_table(t: TestContext, mirror: MeshCarrier) -> void:
 	var rig := _rig(t, mirror, &"table")
 	if not t.require(rig != null, "the table has a rig"):
 		return
@@ -98,7 +98,7 @@ func _check_table(t: TestContext, mirror: WorldMirror) -> void:
 	)
 
 
-func _rig(t: TestContext, mirror: WorldMirror, id: StringName) -> FurnitureRig:
+func _rig(t: TestContext, mirror: MeshCarrier, id: StringName) -> FurnitureRig:
 	var shown := mirror.proxies_of(t.object(id))
 	return shown[0] as FurnitureRig if shown.size() == 1 and shown[0] is FurnitureRig else null
 
@@ -153,7 +153,7 @@ func _check_turned(t: TestContext, rig: FurnitureRig, piece: Node) -> void:
 
 ## The sofa facing up (two turns) and right (three) wears the canonical art turned that way: the
 ## front row of the art (its bottom) lies along the top edge facing up, the right edge facing right.
-func _check_turns(t: TestContext, mirror: WorldMirror) -> void:
+func _check_turns(t: TestContext, mirror: MeshCarrier) -> void:
 	for id: StringName in [&"sofa_up", &"sofa_right"]:
 		var rig := _rig(t, mirror, id)
 		if t.require(rig != null, "%s has a rig" % id):
@@ -184,7 +184,7 @@ func _check_turned_edge(t: TestContext, id: StringName, rig: FurnitureRig, piece
 
 
 ## The bed's blanket wears the same art over the same footprint.
-func _check_blanket(t: TestContext, mirror: WorldMirror) -> void:
+func _check_blanket(t: TestContext, mirror: MeshCarrier) -> void:
 	var rig := _rig(t, mirror, &"bed")
 	if not t.require(rig is FurnitureBedRig, "the bed has its rig"):
 		return
@@ -198,7 +198,7 @@ func _check_blanket(t: TestContext, mirror: WorldMirror) -> void:
 
 
 ## An overhang piece's canvas covers its footprint and its overhang.
-func _check_overhang(t: TestContext, mirror: WorldMirror, id: StringName) -> void:
+func _check_overhang(t: TestContext, mirror: MeshCarrier, id: StringName) -> void:
 	var rig := _rig(t, mirror, id)
 	if not t.require(rig != null, "%s has a rig" % id):
 		return

@@ -47,11 +47,10 @@ func run(t: TestContext) -> void:
 	):
 		return
 	_check_viewless(t, twins, [post, wall, floor_node])
-	await _check_other_world(t, post, floor_node)
 	var mirror := _view(t)
 	var built: Array[Node] = []
 	mirror.built.connect(func(body: Node, _mesh: Node3D) -> void: built.append(body))
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	_check_carried(t, mirror, post, "the anchored piece")
 	_check_carried(t, mirror, wall, "the wall")
@@ -78,11 +77,11 @@ func _first_floor(world: Node) -> Node:
 	return null
 
 
-func _view(t: TestContext) -> WorldMirror:
+func _view(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.world_3d = TwinSpace.of_world(t.world).find_world_3d()  # drawn in the twins' world
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	ObjectMeshes.register(mirror.builders)
 	view.add_child(mirror)
 	return mirror
@@ -100,7 +99,7 @@ func _check_viewless(t: TestContext, twins: TwinSpace, bodies: Array) -> void:
 		)
 
 
-func _check_carried(t: TestContext, mirror: WorldMirror, body: Node, what: String) -> void:
+func _check_carried(t: TestContext, mirror: MeshCarrier, body: Node, what: String) -> void:
 	var twin := TwinSpace.twin_for(body)
 	var mesh := mirror.mesh_of(body)
 	if not t.require(mesh != null and twin != null, "premise: %s has a mesh and a twin" % what):
@@ -113,7 +112,7 @@ func _check_carried(t: TestContext, mirror: WorldMirror, body: Node, what: Strin
 	t.check(mesh.is_inside_tree(), "%s's mesh is in the tree" % what)
 
 
-func _check_spawned_later(t: TestContext, mirror: WorldMirror) -> void:
+func _check_spawned_later(t: TestContext, mirror: MeshCarrier) -> void:
 	var later := ObjectFactory.spawn(POST, LATER_AT, t.world)
 	await t.frames(4)
 	_check_carried(t, mirror, later, "a post spawned after the view began")
@@ -125,7 +124,7 @@ func _check_spawned_later(t: TestContext, mirror: WorldMirror) -> void:
 	await t.frames(3)
 
 
-func _check_shown_rules(t: TestContext, mirror: WorldMirror, post: Node2D) -> void:
+func _check_shown_rules(t: TestContext, mirror: MeshCarrier, post: Node2D) -> void:
 	var mesh := mirror.mesh_of(post)
 	t.check(mesh.visible, "a carried mesh shows")
 	post.visible = false
@@ -136,7 +135,7 @@ func _check_shown_rules(t: TestContext, mirror: WorldMirror, post: Node2D) -> vo
 	t.check(mesh.visible, "and shown again")
 
 
-func _check_remirror(t: TestContext, mirror: WorldMirror, post: Node2D) -> void:
+func _check_remirror(t: TestContext, mirror: MeshCarrier, post: Node2D) -> void:
 	var old := mirror.mesh_of(post)
 	mirror.remirror(post)
 	var fresh := mirror.mesh_of(post)
@@ -147,7 +146,7 @@ func _check_remirror(t: TestContext, mirror: WorldMirror, post: Node2D) -> void:
 	t.check(mirror.proxies_of(post).size() == 1, "and the piece has one mesh")
 
 
-func _check_goes_with_twin(t: TestContext, mirror: WorldMirror) -> void:
+func _check_goes_with_twin(t: TestContext, mirror: MeshCarrier) -> void:
 	var gone := ObjectFactory.spawn(POST, LATER_AT, t.world)
 	await t.frames(4)
 	var mesh := mirror.mesh_of(gone)
@@ -160,41 +159,14 @@ func _check_goes_with_twin(t: TestContext, mirror: WorldMirror) -> void:
 	t.check(mirror.count == before - 1, "and is no longer counted")
 
 
-## A mirror drawn in a world of its own is not in the twins' world: it follows its bodies by meshes
-## of its own, and nothing is put on the twins.
-func _check_other_world(t: TestContext, post: Node, floor_node: Node) -> void:
-	var view := SubViewport.new()
-	view.own_world_3d = true
-	t.world.add_child(view)
-	var mirror := WorldMirror.new()
-	ObjectMeshes.register(mirror.builders)
-	view.add_child(mirror)
-	mirror.mirror(t.world)
-	await t.frames(3)
-	for body: Node in [post, floor_node]:
-		var mesh := mirror.mesh_of(body)
-		if not t.require(mesh != null, "premise: %s is meshed in its own world" % body.name):
-			continue
-		t.check(
-			mesh.get_parent() == mirror,
-			"a mirror in another world keeps %s's mesh" % body.name,
-		)
-		t.check(
-			TwinSpace.twin_for(body).find_children("*", "MeshInstance3D", true, false).is_empty(),
-			"and puts nothing on the twin of %s" % body.name,
-		)
-	view.queue_free()
-	await t.frames(2)
-
-
 ## Mirroring the world again shows each static body once: its old mesh goes.
 func _check_mirrored_twice(
-	t: TestContext, mirror: WorldMirror, floor_node: Node, wall: Node
+	t: TestContext, mirror: MeshCarrier, floor_node: Node, wall: Node
 ) -> void:
 	var before := mirror.count
 	var kids := [TwinSpace.twin_for(floor_node).get_child_count()]
 	kids.append(TwinSpace.twin_for(wall).get_child_count())
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	t.expect_eq(mirror.count, before, "mirroring again counts each body once")
 	t.expect_eq(TwinSpace.twin_for(floor_node).get_child_count(), kids[0], "a floor has one mesh")
