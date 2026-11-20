@@ -71,8 +71,8 @@ var _build := Buffer.new()
 
 
 ## Rebuild both polygons for an eye at `from` facing `facing`, casting in `space`, leaving `exclude`
-## (rids) out and seeing by `sight` (`Character.sight()`), all at once: `begin` and `step` to the
-## end.
+## (the rids of twins, 3D bodies: `TwinSpace.twin_for(body)`'s, not a 2D body's) out and seeing by
+## `sight` (`Character.sight()`), all at once: `begin` and `step` to the end.
 func rebuild(
 	space: PhysicsDirectSpaceState3D,
 	from: Vector2,

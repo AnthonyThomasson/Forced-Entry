@@ -2,25 +2,56 @@ extends UnitSuite
 ## The 2D physics space is not read (#194 del2d): nothing under `scenes/` asks it a question. The
 ## sim's truth is the 3D twin space (`TwinSpace`, interface 29), so no script holds a
 ## `PhysicsDirectSpaceState2D`, builds a 2D shape, ray or point query, reads a 2D world's direct
-## space, tests or makes a 2D body's motion, or allocates in the 2D physics server. The scan reads
-## every script's code (a comment is not code) and names each line that does; a script listed in
-## `PENDING` is one the ragdoll's move to 3D has not reached yet, and the list shrinks to empty.
+## space, casts a 2D ray or shape node, listens to a 2D body's contacts or overlaps, reads a 2D
+## body's slide collisions, tests or makes a 2D body's motion, or allocates in the 2D physics
+## server. The scan reads every script's code (a comment or a string is not code) and names each
+## line that does; a script listed in `PENDING` is one the ragdoll's move to 3D has not reached
+## yet, and the list shrinks to empty.
 
-## What a line of code must not contain: a 2D query, a 2D world's direct space, a 2D body's motion
-## or the 2D physics server.
+## What a line of code must not contain: a 2D query, node or body event, the 2D physics server, a
+## 2D body's motion.
 const FORBIDDEN := [
 	"PhysicsDirectSpaceState2D",
 	"PhysicsShapeQueryParameters2D",
 	"PhysicsRayQueryParameters2D",
 	"PhysicsPointQueryParameters2D",
 	"PhysicsTestMotionParameters2D",
+	"PhysicsTestMotionResult2D",
 	"PhysicsServer2D",
+	"KinematicCollision2D",
+	"RayCast2D",
+	"ShapeCast2D",
+	"Area2D",
 	"get_world_2d().direct_space_state",
+	"get_world_2d().space",
 	"world_2d.direct_space_state",
-	".move_and_collide(",
-	".test_move(",
-	"move_and_slide()",
+	"get_colliding_bodies",
+	"get_overlapping_bodies",
+	"get_overlapping_areas",
+	"contact_monitor",
+	"max_contacts_reported",
+	"body_entered",
+	"body_exited",
+	"area_entered",
+	"area_exited",
+	"get_slide_collision",
+	"move_and_collide(",
+	"move_and_slide(",
+	"test_move(",
 ]
+## The calls of a direct space state: a script that makes one must hold a 3D spelling (below) in its
+## code, so a bare call on an untyped state is a 3D one (the 2D spellings are forbidden above).
+const STATE_CALLS := [
+	".intersect_ray(", ".intersect_shape(", ".intersect_point(", ".get_rest_info(",
+	".collide_shape(", ".cast_motion(",
+]
+## What marks a script as one that reads the 3D space.
+const SPACE_3D := [
+	"PhysicsDirectSpaceState3D", "PhysicsRayQueryParameters3D", "PhysicsShapeQueryParameters3D",
+	"PhysicsPointQueryParameters3D", "TwinSpace",
+]
+## What a `.direct_space_state` read must name on its line: a 3D world.
+const WORLD_3D := ["get_world_3d()", "find_world_3d()", "world_3d"]
 ## The scripts allowed to hold one for now: the ragdoll's wall sweeps and the blood's floor and wall
 ## queries, which move with the ragdoll (`ragdoll3d`).
 const PENDING := [
@@ -31,36 +62,109 @@ const PENDING := [
 	"res://scenes/physics/blood/blood_pool.gd",
 	"res://scenes/physics/blood/blood_splat.gd",
 ]
-## The one script that moves a body in 3D (`CharacterBody3D.move_and_slide`, `test_move`).
+## The one script that moves a body in 3D (`CharacterBody3D`).
 const WALKER := "res://scenes/character/character_twin.gd"
+## What a script may hold that the scan forbids elsewhere: the walker's 3D moves, and the test
+## switch that pads the physics servers' RID allocations (it asks no question of the 2D space; it
+## goes with the 2D bodies).
+const ALLOWED := {
+	"res://scenes/character/character_twin.gd": [
+		"move_and_slide(",
+		"test_move(",
+		"get_slide_collision",
+	],
+	"res://scenes/testing/allocation_padding.gd": ["PhysicsServer2D"],
+}
 
 
 func test_no_script_asks_the_2d_physics_space() -> void:
 	var found: Array[String] = []
 	for path in _scripts("res://scenes"):
-		if path in PENDING or path == WALKER:
+		if path in PENDING:
 			continue
-		var lines := FileAccess.get_file_as_string(path).split("\n")
-		for i in lines.size():
-			var code := _code_of(lines[i])
-			if code.contains(".direct_space_state") and not code.contains("3d"):
-				found.append("%s:%d: a 2D direct_space_state" % [path, i + 1])
-			for banned: String in FORBIDDEN:
-				if code.contains(banned):
-					found.append("%s:%d: %s" % [path, i + 1, banned])
+		found.append_array(_findings(path, _code_lines(path)))
 	assert_array(found).is_empty()
 
 
 func test_the_pending_list_names_scripts_that_still_ask_it() -> void:
 	for path: String in PENDING:
-		var code := ""
-		for line in FileAccess.get_file_as_string(path).split("\n"):
-			code += _code_of(line) + "\n"
-		var asks := false
+		assert_bool(_findings(path, _code_lines(path)).is_empty()) \
+			.override_failure_message("%s asks no more: drop it from PENDING" % path).is_false()
+
+
+func test_the_walker_is_a_3d_body() -> void:
+	var code := "\n".join(_code_lines(WALKER))
+	assert_bool(code.contains("extends CharacterBody3D")).is_true()
+
+
+## The dodges the scan must catch: each line is code that reads or moves a 2D body or space.
+func test_each_way_to_ask_the_2d_space_is_caught() -> void:
+	var dodges := [
+		"var s := get_world_2d().direct_space_state",
+		"var s := world.direct_space_state",
+		"var s: PhysicsDirectSpaceState2D = null",
+		"var r := PhysicsRayQueryParameters2D.create(a, b)",
+		"if body.test_move(xf, motion): pass",
+		"var hit := body.move_and_collide(motion)",
+		"body.move_and_slide()",
+		"var ray := RayCast2D.new()",
+		"var area := Area2D.new()",
+		"var touching := body.get_colliding_bodies()",
+		"body.contact_monitor = true",
+		"body.body_entered.connect(f)",
+		"var c := body.get_slide_collision(0)",
+		"var rid := PhysicsServer2D.body_create()",
+	]
+	for line: String in dodges:
+		assert_array(_findings("res://scenes/x.gd", [line, ""], [])) \
+			.override_failure_message("not caught: %s" % line).is_not_empty()
+	var bare := ["var hit := state.intersect_ray(query)", "var f := s.get_rest_info(q)"]
+	for line: String in bare:
+		assert_array(_findings("res://scenes/x.gd", [line], [])).is_not_empty()
+		assert_array(_findings("res://scenes/x.gd", ["var s: TwinSpace", line], [])).is_empty()
+
+
+## What is not code is not scanned: a comment, a `#` inside a string, a word in a string.
+func test_a_comment_and_a_string_are_not_code() -> void:
+	assert_str(_code_of("var x := 1  # test_move(a)")).is_equal("var x := 1  ")
+	assert_str(_code_of("var g := \"#fff\" + test_move(a)")).is_equal("var g :=  + test_move(a)")
+	assert_str(_code_of("var g := \"a # test_move(b)\"")).is_equal("var g := ")
+	assert_str(_code_of("var g := '\"#' + \"x\" # c")).is_equal("var g :=  +  ")
+
+
+## The findings in `lines` of the script `path`: each as `path:line: what`. `allowed` is the calls
+## the script may hold (the walker's).
+func _findings(path: String, lines: Array, allowed: Array = []) -> Array[String]:
+	var found: Array[String] = []
+	var skip: Array = ALLOWED.get(path, allowed)
+	var code := "\n".join(lines)
+	var reads_3d := false
+	for spelling: String in SPACE_3D:
+		reads_3d = reads_3d or code.contains(spelling)
+	for i in lines.size():
+		var line: String = lines[i]
 		for banned: String in FORBIDDEN:
-			asks = asks or code.contains(banned)
-		assert_bool(asks).override_failure_message("%s asks no more: drop it from PENDING" % path) \
-			.is_true()
+			if line.contains(banned) and banned not in skip:
+				found.append("%s:%d: %s" % [path, i + 1, banned])
+		if line.contains(".direct_space_state"):
+			var on_3d := false
+			for world: String in WORLD_3D:
+				on_3d = on_3d or line.contains(world)
+			if not on_3d:
+				found.append("%s:%d: a direct_space_state not of a 3D world" % [path, i + 1])
+		if not reads_3d:
+			for state_call: String in STATE_CALLS:
+				if line.contains(state_call):
+					found.append("%s:%d: %s on a state that is not 3D" % [path, i + 1, state_call])
+	return found
+
+
+## The code of each line of the script `path` (comments and strings blanked).
+func _code_lines(path: String) -> Array:
+	var out: Array = []
+	for line in FileAccess.get_file_as_string(path).split("\n"):
+		out.append(_code_of(line))
+	return out
 
 
 ## Every `.gd` under `dir`, recursively.
@@ -74,8 +178,24 @@ func _scripts(dir: String) -> Array[String]:
 	return out
 
 
-## `line` without its comment (a `#` outside a string starts one: no scene script writes a `#` in
-## a string).
+## `line` without its comment and the text of its strings (a `#` inside a string does not start a
+## comment, a quote inside the other kind of quote does not close it).
 func _code_of(line: String) -> String:
-	var at := line.find("#")
-	return line if at < 0 else line.substr(0, at)
+	var out := ""
+	var quote := ""
+	var i := 0
+	while i < line.length():
+		var c := line[i]
+		if quote != "":
+			if c == "\\":
+				i += 1
+			elif c == quote:
+				quote = ""
+		elif c == "\"" or c == "'":
+			quote = c
+		elif c == "#":
+			break
+		else:
+			out += c
+		i += 1
+	return out

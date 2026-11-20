@@ -33,7 +33,7 @@ Character / Vehicles → Physics; `PhysicsMeshes`), 12 and 27 (the 3D meshes), 5
   is what debris, hit particles and `BloodWound` spray along.
 - `Knockback` configures its parent furniture body (no gravity, mass, `PhysicsImpactConfig.body_*` damping, origin-pinned centre
   of mass, contact reporting) and feeds it impulses; off the centre the body pivots under its own torque. The engine does the
-  sweeping and settling; the component only hands momentum to a kinematic character on contact (`transfer_scale`).
+  sweeping and settling; a free piece hands momentum to a character it slides into in 3D (`PieceBody`, `transfer_scale`).
 
 ## Deformation
 

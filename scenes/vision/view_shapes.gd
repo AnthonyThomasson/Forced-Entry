@@ -8,8 +8,12 @@ extends RefCounted
 ## shapes: only the shape the ray hit counts). What it read is kept for one build (`reset`): the
 ## world moves between frames.
 
-## How thick (px) the slab a query reads is, from the height the plan cast runs at up: a shape
-## that stands across it is one a ray at the eye can meet (a lintel over the eye is not).
+## How thick (px) the slab a query reads is, from the height the plan cast runs at up: a shape that
+## stands across it is one a ray at the eye can meet (a lintel over the eye, a piece hung above it,
+## are not). As thin as the ray is not possible: the physics engine cannot build a convex hull of
+## the sector's region thinner than a few times its margin (0.04 px), so it is a little thicker, and
+## a piece whose base is within it above the ray adds a corner the ray passes under (harmless: that
+## corner's rays reach what they reach).
 const SLAB := 2.0
 ## How far (px) past the face a ray hit the point is taken that asks which shapes the ray runs into
 ## there, and the most shapes that point can be in.

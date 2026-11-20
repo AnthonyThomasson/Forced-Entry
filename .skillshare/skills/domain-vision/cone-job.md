@@ -8,7 +8,7 @@ whether it is done; `running()` says whether one is in flight; `work_units()` is
 `begin` plus `step` to the end, so it is the whole rebuild every existing cone test and `PlayerView` use.
 
 **Units.** A unit is a price in `VisionSliceConfig` (`cost_cast` and `cost_probe` 1, `cost_shape` 450): a ray cast
-(`SightRay.cast`), a region shape query (`ViewShapes.queries`, re-asks included: a 3D shape query in the twin space over the column from the eye's height up), a far-face probe (`far_exit`).
+(`SightRay.cast`), a region shape query (`ViewShapes.queries`, re-asks included: a 3D shape query in the twin space over a slab as thin as the ray, at the height the plan ray runs at: `ViewShapes.SLAB`), a far-face probe (`far_exit`).
 **The corners are priced at a slice** (`cost_shape` 450): the query, its polygons, the dedupe cost about 1.95 ms,
 372 to 374 units at 5.4 to 5.5 µs (`perf/cone_corner_cost` measures it; p25 168, p75 627 by eye), so `begin` and the first step do the corners and cast no ray
 (`vision/cone_corners_priced`), and the rays begin the next tick. Priced as one unit they made a start tick the corners plus 449 units of
@@ -28,7 +28,7 @@ in `_job` (`ViewConeJob`); the data of the job is in `_build` (`ViewConeBuffer`)
 job. Keep the stage loops free of per-item calls and property reads of other objects: the sliced cone costs under 2 % more than
 the one-piece cone it replaced, and that was got by hoisting them.
 
-**Use.** The job holds the world's direct space state and the `exclude` array; step it in the physics tick. A world change between
+**Use.** The job holds the world's 3D direct space state and the `exclude` array (twin rids); step it in the physics tick. A world change between
 steps is the caller's to detect (`ViewWatch`) and answer with a new `begin`. `slice_units` (450) is about 3.5 ms: 6 µs a unit in
 houses, 8 to 9 in a match's view. `restart_cap` (2) and `jump_px` (48) are `ViewPipeline`'s.
 

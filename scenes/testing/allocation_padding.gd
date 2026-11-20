@@ -2,10 +2,11 @@ class_name AllocationPadding extends RefCounted
 ## Testing domain: the `testing.allocation_padding` switch's allocations. A match's order of events
 ## must not follow what the process allocated (instance ids step in fixed strides, a physics server
 ## hands out RIDs in turn), and this proves it: with the switch on, `TestWorld.build` allocates
-## `nodes` loose nodes and `bodies` physics bodies, areas and shapes before it builds anything, so
-## every id and RID the world then takes is shifted. Its only use is a test that plays a fight with
-## and without it and compares the two (`perf/` fight fingerprints, perf-fingerprint.md). `release`
-## frees all of it (`TestWorld.restore`).
+## `nodes` loose nodes and `bodies` physics bodies, areas and shapes (of the 2D server and of the 3D
+## one, which a match's bodies still take, both) before it builds anything, so every id and RID the
+## world then takes is shifted. Its only use is a test that plays a fight with and without it and
+## compares the two (`perf/` fight fingerprints, perf-fingerprint.md). `release` frees all of it
+## (`TestWorld.restore`).
 
 ## Whether `TestWorld.build` pads (the switch's knob).
 static var enabled := false
@@ -16,6 +17,8 @@ static var bodies := 333
 ## What `fill` holds, until `release`.
 static var _held_nodes: Array[Node] = []
 static var _held_rids: Array[RID] = []
+## The 2D physics server's, held the same (the 2D bodies are not gone yet).
+static var _held_rids_2d: Array[RID] = []
 
 
 ## Allocate the padding if the switch is on (and none is held yet). The nodes stay out of the tree:
@@ -26,6 +29,9 @@ static func fill() -> void:
 	for i in nodes:
 		_held_nodes.append(Node2D.new() if i % 2 == 0 else Node.new())
 	for i in bodies:
+		_held_rids_2d.append(PhysicsServer2D.body_create())
+		_held_rids_2d.append(PhysicsServer2D.area_create())
+		_held_rids_2d.append(PhysicsServer2D.rectangle_shape_create())
 		_held_rids.append(PhysicsServer3D.body_create())
 		_held_rids.append(PhysicsServer3D.area_create())
 		_held_rids.append(PhysicsServer3D.box_shape_create())
@@ -36,6 +42,9 @@ static func release() -> void:
 	for node in _held_nodes:
 		node.free()
 	_held_nodes.clear()
+	for rid in _held_rids_2d:
+		PhysicsServer2D.free_rid(rid)
+	_held_rids_2d.clear()
 	for rid in _held_rids:
 		PhysicsServer3D.free_rid(rid)
 	_held_rids.clear()
@@ -43,4 +52,4 @@ static func release() -> void:
 
 ## How many nodes and physics RIDs are held now.
 static func held() -> Dictionary:
-	return { "nodes": _held_nodes.size(), "rids": _held_rids.size() }
+	return { "nodes": _held_nodes.size(), "rids": _held_rids.size() + _held_rids_2d.size() }

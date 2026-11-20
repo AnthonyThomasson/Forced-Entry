@@ -8,8 +8,9 @@ class_name Knockback extends Node
 ## furniture, #194 furn3d) is shoved through its 3D body, at the point's real height, so a push
 ## goes through `Knockback.push`, which every pusher of the contract (interface 5) calls: it answers
 ## to the 3D body when there is one and to the native `apply_impulse` otherwise. The engine
-## integrates motion, collisions, pivoting and settling; this component only feeds it impulses and
-## hands momentum to the kinematic character on contact. All tuning is PhysicsImpactConfig.
+## integrates motion, collisions, pivoting and settling; this component only feeds it impulses (a
+## free piece hands momentum to a character it slides into in 3D, `PieceBody`). All tuning is
+## PhysicsImpactConfig.
 
 ## Sentinel for `apply_impulse`'s optional contact point (a central shove when omitted).
 const _NO_POINT := Vector2(INF, INF)
@@ -20,7 +21,7 @@ var mass: float = 10.0
 var _body: RigidBody2D
 
 
-## Configure the parent RigidBody2D for top-down physics and wire contact reporting.
+## Configure the parent RigidBody2D for top-down physics.
 func _ready() -> void:
 	_body = get_parent()
 	_body.mass = effective_mass()
@@ -35,10 +36,6 @@ func _ready() -> void:
 	# origin-centered drawn silhouette instead of a shifted mass center.
 	_body.center_of_mass_mode = RigidBody2D.CENTER_OF_MASS_MODE_CUSTOM
 	_body.center_of_mass = Vector2.ZERO
-	# Report contacts so momentum can be handed to the kinematic character (below).
-	_body.contact_monitor = true
-	_body.max_contacts_reported = 4
-	_body.body_entered.connect(_on_body_entered)
 
 
 ## Mass floored so featherweight decor still reacts.
@@ -75,17 +72,3 @@ static func push(
 		lead.call(&"push", impulse, at, height)
 	else:
 		body.call(&"apply_impulse", impulse, at)
-
-
-## Hand momentum to a non-rigid pushable we collide with (the kinematic character — the
-## solver already resolves rigid-vs-rigid and rigid-vs-wall on its own). The struck body
-## takes our travel momentum scaled down so cascades lose energy and settle.
-func _on_body_entered(body: Node) -> void:
-	# a body the solver resolves, or one a free 3D body leads (a vehicle: not a `RigidBody2D`, but
-	# solved against the piece by the 3D engine, so it takes no handed momentum either)
-	if (body is RigidBody2D or not body.has_method("apply_impulse")
-			or TwinSpace.leader_of(body) != null):
-		return
-	var transfer := _body.linear_velocity * effective_mass() * PhysicsImpactConfig.transfer_scale
-	if transfer.length_squared() > 0.0:
-		body.apply_impulse(transfer)

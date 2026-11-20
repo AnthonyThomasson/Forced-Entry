@@ -334,21 +334,11 @@ func _apply_pushes(lead: CharacterBody3D) -> float:
 
 ## What the last walk slid into: `{ body, normal, at }` per contact, the normal (plan) pointing back
 ## at the character and `at` the plan point. A character walked in the twin space reports what its
-## 3D body slid into (the 2D body of each twin), else the 2D slide collisions.
+## 3D body slid into (the 2D body of each twin); a character with no twin slid into nothing.
 func _slides(lead: CharacterBody3D) -> Array[Dictionary]:
 	if lead != null:
 		return (lead as CharacterTwin).contacts()
-	var out: Array[Dictionary] = []
-	for i in character.get_slide_collision_count():
-		var collision := character.get_slide_collision(i)
-		out.append(
-			{
-				"body": collision.get_collider(),
-				"normal": collision.get_normal(),
-				"at": collision.get_position(),
-			}
-		)
-	return out
+	return []
 
 
 ## Slow down at once on contact, but recover toward full speed gradually so losing contact for a

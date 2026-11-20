@@ -34,7 +34,7 @@ round its facing and the bubble round it); the **memory** is where the viewer ha
 bubble all round, and a line of sight over real heights: the cone stays a floor-plan polygon, but only a piece whose twin top
 (`TwinSpace`, interface 29: a wall 96 px, a wardrobe 90 or more, a counter 38, a table 31) is above the viewer's **eye** breaks it; a
 lower piece is looked over. The eye is the height of the posture the viewer is in (`BodyHeights.eye`, 1.64 m at 42.3 px a metre:
-standing 69 px, ducked 32 px), so ducking behind a counter closes the cone behind it and standing opens it again; a car (its belt, 47 px; a van's 56) is looked over by a standing player and blocks a ducked one, as a counter does; a character is
+standing 69 px, ducked 32 px), so ducking behind a counter closes the cone behind it and standing opens it again; a car (its belt, 47 px; a van's 56) is looked over by a standing player and blocks a ducked one, as a counter does; a piece that hangs above the eye (a mirror from 46 to 80 px: its base over a ducked eye's 32) is looked under, as a doorway's lintel is, so the cone passes beneath it; a character is
 looked over at any height, as it always was (a body does not hide what lies behind it from the cone). The numbers are a Character holder's (`CharacterVisionConfig`, read through
 `character.sight()`, which adds `eye_height`, the eye of the posture it is in; the native suite `character/character_vision_config_suite`
 holds the three numbers to the spec and equal to the NPCs' default `NpcSensesTuning`), so any character carries the same view. The cone is exact at corners: nothing behind a wall corner
@@ -103,7 +103,7 @@ door) is looked through however tall. A body in the open is seen from anywhere i
 seen over it (the eye looks down). The query behind it is public (`SightRay.visible_parts(viewer, target)`: the heights of the target's
 points the viewer's eye sees, and `visible_centre`: the middle of them, -1 when none: what an aim at the visible part reads). **The
 view** casts the same rule on the plan (`SightRay.plan_hit`): a 3D ray level at the viewer's eye height in the twin space, so a piece lower
-than the eye is under it and a doorway's lintel over it: V1. A world with no twin space, and a body with no twin, block nothing in either. Tests: `general/sight_ray_suite` (native: the plan cast over a built twin space: a wall, a
+than the eye is under it and a doorway's lintel over it: V1. A world with no twin space, and a body with no twin (a body added this frame has none until the twin space's first update), block nothing in either. Tests: `general/sight_ray_suite` (native: the plan cast over a built twin space: a wall, a
 table, a piece just under and just over the eye, a body with no twin (not in the twin space: it blocks nothing), a `transparent` piece, a character, the caller's exclude list left
 alone) and `general/sight_ray_eye_suite` (native: the eye ray: a wall at any height, a table over and under, the floor behind it, the
 points of a body, a pane, the twins left out), `ai/perception/sight_height_by_posture` (a standing NPC sees over a table and sees a

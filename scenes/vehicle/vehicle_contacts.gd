@@ -456,7 +456,7 @@ func _pressed_by_character(space: PhysicsDirectSpaceState3D,
 		query: PhysicsShapeQueryParameters3D, body: Node2D, normal: Vector2) -> Dictionary:
 	var bodies: Array = []
 	_band_at(query, body.global_position + normal * VehicleCollisionConfig.pile_gap, body.radius)
-	var met := space.intersect_shape(query, 8)
+	var met := TwinSpace.intersecting(space, query)
 	for result: Dictionary in met:
 		var other := TwinSpace.owner_of(result["collider"])
 		if other == null or other in bodies:
@@ -485,7 +485,7 @@ func _pressing_piece(space: PhysicsDirectSpaceState3D, query: PhysicsShapeQueryP
 		body: Node2D, normal: Vector2) -> Dictionary:
 	var bodies: Array = []
 	_band_at(query, body.global_position, VehicleCollisionConfig.pile_reach)
-	for result: Dictionary in space.intersect_shape(query, 16):
+	for result: Dictionary in TwinSpace.intersecting(space, query):
 		var other := TwinSpace.owner_of(result["collider"])
 		if (other == null
 				or other in bodies
@@ -503,11 +503,10 @@ func _presses(space: PhysicsDirectSpaceState3D, other: Node2D, piece: Node2D,
 		normal: Vector2) -> bool:
 	var back := PhysicsShapeQueryParameters3D.new()
 	back.shape = CylinderShape3D.new()
-	(back.shape as CylinderShape3D).height = PILE_BAND
 	back.collision_mask = PhysicsLayers.TWIN_ALL
 	_band_at(back, other.global_position - normal * VehicleCollisionConfig.pile_gap, other.radius)
 	back.exclude = [TwinSpace.leader_of(vehicle).get_rid(), _rid_of(other)]
-	for touched: Dictionary in space.intersect_shape(back, 8):
+	for touched: Dictionary in TwinSpace.intersecting(space, back):
 		if TwinSpace.owner_of(touched["collider"]) == piece:
 			return true
 	return false

@@ -57,8 +57,8 @@ func corners(
 	reach: float,
 	exclude: Array,
 ) -> Array:
-	_column.radius = reach
-	_column.height = SLAB
+	_column.radius = reach * RenderConfig.unit
+	_column.height = SLAB * RenderConfig.unit
 	_query.transform = Transform3D(
 		Basis.IDENTITY, PlanSpace.lift(from, see_over + LEVEL_OVER + SLAB * 0.5)
 	)

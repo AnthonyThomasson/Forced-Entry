@@ -187,7 +187,12 @@ simply:
   Left for 17c (the 2D bodies' deletion): `ViewWatch` watches 2D `CollisionObject2D` nodes (their layer, transform, shapes); the AI's `exclude` rids and the
   `_plan_hit` result's `rid` are 2D `get_rid()`s; `is StaticBody2D` / `CharacterBody2D` type checks; the navigation bake's source (`NavSource.walls_of`,
   `NavHoles`, `NavPieces`, `NavLeaves`) reads the 2D colliders and moves to plan polygons projected from the twins (`TwinShapes.footprint_of`), compared
-  with the old bake on the district first; and the ragdoll's and the blood's queries (ragdoll3d).
+  with the old bake on the district first; and the ragdoll's and the blood's queries (ragdoll3d);
+  also: `Knockback.push`'s 2D `apply_impulse` for a body no 3D body leads, and `PhysicsLayers.SOLID` / `LYING` as 2D markers (`ViewWatch`'s
+  `collision_layer` reads, a door's footprint); `get_world_2d().navigation_map` (25 or more sites: locomotion, stacks, entry geometry) until nav3d;
+  `TwinSpace`'s `find_world_2d()` registry key and `space_in(World2D)` (deleting the 2D world needs a new key: the stage's own node); the `RigidBody2D`
+  roots (plan handles); `tests/_vision/raw_twins.gd` (gives raw 2D test bodies a twin: it goes with them); and `scenes/testing/allocation_padding.gd`'s
+  2D server pad (the scan allows it until then).
 
 ## Consequences
 
