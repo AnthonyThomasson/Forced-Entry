@@ -6,11 +6,11 @@ extends PieceBody
 ## the strike hand-over) shaped as the leaf, with the door's weight. It falls, tumbles and lies as
 ## physics decides: flat, leaning on a wall, propped on a bed. The 2D `Door` is its footprint,
 ## written from it each frame (`TwinSpace`): while the leaf's top is within
-## `DoorFallConfig.step_over` (flat on the floor) the footprint is no collider and the slab ignores
-## characters and vehicles, which walk and drive over it; higher, it is a solid footprint (a hull on
-## the 2D layer, a hole in the nav bake) and a body that meets it shoves it. It stays on
-## `TWIN_WORLD`: a line meets it where it lies, at its lying height, and it can be shoved like any
-## light piece (`Knockback.push`).
+## `DoorFallConfig.step_over` (flat on the floor) the footprint is no obstacle and the slab is on
+## `TWIN_WALKOVER`: characters and vehicles walk and drive over it (no shove: their masks leave the
+## layer out), while a line, a lob or what falls on it meets it where it lies, at its lying height;
+## higher, it is a solid footprint (a hull, a hole in the nav bake) on `TWIN_WORLD`, which a body
+## that meets it shoves. It can be shoved like any light piece (`Knockback.push`).
 
 ## What the slab collides with while it lies flat: the world (walls, pieces), the ground.
 const FLAT_MASK := PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_GROUND
@@ -47,6 +47,7 @@ func twin_update(footprint: Node2D) -> void:
 	if flat != _flat:
 		_flat = flat
 		collision_mask = FLAT_MASK if flat else _full_mask
+		collision_layer = PhysicsLayers.TWIN_WALKOVER if flat else PhysicsLayers.TWIN_WORLD
 
 
 ## The footprint is the hull of the tipped leaf's projection.

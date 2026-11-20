@@ -21,6 +21,8 @@ const SIGHT_ROW := 850.0
 const BEYOND_SHARE := 0.25
 ## The highest a leaf lying flat reaches (px): its thickness and the body's resting gap.
 const FLAT_TOP := 9.0
+## The most (px) a leaf walked over may be moved by the walker.
+const WALKED_OVER := 5.0
 
 
 func describe() -> Dictionary:
@@ -129,12 +131,17 @@ func _walk_over(t: TestContext) -> void:
 	# shown how a door falls, this row is the walk
 	walked.take_damage(1000.0)
 	t.check(walked.is_down(), "a blow past its HP knocks a door down")
+	# the leaf lies where it fell before the walk starts, so the walk is over it, not a shove
+	await Probe.settle(t, walked, 10.0)
+	var lay := Probe.middle(walked)
 	puppet.walk_to(Vector2(560, WALKED_ROW))
 	t.check(
 		await t.until(func(): return t.actor(&"walker").global_position.x > 500.0, 4.0),
 		"a puppet walks over the fallen door and through the doorway (x %.0f)"
 			% t.actor(&"walker").global_position.x,
 	)
+	var shoved := Probe.middle(walked).distance_to(lay)
+	t.check(shoved < WALKED_OVER, "and walks over it, not shoving it (moved %.0f px)" % shoved)
 
 
 ## An NPC sees a puppet through a doorway whose door is down.
