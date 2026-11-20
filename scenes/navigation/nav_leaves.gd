@@ -1,9 +1,10 @@
 class_name NavLeaves extends RefCounted
 ## The house doors as the Navigation domain bakes them (`docs/adr/0010-doors-are-driven-bodies-
-## left-out-of-the-nav-bake.md`): which bodies are doors, left out of the walls' parse, and the hole
-## a door's leaf leaves in the map where it stands once it is open. Read duck-typed through the door
-## contract (interface 24), found by the group `doors`, so Navigation imports nothing of the Objects
-## domain. `NavBuilder`'s own: its bakes and `furniture_holes` call it.
+## left-out-of-the-nav-bake.md`): which bodies are doors (no wall's twin, so left out of the
+## walls), and the hole a door's leaf leaves in the map where it stands once it is open. Read
+## duck-typed through the door contract (interface 24), found by the group `doors`, so Navigation
+## imports nothing of the Objects domain. `NavBuilder`'s own: its bakes and `furniture_holes` call
+## it.
 
 ## How far (degrees) short of its open stop a door's leaf may stand and still be carved (`hole`):
 ## any further shut, its free end stands across the way past it through the doorway (a 48 px
@@ -20,10 +21,10 @@ const MIN_PASS := 4.0
 
 
 ## The doors standing under `house`: the bodies in the group `doors`. A door is a driven body in a
-## doorway (a StaticBody2D to the engine's parse), but it opens, so a path goes through its doorway
-## as if it were open and the walker deals with the leaf: the walls' parse does not see it
-## (`NavSource.walls_of`). Named by group alone, so Navigation imports nothing of the Objects
-## domain.
+## doorway, but it opens, so a path goes through its doorway
+## as if it were open and the walker deals with the leaf: the walls read from the twins do not
+## include it (`NavSource.walls_of`). Named by group alone, so Navigation imports nothing of the
+## Objects domain.
 static func doors_of(house: Node2D) -> Array[CollisionObject2D]:
 	var doors: Array[CollisionObject2D] = []
 	if not house.is_inside_tree():

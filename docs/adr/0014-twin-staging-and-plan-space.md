@@ -190,8 +190,7 @@ simply:
   simulation, and a bare `AnimatableBody2D` has `sync_to_physics` on, so a transform set by hand goes through the 2D server: `vision/cone_skip_exact`
   and `cone_skip_exact_sliced` (a mover moved by hand), `vision/cone_restarts_on_world_change` (a wardrobe), `art/mirror_follows_bodies` (a box turned by hand),
   `art/mirror_hides_unseen_movers` (a car moved by hand) and `general/twin_unfrozen_body_is_followed` (an unfrozen `RigidBody2D` the 2D step moves). They are 17c's: no 2D body leads. Four are fixed (del2d-c): the bare `AnimatableBody2D`s the vision tests move by hand have `sync_to_physics` off, as a door and a vehicle have, and the unfrozen post is moved by a script, so none needs the 2D step; the two `art/mirror_*` go with `WorldMirror` (del2d-b3c).
-  Left for 17c (the 2D bodies' deletion): `ViewWatch` watches 2D `CollisionObject2D` nodes (their layer, transform, shapes); `is StaticBody2D` / `CharacterBody2D` type checks; (the navigation bake's source is done: it reads the
-  twins, below);
+  Left for 17c (the 2D bodies' deletion): `ViewWatch` watches 2D `CollisionObject2D` nodes (their layer, transform, shapes); `is StaticBody2D` / `CharacterBody2D` type checks (the navigation bake reads the twins: below);
   also: `Knockback.push`'s 2D `apply_impulse` for a body no 3D body leads, and `PhysicsLayers.SOLID` / `LYING` as 2D markers (`ViewWatch`'s
   `collision_layer` reads, a door's footprint); `get_world_2d().navigation_map` (25 or more sites: locomotion, stacks, entry geometry) until nav3d;
   `TwinSpace`'s `find_world_2d()` registry key and `space_in(World2D)` (deleting the 2D world needs a new key: the stage's own node); the `RigidBody2D`
@@ -222,12 +221,12 @@ before the bake (`MatchBuilder.stage`). `NavigationServer2D` stays until nav3d; 
 It is not the same outline, and `navigation/bake_from_twins_matches_colliders` (a district, seed 7; `_house`, a house) measures the new bake
 against the old one read from the 2D colliders (`tests/_navigation/collider_reference.gd`). The walls are the same outlines (341 holes and as
 many walls in the district, each wall within a pixel). A round piece or character is the bake's own 10-sided polygon (`NavHoles.CIRCLE_SEGMENTS`),
-not the twin's 16-sided disc: the 16-sided one moved 24 ambush posts of 210 and broke seven recorded AI tests. What moves: a piece hung on a
+not the twin's 16-sided disc: the 10-gon is the old geometry, so a round hole changes nothing (the 16-sided one moved 24 ambush posts of 210). What moves: a piece hung on a
 wall (a menu board, a mirror, a towel rail) carves the depth its twin has, about half its 2D collider's; and a dent no longer changes a hole (a
 twin keeps the outline it was built with, so a shot-up piece's hole is its full footprint, as it stood; `ai/combat/defend_room_stays_inside`, whose
 fight shoots furniture, was re-recorded on the Von server). Measured on the district: the holes' area -0.9 %, the navmesh 889 polygons against
 888 with +0.1 % area; on a house 112 against 111, +0.06 % area; of 90 routes between rooms' centres, none lost and none over 3 %. A character's
-hole reads its twin, which follows a body a script moves within a frame (a body at rest has none). Tests that moved a footprint by hand now
+hole reads its twin, which follows a body a script moves within a frame (a character at rest has a twin too). Tests that moved a footprint by hand now
 wait for its twin (`TwinSpace.PARK_SPREAD`) or move the twin. Still 2D in the bake, for 17c's second half: finding the pieces (`RigidBody2D`) and the walls
 (`StaticBody2D` with `wall_segments`) by engine type; the door contract's `fallen_footprint` (`DoorFootprint.ring`, a 2D collider); a character's
 `collision_layer`.

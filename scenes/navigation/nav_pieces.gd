@@ -1,9 +1,9 @@
 class_name NavPieces extends RefCounted
 ## Navigation domain: the solid pieces (RigidBody2D) under one house and the footprint each was
 ## last cut to, so a tick of `NavBuilder.furniture_holes` reads one transform a piece and cuts only
-## those that moved, were dented (their colliders rebuilt: a child shape came or went) or were
-## added; the tree is walked again only when a piece was added or has left. One tracker per house,
-## made by the first ask and dropped when the house leaves the tree (`of`).
+## those whose twin moved or were twinned or added; the tree is walked again only when a piece was
+## added or has left. One tracker per house, made by the first ask and dropped when the house leaves
+## the tree (`of`).
 
 ## The trackers made, house instance id -> `NavPieces`.
 static var _trackers: Dictionary = {}

@@ -1,6 +1,6 @@
 class_name NavTwins extends RefCounted
 ## Navigation domain: what a bake reads of the world, taken from the 3D twins (`TwinSpace`,
-## interface 29) and no longer from the 2D colliders (#194 del2d-c, ADR 0014): the floor-plan
+## interface 29), not from the 2D colliders (ADR 0014): the floor-plan
 ## polygons the twin of a wall, a piece or a character casts on the floor
 ## (`TwinShapes.footprint_of`), in world plan space. A bake projects at the plan, never by an
 ## agent's height, so a doorway's lintel (a header from a door's height to the wall's top, in the

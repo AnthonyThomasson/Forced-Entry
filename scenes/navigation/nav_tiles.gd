@@ -301,8 +301,8 @@ static func walls_all(
 
 
 ## The parse of each tower of `site`'s house (`_parse_tower`), in the order of the house's children,
-## as kept on `region`: a tower never parsed, or one that reaches `reaches`, is parsed again and
-## kept. Null when a collider is a child of the house itself.
+## as kept on `region`: a tower never parsed, or one that reaches `reaches`, is read again and
+## kept. Null when a body is a child of the house itself.
 static func _refreshed(
 	region: NavigationRegion2D,
 	site: NavSite,

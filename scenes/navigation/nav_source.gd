@@ -1,9 +1,10 @@
 class_name NavSource extends RefCounted
 ## Navigation domain: what a bake is gathered from and how a gathered bake is run, the plumbing
 ## `NavBuilder`, `NavTiles`, `NavRing` and `NavRebake` share. A bake is a job, `{ poly, source }`:
-## the polygon to bake into (the agent radius set) and its source geometry (the parsed walls, the
-## walkable footprint and the furniture and character holes), gathered on the main thread. `bake`
-## runs a job at once; `NavRebake` hands one to a worker thread (`NavBake`). The parsed walls are a
+## the polygon to bake into (the agent radius set) and its source geometry (the walls read from the
+## twins, the walkable footprint and the furniture and character holes), gathered on the main
+## thread. `bake` runs a job at once; `NavRebake` hands one to a worker thread (`NavBake`). The
+## walls are a
 ## `walls` dictionary, `{ traversable, obstruction, projected }`, built only by `walls`.
 
 ## The box round an outline is this much (px) larger than the polygon, so outlines that merely touch
@@ -11,8 +12,9 @@ class_name NavSource extends RefCounted
 const BOUNDS_EPSILON := 0.5
 
 
-## A parse's walls as the source takes them: the `obstruction` outlines (on the map's 1 px grid)
-## and, beside them, the `traversable` outlines and `projected` obstructions the parse made.
+## The walls as the source takes them: the `obstruction` outlines (on the map's 1 px grid)
+## and, beside them, `traversable` outlines and `projected` obstructions (none: the twins give
+## obstructions only).
 static func walls(
 	obstruction: Array,
 	traversable: Array = [],
@@ -22,7 +24,7 @@ static func walls(
 
 
 ## What a bake of `house` reads of its walls: the floor-plan polygon each shape of a wall's twin
-## stands on (`NavTwins.footprints`, #194 del2d-c: no 2D collider is read), as `walls`, the
+## stands on (`NavTwins.footprints`; no 2D collider is read), as `walls`, the
 ## obstructions in the house's local frame snapped to the map's 1 px grid. A lintel over a doorway
 ## (a header from a door's height up) is no obstruction: the bake projects at the plan, so the
 ## doorways stay open to the paths, and so do the doors (the group `doors`: their leaves stand in
@@ -43,7 +45,7 @@ static func walls_of(house: Node2D, frame := Transform2D.IDENTITY) -> Dictionary
 ## Everything a bake needs, gathered on the main thread: the polygon to bake into (`poly`, with the
 ## agent radius set) and its source geometry (`source`: the walls, the walkable footprint, the
 ## `furniture` holes (`NavBuilder.furniture_holes`) and each of `characters`). {} with no rooms.
-## `walls` are the parsed walls (`walls_of`) when the caller has them this frame, else parsed here.
+## `walls` are the walls (`walls_of`) when the caller has them this frame, else read here.
 static func job(
 	site: NavSite,
 	furniture: Array,
@@ -66,19 +68,19 @@ static func base(site: NavSite, parsed: Dictionary = {}) -> Dictionary:
 	if bounds.size == Vector2.ZERO:
 		return {}
 	bounds = site.bounds if site.bounds.has_area() else bounds.grow(NavBuilder.BOUNDS_PAD)
-	# parse_source_geometry_data returns the wall colliders in `house`'s LOCAL frame, so the
+	# the walls are read into `house`'s LOCAL frame (`walls_of`), so the
 	# footprint and the baked mesh live in that frame too; the region is then offset by the house's
 	# position to place the whole map back in world space. Mixing world and local here is what
 	# silently misaligns the walls and seals the doorways.
 	var local_bounds := Rect2(bounds.position - house.position, bounds.size)
 	var source := NavigationMeshSourceGeometryData2D.new()
-	# Obstructions: the house's static colliders (walls). Setting the parsed outlines replaces the
+	# Obstructions: the walls' twin footprints. Setting the outlines replaces the
 	# source's lists, so it comes before the footprint is added.
 	var walls_here := parsed if not parsed.is_empty() else walls_of(house)
 	source.set_traversable_outlines(walls_here["traversable"])
 	source.set_obstruction_outlines(walls_here["obstruction"])
 	source.set_projected_obstructions(walls_here["projected"])
-	# Walkable footprint: the whole house bounds. The parsed walls carve it, leaving the doorways.
+	# Walkable footprint: the whole house bounds. The walls carve it, leaving the doorways.
 	source.add_traversable_outline(rect_outline(local_bounds))
 	return { "poly": new_polygon(site.agent_radius), "source": source }
 

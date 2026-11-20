@@ -5,9 +5,13 @@ extends GameTest
 ## walked over). The world's own map, which the AI plans with, never has the characters in it.
 
 ## How far (px) a character's centre is, at the least, from the path across the arena: a character
-## the path goes round is off it by a body's width and more. (The path's length says little about
-## it: the unoptimised path runs through the polygons' edges, which the shape of a hole moves.)
+## the path goes round is off it by a body's width and more.
 const OFF_THE_LINE := 20.0
+## The path's length (px) past which it has bent: the straight line is 480 (491.9 measured with the
+## unoptimised path's own zigzag), the detour round a character standing 5 px off the line 503.3.
+## The old bound, 520, held for the 2D bake's triangulation (571 for the first character): it is the
+## polygons' edges the unoptimised path runs through, which the shape of a hole moves.
+const BENT := 495.0
 
 
 func describe() -> Dictionary:
@@ -56,7 +60,7 @@ func run(t: TestContext) -> void:
 	var detours := func():
 		var length := _path_length(t)
 		t.trace("path_length", length)
-		return length > 480.0 and _clearance(t, Vector2(300, 150)) > OFF_THE_LINE
+		return length > BENT and _clearance(t, Vector2(300, 150)) > OFF_THE_LINE
 	var straight := func():
 		var length := _path_length(t)
 		t.trace("path_length", length)

@@ -22,6 +22,11 @@ extends GameTest
 ## 2.52 and 2.58 ms a steering re-bake, 23.3 and 22.9 ms for the 300 queries. The steering re-bake
 ## moved from about 5.5 to about 2.5 ms (a tick cuts only the pieces that moved), so its budget is
 ## set again at about 4x: 10 ms. The other three read within 15 % of the base and keep theirs.
+## 2026-11-20, #194 del2d-c (the nav bake reads the twins; three runs each, load 7 to 17, the base
+## commit alternating, in brackets): 2.6, 2.6 and 2.6 ms a steering re-bake [2.4, 2.3, 2.4]; a
+## district's walls read from the twins take 1.8 ms where the engine's parse of the colliders took
+## 3.6. Under load 20 to 40 (other workers) the steering re-bake read 7 to 10 ms on the base and on
+## the new alike: measure it on a quiet machine.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const REBAKES := 10

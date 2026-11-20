@@ -14,7 +14,9 @@ extends GameTest
 ## 10-sided polygon, as the 2D circle was): a hung piece carves the depth its twin has, about half
 ## its 2D collider's, so the holes' area is 0.9% under (the house's 0.3%); the navmesh has the same
 ## area (+0.1%) and a polygon fewer (889 old, 888 new); and every route the old map found, the new
-## one finds, within `ROUTE_SHARE` of its length (measured over 90 routes: none lost, none over 3%).
+## one finds, within `ROUTE_SHARE` of its length (measured over 90 routes: none lost, none over 3%,
+## the longest +0.0% and the shortest -2.6%, all of them the hung pieces' holes:
+## `_check_hung_account_for_routes`).
 
 const Reference := preload("res://tests/_navigation/collider_reference.gd")
 const SEED := 7
@@ -22,12 +24,18 @@ const RADIUS := NavBuilder.AGENT_RADIUS
 ## How far (px) a wall's corner may be from the 2D parse's: the twin's float rounding and the 1 px
 ## grid.
 const WALL_GRID := 1.0
-## The most the navmesh's area may differ (share of the old one's), and the most a route may differ
+## The most the holes' area may differ (share of the old one's), and the most a route may differ
 ## in length (share of the old one's), on the routes below.
 const AREA_SHARE := 0.02
+## The most the navmesh's area may differ, share of the old one's (measured +0.1%, the house
+## +0.06%).
+const MESH_SHARE := 0.005
 const ROUTE_SHARE := 0.03
 ## How many routes are measured.
 const ROUTES := 90
+## The pieces hung on a wall, whose twin is about half as deep as their 2D collider: the only ones
+## whose hole is not the old one's (a name starts with one of these).
+const HUNG: Array[String] = ["Menu Board", "Mirror", "Towel"]
 ## What `_shares` reports for a route the new map does not find.
 const MISSING := -1000.0
 
@@ -60,6 +68,7 @@ func run(t: TestContext) -> void:
 	var old_chars := Reference.characters(root.get_parent())
 	var new_chars := NavBuilder.character_holes(root.get_parent())
 	_check_holes(t, old_holes + old_chars, new_holes + new_chars)
+	_check_each_piece(t, root)
 	var old_poly := NavSource.bake(
 		NavSource.job(site, old_holes, old_chars, old_walls), root.position,
 	)
@@ -68,6 +77,32 @@ func run(t: TestContext) -> void:
 	)
 	_check_mesh(t, old_poly, new_poly)
 	_check_routes(t, root, site, old_poly, new_poly)
+	_check_hung_account_for_routes(t, root, site, old_poly, [new_holes, new_chars, new_walls])
+	await _extras(t, root)
+
+
+## What a world adds to the comparison beyond its own pieces: a wall shot up (its twin is cut from
+## the same dents as its 2D collider, so the walls stay the 2D parse's).
+func _extras(t: TestContext, root: Node2D) -> void:
+	var wall: Node2D = null
+	for node in NavTwins.walls_under(root):
+		wall = node
+		break
+	if not t.require(wall != null, "premise: the world has a wall"):
+		return
+	var seg: PackedVector2Array = wall.wall_segments()[0]
+	for k in 4:
+		var hit := HitInfo.new()
+		hit.position = wall.to_global(seg[0].lerp(seg[1], 0.2 + 0.15 * k))
+		hit.normal = (seg[1] - seg[0]).normalized().orthogonal()
+		hit.direction = -hit.normal
+		hit.damage = 40.0
+		hit.speed_factor = 1.0
+		wall.take_hit(hit)
+	await t.frames(3)  # the wall's collider, and its twin, are rebuilt from the dents
+	_check_walls(
+		t, Reference.walls(root, RADIUS)["obstruction"], NavSource.walls_of(root)["obstruction"],
+	)
 
 
 ## The node the bake parses: the district, or the house.
@@ -115,15 +150,30 @@ func _bucket(outline: PackedVector2Array) -> Vector2i:
 	return Vector2i((sum / outline.size() / 32.0).floor())
 
 
-## Whether every corner of `a` has a corner of `b` within `WALL_GRID` and the other way.
+## Whether every corner of `a` has a corner of `b` within `WALL_GRID` and the other way: the
+## corners proper, a vertex on the line between its neighbours being no corner (a dented wall's 2D
+## parse keeps such vertices, its twin's hull does not).
 func _same_corners(a: PackedVector2Array, b: PackedVector2Array) -> bool:
-	for p in a:
-		if _gap(p, b) > WALL_GRID:
+	var ca := _corners(a)
+	var cb := _corners(b)
+	for p in ca:
+		if _gap(p, cb) > WALL_GRID:
 			return false
-	for p in b:
-		if _gap(p, a) > WALL_GRID:
+	for p in cb:
+		if _gap(p, ca) > WALL_GRID:
 			return false
 	return true
+
+
+## `ring` without the vertices that lie on the line between their neighbours.
+func _corners(ring: PackedVector2Array) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	for i in ring.size():
+		var before := ring[(i - 1 + ring.size()) % ring.size()]
+		var after := ring[(i + 1) % ring.size()]
+		if absf((ring[i] - before).cross(after - ring[i])) > 0.5:
+			out.append(ring[i])
+	return out
 
 
 func _gap(point: Vector2, ring: PackedVector2Array) -> float:
@@ -148,6 +198,27 @@ func _check_holes(t: TestContext, old: Array, now: Array) -> void:
 	)
 
 
+## Each piece's own hole is the old one's, but for the pieces hung on a wall (`HUNG`).
+func _check_each_piece(t: TestContext, root: Node2D) -> void:
+	var differ: Array[String] = []
+	for body: Node2D in root.find_children("*", "RigidBody2D", true, false):
+		var old_hole := Reference.cut(body)
+		var new_hole := NavHoles.cut(body)
+		if old_hole.is_empty() and new_hole.is_empty():
+			continue
+		if old_hole.is_empty() or new_hole.is_empty() or not _same_corners(old_hole, new_hole):
+			differ.append(String(body.name))
+	var unexpected := differ.filter(
+		func(piece_name: String) -> bool:
+			return not HUNG.any(func(hung: String) -> bool: return piece_name.begins_with(hung))
+	)
+	t.check(
+		unexpected.is_empty(),
+		"each piece's hole is the old one's but for the hung ones (%d differ: %s)"
+			% [differ.size(), differ],
+	)
+
+
 func _area(rings: Array) -> float:
 	var sum := 0.0
 	for ring: PackedVector2Array in rings:
@@ -168,10 +239,10 @@ func _check_mesh(t: TestContext, old: NavigationPolygon, now: NavigationPolygon)
 	var before := _mesh_area(old)
 	var after := _mesh_area(now)
 	t.check(
-		absf(after - before) <= before * AREA_SHARE,
-		("the navmesh's area is within %d%% of before (%.0f px² old, %.0f px² new; polygons %d "
+		absf(after - before) <= before * MESH_SHARE,
+		("the navmesh's area is within %.1f%% of before (%.0f px² old, %.0f px² new; polygons %d "
 			+ "old, %d new)") % [
-				int(AREA_SHARE * 100.0), before, after,
+				MESH_SHARE * 100.0, before, after,
 				old.get_polygon_count(), now.get_polygon_count(),
 			],
 	)
@@ -217,6 +288,36 @@ func _check_routes(
 	for map in [old_map, new_map]:
 		NavigationServer2D.free_rid(NavigationServer2D.map_get_regions(map)[0])
 		NavigationServer2D.free_rid(map)
+
+
+## What moved the routes is the hung pieces' holes alone: the new bake with those holes cut as
+## before (`from_new`: its holes, its characters, its walls) gives every route the old map's length.
+func _check_hung_account_for_routes(
+	t: TestContext,
+	root: Node2D,
+	site: NavSite,
+	old: NavigationPolygon,
+	from_new: Array,
+) -> void:
+	var holes: Array = (from_new[0] as Array).duplicate()
+	for body: Node2D in root.find_children("*", "RigidBody2D", true, false):
+		if HUNG.any(func(hung: String) -> bool: return String(body.name).begins_with(hung)):
+			var at := holes.find(NavHoles.cut(body))
+			if at >= 0:
+				holes[at] = Reference.cut(body)
+	var poly := NavSource.bake(
+		NavSource.job(site, holes, from_new[1], from_new[2]), root.position,
+	)
+	var old_map := _map_of(old, root.position)
+	var map := _map_of(poly, root.position)
+	var shares := _shares(old_map, map, site.rooms)
+	t.check(
+		not shares.is_empty() and shares.max() == 0.0 and shares.min() == 0.0,
+		"with the hung pieces' holes as before, all %d routes are as long" % shares.size(),
+	)
+	for each in [old_map, map]:
+		NavigationServer2D.free_rid(NavigationServer2D.map_get_regions(each)[0])
+		NavigationServer2D.free_rid(each)
 
 
 ## How much longer (a share of the old length) the new map's route is than the old map's, for each

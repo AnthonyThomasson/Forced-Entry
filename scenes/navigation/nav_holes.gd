@@ -1,6 +1,6 @@
 class_name NavHoles extends RefCounted
-## Navigation domain: the footprints a bake carves as holes, measured from the twins (#194 del2d-c:
-## `NavTwins`, no 2D collider is read). A body's footprint is the convex hull of the plan polygons
+## Navigation domain: the footprints a bake carves as holes, measured from the twins (`NavTwins`;
+## no 2D collider is read). A body's footprint is the convex hull of the plan polygons
 ## its twin's shapes stand on, grown by the obstacle margin (`cut`); `NavBuilder.furniture_holes`
 ## and `character_holes` hand them out. `walks` and `cuts` count the work done, for the tests.
 
@@ -54,7 +54,7 @@ static func hull_of(body: Node2D) -> PackedVector2Array:
 
 
 ## The world-space footprint of `body` cut afresh: the convex hull of the plan footprints of its
-## twin's shapes (`NavTwins.parts`, #194 del2d-c), each grown by `NavBuilder.OBSTACLE_MARGIN`, as an
+## twin's shapes (`NavTwins.parts`), each grown by `NavBuilder.OBSTACLE_MARGIN`, as an
 ## open ring; empty when `body` has no twin or fewer than three points come out of it. An upright
 ## cylinder (a round piece, a character) is a `CIRCLE_SEGMENTS`-sided polygon, the bake's own
 ## approximation of a circle.

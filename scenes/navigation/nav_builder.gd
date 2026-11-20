@@ -2,8 +2,8 @@ class_name NavBuilder
 extends RefCounted
 ## Navigation domain (leaf): turns a generated house, or a whole district, into walkable navigation
 ## maps for the global NavigationServer2D. A bake is the walkable footprint (the rooms grown by
-## `BOUNDS_PAD`, or a district's explicit `bounds`) minus the STATIC wall colliders, so doorways
-## stay open, minus a hole per solid furniture footprint, so paths route around furniture and
+## `BOUNDS_PAD`, or a district's explicit `bounds`) minus the walls' twin footprints, so doorways
+## stay open, minus a hole per solid furniture twin, so paths route around furniture and
 ## through another doorway when the near one is blocked. Any NavigationAgent2D pathfinds against
 ## the map. The maps: the PLANNING map (furniture only, what the AI plans and measures
 ## with: routes, flank and entry geometry, snapping a point to open floor), a STEERING map of its
@@ -68,7 +68,7 @@ static var avoid_rebakes := 0
 
 
 ## Build and add a NavigationRegion2D under `parent`, covering `rooms` (each `{ key, type, rect }`
-## with a world-space `rect`, from WorldGen.get_rooms) minus `house`'s wall colliders.
+## with a world-space `rect`, from WorldGen.get_rooms) minus `house`'s walls (their twins).
 ## `agent_radius` is the pathing clearance (character body radius). Returns the region, or null if
 ## there are no rooms. `bounds` (world space; empty = from the rooms) is the walkable footprint when
 ## it is more than the rooms and a ring of `BOUNDS_PAD` round them: a district's streets out to its
@@ -317,7 +317,7 @@ static func rebake_async(region: NavigationRegion2D, house: Node2D, rooms: Array
 
 
 ## Bake a NavigationPolygon for `site` (its house over its rooms at its agent radius): the house
-## bounds minus the static wall colliders (doorways stay open) minus each solid furniture footprint
+## bounds minus the walls' twin footprints (doorways stay open) minus each solid furniture footprint
 ## (carved as a hole) and minus each of `characters` (footprints from `character_holes`; none = the
 ## planning bake). Returns null if there are no rooms. In the house's LOCAL frame — the region
 ## offsets it into world space. `build` bakes its steering region's first polygon with it. It
@@ -333,19 +333,16 @@ static func _bake_polygon(site: NavSite, characters: Array = []) -> NavigationPo
 
 ## The furniture footprint holes a bake of `house` carves, each a closed WORLD-space polygon — the
 ## same solid-furniture selection and grown footprints `NavSource.add_holes` feeds the baker, so a
-## debug overlay drawing these shows exactly what was carved out. Re-measured from each collider's
-## live `global_transform` on every call, so it reflects where the furniture stands NOW — the
-## re-bakes `nav_updater.gd` drives rely on that to re-carve holes as pieces are shoved around in
-## play. A damaged piece has its primitive collider rebuilt into several deformed
-## ConvexPolygonShape2D pieces, so EACH of a body's collision shapes contributes to its footprint —
-## otherwise a dented piece's hole would vanish. A body's footprint is the convex hull of those
-## shapes: a dent's notches are far smaller than the agent, and baked in they leave sub-pixel
-## navmesh edges the NavigationServer cannot merge ("navigation map synchronization error"). Every
-## RigidBody2D with a collider is carved: shoved furniture, and an anchored piece (frozen static: a
-## streetlight's post), which never moves; walk-over decor is frozen too but has no collider, so it
-## leaves no hole. A door's leaf standing clear of its doorway is carved too, where it stands now
-## (`NavLeaves.hole`): out of the doorway, in the room it swings into, it is as solid as a piece of
-## furniture there.
+## debug overlay drawing these shows exactly what was carved out. Re-measured from each piece's
+## twin pose on every call, so it reflects where the furniture stands NOW — the re-bakes
+## `nav_updater.gd` drives rely on that to re-carve holes as pieces are shoved around in play. A
+## body's footprint is the convex hull of its twin's shape footprints, grown by the margin
+## (`NavHoles`): a dent does not change a twin, and its notches would be far smaller than the agent
+## (baked in, they leave sub-pixel navmesh edges the NavigationServer cannot merge). Every
+## RigidBody2D with a twin is carved: shoved furniture, and an anchored piece (a streetlight's
+## post), which never moves; walk-over decor has no twin, so it leaves no hole. A door's leaf
+## standing clear of its doorway is carved too, where it stands now (`NavLeaves.hole`): out of the
+## doorway, in the room it swings into, it is as solid as a piece of furniture there.
 static func furniture_holes(house: Node2D) -> Array:
 	return NavHoles.furniture(house)
 
@@ -360,7 +357,7 @@ static func furniture_holes(house: Node2D) -> Array:
 ## still is carved, and so is one pushing against a wall or another body without getting anywhere;
 ## when it sets off its hole goes at the next re-bake. Every body at rest is carved, seen or not:
 ## which of them a walk accounts for is up to the walker (the AI's `Locomotion` goes round by this
-## map only for a body it knows of). Re-measured on every call from the live collider transform, so
+## map only for a body it knows of). Re-measured on every call from the character's twin pose, so
 ## the steering re-bakes `nav_updater.gd` drives follow the characters as they stop, set off, appear
 ## and die.
 static func character_holes(root: Node) -> Array:

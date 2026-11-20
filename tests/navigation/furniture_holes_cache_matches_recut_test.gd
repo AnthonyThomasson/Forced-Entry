@@ -105,7 +105,10 @@ func _check_dented(t: TestContext, house: Node2D, piece: RigidBody2D) -> void:
 	await t.frames(3)  # the collider is rebuilt from the dents a frame later
 	_reset_counts()
 	var dented := NavBuilder.furniture_holes(house)
-	t.check(NavHoles.cuts <= 1, "a dented piece is cut once at most (%d cuts)" % NavHoles.cuts)
+	t.check(
+		NavHoles.cuts == 1,
+		"a dented piece is cut once, for the shove (%d cuts)" % NavHoles.cuts,
+	)
 	t.check(NavHoles.walks == 0, "and dinting it walks no tree (%d walks)" % NavHoles.walks)
 	t.check(dented == NavHoles.plain(house), "after a piece is dented the holes equal a re-cut")
 
