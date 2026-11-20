@@ -189,6 +189,7 @@ func test_a_solid_that_joins_is_due() -> void:
 func test_a_piece_that_is_reshaped_is_due() -> void:
 	var watch := _watch()
 	var piece: Piece = auto_free(Piece.new())
+	piece.add_to_group(TwinSpace.BODIES)  # as a piece is: a plan handle the view watches
 	piece.add_to_group(TwinSpace.PIECES)
 	piece.position = ORIGIN + Vector2(300.0, 0.0)
 	add_child(piece)
@@ -266,9 +267,6 @@ func test_a_body_whose_twin_comes_later_is_sorted_again() -> void:
 class Piece:
 	extends Node2D
 	signal reshaped
-
-	var size := Vector2(30.0, 20.0)
-
 
 	func reshape() -> void:
 		reshaped.emit()
