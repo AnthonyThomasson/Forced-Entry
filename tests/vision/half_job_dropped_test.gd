@@ -13,8 +13,8 @@ extends GameTest
 
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 const EYE_AT := Vector2(200, 300)
-## The slice (units) that makes a job of this house three frames: the corners take one,
-## priced at a slice as the default price is (`cost_shape`), and the rays two.
+## The slice (units) that makes a job of this house three frames: the corners take one, priced at
+## a slice here (`cost_shape` is set to it: the default price is lower), and the rays two.
 const SLICE := 140
 ## A place this far west of the viewer is far outside its cone and bubble.
 const FAR := 3000.0

@@ -25,8 +25,8 @@ const Checker := preload("res://tests/_vision/cone_checker.gd")
 const EYE_AT := Vector2(200, 300)
 ## A wardrobe in the viewer's way, east of it, moved a pixel a frame while it is looked at.
 const BLOCKER_AT := Vector2(400, 300)
-## The slice (units) that makes a job of this house three frames: the corners take one,
-## priced at a slice as the default price is (`cost_shape`), and the rays two.
+## The slice (units) that makes a job of this house three frames: the corners take one, priced at
+## a slice here (`cost_shape` is set to it: the default price is lower), and the rays two.
 const SLICE := 140
 ## The viewer's step in a frame (px) and its turn (degrees).
 const WALK := Vector2(2.0, 0.0)
@@ -45,8 +45,8 @@ const MOST_BETWEEN := CAP + 2
 ## to prove the job is sliced.
 const OLDEST := 4
 const YOUNGEST := 2
-## A long job (#195, the user's choice 2026-11-12: the corners are priced honestly, so a job is the
-## corners' tick and its rays' ticks): the slice (units) that makes this house's job six ticks, the
+## A long job (#195, the user's choice 2026-11-12, and 2026-11-19 for the corners' price: a job is
+## its corners and its rays' ticks): the slice (units) that makes this house's job six ticks, the
 ## longest a district's job takes, and the oldest its cone may be then, twice the ticks less one.
 const LONG_SLICE := 50
 const LONG_TICKS := 6

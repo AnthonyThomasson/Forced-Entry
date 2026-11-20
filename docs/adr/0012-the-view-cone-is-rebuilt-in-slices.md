@@ -24,10 +24,11 @@ frames old (a job of 3 ticks), up to 6 (4 ticks) and at most 10 (the 6 ticks of 
 
 A walking viewer's cone is usually up to 4 frames (about 17 px at a run, 10 px walking) behind its eye, the facing 2 to 4 frames behind its
 turn; in about a quarter of a district's views (a job of 4 ticks or more) up to 6 frames, and at most 10 (about 42 px at a run). The longer bound is the
-corners' price: they cost about 2 ms, as much as a slice of rays, and priced as one unit they made a start tick of 6 to 7 ms. `cost_shape` is 450, so
-a job is the corners' tick plus its rays' ticks, one more than before (a district job a median 3 ticks, 26 % over 3, the most 6; before a median 2,
+corners' price: they cost about 2 ms, as much as a slice of rays, and priced as one unit they made a start tick of 6 to 7 ms. `cost_shape` was 450, so
+a job was the corners' tick plus its rays' ticks, one more than before (a district job a median 3 ticks, 26 % over 3, the most 6; before a median 2,
 11 % over 3, the most 5). The user accepted the longer lag on 2026-11-12 (#195, the frame tail) over a larger slice or a cheaper price that would fit a start tick
-with some rays. The user accepted that (issue #195, Agent Brief rule 7) because the alternative is a frame budget the 10v10 cannot meet. It
+with some rays. On 2026-11-19 (#194 del2d) the user chose the cheaper price: the corners are a 3D shape query in the twin space now, about 200 to 225 units, so `cost_shape` is 225,
+the start tick holds the corners and the first rays, and a district job is a median 2 ticks (the most 5, 10 % over 3: measured loaded, perf3d re-measures). The user accepted that (issue #195, Agent Brief rule 7) because the alternative is a frame budget the 10v10 cannot meet. It
 replaces the earlier pose lag (`rebuild_gap`: an eye 5 px or a facing 1 degree off waited one frame), which was the same trade at
 one frame, and only for a slow walker: a quick turn (6 degrees a frame) was past its bounds and rebuilt every frame.
 Now the job's length is the lag and a moving viewer's cost is a slice a frame, whatever the pose does. A mover entering or leaving the

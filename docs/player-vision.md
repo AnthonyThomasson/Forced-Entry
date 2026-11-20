@@ -51,13 +51,11 @@ and steps it `VisionSliceConfig.slice_units` (450, about 3.5 ms) of engine work 
 publishes it (`SeenArea`, the two masks' paint read the cone, the bubble and the eye together). **The published cone is
 the fresh cone of the pose the job started from, in the world as it was then: the exact cone of one eye in one world state, never a
 mix and never extrapolated** (the memory, V4, never holds area no eye saw). It is as old as the job is long: a job of k ticks started
-in tick f publishes in tick f+k-1 and the next starts in f+k, so the cone shown is at most 2 (k - 1) frames old. **Usually that is 3 ticks, 2 to 4
-frames; a job of 4 ticks is up to 6 frames old, and the longest of a district (6 ticks) up to 10.** In the 10v10 district's grid of eyes (`perf/cone_corner_cost`) a job was a median 3 ticks, 26 % took more
-than 3 and the most took 6 (the rays of a district job were a median 511 units, so at 450 a slice the median job is the corners' tick and two of rays; a house's rays, about 270, are one). The bound is longer than the 2 to 4 of the cone as first
-sliced because its corners are priced honestly, below; the user accepted that (2026-11-12). **The corners are priced at a slice** (`cost_shape` 450: the region shape query and its
-polygons cost about 1.95 ms, 372 to 374 units of ray work at 5.4 to 5.5 µs), so the tick that starts a job does the corners and no rays, and the
-rays begin the next tick: a start tick is about 2 ms, not 6 to 7, and a job is the corners' tick plus its rays' ticks (a house's is two
-ticks, a 10v10 district's three for most eyes). What the viewer's pose does meanwhile is not asked: **a change of
+in tick f publishes in tick f+k-1 and the next starts in f+k, so the cone shown is at most 2 (k - 1) frames old. **Usually that is 2 ticks, up to 2
+frames; a job of 3 ticks is up to 4 frames old, and the longest of a district's grid (5 ticks) up to 8** (`vision/pose_lag_bounds` still holds a job to 6 ticks, 10 frames). In the 10v10 district's grid of eyes (`perf/cone_corner_cost`, 2026-11-19, under load: 5.35, 2 busy Godot) a job was a median 2 ticks, 10 % took more
+than 3 and the most took 5 (the rays of a district job were a median 495 units, so at a slice of 450 the median job is the start tick, the corners and a first part of the rays, and one more). The bound was longer than the 2 to 4 of the cone as first
+sliced (a job of 6 ticks, 10 frames, from 2026-11-12) because its corners were priced at a slice; the user chose, on 2026-11-19, to price them at what they cost in the twin space. **The corners are priced at their cost** (`cost_shape` 225: the region shape query and its
+polygons are about 200 to 225 units of ray work, 1.4 to 1.5 ms with the machine loaded, about 1 ms quiet), so the tick that starts a job does the corners and then the first rays up to the slice (a crowded region asked again is priced for each ask, and can fill the slice with them): a start tick is about a slice, not the 6 to 7 ms of corners priced as one unit, and a job is a start tick plus its remaining rays' ticks (a house's is one or two ticks, a 10v10 district's two for most eyes). What the viewer's pose does meanwhile is not asked: **a change of
 the eye or the facing alone lets the job finish on the pose it started from**, and the next job starts from the live pose. **A change
 of the world between slices restarts the job from the live pose** (a blocker within reach moved, changed shape, joined or left, a
 changed sight number, the eye's height included, or cone tuning, and the frame after a job began while a blocker within reach moved,
@@ -290,7 +288,7 @@ frames later, the backstop that bounds it; a feature that makes one change must 
 `feather` 16; `cone_rays` 64, `bubble_rays` 48, `corner_offset` 0.0002 rad; `far_depth` 120, `far_bleed` 14;
 `rebuild_every` 10. `VisionGroundConfig` (the masks, V12): `live_side` 768, `window_margin` 1.25, `window_slack` 1.8,
 `seen_scale` 0.5, `seen_max_side` 2048, `unseen_brightness` 0, `settle_frames` 2. `VisionSliceConfig`: `slice_units` 450 (about 3.5 ms of engine work a physics tick; a unit is a ray cast, a region shape
-query or a far-face probe, priced `cost_cast` 1, `cost_shape` 450 and `cost_probe` 1: the corners fill a slice), `restart_cap` 2, `jump_px` 48. `CharacterVisionConfig`: `fov_degrees` 110, `view_distance` 2520, `awareness_radius` 48 (what the eye looks over is `BodyHeights.eye` of its
+query or a far-face probe, priced `cost_cast` 1, `cost_shape` 225 and `cost_probe` 1: the corners are priced at their cost in the twin space, about 200 to 225 units), `restart_cap` 2, `jump_px` 48. `CharacterVisionConfig`: `fov_degrees` 110, `view_distance` 2520, `awareness_radius` 48 (what the eye looks over is `BodyHeights.eye` of its
 posture, 69 px standing and 32 px ducked, no number of its own). The reach of a mover hidden by the view is `MirrorVisionConfig`'s (`moving_reach` 60, `vehicle_reach` 130). The look and the 16 px edge were picked by eye,
 against a flat 45 % grey (too dark and flat), a full-brightness grey (too close to the live world), a hard edge (a harsh line) and
 a 40 px feather (it smears the cone).
@@ -298,7 +296,9 @@ Tests: `vision/pose_lag_bounds` (`slice_units`, `jump_px`), `vision/cone_restart
 
 ## Measured cost
 
-**2026-11-12, the corners priced at a slice (#195, cone-start; `--quiet` runs, none marked loaded, load 4.7 to 7.5, 0 busy Godot).**
+**2026-11-19, the corners re-priced for the twin space (#194 del2d; the user chose A, to price them at what they cost: `cost_shape` 225, not a slice).** `perf/cone_corner_cost` (the 10v10 district, 168 reads, load 5.35, 2 busy Godot, so the times are inflated and the ratio is what is read): the corners took **1,428 µs** against **7.02 µs** a unit of the rest of the job, so **198 units** (p25 104, p75 304; 203 on an earlier run at load 13; the 2D query had been 372 to 374), `cost_shape` 450 would have been 2.3 times that, outside the test's 2x, and 225 is within it. A job at the default slice is a median **2 ticks (max 5; 10 % over 3)** (3, 6 and 26 % before, below), so a cone shown is up to 2 times (ticks - 1) frames old: usually up to 2, at most 8 in the grid. The tick figures were measured loaded and not on a quiet machine: perf3d re-measures them (`--quiet`). `perf_ab.sh` of the twin-space cone, 29e423bc against 0fa52306 (before this re-pricing), 4 rounds: `perf/match_npc_vision` avg -0.5 %, the 10v10 guard -2.1 %, 5v5 -0.2 %, grenade -1.1 %; not re-run for the price (it moves when a rebuild's rays are cast, not how many).
+
+**2026-11-12, the corners priced at a slice (#195, cone-start; superseded by the re-pricing above; `--quiet` runs, none marked loaded, load 4.7 to 7.5, 0 busy Godot).**
 `perf/cone_corner_cost` (the 10v10 district, 168 reads: a grid of eyes and facings, each the median of 5): the corners (`begin` and the first
 step: the region shape query, its polygons, the dedupe) took **1,982 and 1,937 µs** against **5.51 and 5.35 µs** a unit of the rest of the job
 (rays, far-face probes, visibility casts), so **372 to 374 units** (p25 168, p75 627 by eye), where `cost_shape` had been 1. It is 450 now, a
