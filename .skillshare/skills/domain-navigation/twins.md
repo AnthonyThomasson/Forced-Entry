@@ -23,4 +23,4 @@ frame for its twin.
   mirror, a towel rail), which carves its twin's depth (about half its collider's), the rest equal to a pixel; the navmesh area within 0.5 % and a polygon
   fewer (889 against 888; the house 114 against 113); every recorded route (90 on the district) found, none over 3 % longer or shorter. It also checks the walls
   against each `Wall`'s own outlines, the navmesh's clearance from them and every doorway open on a walls-only bake.
-- Still 2D: finding pieces by engine type (walls are found by the group `walls`), a character's `collision_layer`, a fallen door's `fallen_footprint` (a 2D collider).
+- Still 2D: finding pieces by engine type (walls are found by the group `walls`), a character's `collision_layer` (a fallen door's `fallen_footprint` is polygon data on the door now).

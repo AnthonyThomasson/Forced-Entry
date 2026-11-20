@@ -60,3 +60,17 @@ func test_a_fallen_door_that_lies_flat_forces_a_rebuild() -> void:
 	assert_bool(watch.stale(ORIGIN, FACING, _sight())).is_false()
 	door.footprint.flat = true
 	assert_bool(watch.stale(ORIGIN, FACING, _sight())).is_true()
+
+
+## A wall has no shape children and no `changed` signal: a dent re-cutting a segment says
+## `segment_rebuilt`, and the cone is rebuilt for it.
+func test_a_wall_handle_that_is_recut_forces_a_rebuild() -> void:
+	var wall: Node2D = auto_free(Node2D.new())
+	wall.add_user_signal(&"segment_rebuilt", [{ "name": "index", "type": TYPE_INT }])
+	wall.add_to_group(TwinSpace.BODIES)
+	wall.position = ORIGIN + Vector2(300.0, 0.0)
+	add_child(wall)
+	var watch := _settled()
+	assert_bool(watch.stale(ORIGIN, FACING, _sight())).is_false()
+	wall.emit_signal(&"segment_rebuilt", 0)
+	assert_bool(watch.stale(ORIGIN, FACING, _sight())).is_true()

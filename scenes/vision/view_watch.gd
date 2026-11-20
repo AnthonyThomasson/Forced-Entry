@@ -105,12 +105,14 @@ func _colliders() -> Array:
 	return found
 
 
-## The layer `body` stands on, to tell a change of it: a collider's own; a plan handle has none, so
-## the one it is on while it stands, and `LYING` for a fallen door that lies flat (its `footprint`).
-func _layer_of(body: Node2D) -> int:
-	if body is CollisionObject2D:
-		return (body as CollisionObject2D).collision_layer
-	var part: Variant = body.get(&"footprint")  # a door's
+## The layer the blocker `entry` stands on, to tell a change of it: a collider's own; a plan handle
+## has none, so the one it is on while it stands, and `LYING` for a fallen door that lies flat (its
+## `footprint`, found once in `_classify`).
+func _layer_of(entry: Array) -> int:
+	var collider: CollisionObject2D = entry[4]
+	if collider != null:
+		return collider.collision_layer
+	var part: Variant = entry[5]
 	return LYING if part != null and part.flat else SOLID
 
 
@@ -152,11 +154,11 @@ func built(eye: Vector2, facing: Vector2, sight: Dictionary) -> void:
 		var entry: Array = _blockers[id]
 		var body: Node2D = entry[0]
 		var now := body.global_transform
-		var moved: bool = now != entry[1] or _layer_of(body) != entry[2]
+		var moved: bool = now != entry[1] or _layer_of(entry) != entry[2]
 		if moved and _moved_within_reach(entry, now):
 			_moved_then = true
 		entry[1] = now
-		entry[2] = _layer_of(body)
+		entry[2] = _layer_of(entry)
 
 
 ## What the polygon is a function of, apart from the world: the order `_built_for` reads.
@@ -229,11 +231,19 @@ func _classify(body: Node2D) -> void:
 		_untwinned[id] = body  # no twin yet: a wall's worth until it has one
 	if top <= _see_over:
 		return  # looked over: a low piece, a pane, a character
-	_blockers[id] = [body, body.global_transform, _layer_of(body), _measure(body)]
+	# [node, transform, layer, extent, its collider or null, a handle's footprint part or null]
+	var entry: Array = [
+		body, body.global_transform, SOLID, _measure(body), body as CollisionObject2D,
+		body.get(&"footprint"),
+	]
+	entry[2] = _layer_of(entry)
+	_blockers[id] = entry
 	_connect(body, &"child_entered_tree", _changed_shape.bind(body))
 	_connect(body, &"child_exiting_tree", _changed_shape.bind(body))
 	if body.has_signal(&"changed"):
 		_connect(body, &"changed", _mark_near.bind(body))
+	if body.has_signal(&"segment_rebuilt"):  # a wall re-cut by a dent: no shape child comes or goes
+		_connect(body, &"segment_rebuilt", _changed_shape.bind(body))
 	_mark_near(body)
 
 
@@ -258,9 +268,9 @@ func _connect(body: Object, signal_name: StringName, callable: Callable) -> void
 		body.connect(signal_name, callable)
 
 
-## A shape came or went on `body`, a blocker: its silhouette changed with no move of its body, and
-## its extent is measured again.
-func _changed_shape(_child: Node, body: Node2D) -> void:
+## A shape came or went on `body`, a blocker (or a wall's segment was re-cut: `segment_rebuilt`):
+## its silhouette changed with no move of its body, and its extent is measured again.
+func _changed_shape(_changed: Variant, body: Node2D) -> void:
 	var id := body.get_instance_id()
 	if _blockers.has(id):
 		(_blockers[id] as Array)[3] = _measure(body)
@@ -298,7 +308,7 @@ func _blockers_moved() -> bool:
 		var entry: Array = _blockers[id]
 		var body: Node2D = entry[0]
 		var then: Transform2D = entry[1]
-		if body.global_transform == then and _layer_of(body) == entry[2]:
+		if body.global_transform == then and _layer_of(entry) == entry[2]:
 			continue
 		if _moved_within_reach(entry, body.global_transform):
 			return true

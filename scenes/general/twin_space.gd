@@ -572,8 +572,10 @@ func _new_row(node: Node2D, made: Node3D, lead: PhysicsBody3D) -> Dictionary:
 	}
 
 
-## Whether `node` can move: a character, a door or any rigid body that is not frozen. A body that
-## cannot (a wall, a floor) is twinned once and never read again; a frozen rigid body (an anchored
+## Whether `node` can move: a character, any rigid body that is not frozen, or a kinematic body (a
+## test's bare `AnimatableBody2D`: a door and a vehicle are plan handles with a twin that leads or
+## drives them, never followed here). A body that cannot (a wall, a floor) is twinned once and
+## never read again; a frozen rigid body (an anchored
 ## piece) is looked at slowly in case it is unfrozen (`_look_at_parked`).
 static func _moves(node: Node2D) -> bool:
 	if node is RigidBody2D:
