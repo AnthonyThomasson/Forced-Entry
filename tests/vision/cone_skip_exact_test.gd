@@ -25,6 +25,8 @@ extends GameTest
 ##
 ## It reads (tests/_vision/vision_probe.gd) the `PlayerView`: `cone()`, `bubble()`, `rebuilds()`.
 
+## The height (px) of the line a strike is taken along: a piece's side and a wall's.
+const STRIKE_HEIGHT := 20.0
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 const Checker := preload("res://tests/_vision/cone_checker.gd")
 const Mover := preload("res://tests/_vision/physics_mover.gd")
@@ -682,18 +684,28 @@ func _check_whole(t: TestContext, checker: Checker, where: String, settles := tr
 
 
 ## One hit on whatever the viewer sees at a random place its cone ends on: the first solid on the
-## line from its eye to there.
+## level line from its eye to there, `STRIKE_HEIGHT` px up in the twin space.
 func _strike_seen(checker: Checker, rng: RandomNumberGenerator) -> void:
 	var cone := checker.view.cone()
 	if cone.size() < 2:
 		return
 	var eye := checker.viewer.global_position
 	var end := cone[rng.randi_range(1, cone.size() - 1)]
-	var query := PhysicsRayQueryParameters2D.create(eye, eye + (end - eye) * 1.001)
-	query.collision_mask = PhysicsLayers.SOLID
-	query.exclude = [checker.viewer.get_rid()]
-	var found := checker.viewer.get_world_2d().direct_space_state.intersect_ray(query)
-	if found.is_empty() or not found["collider"].has_method("take_hit"):
+	var query := PhysicsRayQueryParameters3D.create(
+		PlanSpace.lift(eye, STRIKE_HEIGHT),
+		PlanSpace.lift(eye + (end - eye) * 1.001, STRIKE_HEIGHT),
+		PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE,
+	)
+	var found := TwinSpace.space_of(checker.viewer).intersect_ray(query)
+	if found.is_empty():
+		return
+	var struck := TwinSpace.owner_of(found["collider"])
+	if struck == null or not struck.has_method("take_hit"):
 		return
 	var damage := rng.randf_range(10.0, 40.0)
-	found["collider"].take_hit(Probe.hit(found["position"], found["normal"], damage))
+	var normal: Vector3 = found["normal"]
+	struck.take_hit(
+		Probe.hit(
+			PlanSpace.plan_of(found["position"]), Vector2(normal.x, normal.z).normalized(), damage
+		)
+	)
