@@ -12,7 +12,7 @@ class_name PhysicsConfig
 ## What the ragdoll's sweeps, a casing's and a chip's flight, blood's landing and its splats' and
 ## pools' floor queries meet in the twin 3D space (`TwinSpace`, interface 29): walls, floors,
 ## furniture and doors, and vehicles; not people (a dead body falls through the living), not a roof.
-static var twin_mask: int = PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE
+static var twin_mask: int = PhysicsLayers.TWIN_SURFACES
 ## Master switch for debris: off = hits spray no chips (Physics.spawn_debris spawns nothing).
 static var debris_enabled: bool = true
 ## Master switch for hit particles: off = hits emit no entry/exit particle bursts (HitParticles

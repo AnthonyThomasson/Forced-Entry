@@ -81,7 +81,7 @@ static func build(node: Node2D) -> Node3D:
 	twin.wall_min_slide_angle = HEAD_ON
 	twin.safe_margin = SAFE_MARGIN
 	twin.collision_layer = PhysicsLayers.TWIN_CHARACTER
-	twin.collision_mask = PhysicsLayers.TWIN_ALL
+	twin.collision_mask = PhysicsLayers.TWIN_BLOCKS
 	twin._shape.radius = twin._character.radius * RenderConfig.unit
 	twin._holder.shape = twin._shape
 	twin.add_child(twin._holder)

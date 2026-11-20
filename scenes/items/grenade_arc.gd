@@ -35,7 +35,7 @@ const SEGMENTS := 5
 const SOLVE_STEPS := 18
 ## What `_lands` takes for a surface: the structure, the furniture and the vehicles; a body struck
 ## near the aim (the hostile's own) is a landing on it.
-const SURFACES := PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE
+const SURFACES := PhysicsLayers.TWIN_SURFACES
 ## How far (px) past the cylinder's width a ray from where an arc stops feels for the surface it
 ## struck (`_lands`).
 const FEEL := 4.0

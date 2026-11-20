@@ -607,7 +607,7 @@ func lob_clear(
 	course.to = to
 	course.row = _flight_row(kind)
 	course.space = TwinSpace.space_of(_character) if _character != null else null
-	course.mask = PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE
+	course.mask = PhysicsLayers.TWIN_SURFACES
 	course.margin = LOB_MARGIN + extra_margin
 	return GrenadeArc.clear(course)
 

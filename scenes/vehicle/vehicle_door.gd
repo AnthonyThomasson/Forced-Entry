@@ -142,7 +142,7 @@ func is_clear(vehicle: Node2D, rider: Node2D, radius: float) -> bool:
 	if space == null:
 		return true
 	var params := PhysicsShapeQueryParameters3D.new()
-	params.collision_mask = PhysicsLayers.TWIN_ALL
+	params.collision_mask = PhysicsLayers.TWIN_BLOCKS
 	var ignored: Array[RID] = []
 	for body: Object in [TwinSpace.twin_for(vehicle), TwinSpace.walker_of(rider)]:
 		if body is CollisionObject3D:

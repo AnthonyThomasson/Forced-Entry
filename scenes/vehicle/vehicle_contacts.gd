@@ -444,7 +444,7 @@ func _pressed_by(member: Dictionary, normal: Vector2, exclude: Array[RID]) -> Di
 	var query := PhysicsShapeQueryParameters3D.new()
 	query.shape = CylinderShape3D.new()
 	(query.shape as CylinderShape3D).height = PILE_BAND
-	query.collision_mask = PhysicsLayers.TWIN_ALL
+	query.collision_mask = PhysicsLayers.TWIN_BLOCKS
 	query.exclude = exclude
 	if member["character"]:
 		return _pressed_by_character(space, query, member["body"], normal)
@@ -519,7 +519,7 @@ func _presses(space: PhysicsDirectSpaceState3D, other: Node2D, piece: Node2D,
 		normal: Vector2) -> bool:
 	var back := PhysicsShapeQueryParameters3D.new()
 	back.shape = CylinderShape3D.new()
-	back.collision_mask = PhysicsLayers.TWIN_ALL
+	back.collision_mask = PhysicsLayers.TWIN_BLOCKS
 	_band_at(back, other.global_position - normal * VehicleCollisionConfig.pile_gap, other.radius)
 	back.exclude = [TwinSpace.leader_of(vehicle).get_rid(), _rid_of(other)]
 	for touched: Dictionary in TwinSpace.intersecting(space, back):

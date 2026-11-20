@@ -10,7 +10,7 @@ extends RefCounted
 ## Physics layers a hand or leg meets: walls, solid furniture, vehicles and living characters.
 const MASK := PhysicsLayers.TWIN_ALL
 ## What a weapon's barrel is held against: walls, furniture and vehicles, not people.
-const BARREL_MASK := PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE
+const BARREL_MASK := PhysicsLayers.TWIN_SURFACES
 ## How far up (px) the near-solid gate starts: clear of a floor slab's top.
 const GATE_FEET := 1.0
 

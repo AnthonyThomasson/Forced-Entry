@@ -12,7 +12,7 @@ signal shifted
 
 ## What it strikes in the twin space: walls, furniture, doors and vehicles; the characters it falls
 ## past (a spoon leaves a hand beside its thrower).
-const MASK := PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE
+const MASK := PhysicsLayers.TWIN_SURFACES
 
 ## The item lying here (draws itself).
 var item: Item

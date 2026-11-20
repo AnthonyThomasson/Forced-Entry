@@ -21,7 +21,7 @@ extends RefCounted
 ## cover are physical and are not this.
 
 ## The twin layers a sight ray asks: the world and the vehicles, not the characters.
-const MASK := PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE
+const MASK := PhysicsLayers.TWIN_SURFACES
 ## The height (px) of what lies on the floor (a grenade, a dropped item): the one point it is
 ## looked at by.
 const GROUND_POINT := 6.0

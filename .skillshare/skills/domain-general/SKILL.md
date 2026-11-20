@@ -30,7 +30,7 @@ Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock`, p
 
 ## Shared ids
 
-- `PhysicsLayers` holds the twin 3D space's layer bits (`TWIN_WORLD`, `TWIN_VEHICLE`, `TWIN_CHARACTER`, `TWIN_ALL`, `twins.md`); every ray and sweep reads one (add a layer here, never a magic number). No 2D layer exists: every sim root is a plan handle (`Node2D`).
+- `PhysicsLayers` holds the twin 3D space's layer bits (`TWIN_WORLD`, `TWIN_VEHICLE`, `TWIN_CHARACTER`, `TWIN_WALKOVER`, the masks `TWIN_ALL` / `TWIN_BLOCKS` / `TWIN_SURFACES`, `twins.md`); every ray and sweep reads one (add a layer here, never a magic number). No 2D layer exists: every sim root is a plan handle (`Node2D`).
 - `ViewLayers` holds the visibility bits that say what the player's view may remember (`helpers.md`).
 
 ## Game clock

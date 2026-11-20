@@ -424,9 +424,7 @@ func _overlapping(pose: Transform2D, inset: float) -> Array:
 	var query := PhysicsShapeQueryParameters3D.new()
 	query.shape = _probe
 	query.transform = PlanSpace.lift_transform(pose, height * 0.5)
-	query.collision_mask = (
-		PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE | PhysicsLayers.TWIN_CHARACTER
-	)
+	query.collision_mask = PhysicsLayers.TWIN_ALL
 	query.exclude = [own.get_rid()]
 	var bodies := []
 	for found in space.intersect_shape(query, OVERLAP_HITS):
