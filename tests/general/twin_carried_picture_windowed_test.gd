@@ -30,6 +30,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.own_picture()
+	s.set_static(MirrorConfig, &"carry_meshes", true)  # put back as it was when the test ends
 	s.house(SEEDS[0])
 
 
@@ -38,6 +39,43 @@ func run(t: TestContext) -> void:
 		t.skip("windowed only: headless draws nothing (tools/run_tests.sh --windowed)")
 		return
 	await t.frames(2)
+	var view := await _start_view(t)
+	t.check(
+		view.viewport.find_world_3d() == t.world.twin_space().find_world_3d(),
+		"premise: the view draws the twins' world",
+	)
+	var carried := _carried(view.mirror, t.world)
+	t.check(carried["wall"] > 0, "premise: the walls are carried (%d)" % carried["wall"])
+	t.check(carried["floor"] > 0, "premise: the floors are carried (%d)" % carried["floor"])
+	# the lights flicker: held still, the two pictures stand at the same instant of them
+	view.lighting.process_mode = Node.PROCESS_MODE_DISABLED
+	await t.frames(2)
+	var on_twins := _picture(view)
+	var again := _picture(view)
+	t.check(_differing(on_twins, again) == 0, "premise: a picture of the same world holds still")
+	MirrorConfig.carry_meshes = false
+	for node in _static_bodies(t.world):
+		view.mirror.remirror(node)
+	await t.frames(SETTLE)
+	t.expect_eq(
+		_carried(view.mirror, t.world),
+		{ "wall": 0, "floor": 0, "piece": 0 },
+		"premise: nothing is carried any more",
+	)
+	var followed := _picture(view)
+	_save(on_twins, followed)
+	t.expect_eq(on_twins.get_size(), followed.get_size(), "the pictures are the same size")
+	var differing := _differing(on_twins, followed)
+	t.check(
+		differing <= MAX_DIFFERING,
+		"the picture is the same carried or followed (%d pixels differ)" % differing,
+	)
+	var tones := _tones(on_twins)
+	t.check(tones >= 8, "premise: the picture holds a world (%d tones)" % tones)
+
+
+## Main's 3D view of the house, lit, settled.
+func _start_view(t: TestContext) -> MAIN_VIEW3D:
 	var camera := Camera2D.new()
 	camera.position = _middle(t.world.rooms)
 	t.world.add_child(camera)
@@ -49,37 +87,15 @@ func run(t: TestContext) -> void:
 	view.light_world(t.world, SEEDS[0], t.world.rooms)
 	t.world.visible = false
 	await t.frames(SETTLE)
-	t.check(
-		view.viewport.find_world_3d() == t.world.twin_space().find_world_3d(),
-		"premise: the view draws the twins' world",
-	)
-	var carried := _carried(view.mirror, t.world)
-	t.check(carried > 10, "premise: the house has carried meshes (%d)" % carried)
-	# the lights flicker: held still, the two pictures stand at the same instant of them
-	view.lighting.process_mode = Node.PROCESS_MODE_DISABLED
-	await t.frames(2)
-	var on_twins := _picture(view)
-	var again := _picture(view)
-	t.check(_differing(on_twins, again) == 0, "premise: a picture of the same world holds still")
-	MirrorConfig.carry_meshes = false
-	for node in _static_bodies(t.world):
-		view.mirror.remirror(node)
-	await t.frames(SETTLE)
-	t.expect_eq(_carried(view.mirror, t.world), 0, "premise: nothing is carried any more")
-	var followed := _picture(view)
-	MirrorConfig.carry_meshes = true
+	return view
+
+
+## Save the two pictures when `CARRY_SHOT` names a directory.
+func _save(carried: Image, followed: Image) -> void:
 	var dir := OS.get_environment("CARRY_SHOT")
 	if dir != "":
-		on_twins.save_png(dir.path_join("carried.png"))
+		carried.save_png(dir.path_join("carried.png"))
 		followed.save_png(dir.path_join("followed.png"))
-	t.expect_eq(on_twins.get_size(), followed.get_size(), "the pictures are the same size")
-	var differing := _differing(on_twins, followed)
-	t.check(
-		differing <= MAX_DIFFERING,
-		"the picture is the same carried or followed (%d pixels differ)" % differing,
-	)
-	var tones := _tones(on_twins)
-	t.check(tones >= 8, "premise: the picture holds a world (%d tones)" % tones)
 
 
 ## How many tones the picture holds, sampled every 8 pixels.
@@ -103,13 +119,17 @@ func _static_bodies(world: Node) -> Array[Node2D]:
 	return found
 
 
-## How many of them have their mesh on their twin.
-func _carried(mirror: WorldMirror, world: Node) -> int:
-	var count := 0
+## How many walls, floors and pieces have their mesh on their twin.
+func _carried(mirror: WorldMirror, world: Node) -> Dictionary:
+	var count := { "wall": 0, "floor": 0, "piece": 0 }
 	for node in _static_bodies(world):
 		var mesh := mirror.mesh_of(node)
-		if mesh != null and mesh.get_parent() == TwinSpace.twin_for(node):
-			count += 1
+		if mesh == null or mesh.get_parent() != TwinSpace.twin_for(node):
+			continue
+		var kind := "floor" if node.is_in_group(&"floors") else (
+			"wall" if node.has_method(&"segment_shapes") else "piece"
+		)
+		count[kind] += 1
 	return count
 
 

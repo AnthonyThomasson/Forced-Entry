@@ -47,6 +47,7 @@ func run(t: TestContext) -> void:
 	):
 		return
 	_check_viewless(t, twins, [post, wall, floor_node])
+	await _check_other_world(t, post, floor_node)
 	var mirror := _view(t)
 	var built: Array[Node] = []
 	mirror.built.connect(func(body: Node, _mesh: Node3D) -> void: built.append(body))
@@ -60,6 +61,7 @@ func run(t: TestContext) -> void:
 	await _check_shown_rules(t, mirror, post)
 	await _check_remirror(t, mirror, post)
 	await _check_goes_with_twin(t, mirror)
+	await _check_mirrored_twice(t, mirror, floor_node, wall)
 
 
 func _first_wall(world: Node) -> Node:
@@ -78,7 +80,7 @@ func _first_floor(world: Node) -> Node:
 
 func _view(t: TestContext) -> WorldMirror:
 	var view := SubViewport.new()
-	view.own_world_3d = true
+	view.world_3d = TwinSpace.of_world(t.world).find_world_3d()  # drawn in the twins' world
 	t.world.add_child(view)
 	var mirror := WorldMirror.new()
 	ObjectMeshes.register(mirror.builders)
@@ -156,3 +158,44 @@ func _check_goes_with_twin(t: TestContext, mirror: WorldMirror) -> void:
 	await t.frames(4)
 	t.check(not is_instance_valid(mesh) or mesh.is_queued_for_deletion(), "the mesh goes with it")
 	t.check(mirror.count == before - 1, "and is no longer counted")
+
+
+## A mirror drawn in a world of its own is not in the twins' world: it follows its bodies by meshes
+## of its own, and nothing is put on the twins.
+func _check_other_world(t: TestContext, post: Node, floor_node: Node) -> void:
+	var view := SubViewport.new()
+	view.own_world_3d = true
+	t.world.add_child(view)
+	var mirror := WorldMirror.new()
+	ObjectMeshes.register(mirror.builders)
+	view.add_child(mirror)
+	mirror.mirror(t.world)
+	await t.frames(3)
+	for body: Node in [post, floor_node]:
+		var mesh := mirror.mesh_of(body)
+		if not t.require(mesh != null, "premise: %s is meshed in its own world" % body.name):
+			continue
+		t.check(
+			mesh.get_parent() == mirror,
+			"a mirror in another world keeps %s's mesh" % body.name,
+		)
+		t.check(
+			TwinSpace.twin_for(body).find_children("*", "MeshInstance3D", true, false).is_empty(),
+			"and puts nothing on the twin of %s" % body.name,
+		)
+	view.queue_free()
+	await t.frames(2)
+
+
+## Mirroring the world again shows each static body once: its old mesh goes.
+func _check_mirrored_twice(
+	t: TestContext, mirror: WorldMirror, floor_node: Node, wall: Node
+) -> void:
+	var before := mirror.count
+	var kids := [TwinSpace.twin_for(floor_node).get_child_count()]
+	kids.append(TwinSpace.twin_for(wall).get_child_count())
+	mirror.mirror(t.world)
+	await t.frames(3)
+	t.expect_eq(mirror.count, before, "mirroring again counts each body once")
+	t.expect_eq(TwinSpace.twin_for(floor_node).get_child_count(), kids[0], "a floor has one mesh")
+	t.expect_eq(TwinSpace.twin_for(wall).get_child_count(), kids[1], "a wall has one mesh")

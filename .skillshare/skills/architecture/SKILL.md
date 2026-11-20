@@ -85,7 +85,7 @@ character ──▶ items, interaction, vehicle (CharacterVehicleUse), physics, 
 items ──▶ projectile, art    projectile ──▶ physics, art, objects (28)    vehicle ──▶ physics, art    physics ──▶ art (12)
 ai ──▶ navigation, items (slot ids, GrenadeConfig, GrenadeArc), projectile (CoverRule, Explosion), character (CharacterMovement), objects (28)   (a house door, duck-typed: 24)
 ui ──▶ items, physics   (plain dicts in, signals out; never calls Main)
-art ──▶ general (RenderConfig, CameraRig)    lighting ──▶ art (3D: ToonLight, 20)    vision ──▶ art (ToonMask, 3D: 25)
+art ──▶ general (RenderConfig, CameraRig, TwinSpace)   lighting ──▶ art (3D: ToonLight, 20)    vision ──▶ art (ToonMask, 3D: 25)
 every domain ──▶ general
 ```
 
