@@ -29,6 +29,7 @@ const TechMesh = preload("res://scenes/objects/art/tech_mesh.gd")
 const SecurityMesh = preload("res://scenes/objects/art/security_mesh.gd")
 const ShopMesh = preload("res://scenes/objects/art/shop_mesh.gd")
 const StockMesh = preload("res://scenes/objects/art/stock_mesh.gd")
+const ItemMesh = preload("res://scenes/objects/art/item_mesh.gd")
 const StreetPropMesh = preload("res://scenes/objects/art/street_prop_mesh.gd")
 ## The whole footprint.
 const FULL := Rect2(0.0, 0.0, 1.0, 1.0)
@@ -97,6 +98,8 @@ static func parts(spec: FurnitureSpec) -> Array[Dictionary]:
 			out = _room(spec)
 		"tech", "security", "shop", "stock", "street_prop", "podium", "awning", "streetlight":
 			out = _commercial(spec)
+		"item":
+			out = [_part(ItemMesh.height_of(spec))]
 		"shell_decor", "decor", "rug", "plant", "lamp", "coat_rack", "hotplate", "car":
 			out = _decor(spec)
 		_:

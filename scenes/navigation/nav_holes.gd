@@ -55,11 +55,15 @@ static func hull_of(body: Node2D) -> PackedVector2Array:
 
 ## The world-space footprint of `body` cut afresh: the convex hull of the plan footprints of its
 ## twin's shapes (`NavTwins.parts`), each grown by `NavBuilder.OBSTACLE_MARGIN`, as an
-## open ring; empty when `body` has no twin or fewer than three points come out of it. An upright
+## open ring; empty when `body` has no twin, is a small item lying within a step (`walk_over`:
+## walked over) or fewer than three points come out of it. An upright
 ## cylinder (a round piece, a character) is a `CIRCLE_SEGMENTS`-sided polygon, the bake's own
 ## approximation of a circle.
 static func cut(body: Node2D) -> PackedVector2Array:
 	cuts += 1
+	var rest: Variant = body.get(&"rest")
+	if rest is Object and (rest as Object).get(&"walk_over") == true:
+		return PackedVector2Array()  # a small item lying within a step: walked over, no hole
 	var points := PackedVector2Array()
 	for part: Array in NavTwins.parts(body):
 		points.append_array(_footprint(part[0], part[1]))

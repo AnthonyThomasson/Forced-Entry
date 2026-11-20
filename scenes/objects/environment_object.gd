@@ -61,6 +61,8 @@ var physics := ObjectPhysics.new(self)
 ## How many times its footprint hull changed since it was twinned (a tipped piece's turning over
 ## reshapes it): what the blood smear is laid across.
 var footprint_stamp := 0
+## Where it rests (`piece_rest.gd`): the height it was set down at, whether it lies within a step.
+var rest := PieceRest.new()
 ## What `get_lights()` declares (worked out once, in `_ready`).
 var _lights: Array = []
 

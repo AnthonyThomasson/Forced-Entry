@@ -31,6 +31,7 @@ const SecurityMesh = preload("res://scenes/objects/art/security_mesh.gd")
 const ShopMesh = preload("res://scenes/objects/art/shop_mesh.gd")
 const NoodleMesh = preload("res://scenes/objects/art/noodle_mesh.gd")
 const StockMesh = preload("res://scenes/objects/art/stock_mesh.gd")
+const ItemMesh = preload("res://scenes/objects/art/item_mesh.gd")
 const AwningMesh = preload("res://scenes/objects/art/awning_mesh.gd")
 const StreetPropMesh = preload("res://scenes/objects/art/street_prop_mesh.gd")
 const PodiumMesh = preload("res://scenes/objects/art/podium_mesh.gd")
@@ -65,6 +66,7 @@ const BUILDERS := {
 	"shop": ShopMesh,
 	"noodle": NoodleMesh,
 	"stock": StockMesh,
+	"item": ItemMesh,
 	"awning": AwningMesh,
 	"street_prop": StreetPropMesh,
 	"podium": PodiumMesh,

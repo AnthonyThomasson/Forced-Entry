@@ -109,7 +109,7 @@ static func _piece(piece: Piece) -> Node3D:
 	var free := not piece.anchored and PieceHeights.base_of_spec(spec) <= 0.0
 	var twin: CollisionObject3D
 	if free:
-		twin = PieceBody.new(piece)
+		twin = ItemBody.new(piece) if spec.art == "item" else PieceBody.new(piece)
 	else:
 		twin = StaticBody3D.new()
 	for part: Dictionary in PieceHeights.parts(spec):

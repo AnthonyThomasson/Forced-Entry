@@ -40,6 +40,7 @@ const PAINTERS := {
 	"shop": preload("res://scenes/objects/art/shop_painter.gd"),
 	"noodle": preload("res://scenes/objects/art/noodle_painter.gd"),
 	"stock": preload("res://scenes/objects/art/stock_painter.gd"),
+	"item": preload("res://scenes/objects/art/item_painter.gd"),
 	"awning": preload("res://scenes/objects/art/awning_painter.gd"),
 	"stencil": preload("res://scenes/objects/art/stencil_painter.gd"),
 	"street_prop": preload("res://scenes/objects/art/street_prop_painter.gd"),

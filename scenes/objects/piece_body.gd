@@ -29,6 +29,8 @@ const SETTLE_HITS := 8
 const SETTLE_MIN := 0.01
 ## The share of `PieceBodyConfig.drag_floor` the spin (rad/s) must pass for the drag to turn it.
 const SPIN_FLOOR_SHARE := 0.1
+## How far (px) over its top a piece set down on another piece starts, so it falls the last of it.
+const REST_GAP := 0.4
 ## Points round a cylinder's rim that stand for it in a tipped piece's hull.
 const RIM_POINTS := 12
 
@@ -82,8 +84,17 @@ func piece() -> Node2D:
 
 ## Called by the twin space as it takes the piece over: the plan handle becomes the footprint, a
 ## node only the twin space moves.
-func take_over(_footprint: Node2D) -> void:
+func take_over(footprint: Node2D) -> void:
 	_centre_on_origin()
+	var rest: Variant = footprint.get(&"rest") if footprint != null else null
+	var lift: float = (rest as PieceRest).lift if rest is PieceRest else 0.0
+	if lift > 0.0:
+		# set down on another piece's top (`ObjectFactory.spawn_on`): it starts there, a hair over
+		# it, and settles asleep
+		global_position.y = lift * RenderConfig.unit + REST_GAP
+		force_update_transform()
+		sleeping = false
+		return
 	sleeping = true  # a district at rest costs Jolt nothing
 
 

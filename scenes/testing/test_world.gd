@@ -121,6 +121,12 @@ func _spawn_objects(setup: TestSetup) -> void:
 	for o in setup.objects:
 		var opts: Dictionary = o["opts"].duplicate()
 		opts["name"] = String(o["id"])
+		if opts.has("on"):
+			var base: Node2D = objects[opts["on"]]
+			objects[o["id"]] = ObjectFactory.spawn_on(
+				o["definition"], base, o["position"], house, opts
+			)
+			continue
 		objects[o["id"]] = ObjectFactory.spawn(
 			o["definition"],
 			house.to_local(o["position"]),

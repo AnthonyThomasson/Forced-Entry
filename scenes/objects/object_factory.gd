@@ -26,6 +26,8 @@ class_name ObjectFactory
 
 const EnvironmentObject = preload("res://scenes/objects/environment_object.gd")
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
+## How high (px) a probe for a top starts: over every piece, under a roof.
+const TOP_PROBE := 90.0
 
 
 ## Build a runtime object from its definition and add it under `parent`. Returns the node.
@@ -72,3 +74,45 @@ static func spawn(
 
 	parent.add_child(obj, true)  # Readable unique names (Chair, Chair2, ...).
 	return obj
+
+
+## Build a small item from `definition` and set it down on the top of `base` (another piece: a
+## table, a shelf, a box), at `offset` px from `base`'s origin in its frame, under `parent` (#194
+## stack-a, D20, `docs/stacked-items.md`). The item's free body starts at that top's height
+## (`top_at`) and settles asleep on it; it is its own body from then on (a shove, a round, a blast
+## or a tipping base moves it alone). `opts` as `spawn`'s. Another item set on the same spot goes on
+## top of the first (a stack).
+static func spawn_on(
+	definition: Dictionary,
+	base: Node2D,
+	offset: Vector2,
+	parent: Node,
+	opts: Dictionary = {},
+) -> Node:
+	var point := base.to_global(offset)
+	var height := top_at(base, point)
+	var local := (parent as Node2D).to_local(point) if parent is Node2D else point
+	var item := spawn(definition, local, parent, opts)
+	if item != null:
+		item.rest.lift = height
+	return item
+
+
+## The height (px above the floor) of the highest top at plan point `point` over `base`: read from
+## the twin space (a downward ray against the world's twins, so a box already standing there raises
+## it) once `base` has a twin there, else `base`'s own lift and top from its catalogue parts.
+static func top_at(base: Node2D, point: Vector2) -> float:
+	var twin := TwinSpace.twin_for(base)
+	if twin != null and twin.is_inside_tree():
+		var space := TwinSpace.space_of(base)
+		if space != null:
+			var query := PhysicsRayQueryParameters3D.create(
+				PlanSpace.lift(point, TOP_PROBE), PlanSpace.lift(point, -1.0),
+				PhysicsLayers.TWIN_WORLD
+			)
+			var hit := space.intersect_ray(query)
+			if not hit.is_empty():
+				return PlanSpace.height_of(hit["position"])
+	var rest: Variant = base.get(&"rest")
+	var lift: float = (rest as PieceRest).lift if rest is PieceRest else 0.0
+	return lift + PieceHeights.top_of_spec(FurnitureSpec.of(base))
