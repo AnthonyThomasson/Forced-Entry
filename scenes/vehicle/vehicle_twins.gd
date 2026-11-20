@@ -23,7 +23,8 @@ static func build(node: Node2D) -> Node3D:
 		return null  # a stand-in in the group, no vehicle
 	var heights: Dictionary = VehicleMeshConfig.heights[kind]
 	var body := VehicleBody.new(node)
-	var outline := PackedVector2Array(node.call(&"outline"))
+	# the hull as a 2D convex shape's point cloud was made (its order is what Jolt builds from)
+	var outline := Geometry2D.convex_hull(PackedVector2Array(node.call(&"outline")))
 	var belt := float(heights["belt"])
 	body.add_child(TwinShapes.lift_outline(outline, Transform2D.IDENTITY, 0.0, belt))
 	var roof: Vector2 = VehicleConfig.looks[kind]["roof"]
