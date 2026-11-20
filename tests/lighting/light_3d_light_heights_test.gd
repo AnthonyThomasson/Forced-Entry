@@ -51,7 +51,7 @@ func run(t: TestContext) -> void:
 		return
 	for c: Dictionary in _cases:
 		var row := String(c["row"])
-		var piece: RigidBody2D = t.object(StringName(row))
+		var piece: Node2D = t.object(StringName(row))
 		if not t.require(piece != null, "%s: the piece is placed" % row):
 			continue
 		var own := Probe.lights_of(lighting, piece)

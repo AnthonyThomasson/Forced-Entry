@@ -38,7 +38,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	await t.frames(3)
-	var table := t.object(&"table") as RigidBody2D
+	var table := t.object(&"table") as Node2D
 	# it settles and sleeps first: the shove then wakes a piece the twin space has stopped reading
 	await Piece.settle(t, table, 5.0)
 	t.require(Piece.asleep(table), "premise: the table is asleep before it is shoved")
@@ -78,7 +78,7 @@ func run(t: TestContext) -> void:
 
 ## Wait for `table` to fall asleep, counting the frames its 2D body was more than a step behind its
 ## 3D body (the twin's pose, now or a frame ago).
-func _slide(t: TestContext, twins: TwinSpace, table: RigidBody2D) -> int:
+func _slide(t: TestContext, twins: TwinSpace, table: Node2D) -> int:
 	var twin := twins.twin_of(table)
 	var previous := PlanSpace.plan_transform(twin.global_transform)
 	var off := 0
@@ -96,7 +96,7 @@ func _slide(t: TestContext, twins: TwinSpace, table: RigidBody2D) -> int:
 ## A corner of the table's first footprint (`start`) that its footprint now leaves bare: a ray on it
 ## misses the table.
 func _check_old_corners(
-	t: TestContext, table: RigidBody2D, start: Transform2D, corner: Vector2,
+	t: TestContext, table: Node2D, start: Transform2D, corner: Vector2,
 ) -> void:
 	var half := (table.get("size") as Vector2) * 0.5
 	var bare: Array[Vector2] = []
@@ -116,7 +116,7 @@ func _check_old_corners(
 
 ## The resting table, asleep and off the follow list, is moved by a script (`global_position =`):
 ## its twin is at the new place within a few frames, and the old place is empty.
-func _teleported(t: TestContext, twins: TwinSpace, table: RigidBody2D) -> void:
+func _teleported(t: TestContext, twins: TwinSpace, table: Node2D) -> void:
 	t.require(Piece.asleep(table), "premise: the table is asleep before it is teleported")
 	var from := table.global_position
 	var to := Vector2(700.0, 120.0)
@@ -135,7 +135,7 @@ func _teleported(t: TestContext, twins: TwinSpace, table: RigidBody2D) -> void:
 
 ## The table leaves the tree and comes back (a reparent): it has one twin, and it is not watched
 ## twice for waking (the connection of its first twin went with it).
-func _reparented(t: TestContext, twins: TwinSpace, table: RigidBody2D) -> void:
+func _reparented(t: TestContext, twins: TwinSpace, table: Node2D) -> void:
 	var parent := table.get_parent()
 	var before := twins.count
 	parent.remove_child(table)

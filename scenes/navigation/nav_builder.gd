@@ -11,8 +11,8 @@ extends RefCounted
 ## NavigationAgent2D walks, since carving characters into the planning map would bend every route
 ## weighed against a hostile), and, for a district, 512 px steering tiles (`NavTiles`) and a small
 ## planning ring of the match building (`NavRing`). Imports nothing from other domains: it reads a
-## plain `rooms` array and a Node, and recognises furniture (RigidBody2D) and characters
-## (CharacterBody2D) by engine type alone.
+## plain `rooms` array and a Node, and recognises furniture (the group `TwinSpace.PIECES`) and
+## characters (CharacterBody2D) by engine type alone.
 
 ## Extra clearance (px) baked around walls, on top of the agent radius, so paths don't hug walls.
 const WALL_MARGIN := 4.0
@@ -339,7 +339,7 @@ static func _bake_polygon(site: NavSite, characters: Array = []) -> NavigationPo
 ## body's footprint is the convex hull of its twin's shape footprints, grown by the margin
 ## (`NavHoles`): a dent does not change a twin, and its notches would be far smaller than the agent
 ## (baked in, they leave sub-pixel navmesh edges the NavigationServer cannot merge). Every
-## RigidBody2D with a twin is carved: shoved furniture, and an anchored piece (a streetlight's
+## piece with a twin is carved: shoved furniture, and an anchored piece (a streetlight's
 ## post), which never moves; walk-over decor has no twin, so it leaves no hole. A door's leaf
 ## standing clear of its doorway is carved too, where it stands now (`NavLeaves.hole`): out of the
 ## doorway, in the room it swings into, it is as solid as a piece of furniture there.

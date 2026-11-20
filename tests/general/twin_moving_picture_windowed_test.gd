@@ -9,6 +9,7 @@ extends GameTest
 ## Environment: `CARRY_SHOT=<dir>` saves both pictures. Run:
 ## `tools/run_tests.sh --windowed --id=general/twin_moving_picture_windowed`.
 
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const MAIN_VIEW3D := preload("res://scenes/main_view3d.gd")
 const Baseline := preload("res://tests/_art/art_followed_baseline.gd")
 const Probe := preload("res://tests/_objects/piece_probe.gd")
@@ -108,7 +109,7 @@ func _cast(world: Node) -> Dictionary:
 			doors.append(node as Node2D)
 	var best := {}
 	var spread := INF
-	for body: Node in world.find_children("*", "RigidBody2D", true, false):
+	for body: Node in PlanProbe.pieces_under(world):
 		if not TwinSpace.twin_for(body) is PieceBody or Probe.top(body) < TALL:
 			continue
 		var from := (body as Node2D).global_position

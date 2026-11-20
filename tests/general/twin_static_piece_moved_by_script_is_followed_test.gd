@@ -1,13 +1,12 @@
 extends GameTest
-## A body frozen when it is twinned is followed once it is unfrozen (interface 29: the note of the
-## twins job, kept by #194 furn3d): an anchored post (frozen, a static twin that is not read each
-## frame) is later unfrozen and moved along by a script (no 2D physics step moves it: the test holds
-## with the 2D engine off); its twin follows it where it goes, and the post is no longer the body a
-## ray finds where it stood.
+## A piece that stays where it is when it is twinned is followed once a script moves it (interface
+## 29: the note of the twins job, kept by #194 furn3d and del2d-c4): an anchored post (a plan handle
+## with a static twin that is not read each frame, only looked at slowly) is later moved along by a
+## script (no 2D physics step moves it: it has no 2D body); its twin follows it where it goes.
 
 const Probe := preload("res://tests/_general/twin_probe.gd")
 const AT := Vector2(300, 250)
-## How the unfrozen post is moved: this many frames, this far (px) a frame.
+## How the post is moved: this many frames, this far (px) a frame.
 const SHOVE_FRAMES := 30
 const SHOVE_STEP := Vector2(2.0, 0.0)
 ## An anchored solid post: it never moves while it is anchored (the streetlight's kind of piece).
@@ -19,10 +18,10 @@ const POST := {
 
 func describe() -> Dictionary:
 	return {
-		"name": "A body unfrozen after it is twinned is followed by its twin",
-		"description": "An anchored post is twinned frozen; unfrozen and shoved along, its twin "
+		"name": "A static piece a script moves after it is twinned is followed by its twin",
+		"description": "An anchored post is twinned static; moved along by a script, its twin "
 			+ "ends up where the post does, not where it was placed.",
-		"tags": ["twins", "3d", "freeze"],
+		"tags": ["twins", "3d", "static"],
 		"timeout": 12.0,
 	}
 
@@ -35,13 +34,11 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	await t.frames(3)
-	var post := t.object(&"post") as RigidBody2D
+	var post := t.object(&"post")
 	var twin := Probe.twins(t).twin_of(post)
-	if not t.require(twin != null, "premise: the frozen post is twinned"):
+	if not t.require(twin != null, "premise: the post is twinned"):
 		return
-	post.freeze = false
-	post.gravity_scale = 0.0
-	for i in SHOVE_FRAMES:  # a script moves it, as the 2D step moved a free body
+	for i in SHOVE_FRAMES:  # a script moves it
 		post.global_position += SHOVE_STEP
 		await t.frames(1)
 	await t.frames(2)  # the twin is a frame behind a script's move

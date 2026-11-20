@@ -26,8 +26,10 @@ extends GameTest
 ## It reads (tests/_vision/vision_probe.gd) the `PlayerView`: `cone()`, `bubble()`, `rebuilds()`.
 
 ## The height (px) of the line a strike is taken along: a piece's side and a wall's.
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const STRIKE_HEIGHT := 20.0
 const Probe := preload("res://tests/_vision/vision_probe.gd")
+const Held := preload("res://tests/_vision/held_pieces.gd")
 const Checker := preload("res://tests/_vision/cone_checker.gd")
 const Mover := preload("res://tests/_vision/physics_mover.gd")
 const Changing := preload("res://tests/_vision/changing_body.gd")
@@ -181,13 +183,12 @@ func _turning(t: TestContext, checker: Checker, eye: Node2D) -> void:
 ## What the viewer sees is hit again and again, at the places its cone ends on; each hit dents, and
 ## the collider is cut anew in a frame or two with no move of the body.
 func _dents(t: TestContext, checker: Checker) -> void:
-	# The pieces are held still, so that a dent re-cuts a collider with no move of its body (a piece
-	# hit while free is shoved, and a cone that rebuilds as it moves hides a missed re-cut).
-	var pieces: Array[RigidBody2D] = []
-	for node in t.world.find_children("*", "RigidBody2D", true, false):
+	# The pieces are held still, so that a dent re-cuts a wall's twin with no move of a body (a
+	# piece hit while free is shoved, and a cone that rebuilds as it moves hides a missed re-cut).
+	var pieces: Array[Node2D] = []
+	for node in PlanProbe.pieces_under(t.world):
 		pieces.append(node)
-		node.freeze_mode = RigidBody2D.FREEZE_MODE_STATIC
-		node.freeze = true
+	Held.hold_still(pieces, true)
 	var targets: Array[Node2D] = []
 	targets.append_array(pieces)
 	for node in NavTwins.walls_under(t.world):
@@ -202,8 +203,7 @@ func _dents(t: TestContext, checker: Checker) -> void:
 			_strike_seen(checker, rng)
 		await t.frames(5)
 	await t.frames(5)
-	for piece in pieces:
-		piece.freeze = false
+	Held.hold_still(pieces, false)
 	t.check(
 		Probe.collision_shapes(targets) > shapes,
 		"premise: the dents cut the colliders into more shapes (%d, was %d)"
@@ -217,7 +217,7 @@ func _dents(t: TestContext, checker: Checker) -> void:
 
 ## A wardrobe is shoved across the room and comes to rest.
 func _shove(t: TestContext, checker: Checker) -> void:
-	var piece: RigidBody2D = t.object(&"shoved")
+	var piece: Node2D = t.object(&"shoved")
 	var at := piece.global_position
 	Knockback.push(piece, Vector2(900.0, -400.0) * piece.get_mass() * 0.4)
 	await t.frames(120)

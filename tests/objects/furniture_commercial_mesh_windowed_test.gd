@@ -268,7 +268,7 @@ func _hide_walls(world: Node) -> void:
 ## The first piece the match built painted as `art` with the option `kind` (a streetlight's
 ## `head`; an empty one for any).
 func _first_of(art: String, kind: String) -> Node2D:
-	for body: Node in _world.find_children("*", "RigidBody2D", true, false):
+	for body: Node in PlanProbe.pieces_under(_world):
 		var look: Variant = body.get("look")
 		if not look is Object or (look as Object).get("art") != art:
 			continue

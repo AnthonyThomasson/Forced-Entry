@@ -90,9 +90,7 @@ func run(t: TestContext) -> void:
 
 func _block_the_lob(t: TestContext) -> void:
 	var wardrobe := t.object(&"wardrobe")
-	# a frozen body takes a teleport (a free one is put back by the physics step)
-	wardrobe.freeze = true
-	await t.frames(1)
+	# a script's teleport of a free piece is adopted by its 3D body
 	wardrobe.global_position = ON_THE_LINE
 	await t.frames(1)
 

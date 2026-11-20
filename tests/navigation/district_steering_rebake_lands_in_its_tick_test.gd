@@ -10,6 +10,7 @@ extends GameTest
 ## piece of furniture makes due, land on one frame within their count of frames of the first
 ## bake; the shove's planning re-bake (its gather over the next frames) lands too.
 
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const SEED := 7
 ## A character stands this far (px) in from the corner of the streets' rect, then moves along.
 const CORNER_IN := 100.0
@@ -120,9 +121,9 @@ func _shoved_piece(
 	tiles: Array[NavigationRegion2D],
 ) -> void:
 	var district := t.world.get("district") as Node2D
-	var piece: RigidBody2D = null
-	for body in district.find_children("*", "RigidBody2D", true, false):
-		if not body.find_children("*", "CollisionShape2D", true, false).is_empty():
+	var piece: Node2D = null
+	for body in PlanProbe.pieces_under(district):
+		if body.solid:
 			piece = body
 			break
 	if not t.require(piece != null, "premise: the district has a solid piece of furniture"):

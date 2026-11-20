@@ -4,6 +4,7 @@ extends GameTest
 ## answers go on matching the district map's. A point where the piece stood is floor again on
 ## both, and a point where it stands now is off the floor on both.
 
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const SEED := 7
 const SHOVE := Vector2(0, 130)
 ## How near (px) the ring's snap is to the district map's.
@@ -100,9 +101,9 @@ func _check_snaps(t: TestContext, map: RID, old_spot: Vector2, new_spot: Vector2
 	)
 
 
-## A furniture piece of the match building that carves a hole: a rigid body with a collider.
-func _solid_piece(t: TestContext) -> RigidBody2D:
-	for body in t.world.house.find_children("*", "RigidBody2D", true, false):
-		if not body.find_children("*", "CollisionShape2D", true, false).is_empty():
+## A furniture piece of the match building that carves a hole: a solid piece.
+func _solid_piece(t: TestContext) -> Node2D:
+	for body in PlanProbe.pieces_under(t.world.house):
+		if body.solid:
 			return body
 	return null

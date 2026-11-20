@@ -57,7 +57,7 @@ func _footprint(at: Vector2, half: float) -> Array:
 
 
 func run(t: TestContext) -> void:
-	var post: RigidBody2D = t.object(&"post")
+	var post: Node2D = t.object(&"post")
 	# The premise: the post is anchored (a shove through the pushable contract leaves it where it
 	# stands).
 	post.apply_impulse(SHOVE)

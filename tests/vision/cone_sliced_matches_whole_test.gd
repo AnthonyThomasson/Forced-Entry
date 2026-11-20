@@ -13,6 +13,7 @@ extends GameTest
 ## `corners_read`) changes: they are swapped in together when it completes.
 
 const Probe := preload("res://tests/_vision/vision_probe.gd")
+const Held := preload("res://tests/_vision/held_pieces.gd")
 const Cone := preload("res://scenes/vision/view_cone.gd")
 ## The houses: floorplan and seed.
 const HOUSES := [
@@ -230,10 +231,7 @@ func _difference(cone: Cone) -> String:
 
 func _at_rest(targets: Array[Node2D]) -> bool:
 	for target in targets:
-		var body := target as RigidBody2D
-		if body != null and not body.sleeping and (
-			body.linear_velocity.length() > REST_SPEED or absf(body.angular_velocity) > REST_SPIN
-		):
+		if Held.moves_faster(target, REST_SPEED, REST_SPIN):
 			return false
 	return true
 

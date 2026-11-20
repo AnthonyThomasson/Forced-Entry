@@ -17,7 +17,7 @@ Character / Vehicles → Physics; `PhysicsMeshes`), 12 and 27 (the 3D meshes), 5
 |---|---|
 | `physics.gd` (`Physics`) | The entry points `impact_impulse`, `spawn_debris`, `bleed_out`, `spawn_explosion`. |
 | `hit_info.gd` (`HitInfo`) | The one packet a striker fills in. |
-| `knockback.gd` (`Knockback`) | RigidBody2D adapter for furniture; the static `Knockback.push(body, impulse, at, height)` is the one way a pusher shoves a pushable (5): through the free 3D body that leads a piece (`TwinSpace.leader_of`, interface 29) at its real height, else `apply_impulse`. |
+| `knockback.gd` (`Knockback`) | the shove of furniture (its mass); the static `Knockback.push(body, impulse, at, height)` is the one way a pusher shoves a pushable (5): through the free 3D body that leads a piece (`TwinSpace.leader_of`, interface 29) at its real height, else `apply_impulse`. |
 | `deformable.gd`, `deformation.gd`, `dent_limits.gd` | Dents: records, polygon math and the damage darkening. |
 | `debris_spawner.gd`, `debris.gd`, `debris_layer.gd`, `mark_layer.gd` | Chips (a flying one is a plain node, a landed one a record) and the capped mark store. |
 | `hit_particles.gd` (`HitParticles`) | Entry, exit and impact bursts, made as plain data. |
@@ -37,11 +37,11 @@ Character / Vehicles → Physics; `PhysicsMeshes`), 12 and 27 (the 3D meshes), 5
 
 ## Deformation
 
-- `Deformable` records impacts (dents, carved "missing pieces") and emits `changed`; the owner shows it and rebuilds its collider
-  from the same deformed polygon. `record(hit, turn)` stores the impact un-turned by `turn`, for a body shown turned beyond its
+- `Deformable` records impacts (dents, carved "missing pieces") and emits `changed`; the owner shows it and lays what it has
+  from the same deformed polygon (a piece: its smear's footprint and its mesh; a wall: its twin's cut). `record(hit, turn)` stores the impact un-turned by `turn`, for a body shown turned beyond its
   node rotation (a character facing its aim); the owner turns it back when reading it. A vehicle composes one with `allow_chunks` off
   and its own `max_depth` / `max_impacts`, does not listen to `changed` (it leaves its collider alone), has no `Knockback` (it is a
-  `RigidBody2D`), and its meshes read the dents (`hit_marks()`). A house door's leaf composes one the same way (a child of the door, so impacts are
+  free 3D body), and its meshes read the dents (`hit_marks()`). A house door's leaf composes one the same way (a child of the door, so impacts are
   stored in the leaf's frame; `max_depth` `DoorConfig.dent_depth`, `max_impacts` `DoorConfig.dents`), and its debris is `Physics.spawn_debris`.
 - `Deformation` owns the impact schema (`new_impact`, `push_impact`); `Deformable.record` and Objects' wall segments both record
   through them. `deform` keeps each ring point inside the outline and at most `NEIGHBOUR_REACH` of the way to either ring

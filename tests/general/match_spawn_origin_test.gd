@@ -85,9 +85,9 @@ func run(t: TestContext) -> void:
 		)
 
 
-## Every furniture body (RigidBody2D) under `node`, appended to `out`.
+## Every piece of furniture (`TwinSpace.PIECES`) under `node`, appended to `out`.
 func _collect_bodies(node: Node, out: Array) -> void:
 	for child in node.get_children():
-		if child is RigidBody2D:
+		if child.is_in_group(TwinSpace.PIECES):
 			out.append(child)
 		_collect_bodies(child, out)

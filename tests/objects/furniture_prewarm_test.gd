@@ -4,6 +4,7 @@ extends GameTest
 ## main thread: after the warm, a piece's `FurnitureArt.of` (at a palette tone, rotated, facing a
 ## side, with a neon trim, with an overhang) files no flat texture of its own.
 
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const ObjectArt := preload("res://scenes/objects/art/object_art.gd")
 const SharedTextures := preload("res://scenes/objects/shared_textures.gd")
 
@@ -55,7 +56,7 @@ func _district_paints_no_flat_art(t: TestContext) -> void:
 		var root := WorldGen.generate_district(seed_value, "", Vector2.ZERO, t.world)
 		var before := PixelArt._cache.keys()
 		var asked := 0
-		for body: Node in root.find_children("*", "RigidBody2D", true, false):
+		for body: Node in PlanProbe.pieces_under(root):
 			var look: Variant = body.get("look")
 			if look is Object and String((look as Object).get("art")) != "":
 				FurnitureArt.of(FurnitureSpec.of(body as Node2D))

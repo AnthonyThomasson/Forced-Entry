@@ -202,8 +202,8 @@ func _check_furniture(t: TestContext, label: String, house: Node2D, rooms: Array
 		if holder == null:
 			continue
 		for piece in holder.get_children():
-			var body := piece as RigidBody2D
-			if body == null:
+			var body := piece as Node2D
+			if body == null or not body.is_in_group(TwinSpace.PIECES):
 				continue
 			var footprint := Rect2(body.global_position - body.size * 0.5, body.size)
 			checked += 1

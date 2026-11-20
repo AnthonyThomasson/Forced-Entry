@@ -26,10 +26,11 @@ extends Node3D
 ## A mesh that changes without its body's transform changing (a limb, a crouch, a wheel's spin) has
 ## two ways: a `mirror_update(body)` method on the mesh node, called each frame the mesh shows, or
 ## `remirror(node)` to build it again (a dent, an outfit). A collision shape added to or removed
-## from a carried body (a hit piece's rebuilt collider) builds its mesh again too, unless the mesh
-## has `follows_shapes() -> true` (a wall's, which replaces the one segment that changed) or the
-## shape is queued to be freed. A mesh node may also have `on_body_died(body) -> bool` (true: stay
-## shown). `mesh-hook.md` says which to use when.
+## from a carried body builds its mesh again too, unless the mesh has `follows_shapes() -> true`
+## (a wall's, which replaces the one segment that changed) or the shape is queued to be freed; so
+## does a body's signal `reshaped` (a hit piece's dents, cut again: it has no shape of its own). A
+## mesh node may also have `on_body_died(body) -> bool` (true: stay shown). `mesh-hook.md` says
+## which to use when.
 
 ## A builder made `mesh` for the physics body `body` (again when the body's mesh is built again):
 ## what a domain-blind watcher of the meshes (the wall fade) connects to.
@@ -265,10 +266,10 @@ func _carry(body: Node2D) -> void:
 	if row["turns"]:
 		_turn(row)
 	count += 1
-	# a character, a rigid body, a door or a vehicle (a plan handle in HARD that is no wall)
+	# a character, a piece, a door or a vehicle (a plan handle in HARD that is no wall)
 	var moving := (
 		body is CharacterBody2D
-		or body is RigidBody2D
+		or body.is_in_group(TwinSpace.PIECES)
 		or (body.is_in_group(TwinSpace.HARD) and not body.is_in_group(TwinSpace.WALLS))
 	)
 	if moving or not row["shown"] or (row["update"] as Callable).is_valid():
@@ -352,7 +353,8 @@ func _drop(body: Node) -> void:
 	_rows.erase(id)
 
 
-## Watch `body` leave the tree, gain or lose a collision shape and, if it can die, die.
+## Watch `body` leave the tree, gain or lose a collision shape (or say it was `reshaped`, a piece
+## whose dents were cut again) and, if it can die, die.
 func _watch(body: Node) -> void:
 	var leaving := _on_body_exiting.bind(body)
 	if not body.tree_exiting.is_connected(leaving):
@@ -361,10 +363,21 @@ func _watch(body: Node) -> void:
 	if not body.child_entered_tree.is_connected(changed):
 		body.child_entered_tree.connect(changed)
 		body.child_exiting_tree.connect(changed)
+	if body.has_signal(&"reshaped"):
+		var again := _on_reshaped.bind(body)
+		if not body.is_connected(&"reshaped", again):
+			body.connect(&"reshaped", again)
 	if body.has_signal(&"died"):
 		var dying := _on_body_died.bind(body)
 		if not body.is_connected(&"died", dying):
 			body.connect(&"died", dying)
+
+
+## A carried body's silhouette changed (a piece's dents were cut again): its mesh is built again on
+## the next update, as for a collision shape that came or went.
+func _on_reshaped(body: Node) -> void:
+	if is_instance_valid(body):
+		_pending[body.get_instance_id()] = body
 
 
 ## A carried body leaves the tree: its meshes go.

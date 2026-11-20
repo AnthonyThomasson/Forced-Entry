@@ -24,6 +24,7 @@ extends GameTest
 ## `LOOK_SCENE=street LOOK_DIR=<dir> tools/run_tests.sh --windowed
 ## --id=general/render_3d_look_gate_windowed`.
 
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const CameraScript := preload("res://scenes/general/camera_controller.gd")
 const CharacterScene := preload("res://scenes/character/character_base.tscn")
@@ -510,8 +511,8 @@ func _open_room() -> Rect2:
 ## Hide the furniture in `rect` (and its clutter) so a line-up or a duel stands clear: the body
 ## itself, so 2D stops drawing it and the 3D mirror hides its mesh with it.
 func _hide_pieces_in(rect: Rect2) -> void:
-	for body: Node in PlanProbe.bodies_under(_world):
-		var node := body as Node2D
+	for node: Node2D in PlanProbe.bodies_under(_world):
+		var body: Node = node
 		if (rect.grow(20.0).has_point(node.global_position)
 				and MeshKinds.kind_of(body) == MeshKinds.FURNITURE):
 			node.visible = false

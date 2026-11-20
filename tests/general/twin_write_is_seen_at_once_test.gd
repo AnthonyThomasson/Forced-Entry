@@ -6,6 +6,7 @@ extends GameTest
 ## frame at its new place, and the place it left is clear.
 
 const Probe := preload("res://tests/_general/twin_probe.gd")
+const Piece := preload("res://tests/_objects/piece_probe.gd")
 const SOFA_AT := Vector2(300, 250)
 const MOVED_TO := Vector2(600, 250)
 
@@ -27,9 +28,9 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	await t.frames(3)
-	var sofa := t.object(&"sofa") as RigidBody2D
+	var sofa := t.object(&"sofa") as Node2D
 	t.require(Probe.down(t, SOFA_AT).get("owner") == sofa, "premise: a ray on the sofa names it")
-	sofa.sleeping = false
+	Piece.body(sofa).sleeping = false
 	await t.frames(1)
 	sofa.global_position = MOVED_TO
 	t.world.twin_space().update()

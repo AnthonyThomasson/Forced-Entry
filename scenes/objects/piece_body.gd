@@ -32,7 +32,7 @@ const SPIN_FLOOR_SHARE := 0.1
 ## Points round a cylinder's rim that stand for it in a tipped piece's hull.
 const RIM_POINTS := 12
 
-## The 2D piece this is the body of.
+## The 2D piece this is the body of (a plan handle).
 var _piece: Node2D
 ## Whether the 2D footprint is the tipped hull now, and the 3D pose it was cut for.
 var _footprint_tipped := false
@@ -80,17 +80,9 @@ func piece() -> Node2D:
 	return _piece
 
 
-## Called by the twin space as it takes the piece over: the 2D body becomes the footprint, a frozen
-## kinematic body only the twin space moves (a free `RigidBody2D` stays what it is where there is
-## no twin space).
-func take_over(footprint: Node2D) -> void:
-	var rigid := footprint as RigidBody2D
-	if rigid != null:
-		rigid.linear_velocity = Vector2.ZERO
-		rigid.angular_velocity = 0.0
-		# static, not kinematic: a kinematic body derives a velocity from each move and carries on
-		rigid.freeze_mode = RigidBody2D.FREEZE_MODE_STATIC
-		rigid.freeze = true
+## Called by the twin space as it takes the piece over: the plan handle becomes the footprint, a
+## node only the twin space moves.
+func take_over(_footprint: Node2D) -> void:
 	_centre_on_origin()
 	sleeping = true  # a district at rest costs Jolt nothing
 
@@ -328,17 +320,17 @@ func _set_hull(footprint: Node2D) -> void:
 	_cut_footprint(footprint, hull)
 
 
-## The footprint's collider is now `hull` (its frame): a piece (`EnvironmentObject`) cuts it as
-## `set_tipped_collider`; a body of another kind has its own way (`DoorSlab`).
+## The footprint is now `hull` (its frame): a piece (`EnvironmentObject`) takes it as
+## `set_tipped_footprint`; a body of another kind has its own way (`DoorSlab`).
 func _cut_footprint(footprint: Node2D, hull: PackedVector2Array) -> void:
-	if footprint.has_method(&"set_tipped_collider"):
-		footprint.call(&"set_tipped_collider", hull)
+	if footprint.has_method(&"set_tipped_footprint"):
+		footprint.call(&"set_tipped_footprint", hull)
 
 
-## The piece is upright again: the footprint's collider is its own (`restore_collider`).
+## The piece is upright again: the footprint is its own (`restore_footprint`).
 func _restore_footprint(footprint: Node2D) -> void:
-	if footprint.has_method(&"restore_collider"):
-		footprint.call(&"restore_collider")
+	if footprint.has_method(&"restore_footprint"):
+		footprint.call(&"restore_footprint")
 
 
 ## Whether `hull` is the one the footprint is cut to already (a piece that only slides or turns

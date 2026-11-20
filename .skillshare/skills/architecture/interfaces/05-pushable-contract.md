@@ -1,8 +1,8 @@
 5. **"Pushable" contract** — anything shoveable exposes `apply_impulse(v, at = Vector2.ZERO)` + `get_mass()`; `at` is the contact offset from
    the piece's origin (world orientation; omitted = a central shove).
-   - Furniture is a `RigidBody2D`: its native methods serve the contract, and an off-centre shove turns it. The character ignores `at`
+   - Furniture is a plain `Node2D` plan handle (no 2D body): its `apply_impulse(v, at)` / `get_mass()` answer the contract, and an off-centre shove turns it. The character ignores `at`
      and integrates knockback into locomotion. Once the twin space has taken a free piece over (interface 29), the piece is led by a
-     free 3D body (`PieceBody`) and its `RigidBody2D` is a frozen footprint that a native `apply_impulse` moves nothing of, so **a
+     free 3D body (`PieceBody`) that its `apply_impulse` shoves (an anchored or hung piece, decor and a world with no twin space move nothing), so **a
      pusher goes through `Knockback.push(body, impulse, at = Vector2.ZERO, height = -1.0)`**: `height` is px above the floor (-1: the
      body's centre), the real point of the blow (a bullet's `HitInfo.height`, a blast's burst height, a fist's, a foot's, the hip of a
      walking push: `BodyHeights.contact(part, posture)`), so a tall thin piece struck high tips and a low heavy one slides. A pusher that is carrying a piece along (a walking
@@ -20,7 +20,7 @@
      `get_mass()`, `linear_velocity`, `angular_velocity` and `sleeping` on the 2D vehicle answer through its 3D body. It shoves free furniture as two free 3D bodies (the
      engine solves them) plus the bumper's blow through `Knockback.push` at the bumper's height (`VehicleContacts`), so a tall thin piece goes over and a low heavy one slides; a character it strikes
      through the character's `apply_impulse` (interface 19), judged by shape queries (never the engine's contact events).
-   - To carry a piece at walking pace instead of launching it, a pusher may read a `RigidBody2D` pushable's `linear_velocity` /
+   - To carry a piece at walking pace instead of launching it, a pusher may read a pushable's `linear_velocity` /
      `angular_velocity` and its inverse inertia (`PhysicsServer2D.body_get_direct_state`) and cap its shove by them; a pushable without
      them (a character) is shoved uncapped.
    - A world `Door` (interface 24) is a driven body: a shut door is never moved by a shove; an ajar or open one is turned about its hinge

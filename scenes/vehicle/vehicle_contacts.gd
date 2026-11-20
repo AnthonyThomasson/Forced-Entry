@@ -615,7 +615,7 @@ static func _is_character(body: Node) -> bool:
 ## Whether `body` is a piece the vehicle can shove on: a free piece of furniture, the footprint of a
 ## free 3D body with the pushable contract.
 static func _is_piece(body: Node) -> bool:
-	return body is RigidBody2D and _is_led(body) and body.has_method("get_mass")
+	return body.is_in_group(TwinSpace.PIECES) and _is_led(body) and body.has_method("get_mass")
 
 
 ## Whether `body` is the frozen footprint of a piece a free 3D body leads (`TwinSpace.leader_of`).

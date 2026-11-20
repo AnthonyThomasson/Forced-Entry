@@ -8,6 +8,7 @@ extends GameTest
 ## (`NavHoles.plain`, the reference). `NavHoles.walks` counts the tree walks that find the pieces
 ## and `NavHoles.cuts` the hulls cut from a body's shapes.
 
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const Piece := preload("res://tests/_objects/piece_probe.gd")
 const SEED := 7
 const PLAN := "garage_home"
@@ -36,7 +37,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var house: Node2D = t.world.get("house")
 	await t.frames(2)
-	var pieces: Array = house.find_children("*", "RigidBody2D", true, false)
+	var pieces: Array = PlanProbe.pieces_under(house)
 	if not t.require(pieces.size() >= 20, "the house is furnished (%d pieces)" % pieces.size()):
 		return
 	var first := NavBuilder.furniture_holes(house)
@@ -51,15 +52,14 @@ func run(t: TestContext) -> void:
 		"and walks no tree and cuts no hull (%d walks, %d cuts)" % [NavHoles.walks, NavHoles.cuts],
 	)
 
-	var moved: RigidBody2D = null
-	for piece: RigidBody2D in pieces:
-		# a free piece: a furnishing's 2D body is frozen (the follower of its 3D body)
-		if not piece.freeze or TwinSpace.leader_of(piece) != null:
+	var moved: Node2D = null
+	for piece: Node2D in pieces:
+		# a free piece: led by a 3D body, which a script's move of the plan handle is adopted by
+		if TwinSpace.leader_of(piece) != null:
 			moved = piece
 			break
 	if not t.require(moved != null, "a piece that can be moved"):
 		return
-	moved.freeze = true  # a free body is put back by the next physics step
 	await t.frames(1)
 	NavBuilder.furniture_holes(house)
 	await _check_moved(t, house, moved, first)
@@ -76,7 +76,7 @@ func run(t: TestContext) -> void:
 func _check_moved(
 	t: TestContext,
 	house: Node2D,
-	moved: RigidBody2D,
+	moved: Node2D,
 	before: Array,
 ) -> void:
 	moved.global_position += Vector2(23.0, -11.0)
@@ -93,7 +93,7 @@ func _check_moved(
 ## A piece shot up has its 2D collider rebuilt in convex pieces a frame later, but its twin (what
 ## the holes are cut from) keeps the outline it was built with: the shots' shove is cut once, the
 ## dent never, and the holes still equal a re-cut.
-func _check_dented(t: TestContext, house: Node2D, piece: RigidBody2D) -> void:
+func _check_dented(t: TestContext, house: Node2D, piece: Node2D) -> void:
 	var hit := HitInfo.new()
 	hit.normal = Vector2.RIGHT
 	hit.direction = Vector2.LEFT
@@ -136,12 +136,9 @@ func _check_added(t: TestContext, house: Node2D) -> void:
 ## A piece destroyed leaves no hole, and no other piece is cut again.
 func _check_destroyed(t: TestContext, house: Node2D, pieces: Array) -> void:
 	var before := NavBuilder.furniture_holes(house)
-	var gone: RigidBody2D = null
-	for piece: RigidBody2D in pieces:
-		if (
-			(not piece.freeze or TwinSpace.leader_of(piece) != null)
-			and piece.find_children("*", "CollisionShape2D", false, false)
-		):
+	var gone: Node2D = null
+	for piece: Node2D in pieces:
+		if TwinSpace.leader_of(piece) != null:
 			gone = piece
 	if not t.require(gone != null, "a solid piece to destroy"):
 		return
@@ -160,7 +157,7 @@ func _reset_counts() -> void:
 
 
 ## A piece taken out of the house and put back is found again, cut once, with no signal doubled.
-func _check_reparented(t: TestContext, house: Node2D, piece: RigidBody2D) -> void:
+func _check_reparented(t: TestContext, house: Node2D, piece: Node2D) -> void:
 	NavBuilder.furniture_holes(house)
 	var at := piece.global_position
 	var parent := piece.get_parent()

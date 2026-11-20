@@ -35,7 +35,7 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var lamp: RigidBody2D = t.object(&"lamp")
+	var lamp: Node2D = t.object(&"lamp")
 	var lighting := Probe.light(t)
 	var twin := Probe.light(t)
 	if lighting == null or twin == null:

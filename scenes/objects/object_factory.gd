@@ -44,7 +44,7 @@ static func spawn(
 		size = Vector2(size.y, size.x)
 	var color: Color = opts.get("color", definition["color"])
 
-	var obj := RigidBody2D.new()
+	var obj := Node2D.new()
 	obj.name = String(opts.get("name", definition.get("name", "Object"))).capitalize()
 	obj.position = position
 	obj.script = EnvironmentObject

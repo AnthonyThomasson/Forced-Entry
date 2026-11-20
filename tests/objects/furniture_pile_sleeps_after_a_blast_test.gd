@@ -4,6 +4,7 @@ extends GameTest
 ## again within `SETTLE` s (Jolt's sleep: a tipped pile that never slept would cost the 3D step a
 ## frame forever), some have tipped, and none has fallen out of the house.
 
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const Probe := preload("res://tests/_objects/piece_probe.gd")
 const SEED := 7
 const PLAN := "garage_home"
@@ -31,7 +32,7 @@ func run(t: TestContext) -> void:
 	var house: Node2D = t.world.get("house")
 	await t.seconds(0.5)
 	var pieces: Array[Node] = []
-	for body in house.find_children("*", "RigidBody2D", true, false):
+	for body in PlanProbe.pieces_under(house):
 		if Probe.body(body) != null:
 			pieces.append(body)
 	if not t.require(

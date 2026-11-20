@@ -31,8 +31,6 @@ func run(t: TestContext) -> void:
 	await t.frames(3)
 	var chair := t.object(&"chair")
 	await Probe.settle(t, chair, 5.0)
-	for shape in chair.find_children("*", "CollisionShape2D", true, false):
-		(shape as CollisionShape2D).disabled = true
 	var you := t.actor(&"you")
 	you.global_position = chair.global_position + Vector2(0.0, 4.0)
 	await t.frames(2)

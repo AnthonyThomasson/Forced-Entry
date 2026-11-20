@@ -1,11 +1,11 @@
 4. **Objects/Character/Vehicles → Physics** (they compose it; Physics is a leaf domain but for Art's mesh kit, 3D only)
-   - `Knockback` (Node child): RigidBody2D adapter. Configures its parent body, owns `apply_impulse(v, at_world)`; `mass` is set by the
+   - `Knockback` (Node child): a body's shove: owns `apply_impulse(v, at_world, height)` and the static `push`; `mass` is set by the
 	 owner from the catalogue `weight` before `_ready`.
    - `Deformable` (Node child): `record(hit, turn = 0.0)` (`turn`: the body's drawn turn beyond its node rotation; the character
 	 passes its facing), `impacts`, `damage_total`, signal `changed`, and three per-body knobs its owner sets: `max_depth` (deepest
 	 dent, px; default `PhysicsDeformConfig.max_depth`), `allow_chunks` (a hard hit carves a missing piece), `max_impacts` (dents
 	 remembered), each defaulting to `PhysicsDeformConfig`'s (the character sets softer flesh values from `CharacterHitConfig`). A vehicle composes one with chunks off,
-	 no `Knockback` (it is its own `RigidBody2D`), and does not rebuild its collider from the dents.
+	 no `Knockback` (it is its own body), and does not rebuild anything from the dents.
    - `Deformation` (static): silhouette/collider polygons and the damage darkening (`darken(damage_total)`).
 	 - Polygons: `base_ring(shape, size)`, `shape_polygon(shape, size, impacts)` (cached), `wall_polygon(a, b, thickness, impacts)`,
 	   `is_valid_polygon(poly)` (skip a self-touching one that frame), `convex_pieces(polygon)`, `shapes_of(pieces)` (their

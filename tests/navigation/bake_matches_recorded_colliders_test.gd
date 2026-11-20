@@ -19,6 +19,7 @@ extends GameTest
 ## a `Wall` holds, in the house's frame, is one the bake has, and the bake has no other; the navmesh
 ## keeps the agent's radius from each; every doorway of a wall is open on it.
 
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const Baseline := preload("res://tests/_navigation/bake_baseline.gd")
 const WallScript := preload("res://scenes/objects/wall/wall.gd")
 const SEED := 7
@@ -407,7 +408,7 @@ func _check_holes(t: TestContext, root: Node2D, now: Array, recorded: Dictionary
 	)
 	var hung := 0
 	var hung_area := 0.0
-	for body: Node2D in root.find_children("*", "RigidBody2D", true, false):
+	for body: Node2D in PlanProbe.pieces_under(root):
 		if HUNG.any(func(prefix: String) -> bool: return String(body.name).begins_with(prefix)):
 			hung += 1
 			hung_area += _area([NavHoles.cut(body)])

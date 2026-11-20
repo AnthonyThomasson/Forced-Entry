@@ -14,7 +14,7 @@ A carrier soaks up a *load* (0..1) of wet blood and deposits it as the load fade
 - `BloodFootprints` (a walker's child; `step(foot, fall: Footfall)` per footfall, from the character's
   `character_footsteps.gd`): per foot id, soak `max(load, wetness * pickup_gain)`, stamp a mirrored sole with alpha from the
   load unless already in thick blood (`thick_blood`, which gates footprints only), then lose `decay`.
-- `BloodSmear` (a RigidBody2D's child): `set_footprint(local polygon)` lays a grid of "fingers" fixed to the body; above
+- `BloodSmear` (a piece's child): `set_footprint(local polygon)` lays a grid of "fingers" fixed to the body; above
   `BloodSmearConfig.min_speed` each finger soaks blood under it and extends its ribbon every `segment_length` px, width
   `BloodSmearLookConfig.width` × spacing × sqrt(load). Load falls by `decay_per_px`; below `break_load` the ribbon breaks into
   dashes; at rest it tapers. It steps only while its body is awake (`sleeping_state_changed` wakes and stops it; a frozen body never moves), since a district holds hundreds of resting pieces (`physics/object_smear_sleeps_at_rest`).

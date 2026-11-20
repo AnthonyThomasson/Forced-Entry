@@ -172,7 +172,8 @@ func _begin(spec: Dictionary, object: Node) -> void:
 	if spec.get("move_to", false):
 		# Re-entering the object just left keeps its existing exception.
 		if not _character.use.stop_clearing(object):
-			_character.add_collision_exception_with(object)
+			if object is PhysicsBody2D:  # a piece is a plan handle: only its 3D twin shares space
+				_character.add_collision_exception_with(object)
 			TwinSpace.share_space(_character, object, true)
 		_character.global_position = object.global_position
 

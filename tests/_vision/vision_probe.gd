@@ -239,11 +239,14 @@ static func solid_near(t: TestContext, point: Vector2, margin: float) -> bool:
 	return not space(t).intersect_shape(query, 1).is_empty()
 
 
-## How many collision shapes `targets` hold between them.
+## How many collision shapes the twins of `targets` hold between them (a wall's twin is cut again
+## by a dent; a piece's keeps the outline it was built with, so it adds the same number).
 static func collision_shapes(targets: Array[Node2D]) -> int:
 	var count := 0
 	for target in targets:
-		count += target.find_children("*", "CollisionShape2D", false, false).size()
+		var twin := TwinSpace.twin_for(target)
+		if twin != null:
+			count += twin.find_children("*", "CollisionShape3D", false, false).size()
 	return count
 
 

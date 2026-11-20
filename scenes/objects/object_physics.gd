@@ -1,37 +1,35 @@
 extends RefCounted
 ## Objects domain (private): a piece's physics, `piece.physics`: the Physics components it composes
-## — a Knockback child (RigidBody2D adapter, how take_hit shoves it), a Deformable child (damage
-## dents/chunks) and, on a solid piece, a BloodSmear child (drags blood out of a puddle) —, its
-## collider, built in code and rebuilt to follow the deformed silhouette, and a cloth piece's
+## — a Knockback child (its mass, how take_hit shoves it), a Deformable child (damage dents/chunks)
+## and, on a solid piece, a BloodSmear child (drags blood out of a puddle) —, the silhouette its
+## dents leave (laid under the smear, and what its mesh follows: `reshaped`) and a cloth piece's
 ## BloodSurface. It holds its piece (a Node, built once with it); the force and deformation MATH
-## lives in the Physics domain.
+## lives in the Physics domain. A piece has no collider: its body is its 3D twin, built from the
+## parts of `PieceHeights` (`ObjectTwins`), which a dent does not reshape.
 
-## RigidBody2D adapter; take_hit shoves the body through it.
+## Knockback child; take_hit shoves the body through it.
 var knockback: Knockback
-## Damage dents/chunks; read by the furniture rig and the collider rebuild.
+## Damage dents/chunks; read by the furniture rig and the silhouette rebuild.
 var deformable: Deformable
 ## The EnvironmentObject whose physics this is.
-var _piece: RigidBody2D
+var _piece: Node2D
 ## Drags blood out of a puddle as the piece slides through it (solid pieces only).
 var _smear: BloodSmear
-## A deferred `_rebuild_collider` is already waiting.
-var _collider_rebuild_queued := false
+## A deferred `_rebuild_silhouette` is already waiting.
+var _rebuild_queued := false
 ## BloodSurface registration of a non-solid piece (a rug soaks blood up).
 var _surface_id := -1
-## The cut queued with the rebuild, null when none waits.
-var _cut: ColliderCuts = null
-## Whether the collider is the footprint of a tipped 3D body (`set_tipped_collider`): the dents are
-## kept and cut again when the piece is upright (`restore_collider`).
+## Whether the footprint is the hull of a tipped 3D body (`set_tipped_footprint`): the dents are
+## kept and the silhouette is laid again when the piece is upright (`restore_footprint`).
 var _tipped := false
-var _tipped_shape: ConvexPolygonShape2D = null
 
 
-func _init(piece: RigidBody2D) -> void:
+func _init(piece: Node2D) -> void:
 	_piece = piece
 
 
 ## Add the Knockback child (its mass the piece's `weight`), then the Deformable child, whose changes
-## rebuild the collider. Created in the piece's _ready() (runtime-shape convention).
+## rebuild the silhouette. Created in the piece's _ready() (runtime-shape convention).
 func compose() -> void:
 	knockback = Knockback.new()
 	knockback.mass = _piece.weight
@@ -63,11 +61,9 @@ func soak() -> void:
 		)
 
 
-## The piece leaves the tree: drop its BloodSurface and a cut still waiting.
+## The piece leaves the tree: drop its BloodSurface.
 func release() -> void:
 	BloodSurface.unregister(_surface_id)
-	if _cut != null:
-		_cut.cancel()
 
 
 ## A rug has no grooves (BloodSurface callback; a porous surface never asks).
@@ -75,113 +71,48 @@ func _no_groove(_at: Vector2, _half_width: float) -> float:
 	return 0.0
 
 
-# --- Collider (built in code; rebuilt to follow the deformed silhouette) ---------------
+# --- Silhouette (rebuilt to follow the deformed piece) ----------------------------------
 
 
-## Rebuild the collider when the silhouette deforms. Deferred: record() runs mid-physics
-## (from the projectile), when swapping shapes is disallowed.
-## Hits that land before the deferred call runs share it: it rebuilds from the impacts as they stand
-## then. Cutting the dented silhouette into convex pieces is the costly part of a rebuild, and a
-## blast dents a room's worth of furniture at once: the cut is queued with the rebuild
-## (`ColliderCuts`), and the first rebuild of the batch cuts the others on worker threads beside its
-## own. The collider changes in its deferred rebuild, into the pieces a cut there would make.
+## Rebuild the silhouette when the piece deforms. Deferred: record() runs mid-physics (from the
+## projectile). Hits that land before the deferred call runs share it: it lays the silhouette from
+## the impacts as they stand then, and the mesh built from them is built again (`reshaped`).
 func _on_deformable_changed() -> void:
-	if (_piece.solid and PhysicsDeformConfig.update_collider and not _collider_rebuild_queued
+	if (_piece.solid and PhysicsDeformConfig.update_collider and not _rebuild_queued
 			and not _tipped):
-		_collider_rebuild_queued = true
-		_cut = ColliderCuts.queue(_prepare_cut)
-		_rebuild_collider.call_deferred()
+		_rebuild_queued = true
+		_rebuild_silhouette.call_deferred()
 
 
-## The cut of this piece's silhouette as its dents stand now (on the main thread): a pure job on a
-## copy of them.
-func _prepare_cut() -> Callable:
-	var shape: String = _piece.shape_type
-	var footprint: Vector2 = _piece.size
-	var dents: Array = deformable.impacts.duplicate(true)
-	return func() -> Array: return Deformation.cut_shape(shape, footprint, dents)
-
-
-## The convex pieces of `poly`, this piece's silhouette now: the queued cut's, or cut here should it
-## be of another silhouette.
-func _pieces_of(poly: PackedVector2Array) -> Array:
-	var cut := _cut
-	_cut = null
-	if cut != null:
-		var made := cut.take()
-		if not made.is_empty() and made[0] == poly:
-			return made[1]
-	return Deformation.convex_pieces(poly)
-
-
-## Replace the collider(s) with convex pieces of the current deformed polygon.
-func _rebuild_collider() -> void:
-	_collider_rebuild_queued = false
-	var poly := Deformation.shape_polygon(_piece.shape_type, _piece.size, deformable.impacts)
-	var shapes := Deformation.shapes_of(_pieces_of(poly))
-	if shapes.is_empty():
+## Lay the smear across the piece's silhouette as its dents have left it and tell the mesh.
+func _rebuild_silhouette() -> void:
+	_rebuild_queued = false
+	if not is_instance_valid(_piece) or not _piece.is_inside_tree() or _tipped:
 		return
-	_smear.set_footprint(poly)
-	for child in _piece.get_children():
-		if child is CollisionShape2D:
-			child.queue_free()
-	for shape in shapes:
-		var col := CollisionShape2D.new()
-		col.shape = shape
-		_piece.add_child(col)
+	_smear.set_footprint(_silhouette())
+	_piece.reshape()
 
 
-## The collider is the single convex polygon `hull` (the projection of the tipped piece's 3D shape,
-## in the piece's frame) in place of the silhouette's pieces. (A nav re-bake finds the piece's new
-## footprint from its twin's pose, not from this collider: `NavPieces`.)
-func set_tipped_collider(hull: PackedVector2Array) -> void:
+## The piece's outline (its own frame) as its dents leave it.
+func _silhouette() -> PackedVector2Array:
+	return Deformation.shape_polygon(_piece.shape_type, _piece.size, deformable.impacts)
+
+
+## The footprint is the single convex polygon `hull` (the projection of the tipped piece's 3D shape,
+## in the piece's frame) in place of the silhouette. (A nav re-bake finds the piece's new footprint
+## from its twin's pose: `NavPieces`.)
+func set_tipped_footprint(hull: PackedVector2Array) -> void:
 	_piece.footprint_stamp += 1
-	if _tipped and is_instance_valid(_tipped_shape):
-		_tipped_shape.points = hull  # still turning over: the same shape, its points moved
-		return
 	_tipped = true
-	_tipped_shape = ConvexPolygonShape2D.new()
-	_tipped_shape.points = hull
-	_replace_colliders([_tipped_shape])
 	_smear.set_footprint(hull)
 
 
 ## The piece is upright again: its silhouette as its dents have left it, as a rebuild makes it.
-func restore_collider() -> void:
+func restore_footprint() -> void:
 	if not _tipped:
 		return
 	_tipped = false
-	_tipped_shape = null
 	_piece.footprint_stamp += 1
-	_collider_rebuild_queued = false
-	var poly := Deformation.shape_polygon(_piece.shape_type, _piece.size, deformable.impacts)
-	_smear.set_footprint(poly)
-	_replace_colliders(Deformation.shapes_of(Deformation.convex_pieces(poly)))
-
-
-## Free the collision shapes of the piece and give it one for each of `shapes`.
-func _replace_colliders(shapes: Array) -> void:
-	for child in _piece.get_children():
-		if child is CollisionShape2D:
-			# out of the tree at once: a footprint read this frame is the new one
-			_piece.remove_child(child)
-			child.queue_free()
-	for shape in shapes:
-		var col := CollisionShape2D.new()
-		col.shape = shape
-		_piece.add_child(col)
-
-
-## Build the initial collider from the object's primitive shape.
-func build_collider() -> void:
-	var col := CollisionShape2D.new()
-	match _piece.shape_type:
-		"circle":
-			var circle := CircleShape2D.new()
-			circle.radius = _piece.size.x / 2.0
-			col.shape = circle
-		"square", "rect":
-			var rect := RectangleShape2D.new()
-			rect.size = _piece.size
-			col.shape = rect
-	_piece.add_child(col)
+	_rebuild_queued = false
+	_smear.set_footprint(_silhouette())
+	_piece.reshape()  # its dents may have changed while it lay

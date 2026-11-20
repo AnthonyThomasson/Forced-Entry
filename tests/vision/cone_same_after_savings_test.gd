@@ -15,6 +15,7 @@ extends GameTest
 ## order.
 
 const Probe := preload("res://tests/_vision/vision_probe.gd")
+const Held := preload("res://tests/_vision/held_pieces.gd")
 const Cone := preload("res://scenes/vision/view_cone.gd")
 const Reference := preload("res://tests/_vision/reference_view_cone.gd")
 ## The houses: floorplan and seed.
@@ -300,10 +301,7 @@ func _settle(t: TestContext, targets: Array[Node2D]) -> bool:
 ## Whether none of the `targets` that move (the pieces; walls are static) is still moving.
 func _at_rest(targets: Array[Node2D]) -> bool:
 	for target in targets:
-		var body := target as RigidBody2D
-		if body != null and not body.sleeping and (
-			body.linear_velocity.length() > REST_SPEED or absf(body.angular_velocity) > REST_SPIN
-		):
+		if Held.moves_faster(target, REST_SPEED, REST_SPIN):
 			return false
 	return true
 
@@ -352,7 +350,6 @@ func _compare_walk(t: TestContext, world: Node2D, cone: Cone, plain: Reference) 
 	var cover: Node2D = world.objects[&"walk_cover"]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = Probe.HIT_SEED + 91
-	var shapes_before := Probe.collision_shapes([cover])
 	var polygons_before := _savings_count(cone, &"polygon_reuses")
 	var hits_before := _savings_count(cone, &"memo_hits")
 	var validated_twice := 0
@@ -371,10 +368,6 @@ func _compare_walk(t: TestContext, world: Node2D, cone: Cone, plain: Reference) 
 		if _savings_count(cone, &"validations") - validations != _memoed(cone):
 			validated_twice += 1
 		drawn.append(cone.cone.duplicate())
-	t.check(
-		Probe.collision_shapes([cover]) > shapes_before,
-		"premise: the walking sequence re-cut the blocker into more collision shapes",
-	)
 	t.check(_swing_changed(drawn), "premise: the walking, turning viewer's cone changes")
 	t.check(
 		_savings_count(cone, &"polygon_reuses") > polygons_before,

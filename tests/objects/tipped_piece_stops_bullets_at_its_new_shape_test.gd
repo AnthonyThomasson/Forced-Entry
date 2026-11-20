@@ -65,13 +65,10 @@ func run(t: TestContext) -> void:
 		),
 		"a pistol round aimed low hits the shelf where it lies",
 	)
-	# its footprint (the 2D body the nav and the interaction read) is where and as long as it lies
+	# its footprint (the hull the nav carves, read off its twin) is where and as long as it lies
 	var reach := 0.0
-	for child in shelf.get_children():
-		var holder := child as CollisionShape2D
-		if holder != null and holder.shape is ConvexPolygonShape2D:
-			for point in (holder.shape as ConvexPolygonShape2D).points:
-				reach = maxf(reach, (holder.global_transform * point).distance_to(rests))
+	for point in NavHoles.cut(shelf):
+		reach = maxf(reach, point.distance_to(rests))
 	t.check(reach > 30.0, "its footprint reaches %.0f px from where it rests" % reach)
 
 

@@ -92,7 +92,6 @@ func _check_pulled_back(t: TestContext, hide_brain: Node) -> void:
 	hostile.global_position = HIDE_FAR
 	var desk := t.object(&"desk")
 	desk.global_position = HIDE_FAR - Vector2(170, 0)
-	desk.linear_velocity = Vector2.ZERO
 	await Hiding.duck_after_seen(t, &"hide_h", &"hide_n")
 	await Flank.settle(t, hide_brain)
 	# 740 px off, out of throw range from where it stands: GRENADE only through a throw spot (R13).

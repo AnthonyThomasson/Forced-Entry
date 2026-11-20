@@ -5,7 +5,7 @@ description: Use when editing scenes/character/ (character.gd, player_controller
 
 # Character domain
 
-Owns the player character, built so other character types can exist. It reads intent from a pluggable controller child (interface 7) and is the one pushable that is not a `RigidBody2D`: it integrates knockback into its own walk.
+Owns the player character, built so other character types can exist. It reads intent from a pluggable controller child (interface 7) and is the one pushable that is not led by a free 3D body: it integrates knockback into its own walk.
 
 **Side files** (read the one your task touches):
 - Posture, running and stamina, walking into furniture, the stun's effect on the walk → `movement.md`.

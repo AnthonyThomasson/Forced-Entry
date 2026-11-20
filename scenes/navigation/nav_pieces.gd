@@ -1,9 +1,9 @@
 class_name NavPieces extends RefCounted
-## Navigation domain: the solid pieces (RigidBody2D) under one house and the footprint each was
-## last cut to, so a tick of `NavBuilder.furniture_holes` reads one transform a piece and cuts only
-## those whose twin moved or were twinned or added; the tree is walked again only when a piece was
-## added or has left. One tracker per house, made by the first ask and dropped when the house leaves
-## the tree (`of`).
+## Navigation domain: the pieces (the plan handles of `TwinSpace.PIECES`) under one house and the
+## footprint each was last cut to, so a tick of `NavBuilder.furniture_holes` reads one transform a
+## piece and cuts only those whose twin moved or were twinned or added; the tree is walked again
+## only when a piece was added or has left. One tracker per house, made by the first ask and dropped
+## when the house leaves the tree (`of`).
 
 ## The trackers made, house instance id -> `NavPieces`.
 static var _trackers: Dictionary = {}
@@ -37,6 +37,22 @@ static func of(house: Node2D) -> NavPieces:
 	made._tree.node_added.connect(made._on_node_added)
 	house.tree_exited.connect(made.drop, CONNECT_ONE_SHOT)
 	return made
+
+
+## The pieces under `house` (`TwinSpace.PIECES`), in the order a walk of its descendants finds them
+## (tree order). Read from the group, not a walk of every node under the house.
+static func under(house: Node2D) -> Array[Node2D]:
+	var out: Array[Node2D] = []
+	if not house.is_inside_tree():
+		for node in house.find_children("*", "Node2D", true, false):
+			if node.is_in_group(TwinSpace.PIECES):
+				out.append(node)
+		return out
+	for node in house.get_tree().get_nodes_in_group(TwinSpace.PIECES):
+		if house.is_ancestor_of(node):
+			out.append(node as Node2D)
+	out.sort_custom(func(a: Node, b: Node) -> bool: return b.is_greater_than(a))
+	return out
 
 
 ## The footprint of every piece under the house, in the order a walk of its descendants finds them,
@@ -76,7 +92,7 @@ func _list() -> void:
 	var known := _by_id
 	_by_id = {}
 	_pieces = []
-	for node in _house.find_children("*", "RigidBody2D", true, false):
+	for node in under(_house):
 		var id := node.get_instance_id()
 		var piece: Piece = known.get(id)
 		if piece == null:
@@ -96,19 +112,21 @@ func _on_left() -> void:
 
 ## A node entered the tree: a piece under the house is to be listed.
 func _on_node_added(node: Node) -> void:
-	if node is RigidBody2D and is_instance_valid(_house) and _house.is_ancestor_of(node):
+	if (node.is_in_group(TwinSpace.PIECES)
+			and is_instance_valid(_house)
+			and _house.is_ancestor_of(node)):
 		_relist = true
 
 
 ## A piece: its body, what its footprint depended on when it was cut (`NavTwins.stamp_of`) and the
 ## footprint cut then; `dirty` until it is cut.
 class Piece:
-	var body: RigidBody2D
+	var body: Node2D
 	var stamp: Variant = null
 	var hull := PackedVector2Array()
 	var dirty := true
 
-	func _init(piece_body: RigidBody2D) -> void:
+	func _init(piece_body: Node2D) -> void:
 		body = piece_body
 
 	## Leave the body's signals: `left` is the tracker's callback for it leaving the tree.

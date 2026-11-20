@@ -15,6 +15,7 @@ extends GameTest
 ##   `key` its catalogue key, `node` the placed piece.
 
 ## The test world's own house.
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const HOUSE_SEED := 2
 ## More houses, built one at a time beside it.
 const SEEDS := [3, 5, 8, 13, 21, 34, 55, 89, 144, 233]
@@ -52,7 +53,7 @@ func configure(s: TestSetup) -> void:
 ## space.
 func _solid_pieces(house: Node2D, rect: Rect2) -> Array:
 	var out: Array = []
-	for node in house.find_children("*", "RigidBody2D", true, false):
+	for node in PlanProbe.pieces_under(house):
 		if not ("solid" in node and "size" in node) or not node.solid:
 			continue
 		var at: Vector2 = node.global_position
@@ -95,6 +96,8 @@ func _collides_solid(body: Node) -> bool:
 			if not (outlines as Array).is_empty():
 				return true
 		return false
+	if body.is_in_group(TwinSpace.PIECES):
+		return body.solid  # a piece is a plan handle: its 3D twin is what blocks
 	if (not (body is CollisionObject2D)
 			or ((body as CollisionObject2D).collision_layer & PhysicsLayers.SOLID) == 0):
 		return false

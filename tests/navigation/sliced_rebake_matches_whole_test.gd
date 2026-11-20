@@ -8,6 +8,7 @@ extends GameTest
 ## What marks the swap is the region's remembered source `version` (`NavSource.remember`), which
 ## counts finished gathers, and then the planning region's polygon, assigned when the bake lands.
 
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const SEED := 7
 ## The most physics frames the gather may take, from the tick to the swap.
 const MOST_FRAMES := 8
@@ -39,8 +40,11 @@ func run(t: TestContext) -> void:
 	_region = t.world.find_children("NavRegion", "NavigationRegion2D", true, false)[0]
 	_district = t.world.district
 	_timer = t.world.get_node("NavUpdater/RebakeTimer") as Timer
-	for body in _district.find_children("*", "RigidBody2D", true, false):
-		body.freeze = true  # nothing but the shoves below moves
+	for body in PlanProbe.pieces_under(_district):
+		var lead := TwinSpace.leader_of(body)
+		if lead != null:  # nothing but the shoves below moves
+			lead.freeze_mode = RigidBody3D.FREEZE_MODE_STATIC
+			lead.freeze = true
 	var pieces := _solid_pieces(_district)
 	if not t.require(pieces.size() >= 2, "premise: the district has solid pieces"):
 		return
@@ -54,7 +58,7 @@ func run(t: TestContext) -> void:
 
 ## A piece shoved: the gather takes two to `MOST_FRAMES` frames and the previous map answers
 ## throughout.
-func _check_sliced(t: TestContext, pieces: Array[RigidBody2D]) -> void:
+func _check_sliced(t: TestContext, pieces: Array[Node2D]) -> void:
 	var map := _region.get_navigation_map()
 	var held := _region.navigation_polygon
 	var version := _version()
@@ -135,7 +139,7 @@ func _check_equals_whole(t: TestContext) -> void:
 
 
 ## A region freed while a gather runs: the updater stops and nothing is logged.
-func _check_freed_mid_gather(t: TestContext, piece: RigidBody2D) -> void:
+func _check_freed_mid_gather(t: TestContext, piece: Node2D) -> void:
 	_shove(piece, Vector2(-40.0, 0.0))
 	await t.frames(1)
 	_timer.timeout.emit()
@@ -154,8 +158,7 @@ func _version() -> int:
 
 ## Shove `piece` by `by` px: its 3D body (the twin the holes are cut from, which a footprint moved
 ## by hand reaches only up to `TwinSpace.PARK_SPREAD` frames later) and its footprint with it.
-func _shove(piece: RigidBody2D, by: Vector2) -> void:
-	piece.freeze = true  # a free body is put back by the next physics step
+func _shove(piece: Node2D, by: Vector2) -> void:
 	TwinSpace.leader_of(piece).global_position += PlanSpace.lift(by)
 	piece.global_position += by
 
@@ -171,9 +174,9 @@ func _same_mesh(a: NavigationPolygon, b: NavigationPolygon) -> bool:
 
 ## The district's free pieces: a rigid body led by a 3D body of the twin space (the holes are cut
 ## from it: a footprint moved by hand sends it there, as an anchored piece's twin is not sent).
-func _solid_pieces(district: Node2D) -> Array[RigidBody2D]:
-	var out: Array[RigidBody2D] = []
-	for body in district.find_children("*", "RigidBody2D", true, false):
+func _solid_pieces(district: Node2D) -> Array[Node2D]:
+	var out: Array[Node2D] = []
+	for body in PlanProbe.pieces_under(district):
 		if TwinSpace.leader_of(body) != null:
 			out.append(body)
 		if out.size() == 2:

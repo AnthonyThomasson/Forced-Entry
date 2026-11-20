@@ -28,8 +28,8 @@ static func furniture(house: Node2D) -> Array:
 ## equals.
 static func plain(house: Node2D) -> Array:
 	var out: Array = []
-	for node in house.find_children("*", "RigidBody2D", true, false):
-		var hull := cut(node as RigidBody2D)
+	for node in NavPieces.under(house):
+		var hull := cut(node)
 		if not hull.is_empty():
 			out.append(hull)
 	NavLeaves.append_holes(out, house)

@@ -84,6 +84,10 @@ const BODIES := &"plan_bodies"
 ## piece of furniture (what a blast's or a sight line's "first static body" is). Joined in each
 ## root's `_enter_tree`.
 const HARD := &"hard_bodies"
+## The group of the plan handles of pieces of furniture and decor (Objects' `EnvironmentObject`, a
+## plain `Node2D`): what a bake's furniture holes, a carrier's moving rows and a vehicle's shoves
+## find a piece by. Joined in the piece's `_enter_tree`, beside `BODIES`.
+const PIECES := &"pieces"
 ## The group of the walls (Objects' `Wall`, a plan handle that reports its segments): what a bake, a
 ## blast and the wall fade find a wall by. Joined in the wall's `_enter_tree`.
 const WALLS := &"walls"
@@ -550,8 +554,9 @@ func _follow_body(row: Dictionary, node: Node2D) -> void:
 		(rigid as RigidBody2D).sleeping_state_changed.connect(row["wake"])
 	if _moves(node):
 		_moving.append(row)
-	elif rigid != null:
-		# frozen now: looked at slowly, in case it is unfrozen later (`_look_at_parked`)
+	elif rigid != null or node.is_in_group(PIECES):
+		# a body that stays where it is (an anchored or a wall-hung piece, a frozen body): looked at
+		# slowly, in case a script moves it or it is unfrozen later (`_look_at_parked`)
 		row["parked"] = true
 		row["listed"] = true
 		row["frozen"] = true
@@ -575,8 +580,9 @@ func _new_row(node: Node2D, made: Node3D, lead: PhysicsBody3D) -> Dictionary:
 ## Whether `node` can move: a character, any rigid body that is not frozen, or a kinematic body (a
 ## test's bare `AnimatableBody2D`: a door and a vehicle are plan handles with a twin that leads or
 ## drives them, never followed here). A body that cannot (a wall, a floor) is twinned once and
-## never read again; a frozen rigid body (an anchored
-## piece) is looked at slowly in case it is unfrozen (`_look_at_parked`).
+## never read again; a frozen rigid body, and a piece that stays where it is (an anchored or a
+## wall-hung one), is looked at slowly in case it is unfrozen or a script moves it
+## (`_look_at_parked`).
 static func _moves(node: Node2D) -> bool:
 	if node is RigidBody2D:
 		return not (node as RigidBody2D).freeze

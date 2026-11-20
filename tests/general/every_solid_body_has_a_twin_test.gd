@@ -34,6 +34,12 @@ func run(t: TestContext) -> void:
 		solid += 1
 		if TwinSpace.owner_of(TwinSpace.twin_for(body)) != body:
 			twinless.append("%s (%s)" % [body.get_path(), body.get_script().resource_path])
+	for piece in PlanProbe.pieces_under(t.world):  # a piece is a plan handle, no 2D body
+		if not piece.solid:
+			continue
+		solid += 1
+		if TwinSpace.owner_of(TwinSpace.twin_for(piece)) != piece:
+			twinless.append("%s (a piece)" % piece.get_path())
 	var walls := 0
 	for node in NavTwins.walls_under(t.world):
 		walls += 1

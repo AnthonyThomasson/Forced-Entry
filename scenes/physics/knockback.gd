@@ -1,46 +1,25 @@
 class_name Knockback extends Node
-## Physics System: reusable physics adapter for a shoveable RigidBody2D. Add it as a child of the
-## body. It configures the body for top-down play (no gravity, mass, damping, sleep, origin-pinned
-## center of mass; a piece a free 3D body leads has its gravity in 3D instead), and its
-## `apply_impulse(v, at_world, height)` is how the owner's `take_hit`
-## shoves the body. The "pushable" contract itself is the body's native `apply_impulse(v, at)` /
-## `get_mass()`: but a piece whose truth is a free 3D body (`TwinSpace.leader_of`, interface 29:
-## furniture, #194 furn3d) is shoved through its 3D body, at the point's real height, so a push
-## goes through `Knockback.push`, which every pusher of the contract (interface 5) calls: it answers
-## to the 3D body when there is one and to the native `apply_impulse` otherwise. The engine
-## integrates motion, collisions, pivoting and settling; this component only feeds it impulses (a
-## free piece hands momentum to a character it slides into in 3D, `PieceBody`). All tuning is
-## PhysicsImpactConfig.
+## Physics System: the shove component of a shoveable body, a child of the body that holds its mass
+## and shoves it. Its `apply_impulse(v, at_world, height)` is how the owner's `take_hit` shoves the
+## body. The "pushable" contract is `apply_impulse(v, at)` / `get_mass()` on the body, but a piece
+## whose truth is a free 3D body (`TwinSpace.leader_of`, interface 29: furniture, #194 furn3d) is
+## shoved through that body, at the point's real height, so a push goes through `Knockback.push`,
+## which every pusher of the contract (interface 5) calls: it answers to the 3D body when there is
+## one and to the body's own `apply_impulse` otherwise. The engine integrates motion, collisions,
+## pivoting and settling in 3D; this component only feeds it impulses (a free piece hands momentum
+## to a character it slides into in 3D, `PieceBody`). All tuning is PhysicsImpactConfig.
 
 ## Sentinel for `apply_impulse`'s optional contact point (a central shove when omitted).
 const _NO_POINT := Vector2(INF, INF)
 
-## The body's mass. Set by the owner from its catalog definition; applied to the RigidBody2D.
+## The body's mass. Set by the owner from its catalog definition.
 var mass: float = 10.0
 ## The shoved body (parent).
-var _body: RigidBody2D
+var _body: Node2D
 
 
-## Configure the parent RigidBody2D for top-down physics.
 func _ready() -> void:
-	_body = get_parent()
-	_body.mass = effective_mass()
-	_body.gravity_scale = 0.0
-	_body.linear_damp = PhysicsImpactConfig.body_linear_damp
-	_body.angular_damp = PhysicsImpactConfig.body_angular_damp
-	_body.can_sleep = true
-	_body.continuous_cd = (RigidBody2D.CCD_MODE_CAST_RAY
-			if PhysicsImpactConfig.body_continuous_cd
-			else RigidBody2D.CCD_MODE_DISABLED)
-	# Pin the center of mass to the origin so a carved object still rotates about its
-	# origin-centered drawn silhouette instead of a shifted mass center.
-	_body.center_of_mass_mode = RigidBody2D.CENTER_OF_MASS_MODE_CUSTOM
-	_body.center_of_mass = Vector2.ZERO
-
-
-## Mass floored so featherweight decor still reacts.
-func effective_mass() -> float:
-	return mass_of(mass)
+	_body = get_parent() as Node2D
 
 
 ## The mass a body of catalogue `weight` has: floored so featherweight decor still reacts.

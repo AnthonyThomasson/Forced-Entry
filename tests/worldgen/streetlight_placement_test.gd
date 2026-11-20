@@ -191,14 +191,11 @@ func _check_lamp_piece(
 	):
 		return
 	t.check(node.global_position.distance_to(p) < 1.0, "%s: its node stands at its pos" % at)
+	t.check(node.is_in_group(TwinSpace.PIECES) and node.anchored, "%s is an anchored piece" % at)
+	var twin := TwinSpace.twin_for(node) as CollisionObject3D
 	t.check(
-		node is RigidBody2D and (node as RigidBody2D).freeze,
-		"%s is anchored (frozen)" % at,
-	)
-	t.check(
-		node is CollisionObject2D
-			and (node as CollisionObject2D).collision_layer & PhysicsLayers.SOLID != 0,
-		"%s is solid (on PhysicsLayers.SOLID)" % at,
+		twin is StaticBody3D and twin.collision_layer & PhysicsLayers.TWIN_WORLD != 0,
+		"%s is solid (a static twin on PhysicsLayers.TWIN_WORLD)" % at,
 	)
 	var surface: Dictionary = node.get_surface()
 	t.check(

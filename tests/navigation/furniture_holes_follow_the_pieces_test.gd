@@ -6,6 +6,7 @@ extends GameTest
 ## it stands, after pieces are moved and turned, and after a piece is shot up (its collider rebuilt
 ## in convex pieces), and a moved piece's hole moves with it.
 
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const SEED := 7
 const PLAN := "garage_home"
 
@@ -28,7 +29,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var house: Node2D = t.world.get("house")
 	await t.frames(2)
-	var pieces: Array = house.find_children("*", "RigidBody2D", true, false)
+	var pieces: Array = PlanProbe.pieces_under(house)
 	if not t.require(pieces.size() >= 20, "the house is furnished (%d pieces)" % pieces.size()):
 		return
 	var before := NavBuilder.furniture_holes(house)
@@ -38,16 +39,15 @@ func run(t: TestContext) -> void:
 	)
 	t.check(NavBuilder.furniture_holes(house) == before, "asked again, they are the same")
 
-	var moved: RigidBody2D = null
-	for piece: RigidBody2D in pieces:
-		# a free piece: a furnishing's 2D body is frozen (the follower of its 3D body)
-		if not piece.freeze or TwinSpace.leader_of(piece) != null:
+	var moved: Node2D = null
+	for piece: Node2D in pieces:
+		# a free piece: led by a 3D body, which a script's move of the plan handle is adopted by
+		if TwinSpace.leader_of(piece) != null:
 			moved = piece
 			break
 	if not t.require(moved != null, "a piece that can be moved"):
 		return
 	var index := pieces.find(moved)
-	moved.freeze = true  # a free body is put back by the next physics step
 	await t.frames(1)
 	moved.global_position += Vector2(23.0, -11.0)
 	moved.rotation += 0.4
@@ -67,7 +67,7 @@ func run(t: TestContext) -> void:
 
 ## Shoot `moved` up: once its collider is rebuilt from the dents, the holes are still a fresh
 ## measurement's.
-func _check_shot_up(t: TestContext, house: Node2D, moved: RigidBody2D) -> void:
+func _check_shot_up(t: TestContext, house: Node2D, moved: Node2D) -> void:
 	var hit := HitInfo.new()
 	hit.position = moved.global_position + Vector2(12.0, 0.0)
 	hit.normal = Vector2.RIGHT

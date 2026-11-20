@@ -30,7 +30,7 @@ func run(t: TestContext) -> void:
 	var throw := BloodThrow.new()
 	throw.size = 30.0
 	BloodSpawner.splat(t.world, SPLAT_AT, throw)
-	var chair := t.object(&"chair") as RigidBody2D
+	var chair := t.object(&"chair") as Node2D
 	var smear := _smear_of(chair)
 	if not t.require(smear != null, "premise: the chair has a BloodSmear"):
 		return

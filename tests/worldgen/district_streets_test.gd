@@ -215,8 +215,8 @@ func _check_lamps(
 		var p: Vector2 = lamp["pos"]
 		var at := "%s: the lamp at %s" % [label, p.round()]
 		t.check(District.covered(streets, p, "sidewalk", 1.0), "%s is not on a sidewalk" % at)
-		var node := lamp["node"] as RigidBody2D
-		t.check(node != null and node.freeze, "%s is not an anchored piece" % at)
+		var node := lamp["node"] as Node2D
+		t.check(node != null and node.anchored, "%s is not an anchored piece" % at)
 		signs += 1 if node.object_name == "Neon sign" else 0
 		var post := Rect2(p - node.size * 0.5, node.size)
 		for zone: Dictionary in zones:
@@ -353,7 +353,7 @@ func _check_clutter(
 
 ## One clutter `piece` has its kind's solidity and keeps clear of what is `around` it.
 func _check_piece(t: TestContext, label: String, piece: Dictionary, around: Dictionary) -> void:
-	var node := piece["node"] as RigidBody2D
+	var node := piece["node"] as Node2D
 	var key: String = piece["key"]
 	var at := "%s: the %s at %s" % [label, key, node.global_position.round()]
 	t.check(node.solid == CLUTTER[key][0], "%s: solid is %s" % [at, node.solid])

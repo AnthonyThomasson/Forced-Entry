@@ -94,7 +94,7 @@ func _hide_walls(world: Node, mirror: MeshCarrier) -> void:
 
 ## The first piece the match built that is painted as a table.
 func _first_table(world: Node) -> Node2D:
-	for body: Node in world.find_children("*", "RigidBody2D", true, false):
+	for body: Node in PlanProbe.pieces_under(world):
 		var look: Variant = body.get("look")
 		if look is Object and (look as Object).get("art") == "table":
 			return body as Node2D

@@ -92,3 +92,13 @@ static func bodies_under(root: Node) -> Array[Node2D]:
 		if node is PhysicsBody2D or node.is_in_group(TwinSpace.BODIES):
 			out.append(node as Node2D)
 	return out
+
+
+## Every piece of furniture or decor under `root`, in tree order: the plan handles of
+## `TwinSpace.PIECES` (a piece has no engine body, so a scan by `RigidBody2D` never meets it).
+static func pieces_under(root: Node) -> Array[Node2D]:
+	var out: Array[Node2D] = []
+	for node in root.find_children("*", "Node2D", true, false):
+		if node.is_in_group(TwinSpace.PIECES):
+			out.append(node as Node2D)
+	return out

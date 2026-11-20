@@ -62,6 +62,9 @@ const MIN_SHADOW := 20
 const MAX_SHADOW := 2
 const MIN_DRAWN := 8
 const MAX_LEAKED := 2
+## The column (px above the floor: from, and how tall) `_bare` asks the twin space about.
+const BARE_FROM := 6.0
+const BARE_HEIGHT := 60.0
 const IN_VIEW_PROBE := Vector2(100.0, 50.0)
 const BEHIND_PROBE := Vector2(-100.0, 50.0)
 ## A probe is the mean of the picture this many pixels each side of its point.
@@ -513,13 +516,14 @@ func _layout(lamp: Vector3, along: Vector2, side: float) -> Dictionary:
 ## Whether nothing solid (a wall, a piece of furniture) stands within 18 px of `at`: a shadow that
 ## falls there falls on the floor, not on a table top.
 func _bare(at: Vector2) -> bool:
-	var circle := CircleShape2D.new()
-	circle.radius = 18.0
-	var query := PhysicsShapeQueryParameters2D.new()
-	query.shape = circle
-	query.transform = Transform2D(0.0, at)
-	query.exclude = [_human.get_rid()]
-	return _world.get_world_2d().direct_space_state.intersect_shape(query, 1).is_empty()
+	var column := CylinderShape3D.new()
+	column.radius = 18.0 * RenderConfig.unit
+	column.height = BARE_HEIGHT * RenderConfig.unit
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = column
+	query.transform = Transform3D(Basis(), PlanSpace.lift(at, BARE_FROM + BARE_HEIGHT * 0.5))
+	query.collision_mask = PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE
+	return TwinSpace.space_of(_world).intersect_shape(query, 1).is_empty()
 
 
 ## Whether the live mask is whole (lit) round `at`, a few px each way.
