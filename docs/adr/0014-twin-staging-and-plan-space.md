@@ -187,7 +187,9 @@ simply:
   The AI and the view hold no physics RID (the AI's `exclude` is twin rids, `SightRay.exclude_of`; a plan hit's `rid` is its twin's; `ViewWatch` leaves the viewer out by
   instance id; a scan holds `scenes/ai` and `scenes/vision` to it), and the ragdoll's and the blood's queries are 3D (blood lies on the floor: a 1 px slab over it, so
   a piece hung above the floor is flowed under). With the 2D physics engine set to Dummy the run is red only where a test's own premise is a 2D body leading the
-  simulation or reads its shapes (listed in the 17a report).
+  simulation, and a bare `AnimatableBody2D` has `sync_to_physics` on, so a transform set by hand goes through the 2D server: `vision/cone_skip_exact`
+  and `cone_skip_exact_sliced` (a mover moved by hand), `vision/cone_restarts_on_world_change` (a wardrobe), `art/mirror_follows_bodies` (a box turned by hand),
+  `art/mirror_hides_unseen_movers` (a car moved by hand) and `general/twin_unfrozen_body_is_followed` (an unfrozen `RigidBody2D` the 2D step moves). They are 17c's: no 2D body leads.
   Left for 17c (the 2D bodies' deletion): `ViewWatch` watches 2D `CollisionObject2D` nodes (their layer, transform, shapes); `is StaticBody2D` / `CharacterBody2D` type checks; the navigation bake's source (`NavSource.walls_of`,
   `NavHoles`, `NavPieces`, `NavLeaves`) reads the 2D colliders and moves to plan polygons projected from the twins (`TwinShapes.footprint_of`), compared
   with the old bake on the district first;
