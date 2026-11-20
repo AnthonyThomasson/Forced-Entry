@@ -28,7 +28,6 @@ const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const CameraScript := preload("res://scenes/general/camera_controller.gd")
 const CharacterScene := preload("res://scenes/character/character_base.tscn")
-const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const CarScene := preload("res://scenes/vehicle/car.tscn")
 const VanScene := preload("res://scenes/vehicle/van.tscn")
 const SCRATCH := "user://settings_render_3d_look_gate_windowed_test.json"
