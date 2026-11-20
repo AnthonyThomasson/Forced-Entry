@@ -52,12 +52,10 @@ func run(t: TestContext) -> void:
 	t.expect_eq(space._bare.size(), held - 1, "a freed untwinned body is forgotten at once")
 
 
-## A bare `StaticBody2D` under the world, no builder of the space twins it until the probe's does.
-func _body(t: TestContext, at: Vector2) -> StaticBody2D:
-	var body := StaticBody2D.new()
+## A bare plan handle under the world, no builder of the space twins it until the probe's does.
+func _body(t: TestContext, at: Vector2) -> Node2D:
+	var body := Node2D.new()
+	body.add_to_group(TwinSpace.BODIES)
 	body.position = at
-	var shape := CollisionShape2D.new()
-	shape.shape = RectangleShape2D.new()
-	body.add_child(shape)
 	t.world.add_child(body)
 	return body

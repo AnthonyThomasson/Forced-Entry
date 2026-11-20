@@ -7,6 +7,7 @@ extends UnitSuite
 ## The reach world of `vision/cone_skip_exact` holds the cone itself to a fresh rebuild.
 
 const Watch := preload("res://scenes/vision/view_watch.gd")
+const RawTwins := preload("res://tests/_vision/raw_twins.gd")
 ## Where the bodies stand: far from the origin, so no other test's body is near.
 const ORIGIN := Vector2(60_000.0, 60_000.0)
 const EYE := ORIGIN
@@ -37,17 +38,19 @@ func _watch() -> Watch:
 
 
 ## A solid with a rectangle shape `SOLID_SIZE` big, `at` from `ORIGIN`.
-func _solid(at: Vector2) -> StaticBody2D:
-	var body: StaticBody2D = auto_free(StaticBody2D.new())
-	body.collision_layer = PhysicsLayers.SOLID
+func _solid(at: Vector2) -> RawTwins.Solid:
+	var body: RawTwins.Solid = auto_free(RawTwins.Solid.new())
 	body.position = ORIGIN + at
 	body.add_child(_shape(SOLID_SIZE))
 	add_child(body)
+	# no twin space here: the solid's twin is made and sorted by hand, as `TwinSpace` would
+	var twin: Node3D = auto_free(RawTwins.RawTwin.build(body))
+	body.set_meta(TwinSpace.TWIN_META, twin)
 	return body
 
 
-func _shape(size: Vector2) -> CollisionShape2D:
-	var shape := CollisionShape2D.new()
+func _shape(size: Vector2) -> RawTwins.Shape:
+	var shape := RawTwins.Shape.new()
 	var rect := RectangleShape2D.new()
 	rect.size = size
 	shape.shape = rect
@@ -108,7 +111,8 @@ func test_a_far_blocker_moving_forces_a_rebuild_only_at_the_backstop() -> void:
 func test_a_shape_stretched_by_a_negative_scale_is_within_reach() -> void:
 	var watch := _watch()
 	var far := _solid(FAR)
-	(far.get_child(0) as CollisionShape2D).scale = Vector2(1.0, -200.0)
+	(far.get_child(0) as RawTwins.Shape).scale = Vector2(1.0, -200.0)
+	far.reshape()
 	_settled(watch)
 	assert_int(_creep(watch, far)).is_equal(FRAMES)
 
@@ -117,6 +121,7 @@ func test_a_body_scaled_by_a_negative_scale_is_within_reach() -> void:
 	var watch := _watch()
 	var far := _solid(FAR)
 	far.scale = Vector2(1.0, -200.0)
+	far.reshape()
 	_settled(watch)
 	assert_int(_creep(watch, far)).is_equal(FRAMES)
 
@@ -141,8 +146,10 @@ func test_a_blocker_that_shrinks_out_of_the_sector_forces_a_rebuild() -> void:
 	var watch := _watch()
 	var wide := _solid(Vector2(0.0, 1200.0))
 	wide.scale = Vector2(1.0, 100.0)
+	wide.reshape()
 	_settled(watch)
 	wide.scale = Vector2.ONE
+	wide.reshape()
 	assert_bool(watch.stale(EYE, FACING, _sight())).is_true()
 
 
@@ -253,6 +260,7 @@ func test_a_job_in_flight_is_held_to_the_pose_it_began_from() -> void:
 func test_a_body_whose_twin_comes_later_is_sorted_again() -> void:
 	var watch := _watch()
 	var piece := _solid(Vector2(300.0, 0.0))
+	piece.remove_meta(TwinSpace.TWIN_META)  # no twin yet
 	_settled(watch)
 	assert_int(_creep(watch, piece)).is_equal(FRAMES)  # no twin yet: a wall's worth
 	var twin: Node3D = auto_free(Node3D.new())

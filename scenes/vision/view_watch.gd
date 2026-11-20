@@ -8,13 +8,12 @@ extends RefCounted
 ## - the eye, the facing, the sight and the cone's tuning, against the last rebuild's;
 ## - every solid that blocks sight (a top above the viewer's eye height; a low piece is looked
 ##   over, it is in no ray, so it needs no watching) within the viewer's reach (`view_distance`
-##   from the eye, and the solid's own extent, measured when its shapes come or go and not on the
-##   frames it moves in): its transform and collision layer each frame, and by
-##   signal its shapes coming and going (a dent or a wall re-cut frees its shape children and adds
-##   new ones with no move of the body), its leaving the tree and a door's `changed`; a new solid in
-##   the tree is read on the next check. One wholly outside the reach before and after a move, a
-##   change or a leave is in no ray, so it forces no rebuild; one that moves into or out of the
-##   reach does;
+##   from the eye, and the solid's own extent, measured from its twin when the twin is reshaped and
+##   not on the frames it moves in): its transform and standing each frame, and by signal its
+##   twin reshaped (`segment_rebuilt` of a wall a dent re-cut, `reshaped` of a piece), its leaving
+##   the tree and a door's `changed`; a new solid in the tree is read on the next check. One
+##   wholly outside the reach before and after a move, a change or a leave is in no ray, so it
+##   forces no rebuild; one that moves into or out of the reach does;
 ## - no character: a body is looked over whatever the eye's height (`SightRay.top_of`), so it never
 ##   blocks the cone and its moving costs no rebuild;
 ## - `VisionConfig.rebuild_every` frames since the last rebuild: the backstop.
@@ -25,9 +24,9 @@ extends RefCounted
 ## field and the extents are kept.
 
 const Sector := preload("res://scenes/vision/view_sector.gd")
-const SOLID := PhysicsLayers.SOLID
-## The layer a plan handle is on while it lies flat (a fallen door): a marker of its own, no
-## physics layer.
+## What a plan handle stands as while it stands (a blocker).
+const SOLID := 1
+## What a plan handle stands as while it lies flat (a fallen door): a marker of its own.
 const LYING := 2
 ## The fields of `_key`.
 const KEY_SIZE := 11
@@ -35,8 +34,8 @@ const KEY_SIZE := 11
 ## Whether the cone must be rebuilt now: set by anything that signals a change, cleared by the
 ## rebuild.
 var _dirty := true
-## The solids that block sight: instance id -> `[node, transform, collision layer, extent]`, the
-## extent being how far (px) its shapes lie from its origin at scale 1.
+## The solids that block sight: instance id -> `[node, transform, standing, extent, footprint]`, the
+## extent being how far (px) its twin's shapes lie from its origin, as the twin stands in its frame.
 var _blockers := {}
 ## Every collider classified (blocker, low or character), by instance id.
 var _known := {}
@@ -97,31 +96,25 @@ func stale(eye: Vector2, facing: Vector2, sight: Dictionary) -> bool:
 	return _moved_then or _blockers_moved()
 
 
-## Every collider and plan handle (a `Node2D` in `TwinSpace.BODIES`: a wall, a door, a vehicle) in
-## the tree.
+## Every plan handle (a `Node2D` in `TwinSpace.BODIES`: a wall, a piece, a door, a vehicle, a
+## character) in the tree.
 func _colliders() -> Array:
-	var found: Array = _tree.root.find_children("*", "CollisionObject2D", true, false)
-	found.append_array(_tree.get_nodes_in_group(TwinSpace.BODIES))
-	return found
+	return _tree.get_nodes_in_group(TwinSpace.BODIES)
 
 
-## The layer the blocker `entry` stands on, to tell a change of it: a collider's own; a plan handle
-## has none, so the one it is on while it stands, and `LYING` for a fallen door that lies flat (its
-## `footprint`, found once in `_classify`).
+## What the blocker `entry` stands as, to tell a change of it: `SOLID`, and `LYING` for a fallen
+## door that lies flat (its `footprint`, found once in `_classify`).
 func _layer_of(entry: Array) -> int:
-	var collider: CollisionObject2D = entry[4]
-	if collider != null:
-		return collider.collision_layer
-	var part: Variant = entry[5]
+	var part: Variant = entry[4]
 	return LYING if part != null and part.flat else SOLID
 
 
 ## Whether the world changed since `built`, for a job in flight (`docs/player-vision.md` V1): the
 ## sight or the cone's tuning is not what it was made from, or a blocker where a ray of the job's
-## pose can pass moved, changed, joined or left, or a character blocks (or did, or a blocker moved
-## at the last `built`, which a query that frame may have read where it was). The eye and the
-## facing are not asked: the job finishes on the pose it started from. The sector stays that of
-## the job's pose.
+## pose can pass moved, changed, joined or left (or one moved at the last `built`, which a query
+## that frame may have read where it was). A character is looked over, so it is none. The eye and
+## the facing are not asked: the job finishes on the pose it started from. The sector stays that
+## of the job's pose.
 func world_changed(sight: Dictionary) -> bool:
 	_since += 1
 	if _built.size() != KEY_SIZE or not _tuned_as_built(sight):
@@ -196,9 +189,9 @@ func _tuned_as_built(sight: Dictionary) -> bool:
 	)
 
 
-## A node entered the tree: a collider is read at the next check, once it is ready.
+## A node entered the tree: a plan handle is read at the next check, once it is ready.
 func _on_node_added(node: Node) -> void:
-	if node is CollisionObject2D or node.is_in_group(TwinSpace.BODIES):
+	if node.is_in_group(TwinSpace.BODIES):
 		_pending.append(node)
 
 
@@ -231,20 +224,15 @@ func _classify(body: Node2D) -> void:
 		_untwinned[id] = body  # no twin yet: a wall's worth until it has one
 	if top <= _see_over:
 		return  # looked over: a low piece, a pane, a character
-	# [node, transform, layer, extent, its collider or null, a handle's footprint part or null]
-	var entry: Array = [
-		body, body.global_transform, SOLID, _measure(body), body as CollisionObject2D,
-		body.get(&"footprint"),
-	]
+	# [node, transform, standing, extent, a handle's footprint part or null]
+	var entry: Array = [body, body.global_transform, SOLID, _measure(body), body.get(&"footprint")]
 	entry[2] = _layer_of(entry)
 	_blockers[id] = entry
-	_connect(body, &"child_entered_tree", _changed_shape.bind(body))
-	_connect(body, &"child_exiting_tree", _changed_shape.bind(body))
 	if body.has_signal(&"changed"):
 		_connect(body, &"changed", _mark_near.bind(body))
-	if body.has_signal(&"reshaped"):  # a piece: no shape child comes or goes when it is dented
+	if body.has_signal(&"reshaped"):  # a piece: its twin is rebuilt when it is dented
 		_connect(body, &"reshaped", _mark_near.bind(body))
-	if body.has_signal(&"segment_rebuilt"):  # a wall re-cut by a dent: no shape child comes or goes
+	if body.has_signal(&"segment_rebuilt"):  # a wall re-cut by a dent
 		_connect(body, &"segment_rebuilt", _changed_shape.bind(body))
 	_mark_near(body)
 
@@ -270,12 +258,17 @@ func _connect(body: Object, signal_name: StringName, callable: Callable) -> void
 		body.connect(signal_name, callable)
 
 
-## A shape came or went on `body`, a blocker (or a wall's segment was re-cut: `segment_rebuilt`):
-## its silhouette changed with no move of its body, and its extent is measured again.
+## A wall's segment was re-cut (`segment_rebuilt`): its silhouette changed with no move of its
+## body, and its extent is measured again. A solid that reached into the view before the cut or
+## does after it is a rebuild: its old cut may have been in a ray and its new one not.
 func _changed_shape(_changed: Variant, body: Node2D) -> void:
 	var id := body.get_instance_id()
 	if _blockers.has(id):
-		(_blockers[id] as Array)[3] = _measure(body)
+		var entry: Array = _blockers[id]
+		var was_near := _within_reach(entry, body.global_transform)
+		entry[3] = _measure(body)
+		if was_near:
+			_dirty = true
 	_mark_near(body)
 
 
@@ -329,14 +322,12 @@ func measured() -> int:
 	return _measured
 
 
-## Whether the blocker `entry`, its body placed as `placed` (its origin and scale then), has a part
+## Whether the blocker `entry`, its body placed as `placed` (its origin then), has a part
 ## where a ray can pass: the rays are `view_distance` long and lie in the cone's sector and the
 ## bubble round the eye, so a solid wholly beyond the reach, or outside both (`ViewSector`), is in
 ## none of them.
 func _within_reach(entry: Array, placed: Transform2D) -> bool:
 	var body: Node2D = entry[0]
-	var scale := placed.get_scale()
-	var grow := maxf(absf(scale.x), absf(scale.y))
 	var extent: float = entry[3]
 	if extent == INF:
 		# A shape that was not set when it came may be set since: measured again until it is.
@@ -344,41 +335,14 @@ func _within_reach(entry: Array, placed: Transform2D) -> bool:
 		entry[3] = extent
 		if extent == INF:
 			return true
-	return _sector.touches(placed.origin, extent * grow)
+	return _sector.touches(placed.origin, extent)
 
 
-## How far (px) any part of `body` lies from its origin at scale 1: its shapes' farthest corner,
-## each as the shape is placed and scaled in the body. A shape not set yet could be anything:
-## unbounded.
+## How far (px) any part of `body` lies from its origin: its twin's shapes' farthest
+## corner, as the twin stands in the body's frame; unbounded with no twin (it is measured again once
+## it has one).
 func _measure(body: Node2D) -> float:
 	_measured += 1
-	if not body is CollisionObject2D:
-		return _measure_twin(body)
-	var far := 0.0
-	for child in body.get_children():
-		if child is CollisionShape2D:
-			var shape := child as CollisionShape2D
-			if shape.shape == null:
-				return INF
-			var box := shape.shape.get_rect()
-			var s := shape.scale
-			var grow := maxf(absf(s.x), absf(s.y))
-			far = maxf(
-				far,
-				shape.position.length() + (box.position.length() + box.size.length()) * grow,
-			)
-		elif child is CollisionPolygon2D:
-			var polygon := child as CollisionPolygon2D
-			var s := polygon.scale
-			var grow := maxf(absf(s.x), absf(s.y))
-			for point in polygon.polygon:
-				far = maxf(far, polygon.position.length() + point.length() * grow)
-	return far
-
-
-## `_measure` for a plan handle: how far (px) its twin's shapes lie from its origin, as the twin
-## stands in the body's frame; unbounded with no twin (it is measured again once it has one).
-func _measure_twin(body: Node2D) -> float:
 	var twin := TwinSpace.twin_for(body) as CollisionObject3D
 	if twin == null:
 		return INF

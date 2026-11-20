@@ -5,6 +5,7 @@ extends GameTest
 ## character's, a vehicle's or a body that got no mesh is left alone. A shoved piece (not a
 ## wall) is movable for the fade's grid, a wall is not.
 
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const SIZE := Vector3(40, 70, 40)
 
 var _built: Array = []
@@ -44,11 +45,11 @@ func run(t: TestContext) -> void:
 	mirror.builders[MeshKinds.WALL] = _builder
 	mirror.builders[MeshKinds.DOOR] = _builder
 	var bodies := {
-		"piece": _body(t, StaticBody2D.new(), "piece", Vector2(0, 24)),
-		"shoved": _body(t, RigidBody2D.new(), "shoved", Vector2(2000, 40)),
+		"piece": _body(t, PlanProbe.handle(), "piece", Vector2(0, 24)),
+		"shoved": _body(t, PlanProbe.handle(), "shoved", Vector2(2000, 40)),
 		"wall": _body(t, StandInWall.new(), "wall", Vector2(0, 400)),
-		"door": _body(t, AnimatableBody2D.new(), "door", Vector2(0, 800)),
-		"bare": _body(t, StaticBody2D.new(), "bare", Vector2(0, 1600)),
+		"door": _body(t, PlanProbe.handle(), "door", Vector2(0, 800)),
+		"bare": _body(t, PlanProbe.handle(), "bare", Vector2(0, 1600)),
 	}
 	bodies["door"].add_to_group(&"doors")
 	mirror.carry(t.world)
@@ -70,7 +71,7 @@ func _kept(t: TestContext, fade: WallFade, bodies: Dictionary) -> void:
 	for key: String in ["piece", "shoved", "wall", "door"]:
 		t.check(fade.unit_of(bodies[key].get_instance_id()) != null, "%s is kept" % key)
 	t.check(not fade.unit_of(bodies["wall"].get_instance_id()).movable, "a wall is fixed")
-	t.check(fade.unit_of(bodies["shoved"].get_instance_id()).movable, "a RigidBody2D is movable")
+	t.check(fade.unit_of(bodies["shoved"].get_instance_id()).movable, "a piece is movable")
 	t.check(fade.unit_of(bodies["door"].get_instance_id()).movable, "a door is movable")
 	t.check(fade.unit_of(bodies["bare"].get_instance_id()) == null, "a body with no mesh is not")
 	var walker := Node2D.new()
@@ -100,15 +101,8 @@ func _builder(body: Node2D) -> Node3D:
 
 
 func _body(t: TestContext, body: Node2D, body_name: String, at: Vector2) -> Node2D:
-	if body is AnimatableBody2D:
-		(body as AnimatableBody2D).sync_to_physics = false  # moved by hand
 	body.name = body_name
 	body.position = at
-	var shape := CollisionShape2D.new()
-	var rect := RectangleShape2D.new()
-	rect.size = Vector2(SIZE.x, SIZE.z)
-	shape.shape = rect
-	body.add_child(shape)
 	t.world.add_child(body)
 	return body
 

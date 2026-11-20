@@ -3,6 +3,8 @@ extends GameTest
 ## after the carrier started has its mesh placed where it stands, once, a child of the carrier
 ## (#194 del2d-b3c, interface 27): the carrier hears of it through `TwinSpace.untwinned`.
 
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
+
 
 func describe() -> Dictionary:
 	return {
@@ -30,11 +32,8 @@ func run(t: TestContext) -> void:
 	carrier.carry(t.world)
 	await t.frames(2)
 	var count := carrier.count
-	var rug := StaticBody2D.new()
+	var rug := PlanProbe.handle()
 	rug.position = Vector2(150, 90)
-	var shape := CollisionShape2D.new()
-	shape.shape = RectangleShape2D.new()
-	rug.add_child(shape)
 	t.world.add_child(rug)
 	await t.frames(3)
 	var mesh := carrier.mesh_of(rug)

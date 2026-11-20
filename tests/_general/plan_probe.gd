@@ -14,6 +14,14 @@ const SOLIDS := PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE
 const WITH_BODIES := PhysicsLayers.TWIN_ALL
 
 
+## A bare plan handle: a `Node2D` of `TwinSpace.BODIES` with no engine body and no shape, which the
+## twin space looks at once it is in the tree (a test's stand-in for a body no domain builds).
+static func handle() -> Node2D:
+	var node := Node2D.new()
+	node.add_to_group(TwinSpace.BODIES)
+	return node
+
+
 ## The first thing on the plan line `a` to `b`, `FLOOR_LINE` px up, as `{ collider: the 2D body,
 ## position: plan point, rid: the twin's rid }`, or {} when it is clear. `mask` is the twin layers
 ## asked; `skip` are 2D bodies (or the 3D rids) the line passes through.

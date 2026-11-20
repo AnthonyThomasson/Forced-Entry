@@ -1,15 +1,14 @@
 extends GameTest
 ## The 3D carrier hides a character the 2D view no longer shows (#193, Art's `MeshCarrier`,
-## interface 27). A character seated in a vehicle has its collision shape disabled for the ride
-## (`set_ride_pose` ... `end_ride`), so its mesh must not stand in the 3D view beside the car while
-## it rides, and is back once it steps out (a registered `CHARACTER` builder's mesh has no collision
-## shape of its own to be disabled: it is hidden with the body's shapes). A body with its collision
-## shape disabled when the carrier first sees it is still meshed (hidden), so it shows when the
-## shape is enabled; and a body whose own `visible` is false is hidden whatever its shape (the 2D
-## World is hidden in 3D, so a node's own `visible`, not its `is_visible_in_tree`, says whether the
-## 2D game draws it). The ride is the puppet's, as `tests/vehicle/board_nearest_door_test.gd`
+## interface 27). A character seated in a vehicle rides (`set_ride_pose` ... `end_ride`), so its
+## mesh must not stand in the 3D view beside the car while it rides, and is back once it steps out;
+## and a body whose own `visible` is false is hidden (the 2D World is hidden in 3D, so a node's own
+## `visible`, not its `is_visible_in_tree`, says whether the 2D game draws it). The ride is the
+## puppet's, as `tests/vehicle/board_nearest_door_test.gd`
 ## boards one.
 
+const ProbeTwins := preload("res://tests/_art/art_probe_twins.gd")
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
 const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
 const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
@@ -21,8 +20,7 @@ func describe() -> Dictionary:
 	return {
 		"name": "The 3D carrier hides a seated character, and a body whose 2D node is hidden",
 		"description": "A puppet boards a car: its mesh is hidden while it rides and shown "
-			+ "again once it is out; a body seen with its shape disabled is meshed and shows "
-			+ "when the shape is enabled; a body with its own visible off is hidden.",
+			+ "again once it is out; a body with its own visible off is hidden.",
 		"tags": ["mirror", "3d", "render", "vehicle"],
 		"timeout": 25.0,
 	}
@@ -65,30 +63,21 @@ func run(t: TestContext) -> void:
 		return
 	await t.frames(30)
 	t.check(mesh.visible, "the character's mesh is back once it is out")
-	await _check_disabled_and_hidden(t)
+	await _check_hidden(t)
 
 
-## A body spawned with its shape disabled gets a mesh that is hidden until the shape is enabled;
-## one whose own `visible` goes false is hidden while it is.
-func _check_disabled_and_hidden(t: TestContext) -> void:
-	var body := AnimatableBody2D.new()
-	body.sync_to_physics = false  # moved by hand
+## A body whose own `visible` goes false is hidden while it is.
+func _check_hidden(t: TestContext) -> void:
+	ProbeTwins.install(t.world)
+	var body := PlanProbe.handle()
+	body.add_to_group(TwinSpace.HARD)  # looked at each frame, as a door or a car is
 	body.position = Vector2(700, 150)
-	var shape := CollisionShape2D.new()
-	var box := RectangleShape2D.new()
-	box.size = Vector2(40, 40)
-	shape.shape = box
-	shape.disabled = true
-	body.add_child(shape)
 	t.world.add_child(body)
 	await t.frames(3)
 	var proxies: Array = _mirror.proxies_of(body)
-	if not t.require(proxies.size() == 1, "a body seen with its shape disabled is meshed"):
+	if not t.require(proxies.size() == 1, "a handle with no twin builder is meshed"):
 		return
-	t.check(not proxies[0].visible, "and hidden while the shape is disabled")
-	shape.disabled = false
-	await t.frames(3)
-	t.check(proxies[0].visible, "shown once the shape is enabled")
+	t.check(proxies[0].visible, "and shown")
 	body.visible = false
 	await t.frames(3)
 	t.check(not proxies[0].visible, "hidden while the body's own visible is off")

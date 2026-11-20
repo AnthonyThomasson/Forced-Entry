@@ -77,9 +77,8 @@ func _bound_edge(t: TestContext, radius: float) -> void:
 	t.check(bound >= farthest, "radius %.0f: the clear radius covers the farthest ray" % radius)
 	t.check(bound <= farthest * 1.25 + 2.0, "radius %.0f: and is not wastefully wide" % radius)
 	for outside in [true, false]:
-		var wall := StaticBody2D.new()
-		wall.collision_layer = PhysicsLayers.SOLID
-		var shape := CollisionShape2D.new()
+		var wall := RawTwins.Solid.new()
+		var shape := RawTwins.Shape.new()
 		shape.shape = RectangleShape2D.new()
 		shape.shape.size = Vector2(20, 300)
 		wall.add_child(shape)

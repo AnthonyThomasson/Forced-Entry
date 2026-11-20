@@ -1,9 +1,11 @@
 extends RefCounted
-## Test helper (not a test): the twins of the bare solids a vision test adds (a `StaticBody2D` or
-## `AnimatableBody2D` on `PhysicsLayers.SOLID` that no game object builds), so the player's cone,
-## which reads the twin space, meets them. A twin is a wall `HEIGHT` tall on the world layer that
-## follows its body each physics frame: where it stands, which shapes it holds and how they lie, so
-## a test may move a body or give it a shape and the twin keeps up as a game object's twin does.
+## Test helper (not a test): the bare solids a test adds and their twins. A `Solid` is a plan handle
+## (a `Node2D` of `TwinSpace.BODIES`, no engine body) that holds `Shape` children (a `Node2D` with
+## a `Shape2D` resource: plain data, no physics), and the twin the twin space builds for it
+## (`register`) is a wall `HEIGHT` tall on the world layer that follows its handle each physics
+## frame: where it stands, which shapes it holds and how they lie, so a test may move a handle or
+## give it a shape and the twin keeps up as a game object's twin does. A shape that comes or goes
+## makes the solid say `segment_rebuilt`, as a re-cut wall does, so the player's view watches it.
 
 ## The height (px) of a twin: a wall's, so the cone cannot see over it.
 const HEIGHT := 96.0
@@ -29,9 +31,7 @@ class RawTwin:
 
 
 	static func build(node: Node2D) -> Node3D:
-		if not (node is StaticBody2D or node is AnimatableBody2D):
-			return null
-		if (node as CollisionObject2D).collision_layer & PhysicsLayers.SOLID == 0:
+		if not node is Solid:
 			return null
 		var twin := RawTwin.new()
 		twin._body = node
@@ -44,17 +44,18 @@ class RawTwin:
 
 
 	## Follow the body: its place, and its shapes when they or their places changed. The twin is
-	## put at the body's place and turn; the body's stretch goes into each shape's own frame.
+	## put at the body's place and turn, never stretched: a plan handle has no scale of its own (a
+	## test that scales a solid tests the view's bookkeeping of it, as the view reads the extent at
+	## scale 1).
 	func _sync() -> void:
 		if _body == null or not is_instance_valid(_body):
 			return
 		var at := _body.global_transform
 		transform = PlanSpace.lift_transform(Transform2D(at.get_rotation(), at.origin))
-		var stretch := Transform2D(
-			Vector2(at.get_scale().x, 0.0),
-			Vector2(0.0, at.get_scale().y),
-			Vector2.ZERO,
-		)
+		if is_inside_tree():
+			force_update_transform()  # pushed to Jolt now, as the twin space does: a query sees it
+		var at_scale := at.get_scale()
+		var stretch := Transform2D(Vector2(at_scale.x, 0.0), Vector2(0.0, at_scale.y), Vector2.ZERO)
 		var now: Array = [stretch]
 		var shapes: Array = []
 		for child in _body.get_children():
@@ -76,23 +77,20 @@ class RawTwin:
 				add_child(lifted)
 
 
-	## The shape a child of the body stands for: a `CollisionShape2D`'s, or the hull of a
-	## `CollisionPolygon2D`'s points; {} for any other child or an empty holder.
+	## The shape a child of the body stands for: a `Shape`'s; {} for any other child or an empty
+	## holder.
 	func _shape_of(child: Node) -> Dictionary:
-		if child is CollisionShape2D:
-			var holder := child as CollisionShape2D
+		if child is Shape:
+			var holder := child as Shape
 			if holder.disabled or holder.shape == null:
 				return {}
 			return { "shape": holder.shape }
-		if child is CollisionPolygon2D:
-			var hull := Geometry2D.convex_hull((child as CollisionPolygon2D).polygon)
-			if hull.size() < 4 or (child as CollisionPolygon2D).disabled:
-				return {}
-			hull.remove_at(hull.size() - 1)
-			var shape := ConvexPolygonShape2D.new()
-			shape.points = hull
-			return { "shape": shape }
 		return {}
+
+
+	## Follow the body now, as a shape comes or goes.
+	func sync_now() -> void:
+		_sync()
 
 
 	## What a shape's extent is made of, so a resized shape reads as a change.
@@ -104,3 +102,54 @@ class RawTwin:
 		if shape is ConvexPolygonShape2D:
 			return (shape as ConvexPolygonShape2D).points
 		return null
+
+
+## A bare solid: a plan handle of `TwinSpace.BODIES` with no engine body. Its `Shape` children are
+## its footprint; it says `segment_rebuilt` (and `changed`, for a test to emit) as a wall and a door
+## do.
+class Solid:
+	extends Node2D
+
+	@warning_ignore("unused_signal")  # emitted by a test, or by a shape that comes or goes
+	signal changed
+	signal segment_rebuilt(index: int)
+
+
+	func _init() -> void:
+		add_to_group(TwinSpace.BODIES)
+		child_entered_tree.connect(_shape_changed.bind(false))
+		child_exiting_tree.connect(_shape_changed.bind(true))
+
+
+	## A shape came (at once) or is going: a going one is still among the children when the signal
+	## comes, and so is every shape of a solid that leaves the tree (no re-cut), so it is looked at
+	## once it is gone, if the solid is still in the tree.
+	func _shape_changed(child: Node, leaving: bool) -> void:
+		if not child is Shape:
+			return
+		if leaving:
+			_after_leaving.call_deferred()
+		else:
+			reshape()
+
+
+	func _after_leaving() -> void:
+		if is_inside_tree():
+			reshape()
+
+
+	## The shapes changed (one came or went, or was set): the twin follows at once and the watch of
+	## the view is told.
+	func reshape() -> void:
+		var twin := TwinSpace.twin_for(self) as RawTwin
+		if twin != null:
+			twin.sync_now()
+		segment_rebuilt.emit(0)
+
+
+## A shape of a bare solid: where it lies (`position`, `rotation`, `scale`) and its `Shape2D`.
+class Shape:
+	extends Node2D
+
+	var shape: Shape2D
+	var disabled := false

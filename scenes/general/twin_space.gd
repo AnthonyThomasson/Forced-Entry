@@ -3,10 +3,9 @@ extends SubViewport
 ## General domain, the twin 3D space (#194, D3, `docs/adr/0014-twin-staging-and-plan-space.md`,
 ## interface 29): a 3D physics space beside the 2D simulation, holding a 3D twin of each solid 2D
 ## body (walls, floors, furniture, doors, vehicles, characters), each with a real height, kept in
-## step with its 2D body every physics frame, or leading it: a free piece and a character are 3D
-## bodies that move and write their 2D footprint, the rest are 2D bodies the twin follows (a door, a
-## vehicle, a wall's dents until the 2D side is gone). Bullets, sight lines and sweeps read the
-## twins.
+## step with its plan handle every physics frame, or leading it: a free piece and a character are
+## 3D bodies that move and write their handle (the footprint); a door and a vehicle drive theirs, a
+## wall is written once. Bullets, sight lines and sweeps read the twins.
 ##
 ## **Where it lives.** The twins are children of this node, a `SubViewport` (never drawn) with a
 ## `World3D` of its own: the 3D counterpart of the 2D space the sim runs in, so it exists wherever a
@@ -29,24 +28,22 @@ extends SubViewport
 ## twin node may have
 ## `twin_update(body: Node2D) -> void`, run each frame after it has followed (a
 ## character's cylinder follows its posture). A body is found when it is in the tree
-## under the root `watch` was given (`PhysicsBody2D`s, and each node of a group `track_group`
-## names, a floor having no physics body), on the next update after it entered, once its own
+## under the root `watch` was given (a member of `BODIES`, and each node of a group `track_group`
+## names, a floor having no body), on the next update after it entered, once its own
 ## `_ready` has built its collision shapes; a body that leaves the tree loses its twin.
 ##
 ## **The update rule.** Once per physics frame, before every body's own `_physics_process`
-## (priority `PRIORITY`), after the engine has moved the bodies it moves in its step, each followed
-## body's `global_transform` is read and its twin written **only when it changed**; a sleeping
-## `RigidBody2D` is read once more as it falls asleep and then parked off the list until its
-## `sleeping_state_changed` says it woke, with a slow look (`PARK_SPREAD` frames round) for the
-## script that moves a sleeping body without waking it; a body that never moves (a wall, a floor, a
-## frozen body: not followed, even if it is later unfrozen) is written once, when twinned. A twin
-## is on its layer only while its body's `collision_layer` is not 0 (a dead character, a door
-## knocked down); a rigid body's layer is read when it moves. So a reader in a frame's scripts
-## finds a rigid body's twin exactly where the engine's step left it; a door or a character, which
-## a script moves, is one frame behind where that script puts it (1/60 s), and a sleeping body a
-## script teleports up to `PARK_SPREAD` frames; a twin joins the frame after its body does. A
-## write is pushed to Jolt at once (`force_update_transform`: a `Node3D` would push it only at the
-## frame's end), so a ray after the write meets the new pose.
+## (priority `PRIORITY`), a body a 3D body leads (a free piece, a character) is written from the 3D
+## pose **only when it changed**; a sleeping `RigidBody3D` is read once more as it falls asleep and
+## then parked off the list until its `sleeping_state_changed` says it woke, with a slow look
+## (`PARK_SPREAD` frames round) for the script that moves a sleeping body without waking it; a
+## handle nothing leads (a wall, a floor) is written once, when twinned. A twin is on its layer
+## only while its owner says so (a dead character's `twin_update`, a door knocked down). So a
+## reader in a frame's scripts finds a rigid body's twin exactly where the engine's step left it;
+## a door or a character, which a script moves, is one frame behind where that script puts it
+## (1/60 s), and a sleeping body a script teleports up to `PARK_SPREAD` frames; a twin joins the
+## frame after its body does. A write is pushed to Jolt at once (`force_update_transform`: a
+## `Node3D` would push it only at the## frame's end), so a ray after the write meets the new pose.
 ##
 ## **What a reader does.** `space()` / `space_of(node)` is the `PhysicsDirectSpaceState3D` to cast
 ## into; `owner_of(collider)` maps a hit twin (a result's `collider`) to the 2D body it stands for
@@ -77,7 +74,7 @@ const NO_TWIST := 1.0e-4
 ## script moves without waking it is followed within this many frames.
 const PARK_SPREAD := 4
 ## The group of the plan handles that stand for a body (a `Node2D` root with no engine body of its
-## own): a node in it is twinned as a `PhysicsBody2D` is, once its `_ready` has run. Joined in the
+## own): a node in it is twinned once its `_ready` has run. Joined in the
 ## root's `_enter_tree`.
 const BODIES := &"plan_bodies"
 ## The group of the plan handles of walls, doors and vehicles: the bodies no shove turns like a
@@ -114,8 +111,8 @@ var _home: Viewport
 ## The groups whose members are twinned though they are no physics body (the floors), each with
 ## the script a member is of (a node that is not of it is not looked at when it enters the tree).
 var _groups: Dictionary = {}
-## Body instance id -> its row `{ id, body, twin, last, last3, lead, rigid, asleep, parked, listed,
-## wake, layer, active, update }`: `lead` the twin when it is a free 3D body that leads its 2D body
+## Body instance id -> its row `{ id, body, twin, last, last3, lead, frozen, asleep, parked, listed,
+## wake, update }`: `lead` the twin when it is a free 3D body that leads its 2D body
 ## (furniture), `last3` the pose of it last read, `last` the 2D body's transform last written (or
 ## read).
 var _rows: Dictionary = {}
@@ -185,10 +182,10 @@ func watch(root: Node) -> void:
 		_beside[beside].append(self)
 	for group: StringName in _groups:
 		_scan_group(group)
-	# the bodies and the pieces in tree order (the order their twins are made in is the order Jolt
-	# sees them: a piece is no physics body now but is twinned where it stood), then the groups
+	# the pieces and the characters in tree order (the order their twins are made in is the order
+	# Jolt sees them), then the groups
 	for body: Node in root.find_children("*", "Node2D", true, false):
-		if body is PhysicsBody2D or body.is_in_group(PIECES) or body.is_in_group(&"characters"):
+		if body.is_in_group(PIECES) or body.is_in_group(&"characters"):
 			_pending[body.get_instance_id()] = body
 	for body: Node in get_tree().get_nodes_in_group(BODIES):
 		if root.is_ancestor_of(body) and body.get_viewport() == _home:
@@ -346,10 +343,9 @@ static func walker_of(body: Object) -> CharacterBody3D:
 	return found if is_instance_valid(found) and found is CharacterBody3D else null
 
 
-## The plan velocity (px/s) the character `body` really covered last frame: what
-## what a body the 2D engine moves would say of itself. A character walked in the
-## twin space (`walker_of`) is moved by its 3D body, its 2D body only the footprint (the 2D engine
-## never moved it, so its own real velocity is nil), so a reader of a pace asks here.
+## The plan velocity (px/s) the character `body` really covered last frame. A character is walked
+## in the twin space (`walker_of`) by its 3D body and its plan handle is only the footprint, so a
+## reader of a pace asks here; a body with no walker is nil.
 static func real_velocity_of(body: Object) -> Vector2:
 	var lead := walker_of(body)
 	if lead != null:
@@ -357,10 +353,10 @@ static func real_velocity_of(body: Object) -> Vector2:
 	return Vector2.ZERO
 
 
-## The row's 3D or 2D rigid body whose sleep it follows, or null for a row that is never asleep.
+## The row's 3D rigid body whose sleep it follows, or null for a row that is never asleep.
 func _sleeper(row: Dictionary) -> Variant:
 	var lead: Variant = row["lead"]
-	return lead if lead is RigidBody3D else (row["rigid"] if lead == null else null)
+	return lead if lead is RigidBody3D else null
 
 
 ## The 2D body the twin `collider` (a ray or shape result's `collider`) stands for, or null for
@@ -397,10 +393,10 @@ func _scan_group(group: StringName) -> void:
 			_pending[node.get_instance_id()] = node
 
 
-## A node entered the tree: a physics body, or a node of a tracked group's kind, under the root is
+## A node entered the tree: a plan handle, or a node of a tracked group's kind, under the root is
 ## looked at on the next update, once its `_ready` has run.
 func _on_node_added(node: Node) -> void:
-	if node is PhysicsBody2D or node.is_in_group(BODIES) or _is_kind(node):
+	if node.is_in_group(BODIES) or _is_kind(node):
 		# a world of its own nested under the root (a SubViewport) has a twin space of its own
 		if _root.is_ancestor_of(node) and node.get_viewport() == _home:
 			_pending[node.get_instance_id()] = node
@@ -485,9 +481,9 @@ func _on_bare_exiting(node: Node) -> void:
 	_bare.erase(node.get_instance_id())
 
 
-## Whether `node` is a physics body or a member of a tracked group.
+## Whether `node` is a plan handle or a member of a tracked group.
 func _is_candidate(node: Node) -> bool:
-	if node is PhysicsBody2D or node.is_in_group(BODIES):
+	if node.is_in_group(BODIES):
 		return true
 	for group: StringName in _groups:
 		if node.is_in_group(group):
@@ -547,19 +543,11 @@ func _twin(node: Node2D) -> void:
 	twinned.emit(node, made)
 
 
-## Have `row`'s 2D body `node` followed as the sim moves it: a rigid body that is not frozen, a
-## character, a driven body; a frozen rigid body is looked at slowly in case it is unfrozen later
-## (`_look_at_parked`), and a body that never moves is written once, when twinned.
+## A handle that no 3D body leads or drives is written once, when twinned (a wall, a floor); a piece
+## that stays where it is (an anchored or a wall-hung one) is looked at slowly in case a script
+## moves it (`_look_at_parked`).
 func _follow_body(row: Dictionary, node: Node2D) -> void:
-	var rigid: Variant = row["rigid"]
-	if rigid != null:
-		row["wake"] = _on_sleeping.bind(row)
-		(rigid as RigidBody2D).sleeping_state_changed.connect(row["wake"])
-	if _moves(node):
-		_moving.append(row)
-	elif rigid != null or node.is_in_group(PIECES):
-		# a body that stays where it is (an anchored or a wall-hung piece, a frozen body): looked at
-		# slowly, in case a script moves it or it is unfrozen later (`_look_at_parked`)
+	if node.is_in_group(PIECES):
 		row["parked"] = true
 		row["listed"] = true
 		row["frozen"] = true
@@ -568,34 +556,18 @@ func _follow_body(row: Dictionary, node: Node2D) -> void:
 
 ## The row of `node` and its twin `made` (a `lead`, when it is a free 3D body leading `node`).
 func _new_row(node: Node2D, made: Node3D, lead: PhysicsBody3D) -> Dictionary:
-	var solid := made as CollisionObject3D
 	var xf := node.global_transform
 	return {
 		"id": node.get_instance_id(), "body": node, "twin": made, "last": xf,
 		"last3": made.global_transform, "lead": lead, "frozen": false, "asleep": false,
-		"active": true, "parked": false, "listed": false, "wake": Callable(),
-		"rigid": node if node is RigidBody2D and lead == null else null,
-		"layer": solid.collision_layer if solid != null else 0,
+		"parked": false, "listed": false, "wake": Callable(),
 		"update": Callable(made, &"twin_update") if made.has_method(&"twin_update") else Callable(),
 	}
 
 
-## Whether `node` can move: any rigid body that is not frozen, or a kinematic body (a
-## test's bare `AnimatableBody2D`: a door and a vehicle are plan handles with a twin that leads or
-## drives them, never followed here). A body that cannot (a wall, a floor) is twinned once and
-## never read again; a frozen rigid body, and a piece that stays where it is (an anchored or a
-## wall-hung one), is looked at slowly in case it is unfrozen or a script moves it
-## (`_look_at_parked`).
-static func _moves(node: Node2D) -> bool:
-	if node is RigidBody2D:
-		return not (node as RigidBody2D).freeze
-	return node is AnimatableBody2D
-
-
-## Follow one moving row (the update rule): a changed transform is written, the twin's layer follows
-## the body's; a rigid body that sleeps is read once more as it falls asleep, then parked (false: it
-## leaves the list). A rigid body's twin has no hook and its layer is read only as it moves, so one
-## whose transform has not changed is done after that one comparison.
+## Follow one moving row (the update rule): a changed transform is written; a rigid body that sleeps
+## is read once more as it falls asleep, then parked (false: it leaves the list). A rigid body's
+## twin has no hook, so one whose transform has not changed is done after that one comparison.
 func _follow(row: Dictionary) -> bool:
 	var body: Node2D = row["body"]
 	var rigid: Variant = _sleeper(row)
@@ -620,7 +592,6 @@ func _follow(row: Dictionary) -> bool:
 		return true
 	if moved:
 		_write(row, xf)
-	_sync_layer(row, body)
 	var hook: Callable = row["update"]
 	if hook.is_valid():
 		hook.call(body)
@@ -636,15 +607,10 @@ func _follow_lead(row: Dictionary) -> void:
 		# a lead that moves its own footprint (a character's walk writes it): it only asks to be
 		# told of a script's move
 		row["lead"].call(&"follow", body)
-		_sync_layer(row, body)
 		var step: Callable = row["update"]
 		if step.is_valid():
 			step.call(body)
 		return
-	var rigid := body as RigidBody2D
-	if rigid != null and not rigid.freeze:
-		# a footprint is never free: its 3D body moves it, the 2D solver does not
-		rigid.freeze = true
 	if body.global_transform != row["last"]:
 		_adopt(row)
 		return
@@ -701,17 +667,6 @@ func _write(row: Dictionary, xf: Transform2D) -> void:
 	written += 1
 
 
-## The twin is on its layer only while its body's own `collision_layer` is not 0.
-func _sync_layer(row: Dictionary, body: Node2D) -> void:
-	var solid := row["twin"] as CollisionObject3D
-	if solid == null or not body is CollisionObject2D:
-		return
-	var active := (body as CollisionObject2D).collision_layer != 0
-	if active != row["active"]:
-		row["active"] = active
-		solid.collision_layer = row["layer"] if active else 0
-
-
 ## A slice (`1 / PARK_SPREAD`) of the parked rows is looked at each frame: one whose body has been
 ## moved by a script (a sleeping piece placed elsewhere) is written, and one that is awake after
 ## all goes back on the follow list.
@@ -731,11 +686,7 @@ func _look_at_parked() -> void:
 			continue
 		_look += 1
 		var xf := (row["body"] as Node2D).global_transform
-		var rigid: Variant = row["rigid"]
-		if rigid != null and not (rigid as RigidBody2D).freeze and row["frozen"]:
-			row["frozen"] = false  # unfrozen: followed from now on
-			_wake(row)
-		elif xf != row["last"]:
+		if xf != row["last"]:
 			if row["lead"] != null:
 				_adopt(row)
 			else:

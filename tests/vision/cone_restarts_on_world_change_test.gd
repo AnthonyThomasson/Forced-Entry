@@ -16,6 +16,7 @@ extends GameTest
 ## The cone held while a job runs is the last published, whole (`tests/_vision/cone_checker.gd`
 ## holds that, and every published cone to the reference cone of its pose, in every frame).
 
+const RawTwins := preload("res://tests/_vision/raw_twins.gd")
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 const Checker := preload("res://tests/_vision/cone_checker.gd")
 const Mover := preload("res://tests/_vision/physics_mover.gd")
@@ -41,7 +42,7 @@ var _t: TestContext
 var _view: PlayerView
 var _checker: Checker
 var _eye: Node2D
-var _wardrobe: AnimatableBody2D
+var _wardrobe: RawTwins.Solid
 var _hand: Mover
 ## The pose the viewer faces now, toggled so each scenario starts a job by a pose change.
 var _turned := false
@@ -76,9 +77,7 @@ func run(t: TestContext) -> void:
 	_eye = t.actor(&"eye")
 	if not t.require(await Probe.place(t, _eye, EYE_AT, Vector2.RIGHT), "the viewer faces east"):
 		return
-	_wardrobe = AnimatableBody2D.new()
-	_wardrobe.sync_to_physics = false  # a script moves it, not the 2D server
-	_wardrobe.collision_layer = PhysicsLayers.SOLID
+	_wardrobe = RawTwins.Solid.new()
 	_wardrobe.add_child(_shape())
 	_wardrobe.position = WARDROBE_AT
 	t.world.add_child(_wardrobe)
@@ -121,12 +120,11 @@ func _moved_between_slices() -> void:
 
 ## A solid joins the world between two slices.
 func _joined_between_slices() -> void:
-	var made: Array[StaticBody2D] = []
+	var made: Array[RawTwins.Solid] = []
 	await _change_world(
 		"a solid that joins between slices",
 		func() -> void:
-			var body := StaticBody2D.new()
-			body.collision_layer = PhysicsLayers.SOLID
+			var body := RawTwins.Solid.new()
 			body.position = JOINS_AT
 			body.add_child(_shape())
 			_t.world.add_child(body)
@@ -278,8 +276,8 @@ func _published_is(want: Reference) -> bool:
 	return Probe.polygons_differ(_view.cone(), _view.bubble(), want.cone, want.bubble) == ""
 
 
-func _shape() -> CollisionShape2D:
-	var shape := CollisionShape2D.new()
+func _shape() -> RawTwins.Shape:
+	var shape := RawTwins.Shape.new()
 	var rect := RectangleShape2D.new()
 	rect.size = SIZE
 	shape.shape = rect

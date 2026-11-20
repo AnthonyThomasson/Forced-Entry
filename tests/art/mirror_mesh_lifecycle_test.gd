@@ -1,11 +1,10 @@
 extends GameTest
 ## What the mirror does with a domain's own mesh over its life (#193, interface 27,
-## `domain-art/mesh-hook.md`): an own mesh is hidden while every collision shape of its body is
-## disabled (a seated character) and shown while one is enabled; a mesh that changes without its
-## body's transform changing is updated by `mirror_update(body)` each frame it is shown (a sleeping
-## or static body's too, not a hidden one's) and rebuilt on demand by `remirror(node)`; a body that
-## dies hides its mesh unless the mesh's `on_body_died(body)` says to stay; a node tracked by
-## `track` survives a reparent (parked while out of the tree, shown again on re-entry) and is
+## `domain-art/mesh-hook.md`): a mesh that changes without its body's transform changing is updated
+## by `mirror_update(body)` each frame it is shown (a sleeping or static body's too, not a hidden
+## one's) and rebuilt on demand by `remirror(node)`; a body that dies hides its mesh unless the
+## mesh's `on_body_died(body)` says to stay; a node tracked by `track` survives a reparent (parked
+## while out of the tree, shown again on re-entry) and is
 ## freed when it is freed out of the tree; a group's nodes are shown when they are in it by the end
 ## of their `_ready` and a later joiner by `remirror`; a group builder that returns null leaves a
 ## physics body its proxy.
@@ -20,10 +19,9 @@ const ReadyJoiner := preload("res://tests/_art/art_ready_group_probe.gd")
 func describe() -> Dictionary:
 	return {
 		"name": "The mirror keeps a domain's own mesh in step: update, rebuild, death, reparent",
-		"description": "An own mesh hides while all its body's shapes are disabled; mirror_update "
-			+ "runs each frame it is shown; remirror rebuilds it; a death hides it unless it "
-			+ "stays; a tracked node survives a reparent; a group tracks nodes that join in "
-			+ "_ready; a null group builder leaves the proxy.",
+		"description": "mirror_update runs each frame it is shown; remirror rebuilds it; a death "
+			+ "hides it unless it stays; a tracked node survives a reparent; a group tracks nodes "
+			+ "that join in _ready; a null group builder leaves the proxy.",
 		"tags": ["mirror", "3d", "render"],
 		"timeout": 20.0,
 	}
@@ -46,7 +44,6 @@ func run(t: TestContext) -> void:
 	mirror.builders[MeshKinds.WALL] = func(_body: Node2D) -> Node3D: return MeshProbe.new()
 	mirror.carry(t.world)
 	await t.frames(3)
-	await _check_shapes(t, mirror)
 	await _check_update_hook(t, mirror)
 	await _check_remirror(t, mirror)
 	await _check_death(t, mirror)
@@ -76,38 +73,6 @@ func _follower(t: TestContext) -> MeshFollower:
 ## The mesh that shows `node` (of a carrier or a follower: both say `mesh_of`), or null.
 func _mesh_of(mirror: Node3D, node: Node) -> Node3D:
 	return mirror.call(&"mesh_of", node)
-
-
-## A body with two shapes: its own mesh shows while either is enabled and hides when both are off.
-func _check_shapes(t: TestContext, mirror: MeshCarrier) -> void:
-	var body := AnimatableBody2D.new()
-	body.sync_to_physics = false  # moved by hand
-	body.position = Vector2(600, 100)
-	var shapes: Array[CollisionShape2D] = []
-	for i in 2:
-		var shape := CollisionShape2D.new()
-		shape.shape = RectangleShape2D.new()
-		body.add_child(shape)
-		shapes.append(shape)
-	t.world.add_child(body)
-	await t.frames(3)
-	var mesh := _mesh_of(mirror, body)
-	if not t.require(mesh != null, "premise: a two-shape body has one own mesh"):
-		return
-	t.check(mesh.visible, "an own mesh shows while its shapes are enabled")
-	shapes[0].disabled = true
-	await t.frames(2)
-	t.check(mesh.visible, "and while one of two is still enabled")
-	shapes[1].disabled = true
-	await t.frames(2)
-	t.check(not mesh.visible, "an own mesh is hidden while every shape of its body is disabled")
-	shapes[1].disabled = false
-	await t.frames(2)
-	t.check(mesh.visible, "and shown again once one is enabled")
-	body.visible = false
-	await t.frames(2)
-	t.check(not mesh.visible, "and hidden while its body's own visible is off")
-	body.queue_free()
 
 
 ## `mirror_update(body)` runs every frame the mesh shows: a sleeping furniture piece's, a static
@@ -184,6 +149,10 @@ func _check_death(t: TestContext, mirror: MeshCarrier) -> void:
 	stays.died.emit()
 	for body: Mortal in [gone, stays]:
 		body.position = Vector2(500, 350)
+		# a bare handle has no leader: its twin is written by hand, as a car's or a door's is
+		(TwinSpace.twin_for(body) as Node3D).transform = PlanSpace.lift_transform(
+			body.global_transform,
+		)
 	await t.frames(3)
 	t.check(not gone_mesh.visible, "a body that dies hides its mesh by default")
 	t.check(stays_mesh.visible, "a mesh whose on_body_died says true stays shown")
@@ -261,9 +230,6 @@ func _check_group(t: TestContext) -> void:
 	var body := WallProbe.new()
 	body.set_meta(&"skip", true)
 	body.add_to_group(&"fx_probe")
-	var shape := CollisionShape2D.new()
-	shape.shape = RectangleShape2D.new()
-	body.add_child(shape)
 	t.world.add_child(body)
 	await t.frames(3)
 	t.check(

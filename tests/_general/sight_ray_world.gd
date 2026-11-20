@@ -34,14 +34,9 @@ func _mute(at: Vector2, size: Vector2) -> Mute:
 	return mute
 
 
-func _shape(body: StaticBody2D, at: Vector2, size: Vector2) -> void:
-	body.collision_layer = PhysicsLayers.SOLID
+func _shape(body: Node2D, at: Vector2, size: Vector2) -> void:
 	body.position = ORIGIN + at
-	var shape := CollisionShape2D.new()
-	var rect := RectangleShape2D.new()
-	rect.size = size
-	shape.shape = rect
-	body.add_child(shape)
+	body.set_meta(&"size", size)
 	add_child(body)
 
 
@@ -62,7 +57,9 @@ func _lift(node: Node2D) -> Node3D:
 	if not node.has_meta(&"height"):
 		return null
 	var twin := StaticBody3D.new()
-	TwinShapes.lift_body(node, twin, 0.0, node.get_meta(&"height"))
+	var size: Vector2 = node.get_meta(&"size")
+	var height: float = node.get_meta(&"height")
+	twin.add_child(TwinShapes.box(Rect2(-size / 2.0, size), Transform2D.IDENTITY, 0.0, height))
 	twin.collision_layer = PhysicsLayers.TWIN_WORLD
 	twin.collision_mask = 0
 	return twin
@@ -83,10 +80,10 @@ func _line(from: Vector2, to: Vector2) -> Array[Vector2]:
 	return [ORIGIN + from, ORIGIN + to]
 
 
-## A solid piece with a height: its twin (the suite's hook) is that tall, and its surface says
-## `transparent` for a glass-panel door.
+## A solid piece with a height: a plan handle (a `Node2D` of `TwinSpace.BODIES`) whose twin (the
+## suite's hook) is that tall, and whose surface says `transparent` for a glass-panel door.
 class Piece:
-	extends StaticBody2D
+	extends Node2D
 
 	var height := 96.0:
 		set(value):
@@ -97,10 +94,18 @@ class Piece:
 	var movement: Node = null
 
 
+	func _init() -> void:
+		add_to_group(TwinSpace.BODIES)
+
+
 	func get_surface() -> Dictionary:
 		return { "transparent": true } if transparent else {}
 
 
-## A solid body with no twin: nothing says how tall it is.
+## A solid handle with no twin: nothing says how tall it is.
 class Mute:
-	extends StaticBody2D
+	extends Node2D
+
+
+	func _init() -> void:
+		add_to_group(TwinSpace.BODIES)

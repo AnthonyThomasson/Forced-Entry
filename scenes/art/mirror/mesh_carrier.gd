@@ -19,18 +19,15 @@ extends Node3D
 ## of the 2D body's own rotation, written only when that changes.
 ##
 ## The carrier keeps the shown rules each frame: a mesh is hidden while its body's `visible` is
-## off, every one of the body's collision shapes is disabled (a character seated in a vehicle) or
-## the player's view does not reach it (`MirrorSight`), and marked moving for the shaders
-## (`MeshNodes.moving`). A body that dies has its mesh hidden unless the mesh says to stay.
+## off, its character is seated in a vehicle or the player's view does not reach it
+## (`MirrorSight`), and marked moving for the shaders (`MeshNodes.moving`). A body that dies has its
+## mesh hidden unless the mesh says to stay.
 ##
 ## A mesh that changes without its body's transform changing (a limb, a crouch, a wheel's spin) has
 ## two ways: a `mirror_update(body)` method on the mesh node, called each frame the mesh shows, or
-## `remirror(node)` to build it again (a dent, an outfit). A collision shape added to or removed
-## from a carried body builds its mesh again too, unless the mesh has `follows_shapes() -> true`
-## (a wall's, which replaces the one segment that changed) or the shape is queued to be freed; so
-## does a body's signal `reshaped` (a hit piece's dents, cut again: it has no shape of its own). A
-## mesh node may also have `on_body_died(body) -> bool` (true: stay shown). `mesh-hook.md` says
-## which to use when.
+## `remirror(node)` to build it again (a dent, an outfit); a body's signal `reshaped` (a hit piece's
+## dents, cut again) builds it again too. A mesh node may also have `on_body_died(body) -> bool`
+## (true: stay shown). `mesh-hook.md` says which to use when.
 
 ## A builder made `mesh` for the physics body `body` (again when the body's mesh is built again):
 ## what a domain-blind watcher of the meshes (the wall fade) connects to.
@@ -164,14 +161,14 @@ func _sync_shown(row: Dictionary) -> void:
 
 
 ## Whether `row`'s mesh shows: its body's own `visible` is on (not `is_visible_in_tree`: the 2D
-## World is hidden in 3D), the view reaches it, and the body has no shapes or one is enabled.
+## World is hidden in 3D), the view reaches it, and it is no character seated in a vehicle.
 func _shown(row: Dictionary) -> bool:
 	var body: Variant = row["body"]
 	if not is_instance_valid(body) or not (body as CanvasItem).visible:
 		return false
 	if _sight.hides(body as Node2D, row):
 		return false
-	return not MeshKinds.shapes_all_off(row)
+	return not MeshKinds.seated(row)
 
 
 ## A row whose body is gone leaves the look list at `index` (swap-removed); its mesh goes with the
@@ -353,16 +350,12 @@ func _drop(body: Node) -> void:
 	_rows.erase(id)
 
 
-## Watch `body` leave the tree, gain or lose a collision shape (or say it was `reshaped`, a piece
-## whose dents were cut again) and, if it can die, die.
+## Watch `body` leave the tree, say it was `reshaped` (a piece whose dents were cut again) and, if
+## it can die, die.
 func _watch(body: Node) -> void:
 	var leaving := _on_body_exiting.bind(body)
 	if not body.tree_exiting.is_connected(leaving):
 		body.tree_exiting.connect(leaving)
-	var changed := _on_shape_changed.bind(body)
-	if not body.child_entered_tree.is_connected(changed):
-		body.child_entered_tree.connect(changed)
-		body.child_exiting_tree.connect(changed)
 	if body.has_signal(&"reshaped"):
 		var again := _on_reshaped.bind(body)
 		if not body.is_connected(&"reshaped", again):
@@ -374,7 +367,7 @@ func _watch(body: Node) -> void:
 
 
 ## A carried body's silhouette changed (a piece's dents were cut again): its mesh is built again on
-## the next update, as for a collision shape that came or went.
+## the next update, as `remirror` does.
 func _on_reshaped(body: Node) -> void:
 	if is_instance_valid(body):
 		_pending[body.get_instance_id()] = body
@@ -384,30 +377,6 @@ func _on_reshaped(body: Node) -> void:
 func _on_body_exiting(body: Node) -> void:
 	_sight.forget(body)
 	_drop(body)
-
-
-## A collision shape came or went under a carried body: its mesh is built again on the next update
-## (unless the shape is queued to be freed, or the mesh follows the shapes itself).
-func _on_shape_changed(child: Node, body: Node) -> void:
-	if not child is CollisionShape2D or not is_instance_valid(body):
-		return
-	if child.is_queued_for_deletion() or _mesh_follows_shapes(body):
-		return  # a shape on its way out is no change: its replacement already came in
-	_pending[body.get_instance_id()] = body
-
-
-## Whether `body` is shown by a mesh that follows its collision shapes itself (a method
-## `follows_shapes() -> true`: a wall's, which meshes the one segment that was rebuilt).
-func _mesh_follows_shapes(body: Node) -> bool:
-	var rows: Array = _rows.get(body.get_instance_id(), [])
-	if rows.size() != 1:
-		return false
-	var mesh: Variant = (rows[0] as Dictionary).get("node")
-	return (
-		is_instance_valid(mesh)
-		and (mesh as Object).has_method(&"follows_shapes")
-		and (mesh as Object).call(&"follows_shapes") == true
-	)
 
 
 ## A carried body died: its mesh is hidden and no longer looked at, unless the mesh has an

@@ -199,7 +199,7 @@ func _check_group_before_follow(t: TestContext) -> void:
 	there.add_to_group(&"mesh_probe_before")
 	t.world.add_child(there)
 	there.global_position = Vector2(60, 60)
-	var body := WallProbe.new()  # a physics body of the group too: shown by the builder, once
+	var body := WallProbe.new()  # a plan handle of the group too: shown by the builder, once
 	body.add_to_group(&"mesh_probe_before")
 	t.world.add_child(body)
 	body.global_position = Vector2(700, 460)
@@ -224,11 +224,6 @@ func _check_group_before_follow(t: TestContext) -> void:
 ## by the table's builder.
 func _check_key_is_for_furniture(t: TestContext) -> void:
 	var wall := WallProbe.new()
-	var shape := CollisionShape2D.new()
-	var rect := RectangleShape2D.new()
-	rect.size = Vector2(80, 24)
-	shape.shape = rect
-	wall.add_child(shape)
 	t.world.add_child(wall)
 	wall.global_position = Vector2(400, 60)
 	var mirror := _mirror(t)

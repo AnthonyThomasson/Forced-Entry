@@ -26,13 +26,13 @@ extends GameTest
 ## It reads (tests/_vision/vision_probe.gd) the `PlayerView`: `cone()`, `bubble()`, `rebuilds()`.
 
 ## The height (px) of the line a strike is taken along: a piece's side and a wall's.
+const RawTwins := preload("res://tests/_vision/raw_twins.gd")
 const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const STRIKE_HEIGHT := 20.0
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 const Held := preload("res://tests/_vision/held_pieces.gd")
 const Checker := preload("res://tests/_vision/cone_checker.gd")
 const Mover := preload("res://tests/_vision/physics_mover.gd")
-const Changing := preload("res://tests/_vision/changing_body.gd")
 ## The spec's backstop (V1): the most physics frames between two rebuilds.
 const REBUILD_EVERY := 10
 const EYE_AT := Vector2(250, 250)
@@ -253,13 +253,10 @@ func _freed_and_added(t: TestContext, checker: Checker) -> void:
 ## A script gives a solid a shape, and another is moved once from its own physics frame ahead of
 ## the view (as a door swinging is): a new shape and a move that no signal tells of.
 func _shape_added_and_moved(t: TestContext, checker: Checker) -> void:
-	var slab := StaticBody2D.new()
-	slab.collision_layer = PhysicsLayers.SOLID
+	var slab := RawTwins.Solid.new()
 	slab.position = SLAB_AT
 	t.world.add_child(slab)
-	var mover := AnimatableBody2D.new()
-	mover.sync_to_physics = false  # a script moves it, not the 2D server
-	mover.collision_layer = PhysicsLayers.SOLID
+	var mover := RawTwins.Solid.new()
 	mover.add_child(_solid_shape())
 	mover.position = MOVER_AT
 	t.world.add_child(mover)
@@ -490,9 +487,8 @@ func _creep(t: TestContext, body: Node2D, from: Vector2, frames := REACH_FRAMES)
 
 
 ## A solid with a shape, standing at `at` in the world.
-func _solid_at(world: Node, at: Vector2) -> StaticBody2D:
-	var body := StaticBody2D.new()
-	body.collision_layer = PhysicsLayers.SOLID
+func _solid_at(world: Node, at: Vector2) -> RawTwins.Solid:
+	var body := RawTwins.Solid.new()
 	body.position = at
 	body.add_child(_solid_shape())
 	world.add_child(body)
@@ -500,8 +496,8 @@ func _solid_at(world: Node, at: Vector2) -> StaticBody2D:
 
 
 ## A solid's shape: `SOLID_SIZE` round its body.
-func _solid_shape() -> CollisionShape2D:
-	var shape := CollisionShape2D.new()
+func _solid_shape() -> RawTwins.Shape:
+	var shape := RawTwins.Shape.new()
 	shape.shape = _solid_rect()
 	return shape
 
@@ -514,20 +510,20 @@ func _solid_rect() -> RectangleShape2D:
 
 
 ## A solid, its shape `SOLID_SIZE` round its body.
-func _plain() -> StaticBody2D:
+func _plain() -> RawTwins.Solid:
 	return _body([_solid_shape()])
 
 
 ## A solid whose shape lies `offset` from its body.
-func _offset(offset: Vector2) -> StaticBody2D:
+func _offset(offset: Vector2) -> RawTwins.Solid:
 	var shape := _solid_shape()
 	shape.position = offset
 	return _body([shape])
 
 
 ## A solid whose shape is a long thin one, turned a quarter: it runs along y.
-func _turned() -> StaticBody2D:
-	var shape := CollisionShape2D.new()
+func _turned() -> RawTwins.Solid:
+	var shape := RawTwins.Shape.new()
 	var rect := RectangleShape2D.new()
 	rect.size = Vector2(TURNED_LENGTH, 10.0)
 	shape.shape = rect
@@ -535,53 +531,55 @@ func _turned() -> StaticBody2D:
 	return _body([shape])
 
 
-## A solid made of a polygon of `SOLID_SIZE`, `offset` from its body.
-func _polygon(offset: Vector2) -> StaticBody2D:
-	var polygon := CollisionPolygon2D.new()
+## A solid made of a convex polygon of `SOLID_SIZE`, `offset` from its body.
+func _polygon(offset: Vector2) -> RawTwins.Solid:
+	var polygon := RawTwins.Shape.new()
+	var hull := ConvexPolygonShape2D.new()
 	var half := SOLID_SIZE / 2.0
-	polygon.polygon = PackedVector2Array([
+	hull.points = PackedVector2Array([
 		offset + Vector2(-half.x, -half.y), offset + Vector2(half.x, -half.y),
 		offset + Vector2(half.x, half.y), offset + Vector2(-half.x, half.y),
 	])
+	polygon.shape = hull
 	return _body([polygon])
 
 
 ## A solid whose body is stretched `WIDE_SCALE` times along x.
-func _scaled_body() -> StaticBody2D:
+func _scaled_body() -> RawTwins.Solid:
 	var body := _plain()
 	body.scale = Vector2(WIDE_SCALE, 1.0)
 	return body
 
 
 ## A solid whose shape is scaled by `by`.
-func _scaled_shape(by: Vector2) -> StaticBody2D:
+func _scaled_shape(by: Vector2) -> RawTwins.Solid:
 	var shape := _solid_shape()
 	shape.scale = by
 	return _body([shape])
 
 
 ## A solid whose shape is not set yet.
-func _unset() -> StaticBody2D:
-	return _body([CollisionShape2D.new()])
+func _unset() -> RawTwins.Solid:
+	return _body([RawTwins.Shape.new()])
 
 
 ## Set the shape of `body`'s one shape node, `offset` from its body.
-func _set_shape(body: StaticBody2D, offset: Vector2) -> void:
-	var shape: CollisionShape2D = body.get_child(0)
+func _set_shape(body: RawTwins.Solid, offset: Vector2) -> void:
+	var shape: RawTwins.Shape = body.get_child(0)
 	shape.shape = _solid_rect()
 	shape.position = offset
+	body.reshape()
 
 
 ## A solid that can say `changed`, as a door does.
-func _changing() -> StaticBody2D:
-	var body: StaticBody2D = Changing.new()
-	body.collision_layer = PhysicsLayers.SOLID
+func _changing() -> RawTwins.Solid:
+	var body: RawTwins.Solid = RawTwins.Solid.new()
 	body.add_child(_solid_shape())
 	return body
 
 
 ## Cut `body` anew, as a dent does: its shape freed, another `offset` from its body added.
-func _recut(body: StaticBody2D, offset: Vector2) -> void:
+func _recut(body: RawTwins.Solid, offset: Vector2) -> void:
 	var old := body.get_child(0)
 	body.remove_child(old)
 	old.queue_free()
@@ -591,9 +589,8 @@ func _recut(body: StaticBody2D, offset: Vector2) -> void:
 
 
 ## A solid with these shape nodes.
-func _body(shapes: Array) -> StaticBody2D:
-	var body := StaticBody2D.new()
-	body.collision_layer = PhysicsLayers.SOLID
+func _body(shapes: Array) -> RawTwins.Solid:
+	var body := RawTwins.Solid.new()
 	for shape: Node in shapes:
 		body.add_child(shape)
 	return body

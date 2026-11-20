@@ -31,7 +31,7 @@ func run(t: TestContext) -> void:
 		return Node3D.new()
 	lone.add_child(carrier)
 	carrier.carry(root)
-	var chair := StaticBody2D.new()  # a body no space twins
+	var chair := Node2D.new()  # a handle no space twins
 	root.add_child(chair)
 	carrier.remirror(chair)
 	await t.frames(3)

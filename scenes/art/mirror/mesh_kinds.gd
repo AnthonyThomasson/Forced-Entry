@@ -53,37 +53,22 @@ static func art_of(node: Node) -> String:
 
 
 ## The row of a mesh a domain's builder made for `body` (`MeshCarrier.builders`): `node` the mesh,
-## `body` the 2D body it shows, `shapes` the body's own collision shapes (while all are disabled the
-## mesh hides: `shapes_all_off`), `update` the mesh's `mirror_update(body)` when it has one (else an
-## invalid `Callable`), `shown` whether it shows now.
+## `body` the plan handle it shows, `rides` the body's `use` when it says whether it rides a vehicle
+## (while it does the mesh hides: `seated`), `update` the mesh's `mirror_update(body)` when it has
+## one (else an invalid `Callable`), `shown` whether it shows now.
 static func row_of(body: Node2D, node: Node3D) -> Dictionary:
-	var shapes: Array[Node] = []
-	for child in body.get_children():
-		if child is CollisionShape2D or child is CollisionPolygon2D:
-			shapes.append(child)
 	# a character's `use` says whether it rides a vehicle (a seated body has no mesh to show)
 	var use: Variant = body.get(&"use")
 	return {
 		"node": node, "body": body, "id": body.get_instance_id(), "shown": true,
-		"moving": false, "shapes": shapes,
+		"moving": false,
 		"rides": use if use is Object and (use as Object).has_method(&"is_riding") else null,
 		"update": Callable(node, &"mirror_update") if node.has_method(&"mirror_update")
 		else Callable(),
 	}
 
 
-## Whether `row` is the mesh of a body that has collision shapes and every one is disabled (a
-## character seated in a vehicle): such a mesh has no shape of its own to be disabled. A body with
-## no shape is not.
-static func shapes_all_off(row: Dictionary) -> bool:
+## Whether `row` is the mesh of a character seated in a vehicle (the vehicle's is the one shown).
+static func seated(row: Dictionary) -> bool:
 	var rides: Variant = row.get("rides")
-	if rides != null and is_instance_valid(rides) and (rides as Object).call(&"is_riding"):
-		return true
-	var any := false
-	for shape: Variant in row.get("shapes", []):
-		if not is_instance_valid(shape) or (shape as Node).is_queued_for_deletion():
-			continue
-		any = true
-		if (shape as Node).get("disabled") != true:
-			return false
-	return any
+	return rides != null and is_instance_valid(rides) and (rides as Object).call(&"is_riding")
