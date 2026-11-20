@@ -7,7 +7,7 @@ class_name DoorFactory
 ## glass), `style` (what the door painter draws: flush, panelled, plank, riveted, peephole, panes)
 ## and `color` (the leaf's base colour).
 ## `opening` fields: `pos` (the doorway's centre, world), `hinge` (the world point on the jamb the
-## leaf turns about, where a wall's end stands on one side of the gap: a wall's collider reaches
+## leaf turns about, where a wall's end stands on one side of the gap: a wall's outline reaches
 ## half its thickness into the gap, so that is the doorway's free width, which the leaf fills),
 ## `swing_into` (the unit vector into the room it swings into) and, optionally, `name` (the node's
 ## name, default the definition's) and `angle` (degrees from shut it starts at, default 0).

@@ -61,7 +61,7 @@ func twin_space() -> TwinSpace:
 ## spawning already sees them. The world stage (nav map, its overlay and re-baker, the dusk
 ## lighting, then the wait for the navigation maps) is Main's own, `MatchBuilder.stage`, over the
 ## house, layout or arena built here with its objects in place, so the bake carves them; it steps
-## two physics frames (the walls' colliders go live on a step) and waits until both maps answer with
+## two physics frames (the walls' twins go live on a step) and waits until both maps answer with
 ## this world's navmesh before any actor enters: an NPC thinking on its first tick would otherwise
 ## see through the walls and plan on an empty map.
 func build(setup: TestSetup) -> void:

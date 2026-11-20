@@ -4,6 +4,7 @@ extends GameTest
 ## stops a straight line between rooms, the navmesh routes through the doorway (and only through
 ## it), and a piece of furniture is carved out of the walkable area.
 
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const WEST := Rect2(0, 0, 300, 300)
 const EAST := Rect2(300, 0, 300, 300)
 const DOOR := Vector2(300, 220)
@@ -45,9 +46,7 @@ func run(t: TestContext) -> void:
 ## The world is stepped before the test starts, so its walls are already solid and its navmesh
 ## live.
 func _check_first_frame(t: TestContext) -> void:
-	var first := t.world.get_world_2d().direct_space_state.intersect_ray(
-		PhysicsRayQueryParameters2D.create(Vector2(200, 60), Vector2(400, 60)),
-	)
+	var first := PlanProbe.first(t.world, Vector2(200, 60), Vector2(400, 60))
 	t.check(not first.is_empty(), "the shared wall is solid on the test's first frame")
 	t.check(
 		NavigationServer2D.map_get_iteration_id(t.world.get_world_2d().navigation_map) > 0,
@@ -57,14 +56,9 @@ func _check_first_frame(t: TestContext) -> void:
 
 ## The shared wall stops a line between the rooms; the doorway lets it through.
 func _check_wall_and_door(t: TestContext) -> void:
-	var space := t.world.get_world_2d().direct_space_state
-	var wall_hit := space.intersect_ray(
-		PhysicsRayQueryParameters2D.create(Vector2(200, 60), Vector2(400, 60)),
-	)
+	var wall_hit := PlanProbe.first(t.world, Vector2(200, 60), Vector2(400, 60))
 	t.check(not wall_hit.is_empty(), "the shared wall stops a line between the rooms")
-	var door_hit := space.intersect_ray(
-		PhysicsRayQueryParameters2D.create(Vector2(200, DOOR.y), Vector2(400, DOOR.y)),
-	)
+	var door_hit := PlanProbe.first(t.world, Vector2(200, DOOR.y), Vector2(400, DOOR.y))
 	t.check(door_hit.is_empty(), "the doorway lets the same line through")
 
 

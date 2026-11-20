@@ -13,7 +13,7 @@ door-aware.
 ## DR1. Doorway size
 
 Every floorplan's doorway is 60 px wide (about 1.1 m) inside the house and 69 px (about 1.25 m) for the front and the `exit`
-doorways: a character 28 px across has 10 px to spare each side in the 48 px clear width inside. A wall's collider reaches half its thickness (6 px) into the gap on each side, so the clear width is 48 px inside and 57 px
+doorways: a character 28 px across has 10 px to spare each side in the 48 px clear width inside. A wall's outline reaches half its thickness (6 px) into the gap on each side, so the clear width is 48 px inside and 57 px
 at the front and exits, and the navigation lane through a doorway (the clear width less the bake's erosion of
 `NavBuilder.AGENT_RADIUS` + `NavBuilder.WALL_MARGIN` = 18 px from each jamb) is 12 and 21 px. The width is the gap
 `WorldGen.get_openings` reports (`width`) and the one `WallFactory` cuts into the walls, in both mirror states of a plan.

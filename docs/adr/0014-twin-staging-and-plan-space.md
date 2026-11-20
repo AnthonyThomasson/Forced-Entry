@@ -217,7 +217,7 @@ mitred), instead of its `CollisionShape2D`s. The bake projects at the plan and n
 96 px, in the wall's twin) is left out (`grounded`: a shape whose underside is over the floor), so a doorway stays open. The twin space is made
 before the bake (`MatchBuilder.stage`). `NavigationServer2D` stays until nav3d; a house with no twin space bakes no walls and no holes.
 
-It is not the same outline, and the new bake was measured against the old one read from the 2D colliders (a district, seed 7, and a house; the test and its reference went with the colliders in del2d-c2). The walls are the same outlines (341 holes and as
+It is not the same outline, and the new bake was measured against the old one read from the 2D colliders (a district, seed 7, and a house). The old test and its 2D reference went with the colliders in del2d-c2; what they measured is recorded (`tests/_navigation/bake_baseline.gd`, taken at b2777f4b) and `navigation/bake_matches_recorded_colliders` (+ `_house`) reproduces it from the twins, and checks the walls against each `Wall`'s own outlines (the same outlines, the navmesh's clearance from them, every doorway open). The walls are the same outlines (341 holes and as
 many walls in the district, each wall within a pixel). A round piece or character is the bake's own 10-sided polygon (`NavHoles.CIRCLE_SEGMENTS`),
 not the twin's 16-sided disc: the 10-gon is the old geometry, so a round hole changes nothing (the 16-sided one moved 24 ambush posts of 210). What moves: a piece hung on a
 wall (a menu board, a mirror, a towel rail) carves the depth its twin has, about half its 2D collider's; and a dent no longer changes a hole (a
@@ -225,6 +225,5 @@ twin keeps the outline it was built with, so a shot-up piece's hole is its full 
 fight shoots furniture, was re-recorded on the Von server). Measured on the district: the holes' area -0.9 %, the navmesh 889 polygons against
 888 with +0.1 % area; on a house 112 against 111, +0.06 % area; of 90 routes between rooms' centres, none lost and none over 3 %. A character's
 hole reads its twin, which follows a body a script moves within a frame (a character at rest has a twin too). Tests that moved a footprint by hand now
-wait for its twin (`TwinSpace.PARK_SPREAD`) or move the twin. Still 2D in the bake, for 17c's second half: finding the pieces (`RigidBody2D`) and the walls
-(`StaticBody2D` with `wall_segments`) by engine type; the door contract's `fallen_footprint` (`DoorFootprint.ring`, a 2D collider); a character's
+wait for its twin (`TwinSpace.PARK_SPREAD`) or move the twin. Still 2D in the bake, for 17c's later jobs: finding the pieces (`RigidBody2D`) by engine type (the walls are found by the group `walls`, done in del2d-c2); the door contract's `fallen_footprint` (`DoorFootprint.ring`, a 2D collider); a character's
 `collision_layer`.

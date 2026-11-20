@@ -14,7 +14,7 @@ dict from World-Gen into a node. Interfaces: 2 (World Generation → Objects, in
 | File | Role |
 |---|---|
 | `environment_object.gd` (a `RigidBody2D`), `object_physics.gd`, `object_look.gd`, `object_lights.gd` | A piece: control node, its physics part, its art fields (`piece.look.<field>`: `art`, `art_opts`, `facing`, `overhang`), its lights. It draws nothing: its 3D mesh (`art/`) shows it. |
-| `wall/wall.gd`, `wall/wall_twin.gd`, `room_walls.gd` | Walls: segment math (`wall_segments()`, split where a stretch another wall owns starts or ends), colliders (none on that stretch: a shared wall is built once, `seams`); `WallTwin` is the 3D body; `RoomWalls` is `thickness`, `openings` (`{ side, offset, width }`), `seams`, `style`. |
+| `wall/wall.gd`, `wall/wall_twin.gd`, `room_walls.gd` | Walls: segment math (`wall_segments()`, split where a stretch another wall owns starts or ends), segment outlines (none on that stretch: a shared wall is built once, `seams`; a `Wall` is a plain `Node2D` plan handle in the groups `walls`, `TwinSpace.BODIES` and `HARD`, with no 2D shape); `WallTwin` is the 3D body; `RoomWalls` is `thickness`, `openings` (`{ side, offset, width }`), `seams`, `style`. |
 | `floor/floor.gd` | Floors. |
 | `object_factory.gd`, `wall_factory.gd`, `floor_factory.gd`, `wear_factory.gd`, `wear_plan.gd`, `door_factory.gd` | The interface-2 factories. `shared_textures.gd`: the shared flat art (pre-warm). |
 | `door/` (`door.gd` and its parts, `door_footprint.gd`), `door_config.gd`, `door_fall_config.gd`, `door_push_config.gd`, `door_material_config.gd` | A hinged house door: `doors.md`. |
@@ -25,8 +25,8 @@ dict from World-Gen into a node. Interfaces: 2 (World Generation → Objects, in
 | `decals/` | `decal_layer.gd`, `room_wear.gd`, `street_marks.gd`, `stencil_decal.gd`, `decal_factory.gd` (`DecalFactory`: the floor stencil). |
 | `art/` | Painters and holders: `art.md`, `meshes.md`, `furniture-art.md`, `structure-meshes.md`. `piece_heights.gd` (`PieceHeights`: every piece's real top and parts: `heights.md`). |
 
-Layering: `environment_object.gd` / `wall.gd` / `floor/floor.gd` hold geometry, colliders and look data and draw nothing:
-the 3D meshes (`art/`, `meshes.md`) read them through the carrier. Colliders are built at runtime (`wall.gd._build_walls()`, `object_physics.gd`): the editor's "no shape" warning on a `Wall` is expected.
+Layering: `environment_object.gd` / `wall.gd` / `floor/floor.gd` hold geometry (a wall: outlines; the others: colliders) and look data and draw nothing:
+the 3D meshes (`art/`, `meshes.md`) read them through the carrier. A wall's outlines are built at runtime (`wall.gd._build_walls()`), a piece's colliders likewise (`object_physics.gd`); a `Wall` has no 2D shape, so no editor warning.
 
 ## The contracts
 

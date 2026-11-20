@@ -551,7 +551,7 @@ static func _apply_in_scope(npc: Node, flags: Dictionary, scope: String) -> void
 ## stands elsewhere. Then the nav map (`NavBuilder.build`), its holes overlay and its re-baker, and
 ## the dusk lighting seeded by `seed`. `world` is also registered as the match's world (`WorldRng`,
 ## 11: its random stream seeded by `seed`, its characters' spawn order). With `wait_nav` the world
-## is stepped two physics frames (the walls' colliders go live on a step), then until
+## is stepped two physics frames (the walls' twins go live on a step), then until
 ## `NavBuilder.ready` holds on the planning map and on the steering map, so an NPC placed afterwards
 ## never plans or walks on a map still showing another navmesh (at most `NAV_SYNC_MS` of real time;
 ## an error past it). A coroutine: await it. Returns the handle

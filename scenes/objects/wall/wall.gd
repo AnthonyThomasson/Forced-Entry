@@ -81,7 +81,7 @@ func _exit_tree() -> void:
 
 func _enter_tree() -> void:
 	# the plan handle of a wall: what the twin space twins and the bake finds walls by
-	add_to_group(&"walls")
+	add_to_group(TwinSpace.WALLS)
 	add_to_group(TwinSpace.BODIES)
 	add_to_group(TwinSpace.HARD)
 

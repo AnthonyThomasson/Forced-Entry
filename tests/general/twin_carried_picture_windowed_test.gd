@@ -10,6 +10,7 @@ extends GameTest
 
 const MAIN_VIEW3D := preload("res://scenes/main_view3d.gd")
 const Baseline := preload("res://tests/_art/art_followed_baseline.gd")
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const SEEDS: Array[int] = [3, 7]
 ## Frames the picture settles for after the camera or the world is set.
 const SETTLE := 20
@@ -114,7 +115,7 @@ func _tones(picture: Image) -> int:
 ## The bodies and floors whose twin is a static body: what carries its mesh.
 func _static_bodies(world: Node) -> Array[Node2D]:
 	var found: Array[Node2D] = []
-	for body: Node in world.find_children("*", "PhysicsBody2D", true, false):
+	for body: Node in PlanProbe.bodies_under(world):
 		if TwinSpace.twin_for(body) is StaticBody3D:
 			found.append(body as Node2D)
 	for node: Node in world.get_tree().get_nodes_in_group(&"floors"):

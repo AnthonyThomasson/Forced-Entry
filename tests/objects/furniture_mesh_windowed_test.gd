@@ -13,6 +13,7 @@ extends GameTest
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const CameraScript := preload("res://scenes/general/camera_controller.gd")
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const SCRATCH := "user://settings_furniture_mesh_windowed_test.json"
 const SIZE := Vector2i(1152, 648)
 const SPEC := {
@@ -183,7 +184,7 @@ func _save(picture: String) -> void:
 ## Hide the proxies of every wall, so the picture shows what stands inside the rooms (the walls
 ## fade round the player only in the wall-fade job).
 func _hide_walls(world: Node) -> void:
-	for body: Node in world.find_children("*", "PhysicsBody2D", true, false):
+	for body: Node in PlanProbe.bodies_under(world):
 		if MeshKinds.kind_of(body) == MeshKinds.WALL:
 			for proxy in _mirror.proxies_of(body):
 				proxy.visible = false

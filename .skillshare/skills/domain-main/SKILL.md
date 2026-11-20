@@ -79,7 +79,7 @@ which save the choice and route it live. Seeding, the scope per mode and the rou
 
 The API is interface 23; these are the reasons behind it.
 
-- **Wait for the nav maps.** `stage` (a generated district: the nav bake covers its streets, the lights its towers) steps two physics frames (walls' colliders go live on a step), then waits until
+- **Wait for the nav maps.** `stage` (a generated district: the nav bake covers its streets, the lights its towers) steps two physics frames (the walls' twins go live on a step), then waits until
   `NavBuilder.ready` holds on the planning map and the steering map (at most `NAV_SYNC_MS`, then `push_error`), so no NPC is
   placed while a map still shows another navmesh. A world freed during the wait returns `{}`. Main's match and every test world
   keep `wait_nav` on.

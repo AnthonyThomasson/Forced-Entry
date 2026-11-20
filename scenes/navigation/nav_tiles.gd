@@ -268,7 +268,7 @@ static func _assign(
 ## reach any of `reaches`. Each direct child of the house is parsed on its own and kept on `region`
 ## (`_refreshed`); the ones that reach are parsed again, so a wall dented since is in the result.
 ## A tower costs a tenth of the whole district's parse, and a tile touches one or two. A collider
-## that is a child of the house itself is no tower's: the whole house is parsed instead.
+## or a wall that is a child of the house itself is no tower's: the whole house is parsed instead.
 static func walls_reaching(
 	region: NavigationRegion2D,
 	site: NavSite,
@@ -302,14 +302,14 @@ static func walls_all(
 
 ## The parse of each tower of `site`'s house (`_parse_tower`), in the order of the house's children,
 ## as kept on `region`: a tower never parsed, or one that reaches `reaches`, is read again and
-## kept. Null when a body is a child of the house itself.
+## kept. Null when a body or a wall is a child of the house itself.
 static func _refreshed(
 	region: NavigationRegion2D,
 	site: NavSite,
 	reaches: Array[Rect2],
 ) -> Variant:
 	for child in site.house.get_children():
-		if child is CollisionObject2D:
+		if child is CollisionObject2D or child.is_in_group(TwinSpace.WALLS):
 			return null
 	var cache: Dictionary = region.get_meta(WALL_CACHE_META, {})
 	var entries: Array = []

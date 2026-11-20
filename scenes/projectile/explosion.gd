@@ -282,7 +282,7 @@ static func _bodies_near(
 		var body := TwinSpace.owner_of(found["collider"])
 		# a wall is a static body that takes no shove; a door is a driven one that does
 		# (`apply_impulse`)
-		if body == null or body.is_in_group(&"walls") \
+		if body == null or body.is_in_group(TwinSpace.WALLS) \
 				or out.has(body):
 			continue
 		if body.has_method("take_hit") or body.has_method("apply_impulse"):

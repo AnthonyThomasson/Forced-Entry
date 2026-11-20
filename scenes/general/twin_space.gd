@@ -84,6 +84,9 @@ const BODIES := &"plan_bodies"
 ## piece of furniture (what a blast's or a sight line's "first static body" is). Joined in each
 ## root's `_enter_tree`.
 const HARD := &"hard_bodies"
+## The group of the walls (Objects' `Wall`, a plan handle that reports its segments): what a bake, a
+## blast and the wall fade find a wall by. Joined in the wall's `_enter_tree`.
+const WALLS := &"walls"
 ## The meta a twin carries: the 2D body it stands for.
 const OWNER_META := &"twin_owner"
 ## The meta a 2D body carries while it has a twin: the twin (`twin_for`).

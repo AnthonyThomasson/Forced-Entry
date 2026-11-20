@@ -87,8 +87,14 @@ func _to_anchor(p: Vector2, room: Rect2, pieces: Array, skip: Node = null) -> fl
 	return best
 
 
-## Whether `body` has a collision shape on PhysicsLayers.SOLID.
+## Whether `body` has a collision shape on PhysicsLayers.SOLID, or is a wall with an outline (a wall
+## is a plan handle with no 2D shape: its outlines are what blocks).
 func _collides_solid(body: Node) -> bool:
+	if body.is_in_group(TwinSpace.WALLS):
+		for outlines: Variant in (body.call(&"segment_shapes") as Dictionary).values():
+			if not (outlines as Array).is_empty():
+				return true
+		return false
 	if (not (body is CollisionObject2D)
 			or ((body as CollisionObject2D).collision_layer & PhysicsLayers.SOLID) == 0):
 		return false

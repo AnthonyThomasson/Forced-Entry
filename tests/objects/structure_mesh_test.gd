@@ -438,7 +438,7 @@ func _check_main(t: TestContext) -> void:
 	await MainProbe.close(t, window)
 
 
-## The walls of the layout (a `StaticBody2D` with `wall_segments`).
+## The walls of the layout (a plan handle with `wall_segments`).
 func _walls_of(t: TestContext) -> Array[Node]:
 	var out: Array[Node] = []
 	for node in NavTwins.walls_under(t.world):

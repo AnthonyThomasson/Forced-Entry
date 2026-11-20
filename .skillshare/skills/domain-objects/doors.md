@@ -11,7 +11,7 @@ points, penetration, latch, the factor of each kind of hit, the surface material
 its chips and sparks are styled as.
 
 - **Frame.** The origin is the middle of the leaf; `leaf_pose(angle)` gives it at an angle, and `place(parent)` sets it before the node
-  enters the tree (a kinematic body takes its pose from the physics server as it enters). A wall's collider reaches half its thickness
+  enters the tree (a kinematic body takes its pose from the physics server as it enters). A wall's outline reaches half its thickness
   into the gap, so the hinge sits there on the jamb and the leaf fills the free `width`. The leaf turns about a pivot half
   `leaf_thickness` off the hinge, so it clears the jamb when open.
 - **Parts** (`RefCounted`, preloaded): `door.look` (`door_look.gd`: material, style, colour, panes shattered), `door.damage`

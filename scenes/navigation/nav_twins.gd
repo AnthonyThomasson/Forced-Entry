@@ -13,14 +13,21 @@ class_name NavTwins extends RefCounted
 const FLOOR_SLACK := 1.0
 
 
-## The walls under `house`, in the order a walk of its descendants finds them. A wall is a plan
-## handle in the group `&"walls"` that reports its segments (Objects' `Wall`, duck-typed): a door is
-## no wall, its leaf leaves the bake alone (`NavLeaves`).
+## The walls under `house`, in tree order (the order a walk of its descendants finds them). A wall
+## is a plan handle in the group `TwinSpace.WALLS` that reports its segments (Objects' `Wall`,
+## duck-typed): a door is no wall, its leaf leaves the bake alone (`NavLeaves`). Read from the
+## group, not a walk of every node under the house.
 static func walls_under(house: Node2D) -> Array:
 	var out: Array = []
-	for node in house.find_children("*", "Node2D", true, false):
-		if node.is_in_group(&"walls") and node.has_method(&"wall_segments"):
+	if not house.is_inside_tree():
+		for node in house.find_children("*", "Node2D", true, false):
+			if node.is_in_group(TwinSpace.WALLS) and node.has_method(&"wall_segments"):
+				out.append(node)
+		return out
+	for node in house.get_tree().get_nodes_in_group(TwinSpace.WALLS):
+		if house.is_ancestor_of(node) and node.has_method(&"wall_segments"):
 			out.append(node)
+	out.sort_custom(func(a: Node, b: Node) -> bool: return b.is_greater_than(a))
 	return out
 
 

@@ -66,7 +66,7 @@ func on_built(body: Node, mesh: Node3D) -> void:
 		watch(
 			mesh,
 			body.get_instance_id(),
-			not body.is_in_group(&"walls") or body is AnimatableBody2D,
+			not body.is_in_group(TwinSpace.WALLS) or body is AnimatableBody2D,
 		)
 
 
