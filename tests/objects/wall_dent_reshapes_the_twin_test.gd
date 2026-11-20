@@ -29,7 +29,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	await t.frames(3)
 	var wall: Node2D = null
-	for node in t.world.find_children("*", "StaticBody2D", true, false):
+	for node in NavTwins.walls_under(t.world):
 		if node.has_method("wall_segments"):
 			wall = node
 			break
@@ -98,32 +98,20 @@ func _face_y(polygons: Array, x: float) -> float:
 	return BUILT_FACE
 
 
-## The outlines (the wall's frame) of the 2D colliders of segment `index` of `wall`.
+## The outlines (the wall's frame) of segment `index` of `wall`.
 func _polygons_2d(wall: Node2D, index: int) -> Array:
 	var out: Array = []
-	for holder: CollisionShape2D in wall.segment_shapes().get(index, []):
-		if holder.shape is ConvexPolygonShape2D:
-			out.append(holder.transform * (holder.shape as ConvexPolygonShape2D).points)
-		elif holder.shape is RectangleShape2D:
-			var half := (holder.shape as RectangleShape2D).size * 0.5
-			out.append(holder.transform * PackedVector2Array([
-				-half, Vector2(half.x, -half.y), half, Vector2(-half.x, half.y),
-			]))
+	for outline: PackedVector2Array in wall.segment_shapes().get(index, []):
+		out.append(outline)
 	return out
 
 
-## The corners (plan px, rounded, sorted) of the 2D colliders of segment `index` of `wall`.
+## The corners (plan px, rounded, sorted) of the outlines of segment `index` of `wall`.
 func _corners_2d(wall: Node2D, index: int) -> Array:
 	var corners: Array = []
-	for holder: CollisionShape2D in wall.segment_shapes().get(index, []):
-		if holder.shape is ConvexPolygonShape2D:
-			for point in (holder.shape as ConvexPolygonShape2D).points:
-				corners.append(_round(holder.transform * point))
-		elif holder.shape is RectangleShape2D:
-			var half := (holder.shape as RectangleShape2D).size * 0.5
-			for sign_x in [-1.0, 1.0]:
-				for sign_y in [-1.0, 1.0]:
-					corners.append(_round(holder.transform * (half * Vector2(sign_x, sign_y))))
+	for outline: PackedVector2Array in wall.segment_shapes().get(index, []):
+		for point in outline:
+			corners.append(_round(point))
 	return _unique(corners)
 
 
@@ -132,8 +120,8 @@ func _corners_2d(wall: Node2D, index: int) -> Array:
 func _corners_3d(twin: Node3D, wall: Node2D, index: int) -> Array:
 	var bounds := Rect2()
 	var first := true
-	for holder: CollisionShape2D in wall.segment_shapes().get(index, []):
-		var rect := _plan_box(holder)
+	for outline: PackedVector2Array in wall.segment_shapes().get(index, []):
+		var rect := _plan_box(outline)
 		bounds = rect if first else bounds.merge(rect)
 		first = false
 	bounds = bounds.grow(0.6)
@@ -157,15 +145,11 @@ func _corners_3d(twin: Node3D, wall: Node2D, index: int) -> Array:
 	return _unique(corners)
 
 
-## The plan rectangle a 2D collider covers.
-func _plan_box(holder: CollisionShape2D) -> Rect2:
-	if holder.shape is RectangleShape2D:
-		var size := (holder.shape as RectangleShape2D).size
-		return Rect2(holder.position - size * 0.5, size)
-	var points := (holder.shape as ConvexPolygonShape2D).points
-	var box := Rect2(holder.transform * points[0], Vector2.ZERO)
-	for point in points:
-		box = box.expand(holder.transform * point)
+## The plan rectangle an outline covers.
+func _plan_box(outline: PackedVector2Array) -> Rect2:
+	var box := Rect2(outline[0], Vector2.ZERO)
+	for point in outline:
+		box = box.expand(point)
 	return box
 
 

@@ -70,6 +70,12 @@ var _along := Vector2.RIGHT
 var _opened_at := -INF
 
 
+func _enter_tree() -> void:
+	# a plan handle the twin space twins (and the game finds bodies by)
+	add_to_group(TwinSpace.BODIES)
+	add_to_group(TwinSpace.HARD)
+
+
 func _ready() -> void:
 	collision_layer = PhysicsLayers.SOLID
 	collision_mask = 0

@@ -18,7 +18,7 @@ frame for its twin.
 - **Caches** (`NavPieces`, `NavHoles.hull_of`): a hull is cut again when its stamp (twin and pose) changes. A dent does not change a twin (it keeps the
   outline it was built with), so a shot-up piece's hole stays its full footprint, and a wall's dent is already in its twin (`WallTwin`).
 - **A footprint moved by hand** (a 2D piece's `global_position` set by a test) reaches its twin up to `TwinSpace.PARK_SPREAD` frames later: wait for it, or move the twin.
-- **What it moves** (`navigation/bake_from_twins_matches_colliders`, a district, and `_house`): against the old read, the same walls; the same holes but for
+- **What it moved** (measured against the old 2D-collider read when the bake moved to the twins, a test since deleted with the colliders it compared against): the same walls; the same holes but for
   a piece hung on a wall (a menu board, a mirror, a towel rail), which carves its twin's depth (about half its collider's); the same navmesh area and a polygon
-  fewer; every route found, none over 3% longer or shorter. The old read is `tests/_navigation/collider_reference.gd`.
-- Still 2D: finding pieces and walls by engine type, a character's `collision_layer`, a fallen door's `fallen_footprint` (a 2D collider).
+  fewer; every route found, none over 3% longer or shorter.
+- Still 2D: finding pieces by engine type (walls are found by the group `walls`), a character's `collision_layer`, a fallen door's `fallen_footprint` (a 2D collider).

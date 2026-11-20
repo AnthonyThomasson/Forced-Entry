@@ -1,7 +1,9 @@
-extends StaticBody2D
-## Wall CONTROL layer (Objects domain). A hittable, deformable room-boundary entity:
-## computes the wall centerline segments (with any doorways cut out), builds the static
-## collision walls, and takes hits (deform + debris). Built by WallFactory from a rect +
+extends Node2D
+## Wall CONTROL layer (Objects domain). A hittable, deformable room-boundary entity, a plan handle
+## (a `Node2D`: its place and turn are the plan's, in the group `&"walls"`): computes the wall
+## centerline segments (with any doorways cut out), holds each segment's outline as polygons (the
+## 3D `WallTwin` is the body those become), and takes hits (deform + debris). Built by WallFactory
+## from a rect +
 ## openings. The 3D render shows it (`wall_mesh.gd`), reading `wall_segments()` and
 ## `wall_thickness` from this node.
 
@@ -50,9 +52,10 @@ const SEAM_EPSILON := 0.5
 ## The dents per struck segment (`wall_mesh.gd` and the collider rebuild read them). See
 ## _record_segment_damage().
 var _seg_impacts := {}
-## Segment index -> Array of that segment's CollisionShape2D nodes, so a damaged segment's
-## collider can be rebuilt to follow the deformed shape. Filled in _build_walls().
-var _seg_colliders := {}
+## Segment index -> Array of that segment's convex outlines (`PackedVector2Array`, this node's
+## frame), so a damaged segment's twin can be cut again to follow the deformed shape. Filled in
+## _build_walls().
+var _seg_outlines := {}
 ## Segment index -> true while its deferred collider rebuild waits: the hits that land on it before
 ## that runs share it, as a piece of furniture's do (each would rebuild the same pieces from the
 ## same dents).
@@ -76,6 +79,13 @@ func _exit_tree() -> void:
 	_seg_cuts.clear()
 
 
+func _enter_tree() -> void:
+	# the plan handle of a wall: what the twin space twins and the bake finds walls by
+	add_to_group(&"walls")
+	add_to_group(TwinSpace.BODIES)
+	add_to_group(TwinSpace.HARD)
+
+
 func _ready() -> void:
 	_layout_kept = {}
 	_build_walls()
@@ -92,12 +102,12 @@ func _prepare_cut(i: int) -> Callable:
 	return func() -> Array: return Deformation.cut_wall(a, b, thickness, dents)
 
 
-## Segment index (into `wall_segments()`) -> the `CollisionShape2D`s that stand for that segment
-## now, in this node's frame: one rectangle while it is whole, the convex pieces of its dented
-## outline after a hit. What the 3D mesh (`art/wall_mesh.gd`) is built from, so it matches the
-## colliders. A copy: the arrays are the wall's own, read them only.
+## Segment index (into `wall_segments()`) -> the convex outlines (`PackedVector2Array`) that stand
+## for that segment now, in this node's frame: one rectangle while it is whole, the convex pieces of
+## its dented outline after a hit. What the twin (`WallTwin`) and the 3D mesh (`art/wall_mesh.gd`)
+## are built from, so they match. A copy: the arrays are the wall's own, read them only.
 func segment_shapes() -> Dictionary:
-	return _seg_colliders.duplicate()
+	return _seg_outlines.duplicate()
 
 
 ## The wall's ballistic surface: hard to shoot through, debris in the colour its cap is drawn in.
@@ -304,49 +314,46 @@ func _on_seam(side: int, at: float) -> bool:
 	return false
 
 
-## Build one rectangle collider per wall segment this wall owns.
+## Give each wall segment this wall owns its rectangle outline.
 func _build_walls() -> void:
 	var layout := _layout()
 	var segs: Array[PackedVector2Array] = layout["segments"]
 	for i in segs.size():
 		if segs[i][0].is_equal_approx(segs[i][1]) or layout["shared"][i]:
 			continue
-		var col := _owned_collider(segs[i], layout["cut"][i])
-		add_child(col)
-		_seg_colliders[i] = [col]  # keyed by wall_segments() index for later rebuilds
+		# keyed by wall_segments() index for later rebuilds
+		_seg_outlines[i] = [_owned_outline(segs[i], layout["cut"][i])]
 
 
-## The collider of the segment `seg` this wall owns, its ends lengthened by half the thickness so
+## The outline of the segment `seg` this wall owns, its ends lengthened by half the thickness so
 ## corners overlap cleanly, but not where it meets a stretch another wall owns (`cut`: bits 1 and
 ## 2, that wall stands there). Opening edges are lengthened slightly too, which just rounds the
 ## doorway jamb a touch.
-func _owned_collider(seg: PackedVector2Array, cut: int) -> CollisionShape2D:
+func _owned_outline(seg: PackedVector2Array, cut: int) -> PackedVector2Array:
 	var half := wall_thickness * 0.5
 	var dir := (seg[1] - seg[0]).normalized()
 	var start := seg[0] - dir * (0.0 if cut & 1 else half)
 	var end := seg[1] + dir * (0.0 if cut & 2 else half)
-	return _segment_collider(start, end, dir)
+	return _segment_outline(start, end, dir)
 
 
-## The rectangle collider of a wall segment from `start` to `end` (its ends already extended)
+## The rectangle outline of a wall segment from `start` to `end` (its ends already extended)
 ## running along `dir`, `wall_thickness` thick.
-func _segment_collider(start: Vector2, end: Vector2, dir: Vector2) -> CollisionShape2D:
+func _segment_outline(start: Vector2, end: Vector2, dir: Vector2) -> PackedVector2Array:
 	var t := wall_thickness
 	var length := start.distance_to(end)
-	var col := CollisionShape2D.new()
-	var rect := RectangleShape2D.new()
 	# Horizontal segment -> width along x; vertical segment -> width along y.
-	if absf(dir.x) > absf(dir.y):
-		rect.size = Vector2(length, t)
-	else:
-		rect.size = Vector2(t, length)
-	col.shape = rect
-	col.position = (start + end) * 0.5
-	return col
+	var across := Vector2(length, t) if absf(dir.x) > absf(dir.y) else Vector2(t, length)
+	var centre := (start + end) * 0.5
+	var half := across * 0.5
+	return PackedVector2Array([
+		centre + Vector2(-half.x, -half.y), centre + Vector2(half.x, -half.y),
+		centre + Vector2(half.x, half.y), centre + Vector2(-half.x, half.y),
+	])
 
 
-## Rebuild a damaged wall segment's collider(s) from its deformed polygon, so the wall
-## collides with what's drawn. Keeps the old collider if convex decomposition fails.
+## Cut a damaged wall segment's outlines again from its deformed polygon, so the twin
+## is what's drawn. Keeps the old outlines if convex decomposition fails.
 func _rebuild_segment(i: int) -> void:
 	_rebuild_queued.erase(i)
 	# [] for the one cut here
@@ -357,19 +364,10 @@ func _rebuild_segment(i: int) -> void:
 		return
 	var seg: PackedVector2Array = segs[i]
 	var poly := Deformation.wall_polygon(seg[0], seg[1], wall_thickness, _seg_impacts.get(i, []))
-	var shapes := Deformation.shapes_of(made[1]
-			if not made.is_empty() and made[0] == poly
-			else Deformation.convex_pieces(poly))
-	if shapes.is_empty():
+	var outlines: Array = (
+		made[1] if not made.is_empty() and made[0] == poly else Deformation.convex_pieces(poly)
+	)
+	if outlines.is_empty():
 		return
-	for old in _seg_colliders.get(i, []):
-		if is_instance_valid(old):
-			old.queue_free()
-	var cols: Array = []
-	for shape in shapes:
-		var col := CollisionShape2D.new()
-		col.shape = shape  # polygon points are already in room-local space
-		add_child(col)
-		cols.append(col)
-	_seg_colliders[i] = cols
+	_seg_outlines[i] = outlines  # polygon points are already in room-local space
 	segment_rebuilt.emit(i)

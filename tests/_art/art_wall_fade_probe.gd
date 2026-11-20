@@ -15,7 +15,7 @@ static func walls(
 	mirror: MeshCarrier, world: Node, apart: float, keep := Callable()
 ) -> Array:
 	var found: Array = []
-	for body: Node in world.find_children("*", "StaticBody2D", true, false):
+	for body: Node in NavTwins.walls_under(world):
 		var shown := mirror.proxies_of(body)
 		if not body.has_method(&"segment_shapes") or shown.size() != 1:
 			continue

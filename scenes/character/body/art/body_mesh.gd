@@ -136,7 +136,7 @@ var _at_rest := false
 
 
 ## The body of `body` (a character with an anatomy and a wardrobe), or null for a node that is
-## none: the mirror then keeps its proxy. The body keeps its own `BodyDress` (the look its
+## none: the carrier then makes none. The body keeps its own `BodyDress` (the look its
 ## wardrobe resolves).
 static func build(body: Node2D) -> Node3D:
 	if not body is CharacterBody2D or body.get("anatomy") == null:
@@ -181,7 +181,7 @@ func mirror_update(body: Node2D) -> void:
 
 
 ## The body died: it keeps following, now the 2D ragdoll's joints, unless the ragdoll is not there
-## (then the mirror hides it). Its look is resolved once more first: the killing blow wears a plate
+## (then the carrier hides it). Its look is resolved once more first: the killing blow wears a plate
 ## after the last update. A body on the floor keeps its drop shadow (it lies along the body,
 ## `_pose_shade`), and the held item goes with the hand that held it.
 func on_body_died(body: Node2D) -> bool:

@@ -29,7 +29,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var wall: Node = null
-	for node in t.world.find_children("*", "StaticBody2D", true, false):
+	for node in NavTwins.walls_under(t.world):
 		if node.has_method("wall_segments"):
 			wall = node
 			break
@@ -78,12 +78,9 @@ func _segment_faults(wall: Node, i: int, seg: PackedVector2Array, impacts: Array
 	poly.append(Vector2(9999.0, 9999.0))
 	if Deformation.wall_polygon(seg[0], seg[1], wall.wall_thickness, impacts) != fresh:
 		differing.append("segment %d: a caller's change reached the kept polygon" % i)
-	var want := Deformation.shapes_of(Deformation.convex_pieces(fresh))
-	var have: Array = []
-	for col in wall._seg_colliders.get(i, []):
-		if is_instance_valid(col) and not col.is_queued_for_deletion():
-			have.append(col.shape)
-	if not Colliders.same_pieces(want, have):
+	var want := Deformation.convex_pieces(fresh)
+	var have: Array = wall._seg_outlines.get(i, [])
+	if want != have:
 		differing.append("segment %d: collider %d pieces, its cut %d"
 				% [i, have.size(), want.size()])
 	var more: Array = impacts.duplicate(true)

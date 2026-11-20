@@ -1,11 +1,10 @@
 extends GameTest
 ## The carried wall mesh follows a wall whose colliders are rebuilt (#193, Art's `MeshCarrier`,
-## interface 27). A wall that is hit rebuilds a segment's colliders (the old `CollisionShape2D`s are
-## freed and new ones added under the same `StaticBody2D`, `wall.gd`), and the wall's mesh says
-## `follows_shapes() -> true` (it replaces the one segment that changed itself): so the carrier
-## leaves it be, one mesh on the wall's twin, the same instance before and after, never built again
-## (`built` is said once). A wall hit as `tests/objects/wall_dents_share_a_rebuild_test.gd` lands
-## one.
+## interface 27). A wall that is hit cuts a segment's outlines again (`wall.gd`), and the wall's
+## mesh says `follows_shapes() -> true` (it replaces the one segment that changed itself): so the
+## carrier leaves it be, one mesh on the wall's twin, the same instance before and after, never
+## built again (`built` is said once). A wall hit as
+## `tests/objects/wall_dents_share_a_rebuild_test.gd` lands one.
 
 const SHOTS := 5
 
@@ -30,7 +29,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var wall: Node = null
-	for node in t.world.find_children("*", "StaticBody2D", true, false):
+	for node in NavTwins.walls_under(t.world):
 		if node.has_method("wall_segments"):
 			wall = node
 			break
@@ -79,18 +78,12 @@ func _hit(t: TestContext, wall: Node) -> void:
 		await t.frames(2)
 
 
-## The live collision shapes directly under `wall`: enabled, not on their way out.
-func _live_shapes(wall: Node) -> Array:
-	return wall.get_children().filter(
-		func(c): return (
-			c is CollisionShape2D and not c.disabled and c.shape != null
-			and not c.is_queued_for_deletion()
-		)
-	)
-
-
-## The instance ids of the wall's live shapes, sorted.
+## The wall's outlines now, as the keys of what they are: one per convex piece of each segment.
 func _shape_ids(wall: Node) -> Array:
-	var ids: Array = _live_shapes(wall).map(func(c): return c.get_instance_id())
+	var ids: Array = []
+	var shapes: Dictionary = wall.segment_shapes()
+	for index: int in shapes:
+		for outline: PackedVector2Array in shapes[index]:
+			ids.append(hash([index, outline]))
 	ids.sort()
 	return ids

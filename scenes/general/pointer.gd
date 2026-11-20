@@ -161,7 +161,7 @@ static func aim_hit(node: Node, ignore: Node = null) -> Dictionary:
 		var body := TwinSpace.owner_of(hit.collider)
 		if body == null or body == ignore:
 			continue
-		if not body is PhysicsBody2D:
+		if not body.is_in_group(TwinSpace.BODIES):
 			break  # the floor: nothing was between the cursor and the ground
 		var aimed := {
 			"plan": PlanSpace.plan_of(hit.position), "height": PlanSpace.height_of(hit.position),

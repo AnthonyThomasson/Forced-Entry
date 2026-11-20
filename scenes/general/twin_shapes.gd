@@ -130,6 +130,43 @@ static func _top_of_shape(shape: Shape3D, centre: float) -> float:
 	return top
 
 
+## The convex `outline` (px, in the body's frame), placed by `local` there, lifted from `base` to
+## `top` px: a box for an upright rectangle (four corners on its bounds), else the extruded hull.
+## Null for an outline of fewer than three points.
+static func lift_outline(
+	outline: PackedVector2Array,
+	local: Transform2D,
+	base: float,
+	top: float,
+) -> CollisionShape3D:
+	var rect := rect_of(outline)
+	if rect.has_area():
+		return box(rect, local, base, top)
+	return _hull(outline, local, base, top)
+
+
+## The rectangle `outline` is when it is four corners on its own bounds (upright, axis aligned);
+## an empty `Rect2` for any other outline.
+static func rect_of(outline: PackedVector2Array) -> Rect2:
+	if outline.size() != 4:
+		return Rect2()
+	var bounds := Rect2(outline[0], Vector2.ZERO)
+	for point in outline:
+		bounds = bounds.expand(point)
+	for point in outline:
+		var on_x := is_equal_approx(
+			point.x,
+			bounds.position.x,
+		) or is_equal_approx(point.x, bounds.end.x)
+		var on_y := is_equal_approx(
+			point.y,
+			bounds.position.y,
+		) or is_equal_approx(point.y, bounds.end.y)
+		if not (on_x and on_y):
+			return Rect2()
+	return bounds
+
+
 ## `shape`, placed by `local` in its body's frame, lifted from `base` to `top` px: a
 ## `CollisionShape3D` in the body's frame, or null for a shape with no footprint.
 static func lift(shape: Shape2D, local: Transform2D, base: float, top: float) -> CollisionShape3D:

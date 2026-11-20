@@ -59,6 +59,8 @@ var wardrobe: CharacterWardrobe
 
 
 func _enter_tree() -> void:
+	# a plan handle the twin space twins (and the game finds bodies by)
+	add_to_group(TwinSpace.BODIES)
 	wardrobe = $Wardrobe as CharacterWardrobe
 	# Its place in its world's spawn order and its gait phase off the world's stream (`WorldRng`,
 	# interface 11).

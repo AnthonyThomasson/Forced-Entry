@@ -76,6 +76,14 @@ const NO_TWIST := 1.0e-4
 ## How many frames the slow look takes to go round the parked bodies: a sleeping rigid body that a
 ## script moves without waking it is followed within this many frames.
 const PARK_SPREAD := 4
+## The group of the plan handles that stand for a body (a `Node2D` root with no engine body of its
+## own): a node in it is twinned as a `PhysicsBody2D` is, once its `_ready` has run. Joined in the
+## root's `_enter_tree`.
+const BODIES := &"plan_bodies"
+## The group of the plan handles of walls, doors and vehicles: the bodies no shove turns like a
+## piece of furniture (what a blast's or a sight line's "first static body" is). Joined in each
+## root's `_enter_tree`.
+const HARD := &"hard_bodies"
 ## The meta a twin carries: the 2D body it stands for.
 const OWNER_META := &"twin_owner"
 ## The meta a 2D body carries while it has a twin: the twin (`twin_for`).
@@ -172,6 +180,9 @@ func watch(root: Node) -> void:
 		_scan_group(group)
 	for body: Node in root.find_children("*", "PhysicsBody2D", true, false):
 		_pending[body.get_instance_id()] = body
+	for body: Node in get_tree().get_nodes_in_group(BODIES):
+		if root.is_ancestor_of(body) and body.get_viewport() == _home:
+			_pending[body.get_instance_id()] = body
 	if not get_tree().node_added.is_connected(_on_node_added):
 		get_tree().node_added.connect(_on_node_added)
 	update()
@@ -379,7 +390,7 @@ func _scan_group(group: StringName) -> void:
 ## A node entered the tree: a physics body, or a node of a tracked group's kind, under the root is
 ## looked at on the next update, once its `_ready` has run.
 func _on_node_added(node: Node) -> void:
-	if node is PhysicsBody2D or _is_kind(node):
+	if node is PhysicsBody2D or node.is_in_group(BODIES) or _is_kind(node):
 		# a world of its own nested under the root (a SubViewport) has a twin space of its own
 		if _root.is_ancestor_of(node) and node.get_viewport() == _home:
 			_pending[node.get_instance_id()] = node
@@ -466,7 +477,7 @@ func _on_bare_exiting(node: Node) -> void:
 
 ## Whether `node` is a physics body or a member of a tracked group.
 func _is_candidate(node: Node) -> bool:
-	if node is PhysicsBody2D:
+	if node is PhysicsBody2D or node.is_in_group(BODIES):
 		return true
 	for group: StringName in _groups:
 		if node.is_in_group(group):

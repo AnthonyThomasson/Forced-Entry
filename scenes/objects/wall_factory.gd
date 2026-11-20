@@ -1,6 +1,6 @@
 class_name WallFactory
 ## Objects-domain factory: turns a plain rect + doorway openings into a runtime Wall entity
-## (a StaticBody2D that builds its own colliders and is hittable/deformable). World-Gen
+## (a Node2D plan handle that holds its own outlines and is hittable/deformable). World-Gen
 ## calls this with geometry and an optional style dict — it never touches the Wall's fields.
 
 const WallScript = preload("res://scenes/objects/wall/wall.gd")
@@ -91,7 +91,7 @@ static func _overlap(cut: Array, side: int, mine: Vector2, other: Vector2) -> vo
 ## their `thickness`, their `openings` (doorways in Wall.Side format, see wall.gd) and their `style`
 ## (the cap's look: `art` (a tiling painter id), `color`, `art_opts`; empty = a flat gray line).
 static func spawn(rect: Rect2, walls: RoomWalls, wall_name: String, parent: Node) -> Node:
-	var wall := StaticBody2D.new()
+	var wall := Node2D.new()
 	wall.name = wall_name
 	wall.position = rect.position
 	wall.script = WallScript

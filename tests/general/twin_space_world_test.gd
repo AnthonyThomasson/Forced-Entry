@@ -60,7 +60,7 @@ func run(t: TestContext) -> void:
 ## Every solid body the world holds: walls, floors, solid pieces and characters.
 func _bodies(t: TestContext) -> Array[Node2D]:
 	var out: Array[Node2D] = []
-	for node in t.world.find_children("*", "PhysicsBody2D", true, false):
+	for node in _plan_bodies(t):
 		var body := node as Node2D
 		if body.get("wall_thickness") != null or body.is_in_group(&"characters"):
 			out.append(body)
@@ -115,4 +115,11 @@ func _freed(t: TestContext, twins: TwinSpace, sofa: Node2D) -> void:
 	t.check(
 		hit.get("owner") != null and (hit["owner"] as Node).is_in_group(&"floors"),
 		"a ray over where the sofa stood lands on the floor",
+	)
+
+
+## The plan handles of the world's bodies (the group `TwinSpace.BODIES`) that stand under it.
+func _plan_bodies(t: TestContext) -> Array:
+	return t.world.get_tree().get_nodes_in_group(TwinSpace.BODIES).filter(
+		func(n: Node) -> bool: return t.world.is_ancestor_of(n)
 	)

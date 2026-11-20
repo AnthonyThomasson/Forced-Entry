@@ -1,12 +1,11 @@
 class_name VehicleMeshRig
 extends Node3D
-## Vehicles domain, the 3D body of one car or van (built by `vehicle_mesh.gd`, shown by the mirror
-## in place of its proxy box; `domain-art/mesh-hook.md`): the hull is one shared mesh
-## and the rest are parts that move, which `mirror_update` keeps in step with the 2D vehicle every
-## frame it shows. Each door leaf turns about its hinge (a sliding door rolls back), the front
-## wheels steer and every wheel turns as the vehicle rolls, the tail lamps glow while it brakes, and
-## a dent a bullet left shows as a dark patch. Nothing is rebuilt: only transforms, a glow and the
-## patches.
+## Vehicles domain, the 3D body of one car or van (built by `vehicle_mesh.gd`, carried by its twin;
+## `domain-art/mesh-hook.md`): the hull is one shared mesh and the rest are parts that move, which
+## `mirror_update` keeps in step with the vehicle every frame it shows. Each door leaf turns about
+## its hinge (a sliding door rolls back), the front wheels steer and every wheel turns as the
+## vehicle rolls, the tail lamps glow while it brakes, and a dent a bullet left shows as a dark
+## patch. Nothing is rebuilt: only transforms, a glow and the patches.
 
 const Vehicle = preload("res://scenes/vehicle/vehicle.gd")
 const VehicleDoor = preload("res://scenes/vehicle/vehicle_door.gd")

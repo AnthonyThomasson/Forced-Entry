@@ -88,8 +88,11 @@ func _twin_of_slab(node: Node2D) -> Node3D:
 
 
 ## A body that says what it is and keeps the hits it takes.
-class Slab extends StaticBody2D:
+class Slab extends Node2D:
 	var hits: Array[HitInfo] = []
+
+	func _enter_tree() -> void:
+		add_to_group(TwinSpace.BODIES)
 
 	func get_surface() -> Dictionary:
 		return { "penetration": 60.0, "material": "wood", "color": Color.WHITE }

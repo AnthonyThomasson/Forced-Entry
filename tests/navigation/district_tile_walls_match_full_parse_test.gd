@@ -69,7 +69,7 @@ func _compare_planning(t: TestContext, region: NavigationRegion2D, site: NavSite
 
 ## A wall of `house` (a body that reports its segments).
 func _wall_of(house: Node2D) -> Node2D:
-	for node in house.find_children("*", "StaticBody2D", true, false):
+	for node in NavTwins.walls_under(house):
 		if node.has_method("wall_segments"):
 			return node
 	return null

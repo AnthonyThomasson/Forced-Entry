@@ -59,11 +59,15 @@ func listen(carrier: MeshCarrier) -> void:
 
 
 ## A builder made `mesh` for `body` (`MeshCarrier.built`): a wall, a door or a piece of furniture is
-## looked after, a movable one (a rigid body, a door: not a plain `StaticBody2D`) polled for a move.
+## looked after, a movable one (a rigid body, a door: not a plain wall) polled for a move.
 func on_built(body: Node, mesh: Node3D) -> void:
 	var kind := MeshKinds.kind_of(body)
 	if kind == MeshKinds.WALL or kind == MeshKinds.DOOR or kind == MeshKinds.FURNITURE:
-		watch(mesh, body.get_instance_id(), not body is StaticBody2D or body is AnimatableBody2D)
+		watch(
+			mesh,
+			body.get_instance_id(),
+			not body.is_in_group(&"walls") or body is AnimatableBody2D,
+		)
 
 
 ## Look after `mesh`, the 3D mesh of the body `key` (its instance id): from the next frame it is in

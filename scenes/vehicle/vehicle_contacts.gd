@@ -119,7 +119,12 @@ func _hits(space: PhysicsDirectSpaceState3D, query: PhysicsShapeQueryParameters3
 		var page := space.intersect_shape(query, TOUCH_HITS)
 		for found: Dictionary in page:
 			var body := TwinSpace.owner_of(found["collider"])
-			var counted := body is PhysicsBody2D and body != vehicle and not _excepted(body)
+			var counted := (
+				body != null
+				and body.is_in_group(TwinSpace.BODIES)
+				and body != vehicle
+				and not _excepted(body)
+			)
 			rids[found["rid"]] = body.get_instance_id() if counted else 0
 			if counted:
 				bodies[body.get_instance_id()] = body
@@ -165,6 +170,8 @@ func _contact_with(space: PhysicsDirectSpaceState3D, query: PhysicsShapeQueryPar
 ## Whether `body` and the vehicle share space (a collision exception either way): a character
 ## boarding or just out, a corpse the vehicle rolls over.
 func _excepted(body: Node) -> bool:
+	if not body is PhysicsBody2D:
+		return false  # a plan handle (a wall) has no exceptions to share
 	return (vehicle as PhysicsBody2D).get_collision_exceptions().has(body) or (
 		body as PhysicsBody2D
 	).get_collision_exceptions().has(vehicle)

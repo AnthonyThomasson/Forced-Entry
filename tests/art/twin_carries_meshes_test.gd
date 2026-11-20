@@ -64,7 +64,7 @@ func run(t: TestContext) -> void:
 
 
 func _first_wall(world: Node) -> Node:
-	for body: Node in world.find_children("*", "StaticBody2D", true, false):
+	for body: Node in NavTwins.walls_under(world):
 		if body.has_method(&"segment_shapes"):
 			return body
 	return null

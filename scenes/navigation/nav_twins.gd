@@ -13,13 +13,13 @@ class_name NavTwins extends RefCounted
 const FLOOR_SLACK := 1.0
 
 
-## The walls under `house`, in the order a walk of its descendants finds them. A wall is a static
-## body that reports its segments (Objects' `Wall`, duck-typed): a door is no wall, its leaf leaves
-## the bake alone (`NavLeaves`).
+## The walls under `house`, in the order a walk of its descendants finds them. A wall is a plan
+## handle in the group `&"walls"` that reports its segments (Objects' `Wall`, duck-typed): a door is
+## no wall, its leaf leaves the bake alone (`NavLeaves`).
 static func walls_under(house: Node2D) -> Array:
 	var out: Array = []
-	for node in house.find_children("*", "StaticBody2D", true, false):
-		if node.has_method(&"wall_segments"):
+	for node in house.find_children("*", "Node2D", true, false):
+		if node.is_in_group(&"walls") and node.has_method(&"wall_segments"):
 			out.append(node)
 	return out
 

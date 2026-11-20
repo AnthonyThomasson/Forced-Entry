@@ -217,8 +217,7 @@ mitred), instead of its `CollisionShape2D`s. The bake projects at the plan and n
 96 px, in the wall's twin) is left out (`grounded`: a shape whose underside is over the floor), so a doorway stays open. The twin space is made
 before the bake (`MatchBuilder.stage`). `NavigationServer2D` stays until nav3d; a house with no twin space bakes no walls and no holes.
 
-It is not the same outline, and `navigation/bake_from_twins_matches_colliders` (a district, seed 7; `_house`, a house) measures the new bake
-against the old one read from the 2D colliders (`tests/_navigation/collider_reference.gd`). The walls are the same outlines (341 holes and as
+It is not the same outline, and the new bake was measured against the old one read from the 2D colliders (a district, seed 7, and a house; the test and its reference went with the colliders in del2d-c2). The walls are the same outlines (341 holes and as
 many walls in the district, each wall within a pixel). A round piece or character is the bake's own 10-sided polygon (`NavHoles.CIRCLE_SEGMENTS`),
 not the twin's 16-sided disc: the 10-gon is the old geometry, so a round hole changes nothing (the 16-sided one moved 24 ambush posts of 210). What moves: a piece hung on a
 wall (a menu board, a mirror, a towel rail) carves the depth its twin has, about half its 2D collider's; and a dent no longer changes a hole (a

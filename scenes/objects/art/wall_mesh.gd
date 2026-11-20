@@ -133,20 +133,19 @@ static func _segment(
 	skin: Dictionary,
 	height: float,
 ) -> MeshInstance3D:
-	var live: Array[CollisionShape2D] = []
-	for shape: Variant in shapes:
-		if is_instance_valid(shape):
-			var node := shape as CollisionShape2D
-			if node.shape != null and not node.is_queued_for_deletion():
-				live.append(node)
+	var live: Array[PackedVector2Array] = []
+	for outline: Variant in shapes:
+		if (outline as PackedVector2Array).size() >= 3:
+			live.append(outline)
 	if live.is_empty():
 		return null
 	var worn := not skin.is_empty()
 	var origin := Vector2.ZERO
 	var instance: MeshInstance3D
-	if live.size() == 1 and _is_whole(live[0]):
-		origin = live[0].position
-		instance = _whole(live[0], colour, worn, height)
+	if live.size() == 1 and TwinShapes.rect_of(live[0]).has_area():
+		var box := _bounds(live[0])
+		origin = box.get_center()
+		instance = _whole(box.size, origin, colour, worn, height)
 	else:
 		instance = _pieces(live, colour, worn, height)
 	if worn:
@@ -158,12 +157,12 @@ static func _segment(
 
 ## The cached box of one whole segment, placed at its collider; `worn` makes it white.
 static func _whole(
-	shape_node: CollisionShape2D,
+	size: Vector2,
+	centre: Vector2,
 	colour: Color,
 	worn: bool,
 	height: float,
 ) -> MeshInstance3D:
-	var size := (shape_node.shape as RectangleShape2D).size
 	var side := Color.WHITE if worn else _side(colour)
 	var top := Color.WHITE if worn else _top(colour)
 	var opts := _tuning()
@@ -172,14 +171,13 @@ static func _whole(
 	var instance := MeshNodes.instance(
 		MeshCache.fetch(key, func() -> Mesh: return _box(size, height, side, top))
 	)
-	var centre := shape_node.position
 	MeshNodes.place(instance, Vector3(centre.x, 0.0, centre.y))
 	return instance
 
 
 ## A dented segment: the extruded outlines of its convex pieces, in the wall's frame.
 static func _pieces(
-	live: Array[CollisionShape2D],
+	live: Array[PackedVector2Array],
 	colour: Color,
 	worn: bool,
 	height: float,
@@ -187,18 +185,17 @@ static func _pieces(
 	var kit := MeshKit.new()
 	var side := Color.WHITE if worn else _side(colour)
 	var top := Color.WHITE if worn else _top(colour)
-	for shape in live:
-		kit.extrude(_outline(shape), 0.0, height, side, top)
+	for outline in live:
+		kit.extrude(outline, 0.0, height, side, top)
 	return MeshNodes.instance(kit.build())
 
 
-## Whether `shape_node` is an upright rectangle with nothing but a position (a whole segment).
-static func _is_whole(shape_node: CollisionShape2D) -> bool:
-	return (
-		shape_node.shape is RectangleShape2D
-		and is_zero_approx(shape_node.rotation)
-		and shape_node.scale.is_equal_approx(Vector2.ONE)
-	)
+## The rectangle `outline` span.
+static func _bounds(outline: PackedVector2Array) -> Rect2:
+	var box := Rect2(outline[0], Vector2.ZERO)
+	for point in outline:
+		box = box.expand(point)
+	return box
 
 
 ## `size` px wide and deep and `height` tall, centred on the origin: the whole segment, `side` and
@@ -211,20 +208,6 @@ static func _box(size: Vector2, height: float, side: Color, top: Color) -> Mesh:
 		top,
 	)
 	return kit.build()
-
-
-## The outline of `shape_node`'s shape in the wall's frame.
-static func _outline(shape_node: CollisionShape2D) -> PackedVector2Array:
-	var local := PackedVector2Array()
-	if shape_node.shape is ConvexPolygonShape2D:
-		local = (shape_node.shape as ConvexPolygonShape2D).points
-	elif shape_node.shape is RectangleShape2D:
-		var half := (shape_node.shape as RectangleShape2D).size * 0.5
-		local = PackedVector2Array([
-			Vector2(-half.x, -half.y), Vector2(half.x, -half.y),
-			Vector2(half.x, half.y), Vector2(-half.x, half.y),
-		])
-	return shape_node.transform * local
 
 
 ## The tone of the cap colour a wall's sides take.

@@ -117,7 +117,7 @@ func _walls(t: TestContext, mirror: MeshCarrier) -> void:
 		for i: int in shapes:
 			var part := node.get_node_or_null("Segment%d" % i) as MeshInstance3D
 			if t.require(part != null, "%s: segment %d is its own instance" % [wall.name, i]):
-				covered += _segment(t, wall, part, shapes[i][0] as CollisionShape2D)
+				covered += _segment(t, wall, part, shapes[i][0] as PackedVector2Array)
 		_check_wall_colours(t, node, wall)
 	t.expect_eq(covered, 0, "no wall stands in a doorway")
 
@@ -128,10 +128,13 @@ func _segment(
 	t: TestContext,
 	wall: Node,
 	part: MeshInstance3D,
-	shape_node: CollisionShape2D,
+	outline: PackedVector2Array,
 ) -> int:
 	var what := "%s %s" % [wall.name, part.name]
-	var size := (shape_node.shape as RectangleShape2D).size
+	var rect := Rect2(outline[0], Vector2.ZERO)
+	for point in outline:
+		rect = rect.expand(point)
+	var size := rect.size
 	var box := part.mesh.get_aabb()
 	t.expect_near(box.size.x, size.x, 0.01, "%s: as long as its collider" % what)
 	t.expect_near(box.size.z, size.y, 0.01, "%s: as thick as its collider" % what)
@@ -139,7 +142,7 @@ func _segment(
 	t.expect_near(box.size.y, WALL_HEIGHT, 0.02, "%s: 96 px tall" % what)
 	t.expect_near(box.position.y, 0.0, 0.01, "%s: standing on the ground" % what)
 	var at := part.global_position
-	var world_at: Vector2 = wall.to_global(shape_node.position)
+	var world_at: Vector2 = wall.to_global(rect.get_center())
 	t.expect_near(at.x, world_at.x, 0.01, "%s: over its collider (x)" % what)
 	t.expect_near(at.z, world_at.y, 0.01, "%s: over its collider (z)" % what)
 	var footprint := Rect2(
@@ -428,7 +431,7 @@ func _check_main(t: TestContext) -> void:
 		for key: StringName in [MeshKinds.WALL, MeshKinds.DOOR, MeshKinds.FLOOR]:
 			t.check(view.carrier.builders.has(key), "Main's view registers the '%s' builder" % key)
 		var shown := 0
-		for body: Node in (built["world"] as Node).find_children("*", "StaticBody2D", true, false):
+		for body: Node in NavTwins.walls_under(built["world"]):
 			if body.has_method(&"segment_shapes") and _own_mesh(view.carrier, body) != null:
 				shown += 1
 		t.check(shown > 0, "the match's walls are shown by their meshes")
@@ -438,7 +441,7 @@ func _check_main(t: TestContext) -> void:
 ## The walls of the layout (a `StaticBody2D` with `wall_segments`).
 func _walls_of(t: TestContext) -> Array[Node]:
 	var out: Array[Node] = []
-	for node in t.world.find_children("*", "StaticBody2D", true, false):
+	for node in NavTwins.walls_under(t.world):
 		if node.has_method(&"wall_segments"):
 			out.append(node)
 	return out

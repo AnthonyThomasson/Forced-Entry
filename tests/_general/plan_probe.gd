@@ -77,7 +77,8 @@ static func walls_clear_in(
 		var found := space.intersect_ray(query)
 		if found.is_empty():
 			return true
-		if TwinSpace.owner_of(found["collider"]) is StaticBody2D:
+		var owner := TwinSpace.owner_of(found["collider"])
+		if owner != null and owner.is_in_group(TwinSpace.HARD):
 			return false
 		skipped.append(found["rid"])
 	return false

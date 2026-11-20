@@ -84,7 +84,7 @@ func _wall_painter(t: TestContext) -> void:
 func _walls(t: TestContext, mirror: MeshCarrier) -> void:
 	var materials := {}
 	var checked := 0
-	for wall in t.world.find_children("*", "StaticBody2D", true, false):
+	for wall in NavTwins.walls_under(t.world):
 		if not wall.has_method(&"segment_shapes"):
 			continue
 		var node := mirror.proxies_of(wall)[0] as WallMesh

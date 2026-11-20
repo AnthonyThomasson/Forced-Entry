@@ -72,7 +72,7 @@ func _structure_bodies(root: Node) -> Array:
 		for node: Node in root.get_tree().get_nodes_in_group(group):
 			if root.is_ancestor_of(node):
 				out.append(node)
-	for node in root.find_children("*", "StaticBody2D", true, false):
+	for node in NavTwins.walls_under(root):
 		if node.has_method(&"segment_shapes"):
 			out.append(node)
 	return out

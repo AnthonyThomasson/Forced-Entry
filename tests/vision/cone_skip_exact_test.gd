@@ -190,7 +190,7 @@ func _dents(t: TestContext, checker: Checker) -> void:
 		node.freeze = true
 	var targets: Array[Node2D] = []
 	targets.append_array(pieces)
-	for node in t.world.find_children("*", "StaticBody2D", true, false):
+	for node in NavTwins.walls_under(t.world):
 		if node.has_method("wall_segments"):
 			targets.append(node)
 	var shapes := Probe.collision_shapes(targets)

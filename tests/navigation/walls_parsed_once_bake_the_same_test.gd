@@ -31,7 +31,7 @@ func run(t: TestContext) -> void:
 	await t.frames(2)
 	_compare(t, house, "as the house stands")
 	var wall: Node = null
-	for node in house.find_children("*", "StaticBody2D", true, false):
+	for node in NavTwins.walls_under(house):
 		if node.has_method("wall_segments"):
 			wall = node
 			break

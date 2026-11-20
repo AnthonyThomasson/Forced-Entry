@@ -55,7 +55,7 @@ func run(t: TestContext) -> void:
 ## Every solid body of the match world: walls, doors, floors, solid pieces and characters.
 func _bodies(t: TestContext) -> Array[Node2D]:
 	var out: Array[Node2D] = []
-	for node in t.world.find_children("*", "PhysicsBody2D", true, false):
+	for node in _plan_bodies(t):
 		var body := node as Node2D
 		if _kind(body) != "":
 			out.append(body)
@@ -82,6 +82,13 @@ func _kind(body: Node2D) -> String:
 func _kinds(bodies: Array[Node2D]) -> Dictionary:
 	var out := {}
 	for body in bodies:
-		var kind := _kind(body) if body is PhysicsBody2D else "floor"
+		var kind := _kind(body) if body.is_in_group(TwinSpace.BODIES) else "floor"
 		out[kind] = out.get(kind, 0) + 1
 	return out
+
+
+## The plan handles of the world's bodies (the group `TwinSpace.BODIES`) that stand under it.
+func _plan_bodies(t: TestContext) -> Array:
+	return t.world.get_tree().get_nodes_in_group(TwinSpace.BODIES).filter(
+		func(n: Node) -> bool: return t.world.is_ancestor_of(n)
+	)

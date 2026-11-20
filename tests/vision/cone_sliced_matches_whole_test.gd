@@ -133,7 +133,7 @@ func _compare_dents(t: TestContext) -> void:
 	setup.object(&"bookcase", "bookshelf", Vector2(300, 60))
 	var world: Node2D = await Probe.build_world(t, setup)
 	var targets: Array[Node2D] = []
-	for node in world.find_children("*", "StaticBody2D", true, false):
+	for node in NavTwins.walls_under(world):
 		if node.has_method("wall_segments"):
 			targets.append(node)
 	targets.append(world.objects[&"wardrobe"])

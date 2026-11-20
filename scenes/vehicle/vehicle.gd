@@ -87,6 +87,12 @@ var sleeping: bool:
 			lead.call(&"wake")
 
 
+func _enter_tree() -> void:
+	# a plan handle the twin space twins (and the game finds bodies by)
+	add_to_group(TwinSpace.BODIES)
+	add_to_group(TwinSpace.HARD)
+
+
 func _ready() -> void:
 	row = VehicleConfig.kinds[kind]
 	add_to_group(&"vehicles")

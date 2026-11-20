@@ -3,7 +3,7 @@ extends GameTest
 ## mesh)` says each mesh a builder made for a body, and the fade (`WallFade.listen`) looks after the
 ## walls', doors' and furniture's, so a builder registered after the fade started still fades, and a
 ## character's, a vehicle's or a body that got no mesh is left alone. A shoved piece (not a
-## `StaticBody2D`) is movable for the fade's grid, a wall is not.
+## wall) is movable for the fade's grid, a wall is not.
 
 const SIZE := Vector3(40, 70, 40)
 
@@ -69,7 +69,7 @@ func _kept(t: TestContext, fade: WallFade, bodies: Dictionary) -> void:
 	t.expect_eq(fade.count(), 4, "the furniture, shoved piece, wall and door are kept")
 	for key: String in ["piece", "shoved", "wall", "door"]:
 		t.check(fade.unit_of(bodies[key].get_instance_id()) != null, "%s is kept" % key)
-	t.check(not fade.unit_of(bodies["piece"].get_instance_id()).movable, "a StaticBody2D is fixed")
+	t.check(not fade.unit_of(bodies["wall"].get_instance_id()).movable, "a wall is fixed")
 	t.check(fade.unit_of(bodies["shoved"].get_instance_id()).movable, "a RigidBody2D is movable")
 	t.check(fade.unit_of(bodies["door"].get_instance_id()).movable, "a door is movable")
 	t.check(fade.unit_of(bodies["bare"].get_instance_id()) == null, "a body with no mesh is not")
@@ -99,7 +99,7 @@ func _builder(body: Node2D) -> Node3D:
 	return mesh
 
 
-func _body(t: TestContext, body: PhysicsBody2D, body_name: String, at: Vector2) -> PhysicsBody2D:
+func _body(t: TestContext, body: Node2D, body_name: String, at: Vector2) -> Node2D:
 	if body is AnimatableBody2D:
 		(body as AnimatableBody2D).sync_to_physics = false  # moved by hand
 	body.name = body_name
@@ -118,5 +118,9 @@ func _made_for(body: Node) -> bool:
 
 
 ## A body the mirror reads as a wall (it has a `wall_thickness`).
-class StandInWall extends StaticBody2D:
+class StandInWall extends Node2D:
 	var wall_thickness := 8.0
+
+	func _enter_tree() -> void:
+		add_to_group(&"walls")
+		add_to_group(TwinSpace.BODIES)

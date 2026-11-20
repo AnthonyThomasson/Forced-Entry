@@ -65,7 +65,7 @@ func run(t: TestContext) -> void:
 
 ## Every wall of the world.
 func _walls(t: TestContext) -> Array:
-	return t.world.find_children("*", "StaticBody2D", true, false).filter(
+	return NavTwins.walls_under(t.world).filter(
 		func(n: Node) -> bool: return n.has_method(&"wall_segments")
 	)
 

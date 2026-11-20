@@ -110,7 +110,7 @@ func _walker_keeps_off(t: TestContext, door: Node2D) -> void:
 ## what the slab leaves then.
 func _state_follows_the_slab(t: TestContext, door: Node2D, before: int) -> void:
 	var gap: float = door.gap()
-	Knockback.push(door, Vector2(0.0, 30_000.0), Vector2.ZERO, 3.0)
+	Knockback.push(door, Vector2(0.0, 60_000.0), Vector2.ZERO, 3.0)
 	await t.seconds(0.5)
 	t.check(await PieceProbe.settle(t, door, WAIT), "the slab comes to rest after the shove")
 	await t.frames(2)

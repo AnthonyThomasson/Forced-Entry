@@ -441,7 +441,7 @@ func wall_hit(space: PhysicsDirectSpaceState3D, from: Vector2, to: Vector2) -> D
 		if found.is_empty():
 			return {}
 		var body := TwinSpace.owner_of(found["collider"])
-		if body is StaticBody2D:
+		if body != null and body.is_in_group(TwinSpace.HARD):
 			return _plan_hit(found, body)
 		skipped.append(found["rid"])
 	return {}  # unreachable; satisfies the parser

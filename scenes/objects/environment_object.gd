@@ -59,6 +59,11 @@ var footprint_stamp := 0
 var _lights: Array = []
 
 
+func _enter_tree() -> void:
+	# a plan handle the twin space twins (and the game finds bodies by)
+	add_to_group(TwinSpace.BODIES)
+
+
 func _ready() -> void:
 	physics.compose()
 

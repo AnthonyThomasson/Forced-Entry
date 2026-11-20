@@ -256,7 +256,7 @@ func _compare_shove(t: TestContext, pieces: Array, cone: Cone, plain: Reference)
 ## The walls and the pieces of `world` that are struck.
 func _dent_targets(world: Node2D) -> Array[Node2D]:
 	var targets: Array[Node2D] = []
-	for node in world.find_children("*", "StaticBody2D", true, false):
+	for node in NavTwins.walls_under(world):
 		if node.has_method("wall_segments"):
 			targets.append(node)
 	targets.append(world.objects[&"wardrobe"])

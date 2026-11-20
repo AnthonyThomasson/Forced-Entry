@@ -3,9 +3,9 @@ extends RefCounted
 ## Objects domain, the 3D meshes of its pieces (`domain-art/meshes.md`): which art ids
 ## have a mesh of their own and the one call that plugs them into the 3D mirror. Each id has a
 ## script beside the painters (`table_mesh.gd`) with `static func build(piece) -> Node3D`, built
-## from Art's mesh kit, in 3D units and centred on the piece's origin; an art id with none stays a
-## proxy box. Main's 3D view registers them (`register`) and tracks the floor stencils (`track`)
-## before it mirrors the match.
+## from Art's mesh kit, in 3D units and centred on the piece's origin; an art id with none has no
+## mesh. Main's 3D view registers them (`register`) and tracks the floor stencils (`track`)
+## before it carries the match.
 
 const TableMesh = preload("res://scenes/objects/art/table_mesh.gd")
 const SofaMesh = preload("res://scenes/objects/art/sofa_mesh.gd")

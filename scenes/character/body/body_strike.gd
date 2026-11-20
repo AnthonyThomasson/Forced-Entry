@@ -21,7 +21,7 @@ const MASK := PhysicsLayers.TWIN_ALL
 ## `struck` (each one struck is added to it), shoving it by the blow's `impulse` and dealing it its
 ## `damage`. With `first_only` it stops after the first body.
 static func strike(
-	character: CollisionObject2D,
+	character: Node2D,
 	blow: MeleeBlow,
 	struck: Dictionary,
 	first_only: bool,
@@ -50,7 +50,7 @@ static func strike(
 
 ## The 2D bodies (not `character`) the `blow`'s column reaches in the twin space: from its lowest
 ## height up to its radius above the blow's height. A floor, with no body, is none.
-static func _reached(character: CollisionObject2D, blow: MeleeBlow) -> Array[Node]:
+static func _reached(character: Node2D, blow: MeleeBlow) -> Array[Node]:
 	var found: Array[Node] = []
 	var space := TwinSpace.space_of(character)
 	if space == null:
@@ -69,6 +69,6 @@ static func _reached(character: CollisionObject2D, blow: MeleeBlow) -> Array[Nod
 	params.transform = Transform3D(Basis(), PlanSpace.lift(blow.at, (low + high) * 0.5))
 	for result in space.intersect_shape(params, 8):
 		var body := TwinSpace.owner_of(result["collider"]) as Node
-		if body != null and body is CollisionObject2D:
+		if body != null and body.is_in_group(TwinSpace.BODIES):
 			found.append(body)
 	return found

@@ -30,8 +30,7 @@ func run(t: TestContext) -> void:
 	var wall := _wall(t)
 	if not t.require(wall != null, "premise: the arena has a wall"):
 		return
-	var shape := _shape_of(wall)
-	var at := shape.global_position
+	var at := _centre_of(wall)
 	var inward := (ARENA.get_center() - at).normalized()
 	var top := Probe.down(t, at)
 	t.check(top.get("owner") == wall, "a ray dropped on the wall finds the wall")
@@ -50,15 +49,16 @@ func run(t: TestContext) -> void:
 
 ## The first wall of the arena.
 func _wall(t: TestContext) -> Node2D:
-	for node in t.world.find_children("*", "StaticBody2D", true, false):
+	for node in NavTwins.walls_under(t.world):
 		if node.get("wall_thickness") != null:
 			return node
 	return null
 
 
-## The first rectangle collider of `wall`.
-func _shape_of(wall: Node2D) -> CollisionShape2D:
-	for child in wall.get_children():
-		if child is CollisionShape2D:
-			return child
-	return null
+## The middle (world, plan px) of the first outline of `wall`.
+func _centre_of(wall: Node2D) -> Vector2:
+	var outline: PackedVector2Array = wall.segment_shapes().values()[0][0]
+	var box := Rect2(outline[0], Vector2.ZERO)
+	for point in outline:
+		box = box.expand(point)
+	return wall.to_global(box.get_center())

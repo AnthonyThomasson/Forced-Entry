@@ -181,7 +181,7 @@ func _sweep(from: Vector3, to: Vector3) -> Dictionary:
 ## reaches (a floor has no body) spends it.
 func _resolve(result: Dictionary) -> void:
 	var body: Node = result.body
-	if not body is PhysicsBody2D:
+	if not body.is_in_group(TwinSpace.BODIES):
 		speed = 0.0
 		return
 	# Captured before the ricochet branch reassigns `direction`; the shove follows the shot in.
