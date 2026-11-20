@@ -184,6 +184,10 @@ simply:
   a body into the 2D space; the AI's `space` is the twin space itself (`space_of`, `space_in`), `AgentVision` and `Explosion`
   answer a world with no twin space with their neutral answer, and the player's cone is a level 3D ray at the viewer's eye height
   (`SightRay.plan_hit`) with its corners read by a 3D shape query over the column above the eye (`ViewShapes`), so a body with no twin blocks nothing.
+  Left for 17c (the 2D bodies' deletion): `ViewWatch` watches 2D `CollisionObject2D` nodes (their layer, transform, shapes); the AI's `exclude` rids and the
+  `_plan_hit` result's `rid` are 2D `get_rid()`s; `is StaticBody2D` / `CharacterBody2D` type checks; the navigation bake's source (`NavSource.walls_of`,
+  `NavHoles`, `NavPieces`, `NavLeaves`) reads the 2D colliders and moves to plan polygons projected from the twins (`TwinShapes.footprint_of`), compared
+  with the old bake on the district first; and the ragdoll's and the blood's queries (ragdoll3d).
 
 ## Consequences
 
