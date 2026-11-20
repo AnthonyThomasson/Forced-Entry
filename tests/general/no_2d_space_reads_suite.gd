@@ -54,10 +54,11 @@ const SPACE_3D := [
 	"PhysicsDirectSpaceState3D", "PhysicsRayQueryParameters3D", "PhysicsShapeQueryParameters3D",
 	"PhysicsPointQueryParameters3D", "TwinSpace",
 ]
-## What a `.direct_space_state` read must name on its line: a 3D world.
+## What a `.direct_space_state` read must name on its line: a 3D world, by a call or as a property
+## of something (`view.world_3d`): a bare `world_3d` is a variable that may hold a 2D world.
 const WORLD_3D := (
-	"(^|[^A-Za-z0-9_])(get_world_3d\\(\\)|find_world_3d\\(\\)|world_3d)"
-	+ "\\.direct_space_state"
+	"(^|[^A-Za-z0-9_])(get_world_3d\\(\\)|find_world_3d\\(\\))\\.direct_space_state"
+	+ "|\\.world_3d\\.direct_space_state"
 )
 ## The scripts allowed to hold one for now: the ragdoll's wall sweeps and the blood's floor and wall
 ## queries, which move with the ragdoll (`ragdoll3d`).
@@ -122,6 +123,7 @@ func test_each_way_to_ask_the_2d_space_is_caught() -> void:
 		"var c := body.get_slide_collision(0)",
 		"var rid := PhysicsServer2D.body_create()",
 		"var world_3d := get_viewport().find_world_2d().direct_space_state",
+		"var s := world_3d.direct_space_state",
 		"var s := get_world_2d().direct_space_state if get_world_3d() else null",
 		"var server := Engine.get_singleton(\"PhysicsServer2D\")",
 		"var area := ClassDB.instantiate(\"Area2D\")",
