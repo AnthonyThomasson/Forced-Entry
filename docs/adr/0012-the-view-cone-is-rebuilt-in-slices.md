@@ -1,11 +1,11 @@
-# The player's view cone is rebuilt in slices, and the cone shown is usually 2 to 4 frames old, at most 10
+# The player's view cone is rebuilt in slices, and the cone shown is usually up to 2 frames old, at most 8 (10 held)
 
 The view's cone (`docs/player-vision.md` V1) costs 6 to 11 ms a physics frame in a district match while the viewer walks or turns:
 it is rebuilt almost every frame (the eye changes every frame), whole, in one tick. In a 10v10 with the view on an NPC that tick is
 what the match's frame budget cannot spare (issue #195). The rebuild is now a **job stepped by work units** (`ViewCone.begin` / `step`, a unit being a ray cast, a
 region shape query or a far-face probe), run `VisionSliceConfig.slice_units` (about 3.5 ms) a physics tick by `ViewPipeline`, and the
-cone is published when the job is done. The cone the player sees is therefore the exact cone of the pose the job started from, usually 2 to 4
-frames old (a job of 3 ticks), up to 6 (4 ticks) and at most 10 (the 6 ticks of the longest district job). This record says why that latency is accepted and what was not done.
+cone is published when the job is done. The cone the player sees is therefore the exact cone of the pose the job started from, usually up to 2
+frames old (a job of 2 ticks, the median), up to 4 (3 ticks) and at most 8 in the district grid (5 ticks; measured loaded on 2026-11-19, the corners priced at 225 units); `vision/pose_lag_bounds` holds a job to 6 ticks, 10 frames. Before the corners were priced for the twin space (2026-11-12) it was 2 to 4, up to 6 and at most 10. This record says why that latency is accepted and what was not done.
 
 ## What the pipeline does, and what it never does
 
@@ -22,8 +22,8 @@ frames old (a job of 3 ticks), up to 6 (4 ticks) and at most 10 (the 6 ticks of 
 
 ## The latency accepted
 
-A walking viewer's cone is usually up to 4 frames (about 17 px at a run, 10 px walking) behind its eye, the facing 2 to 4 frames behind its
-turn; in about a quarter of a district's views (a job of 4 ticks or more) up to 6 frames, and at most 10 (about 42 px at a run). The longer bound is the
+A walking viewer's cone is usually up to 2 frames (about 8 px at a run, 5 px walking) behind its eye, the facing 2 frames behind its
+turn; in about a tenth of a district's views (a job over 3 ticks) up to 8 frames (about 34 px at a run), and the test holds 10 (about 42 px at a run). (Before the corners were priced for the twin space it was up to 4 frames, in a quarter of the views up to 6, at most 10.) The longer bound is the
 corners' price: they cost about 2 ms, as much as a slice of rays, and priced as one unit they made a start tick of 6 to 7 ms. `cost_shape` was 450, so
 a job was the corners' tick plus its rays' ticks, one more than before (a district job a median 3 ticks, 26 % over 3, the most 6; before a median 2,
 11 % over 3, the most 5). The user accepted the longer lag on 2026-11-12 (#195, the frame tail) over a larger slice or a cheaper price that would fit a start tick

@@ -4,9 +4,13 @@ extends UnitSuite
 ## `PhysicsDirectSpaceState2D`, builds a 2D shape, ray or point query, reads a 2D world's direct
 ## space, casts a 2D ray or shape node, listens to a 2D body's contacts or overlaps, reads a 2D
 ## body's slide collisions, tests or makes a 2D body's motion, or allocates in the 2D physics
-## server. The scan reads every script's code (a comment or a string is not code) and names each
-## line that does; a script listed in `PENDING` is one the ragdoll's move to 3D has not reached
+## server. The scan reads every script's code (a comment is not code; a string is read, for it can
+## name a class or a signal) and names each line that does; a script listed in `PENDING` is one the
+## ragdoll's move to 3D has not reached
 ## yet, and the list shrinks to empty.
+## The contact and overlap names (`body_entered`, `contact_monitor`, `get_colliding_bodies`, ...)
+## are banned on a 3D body too: no sim script reads contact events (Jolt's are not deterministic),
+## so the scan is stricter than the 2D rule it checks.
 
 ## What a line of code must not contain: a 2D query, node or body event, the 2D physics server, a
 ## 2D body's motion.
@@ -51,7 +55,10 @@ const SPACE_3D := [
 	"PhysicsPointQueryParameters3D", "TwinSpace",
 ]
 ## What a `.direct_space_state` read must name on its line: a 3D world.
-const WORLD_3D := ["get_world_3d()", "find_world_3d()", "world_3d"]
+const WORLD_3D := (
+	"(^|[^A-Za-z0-9_])(get_world_3d\\(\\)|find_world_3d\\(\\)|world_3d)"
+	+ "\\.direct_space_state"
+)
 ## The scripts allowed to hold one for now: the ragdoll's wall sweeps and the blood's floor and wall
 ## queries, which move with the ragdoll (`ragdoll3d`).
 const PENDING := [
@@ -114,22 +121,40 @@ func test_each_way_to_ask_the_2d_space_is_caught() -> void:
 		"body.body_entered.connect(f)",
 		"var c := body.get_slide_collision(0)",
 		"var rid := PhysicsServer2D.body_create()",
+		"var world_3d := get_viewport().find_world_2d().direct_space_state",
+		"var s := get_world_2d().direct_space_state if get_world_3d() else null",
+		"var server := Engine.get_singleton(\"PhysicsServer2D\")",
+		"var area := ClassDB.instantiate(\"Area2D\")",
+		"var ray := ClassDB.instantiate(\"RayCast2D\")",
+		"var s = world.get(\"direct_space_state\")",
+		"body.connect(\"body_entered\", f)",
 	]
 	for line: String in dodges:
 		assert_array(_findings("res://scenes/x.gd", [line, ""], [])) \
 			.override_failure_message("not caught: %s" % line).is_not_empty()
+	var fine := [
+		"var s := get_world_3d().direct_space_state",
+		"var s := node.find_world_3d().direct_space_state",
+		"var s := view.world_3d.direct_space_state",
+	]
+	for line: String in fine:
+		assert_array(_findings("res://scenes/x.gd", [line], [])) \
+			.override_failure_message("flagged: %s" % line).is_empty()
 	var bare := ["var hit := state.intersect_ray(query)", "var f := s.get_rest_info(q)"]
 	for line: String in bare:
 		assert_array(_findings("res://scenes/x.gd", [line], [])).is_not_empty()
 		assert_array(_findings("res://scenes/x.gd", ["var s: TwinSpace", line], [])).is_empty()
 
 
-## What is not code is not scanned: a comment, a `#` inside a string, a word in a string.
-func test_a_comment_and_a_string_are_not_code() -> void:
+## A comment is not scanned, a string is (a class or a signal can be named by one): a `#` inside a
+## string does not start a comment.
+func test_a_comment_is_not_code_and_a_string_is() -> void:
 	assert_str(_code_of("var x := 1  # test_move(a)")).is_equal("var x := 1  ")
-	assert_str(_code_of("var g := \"#fff\" + test_move(a)")).is_equal("var g :=  + test_move(a)")
-	assert_str(_code_of("var g := \"a # test_move(b)\"")).is_equal("var g := ")
-	assert_str(_code_of("var g := '\"#' + \"x\" # c")).is_equal("var g :=  +  ")
+	assert_str(_code_of("var g := \"#fff\" + test_move(a)")) \
+		.is_equal("var g := \"#fff\" + test_move(a)")
+	assert_str(_code_of("var g := \"a # test_move(b)\"")).is_equal("var g := \"a # test_move(b)\"")
+	assert_str(_code_of("var g := '\"#' + \"x\" # c")).is_equal("var g := '\"#' + \"x\" ")
+	assert_str(_code_of("var a := \"\\\"#\" # c")).is_equal("var a := \"\\\"#\" ")
 
 
 ## The findings in `lines` of the script `path`: each as `path:line: what`. `allowed` is the calls
@@ -138,6 +163,7 @@ func _findings(path: String, lines: Array, allowed: Array = []) -> Array[String]
 	var found: Array[String] = []
 	var skip: Array = ALLOWED.get(path, allowed)
 	var code := "\n".join(lines)
+	var world_3d_state := RegEx.create_from_string(WORLD_3D)
 	var reads_3d := false
 	for spelling: String in SPACE_3D:
 		reads_3d = reads_3d or code.contains(spelling)
@@ -146,11 +172,8 @@ func _findings(path: String, lines: Array, allowed: Array = []) -> Array[String]
 		for banned: String in FORBIDDEN:
 			if line.contains(banned) and banned not in skip:
 				found.append("%s:%d: %s" % [path, i + 1, banned])
-		if line.contains(".direct_space_state"):
-			var on_3d := false
-			for world: String in WORLD_3D:
-				on_3d = on_3d or line.contains(world)
-			if not on_3d:
+		if line.contains("direct_space_state"):
+			if line.contains("world_2d") or world_3d_state.search(line) == null:
 				found.append("%s:%d: a direct_space_state not of a 3D world" % [path, i + 1])
 		if not reads_3d:
 			for state_call: String in STATE_CALLS:
@@ -159,7 +182,7 @@ func _findings(path: String, lines: Array, allowed: Array = []) -> Array[String]
 	return found
 
 
-## The code of each line of the script `path` (comments and strings blanked).
+## The code of each line of the script `path` (comments cut off, strings kept).
 func _code_lines(path: String) -> Array:
 	var out: Array = []
 	for line in FileAccess.get_file_as_string(path).split("\n"):
@@ -178,8 +201,9 @@ func _scripts(dir: String) -> Array[String]:
 	return out
 
 
-## `line` without its comment and the text of its strings (a `#` inside a string does not start a
-## comment, a quote inside the other kind of quote does not close it).
+## `line` without its comment (a `#` inside a string does not start one, a quote inside the other
+## kind of quote does not close the string). The strings stay: a class, a signal or a property can
+## be named by one (`ClassDB.instantiate("Area2D")`, `connect("body_entered", f)`).
 func _code_of(line: String) -> String:
 	var out := ""
 	var quote := ""
@@ -188,14 +212,15 @@ func _code_of(line: String) -> String:
 		var c := line[i]
 		if quote != "":
 			if c == "\\":
+				out += c
 				i += 1
+				c = line[i] if i < line.length() else ""
 			elif c == quote:
 				quote = ""
 		elif c == "\"" or c == "'":
 			quote = c
 		elif c == "#":
 			break
-		else:
-			out += c
+		out += c
 		i += 1
 	return out
