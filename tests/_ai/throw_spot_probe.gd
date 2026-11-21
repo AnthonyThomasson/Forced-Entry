@@ -50,7 +50,7 @@ static func from_of(z: Dictionary) -> Vector2:
 ## piece) stands on the straight line from `a` to `b` at that height in the twin space; characters
 ## are looked past (the world's twins alone).
 static func lob_clear(t: TestContext, a: Vector2, b: Vector2) -> bool:
-	return TwinProbe.level(t, a, b, LOB_CLEARANCE, PhysicsLayers.TWIN_WORLD).is_empty()
+	return TwinProbe.level(t, a, b, LOB_CLEARANCE, PhysicsLayers.TWIN_SURFACES).is_empty()
 
 
 ## The spec's lob from the hand (G17): a grenade leaves `thrower`, standing at `at` and facing `to`,

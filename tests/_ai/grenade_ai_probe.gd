@@ -133,7 +133,7 @@ static func shielded(
 		var query := PhysicsRayQueryParameters3D.create(
 			from,
 			PlanSpace.lift(where, point),
-			PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE,
+			PhysicsLayers.TWIN_SURFACES,
 		)
 		if space.intersect_ray(query).is_empty():
 			return false

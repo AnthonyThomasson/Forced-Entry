@@ -8,8 +8,8 @@ extends RefCounted
 
 ## The height (px) of a floor line: under every piece's top, over the floor.
 const FLOOR_LINE := 4.0
-## The layers of a line over the solids of the world.
-const SOLIDS := PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE
+## The layers of a line over the solids of the world and what lies flat.
+const SOLIDS := PhysicsLayers.TWIN_SURFACES
 ## The layers with the living added.
 const WITH_BODIES := PhysicsLayers.TWIN_ALL
 
