@@ -226,15 +226,19 @@ static func fell_into_the_way(
 		var thing := _way(t, i, what)
 		var moved := thing.global_position.distance_to(before[i])
 		if what == &"puppet":
-			await _check_puppet(t, leaf, thing, label)
+			await _check_puppet(t, leaf, thing, label, blow_along(intos, i, from_open))
 		else:
 			_check_desk(t, leaf, thing, moved, label)
 
 
-## The leaf at rest with a character in its way: it does not rest in them, it lies down and leaves
-## the doorway clear (there is no piece for it to lean on: a character is no wall), and in the 2 s
+## The leaf at rest with a character in its way: it does not rest in them, it lies down flat (top
+## within `DoorFallConfig.step_over`) and leaves the doorway clear, far side of the wall line: a
+## character that stops the carry is shoved and the leaf sent on, so it is let go clear of its
+## frame, not held in it (there is no piece for it to lean on: a character is no wall). In the 2 s
 ## after it is asleep it moves the character no further (`NO_CREEP`) and stays asleep.
-static func _check_puppet(t: TestContext, leaf: Node2D, puppet: Node2D, label: String) -> void:
+static func _check_puppet(
+	t: TestContext, leaf: Node2D, puppet: Node2D, label: String, along: Vector2
+) -> void:
 	var deep := depth_in_characters(leaf)
 	t.check(
 		deep <= DEEPEST,
@@ -244,6 +248,18 @@ static func _check_puppet(t: TestContext, leaf: Node2D, puppet: Node2D, label: S
 		leaf.gap() >= FREE_GAP - 1.0,
 		"%s: the leaf lies clear of the doorway (gap %.0f of %.0f, lean %.0f, top %.0f)"
 			% [label, leaf.gap(), FREE_GAP, Probe.lean(leaf), Probe.top(leaf)],
+	)
+	var top := Probe.top(leaf)
+	t.check(
+		top <= DoorFallConfig.step_over,
+		"%s: the leaf ends flat on the floor (top %.1f of %.0f px)"
+			% [label, top, DoorFallConfig.step_over],
+	)
+	var lies := Probe.middle(leaf).y * along.y
+	t.check(
+		lies >= FAR,
+		"%s: the carry let the leaf go clear of its frame (%.0f px past the wall line, wanted %.0f)"
+			% [label, lies, FAR],
 	)
 	var spot := puppet.global_position
 	await t.seconds(AT_REST_FOR)
