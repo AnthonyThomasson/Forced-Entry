@@ -24,9 +24,9 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 		"plate":
 			_plate(c, base)
 		"cup":
-			_cup(c, base)
+			_cup(c, base, opts.get("plain", false))
 		"bowl":
-			_bowl(c, base)
+			_bowl(c, base, opts.get("plain", false))
 		"book":
 			_book(c, base)
 		"desk_lamp":
@@ -62,7 +62,13 @@ static func _plate(c: PixelCanvas, base: Color) -> void:
 
 
 ## A cup: the body, a dark well and a nub for the handle.
-static func _cup(c: PixelCanvas, base: Color) -> void:
+static func _cup(c: PixelCanvas, base: Color, plain: bool) -> void:
+	if plain:  # The old mug: a ceramic round full to the rim with its coffee, a handle nub.
+		var mug := _middle(c)
+		Kit.disc(c, mug, _round(c), base, 5)
+		Kit.disc(c, mug, maxi(1, _round(c) - 1), ObjectArtDecorConfig.prop_colors["coffee"], 5)
+		Kit.disc(c, mug + Vector2i(_round(c) + 1, 0), 1, base.darkened(0.15), 5)
+		return
 	var at := _middle(c) - Vector2i(1, 0)
 	var radius := maxi(1, _round(c) - 1)
 	Kit.disc(c, Vector2i(at.x + radius, at.y), 1, base.darkened(0.25), 5)
@@ -71,8 +77,13 @@ static func _cup(c: PixelCanvas, base: Color) -> void:
 
 
 ## A bowl: the rim and a dark well.
-static func _bowl(c: PixelCanvas, base: Color) -> void:
+static func _bowl(c: PixelCanvas, base: Color, plain: bool) -> void:
 	var at := _middle(c)
+	if plain:  # The old bowl: a ceramic round, its outline darker, a slightly darker inside.
+		Kit.disc(c, at, _round(c), base.darkened(0.35), 4)
+		Kit.disc(c, at, maxi(1, _round(c) - 1), base, 4)
+		Kit.disc(c, at, maxi(1, _round(c) - 2), base.darkened(0.12), 4)
+		return
 	Kit.disc(c, at, _round(c), base.darkened(0.15), 4)
 	Kit.disc(c, at, maxi(1, _round(c) - 1), base, 4)
 	Kit.disc(c, at, maxi(1, _round(c) - 3), base.darkened(0.4), 4)

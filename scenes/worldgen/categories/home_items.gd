@@ -1,5 +1,5 @@
 class_name HomeItemsCatalog
-## World Generation domain: the small items the home's tops used to paint (`docs/stacked-items.md`
+## World Generation domain: the small items the home's tops carry (`docs/stacked-items.md`
 ## SI13, #194 D21 unbake): a keyboard, papers, a clock, a vase, a fruit bowl, a cutting board, a
 ## tool roll and a vise, beside the monitor, mug (`cup`), book and bowl of `ItemsCatalog`. A desk,
 ## a nightstand, a counter and the rest hold them in their own `carries` rows (`RoomItems.carry`),

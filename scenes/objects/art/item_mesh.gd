@@ -115,9 +115,9 @@ static func _mesh(spec: FurnitureSpec) -> Mesh:
 
 ## A cup: the body, its coffee and the handle nub on its right.
 static func _cup(kit: MeshKit, spec: FurnitureSpec, radius: float, high: float) -> void:
-	kit.cylinder(Vector3(-0.5, 0.0, 0.0), radius - 0.5, high, spec.color)
+	kit.cylinder(Vector3.ZERO, radius - 0.5, high, spec.color)
 	kit.cylinder(
-		Vector3(-0.5, high, 0.0), radius - 1.5, 0.1, ObjectArtDecorConfig.prop_colors["coffee"]
+		Vector3(0.0, high, 0.0), radius - 1.5, 0.1, ObjectArtDecorConfig.prop_colors["coffee"]
 	)
 	var nub := Rect2(radius - 1.0, -0.5, 1.5, 1.0)
 	kit.box(MeshKit.volume(nub, high * 0.3, high * 0.4), spec.color.darkened(0.2))

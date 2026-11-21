@@ -96,8 +96,9 @@ their own RNG stream, after the furniture.
 `RoomItems` (World-Gen, `scenes/worldgen/room_items.gd`) places items in every room of a house and of a district tower, after the
 room's furniture, clutter and neon, from an RNG of its own, `hash([run seed, room key, "items"])`: no seed's furniture, doors,
 clutter, neon or wear moves, and nothing is added to `RoomSite.solids`. What goes on a piece is catalogue data (`ItemsCatalog`):
-`TOPS` by the piece's key (tableware on dining tables, kitchen counters and islands; books, lamps and monitors on desks,
-consoles and night stands; boxes on workbenches and filing cabinets), else `TOPS_BY_ART` by its painter (the
+`TOPS` by the piece's key (today a plate, cup, bowl, book or lamp on a table, a dining table and a coffee table, a box or a book on a
+filing cabinet, and a bare top for a mirror, a sink and a laundry sink; a piece that carries its own items, SI13 and SI14, has no row),
+else `TOPS_BY_ART` by its painter (the
 general rule: any table, counter or cabinet takes a small piece; a shelf carries its own, `PieceCarries`), and an empty row keeps a top bare (a basin, a mirror, a
 shoe rack). About half the tops carry items (`WorldGenItemConfig.top_chance`, 0.5): 1 to `top_max` (3) items (a plate or a book may
 be stacked on one more now and then, `stack_chance`), each inside the top's main flat part (`ObjectFactory.flat_top`: the footprint
@@ -188,11 +189,11 @@ hysteresis tests (`vehicle/car_tips_a_bookshelf_but_slides_a_sofa`, `objects/tip
 the real bookshelf, `worldgen/old_looks_keep_their_items` (stockrooms, kitchenettes, shelves), and the settle and fit tests
 (`worldgen/items_settle_in_*`, `items_fit_what_they_stand_on`) over the carried items.
 
-## SI14. Unbake: the home tops carry their old props as items (job `unbake-a`; D21)
+## SI14. Unbake: the home tops carry their props as items (job `unbake-a`; D21)
 
-A piece used to paint small props on its top (a desk's monitor, keyboard, mug and papers) that showed in 3D only as a flat texture. The
-unbake rule of SI13 holds: a loose thing a piece's look builds in is a separate item. For the home tops each painted prop is now an item, set
-where it was drawn, so the old look is kept and each moves alone (SI3). `art_opts.props` is gone from the catalogue; a piece's row holds
+A piece's top shows small props (a desk's monitor, keyboard, mug and papers). Painted into the piece they would show in 3D only as a flat
+texture, so each is a free item (`props.gd` keeps the painter these are measured against). The unbake rule of SI13 holds: a loose thing a piece's look builds in is a separate item. For the home tops each painted prop is now an item, set
+at the point the prop's drawing had, so the look is kept and each moves alone (SI3). The catalogue has no `art_opts.props`; a piece's row holds
 `carries` rows in the one schema of SI13 (`PieceCarries`: `{ key, at, ... }`, `at` in px from the piece's centre in the painter's frame, the
 front toward +y; the points are those the old painter drew, the prop's unit point through the painter's rect inset 3 px). The home rows say
 **`on_top: true`** and no `lift` or `size`: the item rests on the piece's top where it is (`ObjectFactory.top_at` reads the part under the
@@ -218,7 +219,7 @@ them); the monitor is 24 x 8 as its prop was. All of them, the vase too, lie wit
 higher than", and the vase's 10 is at the line), so a walker steps over one on the floor (SI4); thin paper (a 1 px penetration) stops no round.
 They place only on the piece's footprint, so a sampled house has them asleep within two seconds (`worldgen/items_settle_in_houses`).
 **The old look is kept**: a home item paints in the prop palette (`ObjectArtDecorConfig.prop_colors`) at the prop's size, not in the catalogue
-colour's run-down grade (it read darker: a carrying `on_top` row sets `art_opts.plain`, so the mesh uses the item's own colour), and the monitor's lit
+colour's run-down grade (a carrying `on_top` row sets `art_opts.plain`: the mesh and the flat art, and the district's warm of it, use the item's own colour; the bowl and the mug paint as the props did, a fruit bowl and a vase stand a flat-topped fruit and flower on each spot the painter draws one, so the lit top reads as the painted one: `art/home_items_lit_windowed`), and the monitor's lit
 front edge is drawn `glowing` in `Decay.screen_color` (the screen's green, or the neon) and is an emissive glow node of its mesh (`ItemMesh._monitor_glow`:
 a strip on the screen's top and a panel on its front, in the room's light too: a painted edge went dull under it; `objects/monitor_edge_glows_in_a_lit_room_windowed`).
 The reused kinds take the prop's size, orientation and palette colour from the `carries` row that sets them (a book 12 x 9 lying landscape in a
@@ -226,7 +227,7 @@ book colour, a mug and a bowl ceramic, the bowl 12 round; `objects/home_items_ke
 tools and the vise are slim and small as drawn (a hammer, a wrench and a screwdriver apart; a stand with its jaw and screw).
 
 **The desk's light** is the monitor item's: `ObjectArt.light_kind("item", { kind: "monitor" })` is the `monitor` row of
-`ObjectArtLightConfig.specs` (it was the `desk` row of a table that painted a monitor), so a desk gives no screen light, the monitor does. The row's
+`ObjectArtLightConfig.specs` (the `desk` row of a table paints no monitor), so a desk gives no screen light, the monitor does. The row's
 `lift` (8) is over the item's own base (`rides`: `WorldLighting3D` hangs it over the item's twin and re-hangs it when the base moves), so the
 glow is 8 px over a desk's top, and a monitor shoved off its desk takes its glow with it and down to the floor, to where it lands
 (interface 20; `lighting/knocked_monitor_takes_its_glow`). Its pool stands `ahead` 22 px past the item's front edge: where the desk's old
@@ -243,3 +244,8 @@ Tests: `objects/emptied_desk_carries_its_items` (four items, each asleep on the 
 `worldgen/old_looks_keep_their_items` (the one test of SI13 and SI14: also each home top paints no props and carries exactly its rows at the drawn points),
 `lighting/knocked_monitor_takes_its_glow` (the light follows the item down; its mutant 'the light stays' is red), `objects/desk_keeps_its_neon_trim`, `objects/home_items_keep_the_old_look` (size, palette and the glowing edge against `props.gd`), `objects/piece_heights` (the new kinds' tops), `worldgen/items_settle_in_houses`,
 `_in_district_11`, `_in_district_16` and `worldgen/items_fit_what_they_stand_on` (they read every `Items` node, carried ones included).
+
+**Why a floor stack moved in a seeded house (`ambush_posts_capture_house`).** `RoomItems.place` draws a room's floor stacks from the same
+RNG as its tops. A piece that carries (SI13, SI14) takes no top roll, so the draws after it shift and the garage's floor stacks re-roll: the
+stack that stood beside the post at (-662, -718) is gone. That is a correct consequence of the carrying pieces, not a regression of the
+workbench's tools or the vise. A mesh lit on a top is judged against the old prop by `art/home_items_lit_windowed` (windowed).

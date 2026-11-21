@@ -78,7 +78,7 @@ static func flat(art: String, size: Vector2, color: Color, opts: Dictionary = {}
 	if not PAINTERS.has(art):
 		push_error("ObjectArt: unknown art '%s'" % art)
 		return null
-	return PixelArt.render_flat(PAINTERS[art], size, _color(art, color), _art_opts(art, opts))
+	return PixelArt.render_flat(PAINTERS[art], size, _color(art, color, opts), _art_opts(art, opts))
 
 
 ## The flat albedo of a decal whose art faces `facing` (a cardinal direction) over a footprint of
@@ -92,7 +92,7 @@ static func flat_facing(art: String, size: Vector2, color: Color, facing: Vector
 	return PixelArt.render_flat(
 		PAINTERS[art],
 		size,
-		_color(art, color),
+		_color(art, color, opts),
 		_art_opts(art, opts),
 		facing,
 	)
@@ -137,7 +137,7 @@ static func flat_request(
 	return {
 		"painter": PAINTERS[art],
 		"size": size,
-		"color": _color(art, color),
+		"color": _color(art, color, opts),
 		"opts": _art_opts(art, opts),
 		"flat": true,
 	}
@@ -222,9 +222,11 @@ static func neon_for(art: String, opts: Dictionary, piece_seed: int) -> String:
 	return "cyan" if int(roll / 1000.0) % 2 == 0 else "magenta"
 
 
-## The colour `art`'s painter is handed for `color`: graded, unless it takes its colours as given.
-static func _color(art: String, color: Color) -> Color:
-	return color if AS_GIVEN.has(art) else Decay.grade(color)
+## The colour `art`'s painter is handed for `color`: graded, unless it takes its colours as given
+## (an item with `opts.plain` is drawn in its own colour, as the prop it carries was).
+static func _color(art: String, color: Color, opts: Dictionary) -> Color:
+	var plain := art == "item" and bool(opts.get("plain", false))
+	return color if plain or AS_GIVEN.has(art) else Decay.grade(color)
 
 
 ## `opts` with its surface finish `material` among them, as `flat` takes it.
@@ -238,6 +240,8 @@ static func _art_opts(art: String, opts: Dictionary) -> Dictionary:
 	var rest := opts
 	if art == "item":  # An item's flat art is painted by its kind alone (its mesh reads the rest).
 		rest = { "kind": opts.get("kind", "box") }
+		if opts.get("plain", false):
+			rest["plain"] = true
 	elif opts.has("material"):
 		rest = opts.duplicate()
 		rest.erase("material")

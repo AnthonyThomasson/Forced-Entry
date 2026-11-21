@@ -45,10 +45,10 @@ static func place(site: RoomSite) -> Array:
 
 
 ## The items an emptied piece carries (`PieceCarries`: a shelf's books, a crate stack's crates, a
-## pallet's wrapped boxes, a hotplate's plate and pan; decision D21) set where it used to draw them:
-## `base` (a furniture node) from its catalogue `definition`, each under `parent`, as
-## `[{ room, key, node, on, carried }]` like `place`'s (`carried` true: an emptied piece's own).
-## Nothing for a piece that carries nothing.
+## pallet's wrapped boxes, a hotplate's plate and pan; decision D21) set at the points its
+## `carries` rows name: `base` (a furniture node) from its catalogue `definition`, each under
+## `parent`, as `[{ room, key, node, on, carried }]` like `place`'s (`carried` true: an emptied
+## piece's own). Nothing for a piece that carries nothing.
 static func carry(base: Node2D, definition: Dictionary, parent: Node, room: String) -> Array:
 	var out: Array = []
 	if base == null or not PieceCarries.carries(definition):

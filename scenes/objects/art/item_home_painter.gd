@@ -1,15 +1,18 @@
 extends RefCounted
 ## Top-down pixel-art painter of the home's small items (`item_painter.gd` hands a kind it does not
-## know here; `docs/stacked-items.md` SI13), the proportions the home tops used to paint
-## (`props.gd`): `keyboard` (a pale slab dotted with keys), `papers` (two sheets, the top one
-## lined), `clock` (a face with two hands), `vase` (a glazed round with flowers), `fruit_bowl` (a
-## rim ring and four fruits), `cutting_board` (grained wood and a knife), `tools` (a hammer, a
-## wrench and a screwdriver) and `vise` (jaws and a screw handle).
+## know here; `docs/stacked-items.md` SI13), the proportions of the props in `props.gd`:
+## `keyboard` (a pale slab dotted with keys), `papers` (two sheets, the top one lined), `clock` (a
+## face with two hands), `vase` (a glazed round with flowers), `fruit_bowl` (a rim ring and four
+## fruits), `cutting_board` (grained wood and a knife), `tools` (a hammer, a wrench and a
+## screwdriver) and `vise` (jaws and a screw handle).
 ## Canonical frame: the front toward +y. The colours are the old props' (the prop palette,
-## `ObjectArtDecorConfig.prop_colors`), not the catalogue colour's run-down grade (`base`), which
-## would read darker than the drawing it replaced.
+## `ObjectArtDecorConfig.prop_colors`), not the catalogue colour's run-down grade (`base`).
 
 const Kit = preload("res://scenes/objects/art/paint_kit.gd")
+## Where the fruits lie from the bowl's middle, px: the old prop's four.
+const FRUIT_AT: Array[Vector2i] = [
+	Vector2i(-2, -1), Vector2i(2, -2), Vector2i(1, 2), Vector2i(-2, 2),
+]
 
 
 ## Paint `kind` onto `c` in `base`; false when it is none of the home's.
@@ -100,17 +103,19 @@ static func _vase(c: PixelCanvas, base: Color) -> void:
 		Kit.disc(c, bloom, 1, flowers[k % flowers.size()], 12)
 
 
-## A fruit bowl: a rim, a well and four fruits.
+## A fruit bowl as the prop was drawn: a ceramic round with its outline and a slightly darker
+## inside, four fruits (the mesh stands a fruit on each, `FRUIT_AT`) each with a pale glint.
 static func _fruit_bowl(c: PixelCanvas, base: Color) -> void:
 	var at := _middle(c)
 	var radius := maxi(1, mini(c.w, c.h) >> 1)
 	Kit.disc(c, at, radius, base.darkened(0.35), 4)
 	Kit.disc(c, at, maxi(1, radius - 1), base, 4)
+	Kit.disc(c, at, maxi(1, radius - 2), base.darkened(0.12), 4)
 	var fruit: Array = ObjectArtDecorConfig.prop_colors["fruit"]
-	for k in 4:
-		var turn := TAU * float(k) / 4.0
-		var p := at + Vector2i((Vector2(cos(turn), sin(turn)) * float(radius) * 0.5).round())
+	for k in FRUIT_AT.size():
+		var p := at + FRUIT_AT[k]
 		Kit.disc(c, p, 2, fruit[k % fruit.size()], 6)
+		c.px(p.x - 1, p.y - 1, (fruit[k % fruit.size()] as Color).lightened(0.35), 6)
 
 
 ## A cutting board: grained wood, a knife along it.

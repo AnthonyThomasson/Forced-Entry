@@ -6,6 +6,7 @@ extends RefCounted
 ## together) and a bench vise (a jaw block with its screw). Each at the footprint and the painter's
 ## proportions of `item_home_painter.gd`, standing on its own origin (y 0).
 
+const ItemHomePainter = preload("res://scenes/objects/art/item_home_painter.gd")
 const KINDS := [
 	"keyboard", "papers", "clock", "vase", "fruit_bowl", "cutting_board", "tools", "vise",
 ]
@@ -82,33 +83,31 @@ static func _clock(kit: MeshKit, spec: FurnitureSpec, radius: float, high: float
 	kit.cylinder(Vector3(0.0, high, 0.0), radius * 0.75, 0.1, Color(0.575, 0.533, 0.456))
 
 
-## A vase: a round body, a neck and a few flowers over it.
+## A vase: a round body and a few flowers standing over its top at the spots the painter draws
+## them, so the lit top reads as the painted bunch.
 static func _vase(kit: MeshKit, spec: FurnitureSpec, radius: float, high: float) -> void:
-	kit.cylinder(Vector3.ZERO, radius * 0.75, high * 0.55, spec.color)
-	kit.cylinder(
-		Vector3(0.0, high * 0.55, 0.0),
-		radius * 0.4,
-		high * 0.2,
-		spec.color.darkened(0.15),
-	)
+	kit.cylinder(Vector3.ZERO, radius * 0.8, high * 0.85, spec.color)
 	var flowers: Array = ObjectArtDecorConfig.prop_colors["flowers"]
-	for k in 3:
-		var turn := TAU * float(k) / 3.0
-		var bloom := radius * 0.3
-		var at := Vector3(cos(turn) * radius * 0.4, high - bloom, sin(turn) * radius * 0.4)
-		kit.sphere(at, bloom, flowers[k % flowers.size()])
+	for k in 6:
+		var turn := TAU * float(k) / 6.0 + 0.5
+		var at := (Vector2(cos(turn), sin(turn)) * 2.0).round()
+		kit.cylinder(
+			Vector3(at.x, high * 0.85, at.y), 2.4, high * 0.15, flowers[k % flowers.size()]
+		)
 
 
-## A bowl heaped with fruit.
+## A bowl heaped with fruit: a footed round of ceramic and a flat-topped fruit standing at each
+## spot the painter draws one (`ItemHomePainter.FRUIT_AT`), so the lit top reads as the painted
+## fruit: bright and as big as the old prop's.
 static func _fruit_bowl(kit: MeshKit, spec: FurnitureSpec, radius: float, high: float) -> void:
 	kit.cylinder(Vector3.ZERO, radius * 0.5, high * 0.3, spec.color)
-	kit.cylinder(Vector3(0.0, high * 0.3, 0.0), radius, high * 0.4, spec.color)
+	kit.cylinder(Vector3(0.0, high * 0.3, 0.0), radius, high * 0.55, spec.color)
 	var fruit: Array = ObjectArtDecorConfig.prop_colors["fruit"]
-	for k in 4:
-		var turn := TAU * float(k) / 4.0
-		var round_fruit := radius * 0.32
-		var at := Vector3(cos(turn) * radius * 0.45, high - round_fruit, sin(turn) * radius * 0.45)
-		kit.sphere(at, round_fruit, fruit[k % fruit.size()])
+	for k in ItemHomePainter.FRUIT_AT.size():
+		var at: Vector2i = ItemHomePainter.FRUIT_AT[k]
+		kit.cylinder(
+			Vector3(at.x, high * 0.85, at.y), 2.0, high * 0.15, fruit[k % fruit.size()]
+		)
 
 
 ## The tools: a hammer, a wrench and a screwdriver laid apart, each slim, as the old prop drew
