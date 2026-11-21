@@ -17,9 +17,10 @@ const NODE_BAND := [170, 300]
 # (~100 ms) that a run after other tests also reads for the first. The time budgets below are from
 # the earlier, slower baseline and stay as headroom; the node band is about +-35%. 2026-11-20,
 # #194 del2d-c5d: 2834 nodes now that no body, shape or layer node stands in a district (every
-# sim root is a plain Node2D plan handle), band 1850 to 3850. 2026-11-21, #194 stack-b: 2974 nodes
-# with the small items on the tops and floors (an item is a plan handle, 56 in the match district;
-# +140 over del2d-c5d's 2834), the band re-centred on it (+-35%): 1950 to 4000. A house reads 225.
+# sim root is a plain Node2D plan handle), band 1850 to 3850. 2026-11-21, #194 stack-b: 2949 nodes
+# for this seed (424242) with the small items on the tops and floors (each item is one plan handle;
+# a room that gets none has no `<Room> Items` node either): +115 over del2d-c5d's 2834, the band
+# re-centred on it (+-35%): 1920 to 3980. A house reads 225.
 # 2026-11-06, #192: the headless cold build runs without the art pre-warm (tests skip it), so the
 # pre-warm does not move this number. Quiet machine, load 2.6 to 2.8, no other Godot, the test
 # alone, twice: cold 1870 and 1873 ms, steady 152 and 153 ms (the whole perf domain: 157 and
@@ -27,7 +28,7 @@ const NODE_BAND := [170, 300]
 # 4.0x the cold build and 600 ms 3.9x the steady one, so neither is set again.
 const DISTRICT_BUDGET_MS := 7500.0
 const DISTRICT_WARM_BUDGET_MS := 600.0
-const DISTRICT_NODE_BAND := [1950, 4000]
+const DISTRICT_NODE_BAND := [1920, 3980]
 
 
 func describe() -> Dictionary:

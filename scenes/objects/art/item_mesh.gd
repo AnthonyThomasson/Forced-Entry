@@ -1,10 +1,10 @@
 extends RefCounted
 ## Objects domain, the 3D mesh of the small items (the pattern is `table_mesh.gd`,
-## `domain-art/meshes.md`; #194 stack-a, D20): at the piece's own footprint and `item_painter.gd`'s
-## proportions, by `kind`: a plate, a cup with a handle, a bowl (a rim ring round a dark well), a
-## book with its spine and page edge, a desk lamp (a base and a tin shade), a monitor (a screen on a
-## stand), a box with a tape strip, a crate with slats. Every item stands on its own origin (y 0),
-## so the free body that carries it puts it on the floor or on a top.
+## `domain-art/meshes.md`; `docs/stacked-items.md`): at the piece's own footprint and
+## `item_painter.gd`'s proportions, by `kind`: a plate, a cup with a handle, a bowl (a rim ring
+## round a dark well), a book with its spine and page edge, a desk lamp (a base and a tin shade), a
+## monitor (a screen on a stand), a box with a tape strip, a crate with slats. Every item stands on
+## its own origin (y 0), so the free body that carries it puts it on the floor or on a top.
 
 const OPTIONS := ["kind", "height"]
 

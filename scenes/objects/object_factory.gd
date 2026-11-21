@@ -77,8 +77,8 @@ static func spawn(
 
 
 ## Build a small item from `definition` and set it down on the top of `base` (another piece: a
-## table, a shelf, a box), at `offset` px from `base`'s origin in its frame, under `parent` (#194
-## stack-a, D20, `docs/stacked-items.md`). The item's free body starts at that top's height
+## table, a shelf, a box), at `offset` px from `base`'s origin in its frame, under `parent`
+## (`docs/stacked-items.md`). The item's free body starts at that top's height
 ## (`top_at`) and settles asleep on it; it is its own body from then on (a shove, a round, a blast
 ## or a tipping base moves it alone). `opts` as `spawn`'s. Another item set on the same spot goes on
 ## top of the first (a stack).
@@ -100,6 +100,38 @@ static func spawn_on(
 	if base_rest is PieceRest:
 		(base_rest as PieceRest).stacked.append(item)
 	return item
+
+
+## Where a small item may lie on `base` (a furniture node, the plan handle of a piece): the rect of
+## its main flat top (the widest part: a counter's slab, the footprint but for a lip) and the rects
+## of the parts that stand higher than it (a counter's backsplash), each as `{ top, raised }` in
+## the space `base.position` is in. An item set against a lip leans on it, so World-Gen keeps its
+## footprint inside `top` and off `raised`.
+static func flat_top(base: Node2D) -> Dictionary:
+	var spec := FurnitureSpec.of(base)
+	var parts := PieceHeights.parts(spec)
+	var main: Dictionary = {}
+	var widest := -1.0
+	for part: Dictionary in parts:
+		var area := (part["rect"] as Rect2).get_area()
+		if area > widest:
+			widest = area
+			main = part
+	var raised: Array[Rect2] = []
+	for part: Dictionary in parts:
+		if part["top"] > main["top"] + 0.5:
+			raised.append(_plan_rect(base, spec, part["rect"]))
+	return { "top": _plan_rect(base, spec, main["rect"]), "raised": raised }
+
+
+## The share `unit` of `spec`'s footprint (the painter's frame: back-left corner at (0, 0), the
+## front toward +y) as a rect in `base`'s parent space, turned the way the piece faces.
+static func _plan_rect(base: Node2D, spec: FurnitureSpec, unit: Rect2) -> Rect2:
+	var size := unit.size * spec.size
+	var from_centre := unit.position * spec.size + size * 0.5 - spec.size * 0.5
+	var turned := from_centre.rotated(spec.turns * PI * 0.5)
+	var plan := Vector2(size.y, size.x) if spec.turns % 2 == 1 else size
+	return Rect2(base.position + turned - plan * 0.5, plan)
 
 
 ## The height (px above the floor) of the highest top at plan point `point` over `base`: read from

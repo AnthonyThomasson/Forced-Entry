@@ -1,12 +1,12 @@
 extends GameTest
 ## D20 / SI9 (#194 stack-b): placing small items on tops and floors never moves what was there. A
-## seeded house's furniture, clutter and neon (position and size, the doors' set) and a district's
-## whole tree (but the items' own nodes) are identical with the items on and off, because the items
-## draw from an RNG stream of their own and run after the furniture.
+## seeded house's and a district's whole tree (the furniture, clutter, neon, walls, floors and
+## doors, but the items' own nodes) and the doors' openings, materials and styles are identical with
+## the items on and off, because the items draw from an RNG stream of their own and run after the
+## furniture.
 
 const Houses := preload("res://tests/_worldgen/door_house_probe.gd")
 const District := preload("res://tests/_worldgen/district_probe.gd")
-const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 ## Floorplans checked, each over `SEEDS`.
 const PLANS := ["starter_home", "open_plan_home", "garage_home", "office_loft"]
 const SEEDS := [1, 7, 23]
@@ -40,13 +40,11 @@ func _house(t: TestContext, where: String, plan_key: String, house_seed: int) ->
 	var without := Houses.generated(t, plan_key, house_seed)
 	WorldGenItemConfig.enabled = true
 	t.check(RoomItems.placed_in(without).is_empty(), "%s: no items with them off" % where)
-	var bare := _signature(without)
-	t.check(not bare.is_empty(), "%s: the house has furniture" % where)
-	t.expect_eq(_signature(with), bare, "%s: the same furniture with items on and off" % where)
-	t.expect_eq(
-		WorldGen.get_doors(with).size(), WorldGen.get_doors(without).size(),
-		"%s: the same doors" % where,
-	)
+	var kept := _without_items(District.digest(with))
+	var bare := _without_items(District.digest(without))
+	t.check(bare.size() > 20, "%s: the house has a tree (%d nodes)" % [where, bare.size()])
+	t.expect_eq(District.first_difference(kept, bare), "", "%s: the same tree, items apart" % where)
+	t.expect_eq(_doors(with), _doors(without), "%s: the same doors, each as it was" % where)
 	with.queue_free()
 	without.queue_free()
 	await t.frames(1)
@@ -82,14 +80,11 @@ func _without_items(lines: PackedStringArray) -> PackedStringArray:
 	return kept
 
 
-## What a house placed that is no item: `x,y WxH` of every piece (items left out), sorted.
-func _signature(house: Node2D) -> Array:
+## What the doors of `house` are: each opening's place, its door's material and style, sorted.
+func _doors(house: Node2D) -> Array:
 	var out: Array = []
-	for node in PlanProbe.pieces_under(house):
-		if not "size" in node or String(node.get_parent().name).ends_with(" Items"):
-			continue
-		var at: Vector2 = node.global_position - house.global_position
-		var size: Vector2 = node.size
-		out.append("%d,%d %dx%d" % [roundi(at.x), roundi(at.y), roundi(size.x), roundi(size.y)])
+	for door: Dictionary in WorldGen.get_doors(house):
+		var opening: Dictionary = door["opening"]
+		out.append("%s %s %s" % [opening["pos"], door["material"], door["style"]])
 	out.sort()
 	return out

@@ -1,5 +1,5 @@
 extends RefCounted
-## Top-down pixel-art painter of the small items (Objects domain, private; #194 stack-a, D20):
+## Top-down pixel-art painter of the small items (Objects domain, private; `docs/stacked-items.md`):
 ## `kind` in the options.
 ##   `plate`: a round plate with a rim ring;
 ##   `cup`: a round cup, its handle a nub on the right;

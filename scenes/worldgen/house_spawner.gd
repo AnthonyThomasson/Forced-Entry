@@ -114,10 +114,9 @@ static func _mirrored(plan: Dictionary, rng: RandomNumberGenerator) -> Dictionar
 
 
 ## Every room of `plan` built under `house` (`_build_room`), then their wear: `{ clutter, items,
-## wear, lobbies }`, the clutter as `[{ room, key, node }]`, the items as `[{ room, key, node, on
-## }]`
-## (`RoomItems`), the wear as `[{ room, pos, layer }]` and the
-## elevator lobbies' stencils as `[{ room, rect, node, text }]`.
+## wear, lobbies }`, the clutter as `[{ room, key, node }]`, the items as
+## `[{ room, key, node, on }]` (`RoomItems`), the wear as `[{ room, pos, layer }]` and the elevator
+## lobbies' stencils as `[{ room, rect, node, text }]`.
 static func _build_rooms(
 	plan: Dictionary,
 	rooms: Array,
@@ -201,6 +200,10 @@ static func _build_room(
 				"node": piece["node"],
 			})
 		placed["items"].append_array(RoomItems.place(site))
+	if site.items.get_child_count() == 0:  # a room with no item has no node for them
+		house.remove_child(site.items)
+		site.items.free()
+		site.items = null
 	# The floor runs to the wall centerlines, so the walls cover the seams between rooms.
 	var floor_def: Dictionary = GeneralCatalog.FLOORS.get(palette.get("floor", ""), {})
 	if not floor_def.is_empty():

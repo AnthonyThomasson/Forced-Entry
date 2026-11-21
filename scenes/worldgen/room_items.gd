@@ -1,17 +1,24 @@
 class_name RoomItems
-## World Generation domain: places a room's small items (#194 stack-b, D20, `docs/stacked-items.md`
-## SI9): a few on a flat top (tableware on tables and counters, books, lamps and monitors on desks
+## World Generation domain: places a room's small items (`docs/stacked-items.md` SI9): a few on a
+## flat top (tableware on tables and counters, books, lamps and monitors on desks
 ## and shelves) and, in a storage room, garage or office, boxes and crates stacked two or three
 ## high on the floor. What goes where is data (`ItemsCatalog.TOPS`, `TOPS_BY_ART`, `FLOOR`), how
 ## many and how likely is `WorldGenItemConfig`. Each is built through `ObjectFactory.spawn_on` (a
 ## free body resting on its base, `docs/stacked-items.md` SI2).
 ## Every room draws from an RNG of its own, `hash([run seed, room key, "items"])`, and runs after
-## the
-## furniture, the clutter and the neon: the items never shift a seed's layout, doors or dressing.
-## Nothing here is added to `RoomSite.solids`, so the wear goes where it went.
+## the furniture, the clutter and the neon: the items never shift a seed's layout, doors or
+## dressing. Nothing here is added to `RoomSite.solids`, so the wear goes where it went.
+## An item goes only where its whole footprint fits: on a flat top (not against a backsplash), on
+## a piece of a stack at least as big as it (a crate on a crate, a box on a box or a crate, never a
+## crate on a box), a hair off centre by no more than the margin that leaves (`_jitter`): an item
+## that overhangs what it stands on topples at the start.
 
 ## How far (px) an item's edge stays from a painted prop's centre.
 const PROP_CLEAR := 4.0
+## The most (px) an item set on another of its kind on a top, and one in a floor stack, is put off
+## the centre of what it stands on (cut to what the footprints leave).
+const JITTER_TOP := 1.0
+const JITTER_STACK := 1.5
 
 
 ## The items a generated `house` placed as `[{ room, key, node, on }]`: `room` the room's key, `key`
@@ -46,9 +53,11 @@ static func _on_top(site: RoomSite, piece: Dictionary, rng: RandomNumberGenerato
 	var options := ItemsCatalog.options_for(piece["key"], piece["definition"])
 	if options.is_empty() or base == null or rng.randf() >= WorldGenItemConfig.top_chance:
 		return []
+	var flat := ObjectFactory.flat_top(base)
 	var top := {
 		"base": base,
-		"rect": Rect2(base.position - base.size * 0.5, base.size).grow(-WorldGenItemConfig.edge),
+		"rect": (flat["top"] as Rect2).grow(-WorldGenItemConfig.edge),
+		"raised": flat["raised"],
 		"props": _prop_points(base),
 		"laid": [] as Array[Rect2],
 	}
@@ -78,7 +87,7 @@ static func _one_on(
 	var opts := { "rotated": rotated, "facing": facing, "name": key }
 	var out: Array = [_set_on(site, top["base"], definition, at, opts)]
 	if key in ItemsCatalog.STACKS_ON_TOPS and rng.randf() < WorldGenItemConfig.stack_chance:
-		var jitter := Vector2(rng.randf_range(-1.0, 1.0), rng.randf_range(-1.0, 1.0))
+		var jitter := _jitter(rng, JITTER_TOP, foot, foot)
 		out.append(_set_on(site, top["base"], definition, at + jitter, opts))
 	return out
 
@@ -111,8 +120,8 @@ static func _facing_of(base: Node2D, key: String, rng: RandomNumberGenerator) ->
 	return face if face is Vector2 else Vector2.DOWN
 
 
-## A point for a footprint `foot` inside `top`'s rect, off what it has `laid` and its `props`;
-## (INF, INF) when no try fits.
+## A point for a footprint `foot` inside `top`'s rect, off what it has `laid`, its `raised` parts
+## and its `props`; (INF, INF) when no try fits.
 static func _spot_on(top: Dictionary, foot: Vector2, rng: RandomNumberGenerator) -> Vector2:
 	var area: Rect2 = top["rect"]
 	var span := area.size - foot
@@ -126,12 +135,16 @@ static func _spot_on(top: Dictionary, foot: Vector2, rng: RandomNumberGenerator)
 	return Vector2.INF
 
 
-## Whether `rect` is on an item already `laid` on `top` (`WorldGenItemConfig.spacing` apart) or on a
-## prop the painter draws there.
+## Whether `rect` is on an item already `laid` on `top` (`WorldGenItemConfig.spacing` apart), on a
+## part that stands higher than the top (a counter's backsplash: an item set against it leans) or on
+## a prop the painter draws there.
 static func _crowded(top: Dictionary, rect: Rect2) -> bool:
 	var spacing := WorldGenItemConfig.spacing
 	for other: Rect2 in top["laid"]:
 		if other.grow(spacing).intersects(rect):
+			return true
+	for lip: Rect2 in top["raised"]:
+		if lip.grow(spacing).intersects(rect):
 			return true
 	for point: Vector2 in top["props"]:
 		if rect.grow(PROP_CLEAR).has_point(point):
@@ -176,23 +189,56 @@ static func _floor_stacks(site: RoomSite, rng: RandomNumberGenerator) -> Array:
 		if bottom.is_empty():
 			continue
 		out.append(bottom)
-		var high: Vector2i = rule["high"]
-		for _n in rng.randi_range(high.x, high.y) - 1:
-			out.append(_stack_on(site, bottom, WeightedPick.pick(rng, rule["top"]), rng))
+		out.append_array(_on_stack(site, bottom, rule, rng))
 	return out
 
 
-## One more item `key` on the floor stack whose bottom is `bottom`, a hair off its centre.
-static func _stack_on(
+## What goes on the floor stack whose bottom is `bottom`, 1 or 2 more (`rule.high`), each of a kind
+## of `rule.top` that fits inside the one under it (none when no kind does), a hair off centre.
+static func _on_stack(
 	site: RoomSite,
 	bottom: Dictionary,
-	key: String,
+	rule: Dictionary,
 	rng: RandomNumberGenerator,
-) -> Dictionary:
-	var jitter := Vector2(rng.randf_range(-1.5, 1.5), rng.randf_range(-1.5, 1.5))
+) -> Array:
+	var high: Vector2i = rule["high"]
+	var under := _size_of(bottom["key"])
+	var off := Vector2.ZERO
+	var out: Array = []
+	for _n in rng.randi_range(high.x, high.y) - 1:
+		var options := ItemsCatalog.fitting(rule["top"], under)
+		if options.is_empty():
+			break
+		var key: String = WeightedPick.pick(rng, options)
+		off += _jitter(rng, JITTER_STACK, _size_of(key), under)
+		out.append(_stack_on(site, bottom, key, off))
+		under = _size_of(key)
+	return out
+
+
+## One more item `key` on the floor stack whose bottom is `bottom`, `off` (px) from its centre.
+static func _stack_on(site: RoomSite, bottom: Dictionary, key: String, off: Vector2) -> Dictionary:
 	var base: Node2D = bottom["node"]
 	var opts := { "rotated": false, "facing": Vector2.DOWN, "name": key }
-	return _set_on(site, base, ObjectDefinitions.get_definition(key), base.position + jitter, opts)
+	return _set_on(site, base, ObjectDefinitions.get_definition(key), base.position + off, opts)
+
+
+## The footprint (px) of catalogue piece `key`.
+static func _size_of(key: String) -> Vector2:
+	return ObjectDefinitions.get_definition(key)["size"]
+
+
+## A random offset of an item of footprint `own` on one of footprint `under`: at most `limit` px
+## along an axis and at most what keeps `own` inside `under` (nothing for two of one size), so the
+## item never overhangs what it stands on.
+static func _jitter(
+	rng: RandomNumberGenerator,
+	limit: float,
+	own: Vector2,
+	under: Vector2,
+) -> Vector2:
+	var room := ((under - own) * 0.5).max(Vector2.ZERO).min(Vector2(limit, limit))
+	return Vector2(rng.randf_range(-1.0, 1.0) * room.x, rng.randf_range(-1.0, 1.0) * room.y)
 
 
 ## The bottom of a floor stack of catalogue piece `key` on the floor, by a wall or in a corner,

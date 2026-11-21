@@ -99,18 +99,27 @@ clutter, neon or wear moves, and nothing is added to `RoomSite.solids`. What goe
 `TOPS` by the piece's key (tableware on dining tables, kitchen counters and islands; books, lamps and monitors on desks, shelves,
 consoles and night stands; boxes on workbenches, garage shelving, filing cabinets), else `TOPS_BY_ART` by its painter (the
 general rule: any table, counter, shelf or cabinet takes a small piece), and an empty row keeps a top bare (a basin, a mirror, a
-shoe rack). About half the tops carry items (`WorldGenItemConfig.top_chance`, 0.5): 1 to `top_max` (3), kept inside the top and
-off the props its painter draws, a plate or a book now and then stacked on one already there (`stack_chance`); a monitor faces
-as its desk does. `ItemsCatalog.FLOOR` gives a stockroom, a garage, a home office and a laundry room floor stacks of 2 to 3 boxes
-and crates (a crate or a box at the bottom, boxes on it) by a wall or in a corner, `floor_clear` (22 px) from furniture, doorway
-boxes and each other, so a walker keeps a lane. The items sit under a `<Room> Items` node beside the room's furniture node;
+shoe rack). About half the tops carry items (`WorldGenItemConfig.top_chance`, 0.5): 1 to `top_max` (3) items (a plate or a book may
+be stacked on one more now and then, `stack_chance`), each inside the top's main flat part (`ObjectFactory.flat_top`: the footprint
+but for a part that rises over it, a counter's backsplash, which an item keeps off: set against it, it would lean) and off the props
+its painter draws; a monitor faces as its desk does. `ItemsCatalog.FLOOR` gives a stockroom, a garage, a home office and a laundry
+room floor stacks of 2 to 3 boxes and crates by a wall or in a corner, `floor_clear` (22 px) from furniture, doorway boxes and each
+other, so a walker keeps a lane. **An item goes only where its footprint fits**: on a stack, one at least as big as the one under it
+(a crate on a crate, a box on a box or a crate, never a crate on a box: it would overhang and topple), put off its centre by at most
+the margin the two footprints leave (`ItemsCatalog.fitting`, `RoomItems._jitter`: nothing for two of a size), so a placed item
+settles where it was set. The items sit under a `<Room> Items` node beside the room's furniture node;
 `RoomItems.placed_in(house)` reads `[{ room, key, node, on }]`. The test switch `worldgen.items` (`WorldGenItemConfig.enabled`)
 builds a house bare. Tests keep items **on** unless a premise needs a bare top: `house_turns` (about fifty houses in one frame
 pass the twin space's cap of 10240 bodies), `furniture_holes_cache_matches_recut` (a moved table spills its items, each a cut)
 and the two `bake_matches_recorded_colliders` (their figures are of the bare world the 2D colliders baked).
 
-Tests: `worldgen/stacking_keeps_the_layout` (a seeded house's and a district's furniture and tree the same with items on and
-off), `worldgen/tops_get_a_few_items` (about half the tops, 1 to 3, inside the top, the same seed the same items).
+A room that gets no item has no `<Room> Items` node.
+
+Tests: `worldgen/stacking_keeps_the_layout` (a seeded house's and a district's whole tree, the doors' openings, materials and styles
+the same with items on and off), `worldgen/tops_get_a_few_items` (about half the tops, 1 to 3, inside the top, the same seed the
+same items), `worldgen/items_fit_what_they_stand_on` (inside the footprint under, off a backsplash), `worldgen/items_settle_in_district_11`,
+`_in_district_16`, `_in_houses` (after 2 s every item is asleep within 3 px and 8 degrees of where it was set; a three-high stack
+takes over 1 s to sleep).
 
 ## SI10. The AI's cover is the stack's height
 
@@ -131,7 +140,8 @@ Tests: `vehicle/car_drives_over_plates_and_shoves_a_stack`.
 
 ## SI12. Cost: the fights moved, perf3d re-picks
 
-Items add bodies (the match district of seed 2: 785 twin bodies, 729 before, 56 of them items; Jolt's cap is 10240, which fifty
-houses built in one frame pass) and change the four match guards' fights (a round meets a plate or a box stack): `perf_probe.gd`
+Items add bodies (the match district of seed 2: 785 twin bodies, 729 before, 56 of them items; Jolt's cap is 10240 bodies, and a build
+that nears it aborts the engine, it does not degrade: `worldgen/house_turns`, about fifty houses in one frame, shows it, so it
+builds them bare) and change the four match guards' fights (a round meets a plate or a box stack): `perf_probe.gd`
 records the A/B numbers. No budget is loosened; `perf3d` re-picks the 10v10 guards' fight over at least 24 seeds on a quiet machine
 and the `match_npc_vision` premise.

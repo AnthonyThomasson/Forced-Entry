@@ -135,7 +135,7 @@ _Avoid_: flat item, small item (as a rule)
 
 **Top** (of a piece):
 A flat surface a small item can rest on: a table, desk, counter, shelf or cabinet (`ItemsCatalog.TOPS` by key, `TOPS_BY_ART` by painter; an
-empty row, a basin or a mirror is no top). `RoomItems` sets 1 to 3 items on about half of them and stacks boxes and crates 2 to 3 high
+empty row, a basin or a mirror is no top). `RoomItems` sets 1 to 3 items on about half of them (a plate or book may be stacked on one) and stacks boxes and crates 2 to 3 high
 on a storage room's floor, from an RNG stream of its own after the furniture. `docs/stacked-items.md` SI9.
 _Avoid_: surface (a `SoundSurface` is a floor's sound)
 

@@ -18,6 +18,7 @@
 	 `piece.look.overhang`, with `overhang_rect() -> Rect2` its area in the piece's frame (empty for none), which the 3D mesh and the street
 	 lamp's light read; with `fade_under: true` the 3D render fades it while a character stands under it: the door awning and glyph sign).
    - `ObjectFactory.spawn_on(definition: Dictionary, base: Node2D, offset: Vector2, parent: Node, opts) -> Node` — a small item (`ItemsCatalog`) set on `base`'s top, `offset` px from its origin; its body starts at `ObjectFactory.top_at(base, point) -> float` (px above the floor: a ray down against the twin space, so an item already there raises it) and settles asleep (`docs/stacked-items.md`).
+   - `ObjectFactory.flat_top(base: Node2D) -> Dictionary` — `{ top: Rect2, raised: Array[Rect2] }` in `base`'s parent space: the rect of `base`'s main flat top (the widest part) and the rects of the parts that rise over it (a counter's backsplash); an item set against one leans on it, so World-Gen keeps an item's footprint inside `top` and off `raised`.
    - `WallFactory.spawn(rect: Rect2, walls: RoomWalls, name, parent) -> Node` — `RoomWalls` (`objects/room_walls.gd`): `thickness`,
 	 `openings`, `seams` (the stretches another room's wall already stands on, `{ side, from, to }`), `style` (the cap's look: `art`, `color`,
 	 `art_opts`; empty = a flat gray line). A wall two rooms share is built once: the room built first owns it, and the other's `Wall` keeps the

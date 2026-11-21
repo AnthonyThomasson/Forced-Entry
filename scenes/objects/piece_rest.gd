@@ -1,6 +1,6 @@
 class_name PieceRest
 extends RefCounted
-## Objects domain, where a piece rests (#194 stack-a, D20, `docs/stacked-items.md`): how high it
+## Objects domain, where a piece rests (`docs/stacked-items.md`): how high it
 ## was put down (`ObjectFactory.spawn_on`) and whether it lies within a step. Held by
 ## `EnvironmentObject.rest`; its free body (`PieceBody`, `ItemBody`) reads and writes it.
 

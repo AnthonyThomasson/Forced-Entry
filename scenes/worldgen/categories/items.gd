@@ -1,5 +1,5 @@
 class_name ItemsCatalog
-## World Generation domain: the small items (#194 stack-a, D20, `docs/stacked-items.md`): tableware,
+## World Generation domain: the small items (`docs/stacked-items.md`): tableware,
 ## books, a desk lamp, a monitor, boxes and crates. Each is a free piece (Objects' `item` painter
 ## and mesh): it rests on the floor or on a flat top of another piece (`ObjectFactory.spawn_on`,
 ## interface 2), settles asleep and moves alone. `RoomItems` places them in a house and a district
@@ -168,3 +168,14 @@ static func options_for(key: String, definition: Dictionary) -> Array:
 	if opts is Dictionary and (opts as Dictionary).has("basin"):
 		return []
 	return TOPS_BY_ART.get(definition.get("art", ""), [])
+
+
+## The `[key, weight]` pairs of `options` whose footprint fits inside one of size `under` (px): an
+## item goes only on one at least as big as it, so a crate stands on a crate, a box on a box or a
+## crate, and never a crate on a box (it would overhang and topple).
+static func fitting(options: Array, under: Vector2) -> Array:
+	return options.filter(
+		func(option: Array) -> bool:
+			var size: Vector2 = OBJECTS[option[0]]["size"]
+			return size.x <= under.x and size.y <= under.y
+	)
