@@ -53,7 +53,7 @@ static func _radius(spec: FurnitureSpec) -> float:
 static func _mesh(spec: FurnitureSpec) -> Mesh:
 	var kit := spec.kit()
 	var high := height_of(spec)
-	var radius := minf(spec.size.x, spec.size.y) * 0.5
+	var radius := _radius(spec)
 	var foot := spec.within(Rect2(Vector2.ZERO, spec.size))
 	match _kind(spec):
 		"plate":
