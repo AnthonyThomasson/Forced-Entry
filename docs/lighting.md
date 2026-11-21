@@ -53,7 +53,7 @@ street warm and bright, the house the art times the ambient, the wall's shadow d
 **L2-3D. A light per light-giving piece.** Every light a piece declares (`get_lights()`: `offset`, `colour`, `energy`,
 `radius`, `rhythm`, `room_light`, `street`, `height`) becomes an `OmniLight3D` at the piece's place, in its colour at its
 energy, hung where the glowing part of the piece is: the declaration's `lift` (px above the floor, `ObjectArtLightConfig.specs`, one row per kind:
-a lamp's bulb at its shade 50, a TV's face 16, a desk monitor's and a monitor wall's 39, a rack's LEDs 72, a rig's and a surgical lamp's 70,
+a lamp's bulb at its shade 50, a TV's face 16, a monitor item's 8 over its own base (a desk's top or the floor: it rides the item, `rides`) and a monitor wall's 39, a rack's LEDs 72, a rig's and a surgical lamp's 70,
 a tool cart's 34, a scanner's 60, a fridge's glass 42, a menu board's 63, a hotplate's 15, a neon tube's 3, a neon trim's 14, a street
 lamp's head and a sign at the top of its pole 124), else its kind's `height` (`overhead_height` 60, `street_height` 70, `low_height` 22),
 over the declared place on the floor (the piece's own centre, a lamp's and a street lamp's included: it stands on its pole), and

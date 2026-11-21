@@ -5,8 +5,9 @@ extends GameTest
 
 const Probe := preload("res://tests/_lighting/lighting_3d_probe.gd")
 const AT := Vector2(400, 250)
-## How far (px) the light may stand from its monitor: the screen's front, a step out.
-const NEAR := 16.0
+## How far (px) the light may stand from its monitor: its pool's centre, `ahead` (22) past the
+## screen's front edge and half the item's depth (4) from its middle, and a little over.
+const NEAR := 30.0
 
 
 func describe() -> Dictionary:
@@ -43,15 +44,40 @@ func run(t: TestContext) -> void:
 	if not t.require(own.size() == 1, "the monitor gives one light (%d)" % own.size()):
 		return
 	_check_at(t, own[0], monitor, "on the desk")
+	var up := _height_of(own[0])
+	var top := PieceHeights.top_of_spec(FurnitureSpec.of(desk))
+	t.check(up > top, "on the desk the light hangs over its top (%.1f over %.1f)" % [up, top])
 	var start := monitor.global_position
-	Knockback.push(monitor, Vector2(0.0, 1200.0), Vector2.ZERO, 20.0)
+	Knockback.push(monitor, Vector2(0.0, 2000.0), Vector2.ZERO, 20.0)
 	await t.seconds(1.5)
 	var moved := monitor.global_position.distance_to(start)
-	t.check(moved > 20.0, "the monitor was knocked off its place (%.0f px)" % moved)
+	t.check(moved > 2.0 * NEAR, "the monitor was knocked well off its place (%.0f px)" % moved)
 	_check_at(t, own[0], monitor, "where it landed")
+	var down := _height_of(own[0])
+	t.check(
+		down < ObjectMeshItemConfig.monitor_height,
+		"on the floor the light hangs within the monitor's own height (%.1f px)" % down,
+	)
+	t.check(down < up - 10.0, "the glow came down with it (%.1f px, %.1f on the desk)" % [down, up])
 
 
 ## `light` stands within `NEAR` px of `monitor`, and its own piece is still the monitor.
 func _check_at(t: TestContext, light: OmniLight3D, monitor: Node2D, when: String) -> void:
 	var off := Probe.ground_of(light).distance_to(monitor.global_position)
 	t.check(off <= NEAR, "the monitor's light is at its screen %s (%.1f px)" % [when, off])
+	var twin := TwinSpace.twin_for(monitor)
+	if t.require(twin != null, "the monitor has a twin %s" % when):
+		var lift := float(ObjectArtLightConfig.specs["monitor"]["lift"])
+		t.expect_near(
+			_height_of(light), twin.global_position.y / RenderConfig.unit + lift, 1.0,
+			"the light hangs its lift over the monitor's base %s" % when,
+		)
+		t.expect_near(
+			Probe.floor_reach(light), 105.0 * Lighting3DConfig.range_scale, 0.5,
+			"its pool still reaches its radius on the floor %s" % when,
+		)
+
+
+## How high (px) `light` hangs over the floor.
+func _height_of(light: OmniLight3D) -> float:
+	return light.position.y / RenderConfig.unit

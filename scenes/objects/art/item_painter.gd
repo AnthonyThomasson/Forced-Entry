@@ -6,7 +6,8 @@ extends RefCounted
 ##   `bowl`: a round bowl, a dark well inside its rim;
 ##   `book`: a cover with a spine along the left and the page edge on the right;
 ##   `desk_lamp`: a round shade with a bright bulb at its middle;
-##   `monitor`: a screen seen from above, its dark back and a stand's foot;
+##   `monitor`: a screen seen from above, its dark back with the lit front edge (glowing, in the
+##     screen's green or the piece's neon) and a stand's foot, in the old prop's palette;
 ##   `box`: a cardboard box with tape across its lid;
 ##   `crate`: a wooden crate with a slat each way.
 ## Canonical frame: the front toward +y; the catalogue colour is the item's own.
@@ -14,6 +15,7 @@ extends RefCounted
 const Kit = preload("res://scenes/objects/art/paint_kit.gd")
 const ItemStockPainter = preload("res://scenes/objects/art/item_stock_painter.gd")
 const ItemHomePainter = preload("res://scenes/objects/art/item_home_painter.gd")
+const Decay = preload("res://scenes/objects/art/decay.gd")
 
 
 ## Paint the item `opts.kind` onto `c` in `base`.
@@ -30,7 +32,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 		"desk_lamp":
 			_desk_lamp(c, base)
 		"monitor":
-			_monitor(c, base)
+			_monitor(c, opts)
 		"crate":
 			_crate(c, base)
 		var other:
@@ -93,11 +95,20 @@ static func _desk_lamp(c: PixelCanvas, base: Color) -> void:
 	Kit.disc(c, at, 1, Color(1.0, 0.95, 0.7), 14)
 
 
-## A monitor from above: the back, the top edge and a stand.
-static func _monitor(c: PixelCanvas, base: Color) -> void:
-	Kit.fill_rect(c, Rect2i(0, 0, c.w, c.h), base, 14)
-	Kit.fill_rect(c, Rect2i(1, 1, c.w - 2, 2), base.lightened(0.18), 14)
-	Kit.fill_rect(c, Rect2i((c.w >> 1) - 2, c.h - 3, 4, 2), base.darkened(0.3), 14)
+## A monitor from above, as the old prop was drawn (`props.gd`): the screen's dark back, its lit
+## front edge (glowing, the screen's green or `opts`'s neon), a neck and the stand's foot. Its
+## colours are the prop palette's, not the catalogue colour's run-down grade.
+static func _monitor(c: PixelCanvas, opts: Dictionary) -> void:
+	var case: Color = ObjectArtDecorConfig.prop_colors["plastic_dark"]
+	var metal: Color = ObjectArtDecorConfig.prop_colors["metal"]
+	var foot := Rect2i(c.w >> 1 - 5, 3, 10, c.h - 3)
+	Kit.fill_rect(c, foot.grow_individual(0, -1, 0, 0), metal.darkened(0.25), 8)
+	Kit.fill_rect(c, Rect2i(c.w >> 1 - 1, 2, 3, 3), metal.darkened(0.4), 14)
+	Kit.fill_rect(c, Rect2i(0, 0, c.w, 3), case, 14)
+	Kit.fill_rect(c, Rect2i(0, 0, c.w, 1), case.lightened(0.18), 14)
+	var lit := Decay.screen_color(opts)
+	var bar := func() -> void: Kit.fill_rect(c, Rect2i(1, 2, c.w - 2, 1), lit, 14)
+	c.glowing(bar, Rect2i(0, 2, c.w, 1))
 
 
 ## A cardboard box with a tape strip down its lid.

@@ -324,6 +324,8 @@ func _piece_light(piece: Node2D, index: int, spec: Dictionary) -> void:
 	var lit := Lit.new()
 	lit.piece = piece
 	lit.offset = spec.get("offset", Vector2.ZERO)
+	if spec.get("rides", false):
+		lit.rise = 0.0
 	lit.radius = radius * Lighting3DConfig.range_scale
 	lit.light = _omni(
 		spec.get("colour", Color.WHITE),
@@ -428,6 +430,9 @@ static func _omni(
 	l.light_specular = ToonLight.specular(slope, 0, room_code, height * unit, rim * unit)
 	l.shadow_enabled = false
 	l.set_meta(&"height", height * RenderConfig.unit)
+	l.set_meta(&"declared", height * RenderConfig.unit)
+	l.set_meta(&"slope", slope)
+	l.set_meta(&"room_code", room_code)
 	l.set_meta(&"room", room_code >> 1)
 	l.set_meta(&"shadowable", false)
 	return l
@@ -649,6 +654,9 @@ class Lit:
 	var bulb: MeshInstance3D
 	## Its piece is freed: the light goes with it.
 	var gone := false
+	## NaN for a light whose `lift` is over the floor; for one over its piece's own base (a free
+	## item's: a monitor) the height (3D units) of that base it was placed at.
+	var rise := NAN
 	var _xf := Transform2D()
 
 	## Where the light is in the 2D world (px).
@@ -663,9 +671,32 @@ class Lit:
 	func place() -> void:
 		var at := world_point()
 		var unit := RenderConfig.unit
-		light.position = Vector3(at.x * unit, float(light.get_meta(&"height")), at.y * unit)
+		var hung := float(light.get_meta(&"declared"))
+		if not is_nan(rise):
+			rise = _base_rise()
+			hung += rise
+			_reshape(hung)
+		light.position = Vector3(at.x * unit, hung, at.y * unit)
 		if fixed == null and is_instance_valid(piece):
 			_xf = (piece as Node2D).global_transform
+
+	## Reach the pool's rim from `hung` (3D units up) as it did from the declared height: the range
+	## and the pool's shaping (`_omni`) follow the height the light now hangs at.
+	func _reshape(hung: float) -> void:
+		light.set_meta(&"height", hung)
+		var rim := radius * RenderConfig.unit
+		light.omni_range = Vector2(rim, hung).length()
+		light.light_specular = ToonLight.specular(
+			float(light.get_meta(&"slope")), 0, int(light.get_meta(&"room_code")), hung, rim
+		)
+
+	## How high (3D units) the piece's own base is over the floor now: where its twin stands (0 with
+	## no twin).
+	func _base_rise() -> float:
+		if not is_instance_valid(piece):
+			return 0.0
+		var twin := TwinSpace.twin_for(piece as Object)
+		return twin.global_position.y if twin != null else 0.0
 
 	## Follow the piece when it moved (a shove), and go when it is freed.
 	func follow() -> void:
@@ -674,5 +705,5 @@ class Lit:
 		if not is_instance_valid(piece):
 			gone = true
 			return
-		if (piece as Node2D).global_transform != _xf:
+		if (piece as Node2D).global_transform != _xf or (not is_nan(rise) and _base_rise() != rise):
 			place()

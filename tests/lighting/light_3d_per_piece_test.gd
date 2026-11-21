@@ -70,6 +70,8 @@ func _check_piece(t: TestContext, piece: Node2D, own: Array) -> void:
 		) else spec.get("height", &"low")
 		var lift := float(spec.get("lift", 0.0))
 		var hung := lift if lift > 0.0 else Lighting3DConfig.height_of(kind)
+		if spec.get("rides", false):
+			hung += TwinSpace.twin_for(piece).global_position.y / RenderConfig.unit
 		t.expect_near(
 			l.position.y, hung * RenderConfig.unit, 0.01,
 			"%s hangs at its declared height (a %s light, lift %.0f)" % [l.name, kind, lift],

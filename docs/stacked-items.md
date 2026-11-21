@@ -213,19 +213,28 @@ item's own size. `RoomItems.carry` (one, SI13's) sets them all; a piece that car
 
 The new kinds are `HomeItemsCatalog` rows (art id `item`: `item_home_painter.gd`, `item_home_mesh.gd`, heights in `ObjectMeshHomeItemConfig`):
 keyboard (18 x 6, 1.5 high, plastic), papers (11 x 14, 0.6, paper), clock (8 round, 4), vase (8 round, 10, ceramic), fruit bowl (12 round, 6),
-cutting board (16 x 11, 1.5, wood), tools (16 x 14, 2.5, metal) and vise (10 x 8, 8, metal). All but the vase lie within a step, so a walker steps
-over one on the floor (SI4); thin paper (a 1 px penetration) stops no round. They place only on the piece's footprint, so a sampled house has them
-asleep within two seconds (`worldgen/items_settle_in_houses`).
+cutting board (16 x 11, 1.5, wood), tools (16 x 14, 2.5, metal) and vise (10 x 12, 8, metal, weight 10: a cast-iron bench vise, the heaviest of
+them); the monitor is 24 x 8 as its prop was. All of them, the vase too, lie within a step (`DoorFallConfig.step_over` 10 px; the rule is "no
+higher than", and the vase's 10 is at the line), so a walker steps over one on the floor (SI4); thin paper (a 1 px penetration) stops no round.
+They place only on the piece's footprint, so a sampled house has them asleep within two seconds (`worldgen/items_settle_in_houses`).
+**The old look is kept**: a home item paints in the prop palette (`ObjectArtDecorConfig.prop_colors`) at the prop's size, not in the catalogue
+colour's run-down grade (it read darker), and the monitor's lit front edge is drawn `glowing` in `Decay.screen_color` (the screen's green, or
+the neon) so its 3D mesh glows, as the prop's was.
 
 **The desk's light** is the monitor item's: `ObjectArt.light_kind("item", { kind: "monitor" })` is the `monitor` row of
-`ObjectArtLightConfig.specs` (it was the `desk` row of a table that painted a monitor), so a desk gives no light, the monitor does, and a
-monitor shoved off its desk takes its glow with it (interface 20; the light keeps its declared height `lift` 39, a monitor on the floor glows
-from there). A monitor takes its neon tint from its own place (`ObjectArt.neon_for`), as the desk did.
+`ObjectArtLightConfig.specs` (it was the `desk` row of a table that painted a monitor), so a desk gives no screen light, the monitor does. The row's
+`lift` (8) is over the item's own base (`rides`: `WorldLighting3D` hangs it over the item's twin and re-hangs it when the base moves), so the
+glow is 8 px over a desk's top, and a monitor shoved off its desk takes its glow with it and down to the floor, to where it lands
+(interface 20; `lighting/knocked_monitor_takes_its_glow`). Its pool stands `ahead` 22 px past the item's front edge: where the desk's old
+row had it (12 px inside the desk's front edge). **The neon** is the desk's: `ObjectArtLightConfig.neon_share["desk"]` (a table's `neon_as`
+option names it; no other table takes one) gives about half the desks a neon strip round the edge and its `trim` light, as before; a monitor
+item takes none of its own (`neon_share` has no `monitor`), so a desk's trim and its screen never disagree. A light is built with the
+world's lighting: an item set on a built world later (a test's `carry`) has none.
 
 A piece set bare (a test's `s.object(&"desk", "desk", ...)`, `worldgen.items` off) carries nothing: the premise of a test built on one is a
 bare desk (the ajar-door tests, the blast and casing tests).
 
 Tests: `objects/emptied_desk_carries_its_items` (four items, each asleep on the top, a shove moves the monitor alone),
 `worldgen/old_looks_keep_their_items` (the one test of SI13 and SI14: also each home top paints no props and carries exactly its rows at the drawn points),
-`lighting/knocked_monitor_takes_its_glow`, `objects/piece_heights` (the new kinds' tops), `worldgen/items_settle_in_houses`,
+`lighting/knocked_monitor_takes_its_glow` (the light follows the item down; its mutant 'the light stays' is red), `objects/desk_keeps_its_neon_trim`, `objects/home_items_keep_the_old_look` (size, palette and the glowing edge against `props.gd`), `objects/piece_heights` (the new kinds' tops), `worldgen/items_settle_in_houses`,
 `_in_district_11`, `_in_district_16` and `worldgen/items_fit_what_they_stand_on` (they read every `Items` node, carried ones included).

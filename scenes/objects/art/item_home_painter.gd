@@ -5,13 +5,16 @@ extends RefCounted
 ## lined), `clock` (a face with two hands), `vase` (a glazed round with flowers), `fruit_bowl` (a
 ## rim ring and four fruits), `cutting_board` (grained wood and a knife), `tools` (a hammer, a
 ## wrench and a screwdriver) and `vise` (jaws and a screw handle).
-## Canonical frame: the front toward +y; the catalogue colour is the item's own.
+## Canonical frame: the front toward +y. The colours are the old props' (the prop palette,
+## `ObjectArtDecorConfig.prop_colors`), not the catalogue colour's run-down grade (`base`), which
+## would read darker than the drawing it replaced.
 
 const Kit = preload("res://scenes/objects/art/paint_kit.gd")
 
 
 ## Paint `kind` onto `c` in `base`; false when it is none of the home's.
-static func paint(c: PixelCanvas, base: Color, kind: String) -> bool:
+static func paint(c: PixelCanvas, _graded: Color, kind: String) -> bool:
+	var base := _tone(kind)
 	match kind:
 		"keyboard":
 			_keyboard(c, base)
@@ -32,6 +35,22 @@ static func paint(c: PixelCanvas, base: Color, kind: String) -> bool:
 		_:
 			return false
 	return true
+
+
+## The colour `kind` was drawn in: its prop's main colour.
+static func _tone(kind: String) -> Color:
+	var palette: Dictionary = ObjectArtDecorConfig.prop_colors
+	var tones := {
+		"keyboard": palette["plastic_light"],
+		"papers": palette["paper"],
+		"clock": palette["plastic_dark"],
+		"vase": palette["glaze"],
+		"fruit_bowl": palette["ceramic"],
+		"cutting_board": palette["wood_light"],
+		"tools": palette["metal"],
+		"vise": (palette["metal"] as Color).darkened(0.35),
+	}
+	return tones.get(kind, Color.MAGENTA)
 
 
 ## The middle of the canvas.
@@ -66,16 +85,19 @@ static func _clock(c: PixelCanvas, base: Color) -> void:
 	c.line(at, at + Vector2i(radius - 2, 0), Color(0.2, 0.2, 0.19), 4)
 
 
-## A vase: the glazed body and flowers over it.
+## A vase as the prop was drawn: the glazed body, leaves round it and flowers over it.
 static func _vase(c: PixelCanvas, base: Color) -> void:
 	var at := _middle(c)
 	var radius := maxi(1, mini(c.w, c.h) >> 1)
 	Kit.disc(c, at, radius - 1, base, 10)
+	var leaf: Color = ObjectArtDecorConfig.prop_colors["leaf"]
 	var flowers: Array = ObjectArtDecorConfig.prop_colors["flowers"]
-	for k in 4:
-		var turn := TAU * float(k) / 4.0
-		var p := at + Vector2i((Vector2(cos(turn), sin(turn)) * float(radius) * 0.5).round())
-		Kit.disc(c, p, 1, flowers[k % flowers.size()], 11)
+	for k in 6:
+		var turn := TAU * float(k) / 6.0
+		var way := Vector2(cos(turn), sin(turn))
+		c.px(at.x + roundi(way.x * 3.5), at.y + roundi(way.y * 3.5), leaf, 11)
+		var bloom := at + Vector2i((Vector2(cos(turn + 0.5), sin(turn + 0.5)) * 2.0).round())
+		Kit.disc(c, bloom, 1, flowers[k % flowers.size()], 12)
 
 
 ## A fruit bowl: a rim, a well and four fruits.
@@ -113,9 +135,10 @@ static func _tools(c: PixelCanvas, base: Color) -> void:
 	Kit.fill_rect(c, Rect2i(4, lane * 2 + 4, c.w - 5, 1), base.lightened(0.1), 2)
 
 
-## A vise: the jaws, a bright line along them and the screw handle.
+## A vise: the jaws in a dark frame, a bright line along them and the screw handle.
 static func _vise(c: PixelCanvas, base: Color) -> void:
-	var body := Rect2i(0, 0, c.w, maxi(2, roundi(c.h * 0.7)))
-	Kit.fill_rect(c, body, base, 8)
+	var body := Rect2i(0, 0, c.w, maxi(3, roundi(c.h * 0.7)))
+	Kit.fill_rect(c, body, base.darkened(0.4), 8)
+	Kit.fill_rect(c, body.grow(-1), base, 8)
 	Kit.fill_rect(c, Rect2i(1, body.size.y >> 1, c.w - 2, 1), base.lightened(0.15), 8)
 	Kit.fill_rect(c, Rect2i(c.w >> 1, body.size.y, 1, c.h - body.size.y), base.lightened(0.3), 8)

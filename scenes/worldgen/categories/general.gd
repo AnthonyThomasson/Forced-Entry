@@ -205,6 +205,7 @@ const OBJECTS := {
 		"color": Color(0.4, 0.25, 0.1),
 		"material": "wood",
 		"art": "table",
+		"art_opts": { "neon_as": "desk" },
 		"carries": [
 			{ "key": "monitor", "at": Vector2(0, -12.3), "on_top": true },
 			{ "key": "keyboard", "at": Vector2(0, 5.3), "on_top": true },

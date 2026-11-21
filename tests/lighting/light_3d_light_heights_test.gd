@@ -96,7 +96,7 @@ func _ranges() -> Dictionary:
 			ObjectMeshDecorConfig.lamp_height,
 		),
 		"tv": Vector2(0.0, ObjectMeshKitchenConfig.appliance_heights["tv"]),
-		"monitor": desk,
+		"monitor": Vector2(0.0, ObjectMeshItemConfig.monitor_height),
 		"monitor_wall": desk,
 		"server_rack": Vector2(tech.rack_height * 0.5, tech.rack_height),
 		"rig": Vector2(recliner, recliner),

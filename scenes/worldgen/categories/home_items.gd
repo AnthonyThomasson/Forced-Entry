@@ -89,12 +89,12 @@ const OBJECTS := {
 	"vise": {
 		"name": "Vise",
 		"shape": "rect",
-		"size": Vector2(10, 8),
+		"size": Vector2(10, 12),
 		"color": Color(0.43, 0.44, 0.47),
 		"material": "metal",
 		"art": "item",
 		"art_opts": { "kind": "vise" },
-		"weight": 6.0,
+		"weight": 10.0,
 		"penetration": 60,
 	},
 }

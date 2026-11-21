@@ -45,6 +45,7 @@ static func of(piece: Node2D) -> Array:
 		"street": false,
 		"height": spec.get("height", &"low"),
 		"lift": float(spec.get("lift", 0.0)),
+		"rides": spec.get("rides", false),
 	}
 	_by_kind(light, kind, piece, ahead, spec)
 	return [light]

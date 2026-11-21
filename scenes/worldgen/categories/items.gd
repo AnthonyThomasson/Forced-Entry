@@ -67,7 +67,7 @@ const OBJECTS := {
 	"monitor": {
 		"name": "Monitor",
 		"shape": "rect",
-		"size": Vector2(18, 8),
+		"size": Vector2(24, 8),
 		"color": Color(0.16, 0.17, 0.19),
 		"material": "electronics",
 		"art": "item",
@@ -164,6 +164,6 @@ static func options_for(key: String, definition: Dictionary) -> Array:
 static func fitting(options: Array, under: Vector2) -> Array:
 	return options.filter(
 		func(option: Array) -> bool:
-			var size: Vector2 = ObjectDefinitions.get_definition(option[0])["size"]
+			var size: Vector2 = OBJECTS[option[0]]["size"]
 			return size.x <= under.x and size.y <= under.y
 	)

@@ -190,27 +190,31 @@ static func light_kind(art: String, opts: Dictionary) -> String:
 ## The neon trims a piece drawn by `art` with `opts` can come in (`neon_for`'s answers): `[""]` for
 ## a piece that never takes one, else with `"cyan"` and `"magenta"` too.
 static func neon_variants(art: String, opts: Dictionary) -> Array:
-	var kind := art
+	var share: float = ObjectArtLightConfig.neon_share.get(_neon_kind(art, opts), 0.0)
+	return ["", "cyan", "magenta"] if share > 0.0 else [""]
+
+
+## The key of `ObjectArtLightConfig.neon_share` a piece drawn by `art` with `opts` takes its neon
+## by: its own `neon_as` option (a desk's: a plain table is no desk), a `BY_KIND` piece's `kind`, a
+## variant piece's `light_kind`, else the painter id.
+static func _neon_kind(art: String, opts: Dictionary) -> String:
+	var named := String(opts.get("neon_as", ""))
 	var own := light_kind(art, opts)
+	if named != "":
+		return named
 	if BY_KIND.has(art):
-		kind = String(opts.get("kind", ""))
-	elif own != "":
-		kind = own
-	return ["", "cyan", "magenta"] if ObjectArtLightConfig.neon_share.get(kind, 0.0) > 0.0 else [""]
+		return String(opts.get("kind", ""))
+	return own if own != "" else art
 
 
 ## The neon a piece drawn by `art` with `opts` takes, picked per piece from `piece_seed`
 ## (deterministic: the same piece in the same house always gets the same): `"cyan"`, `"magenta"`, or
 ## `""` for none. Only the light-giving kinds in ObjectArtLightConfig.neon_share ever do, that share
-## of them: a `BY_KIND` piece by its `kind`, a variant piece by its `light_kind` (a table only with
-## a monitor), any other by its painter id.
+## of them: a `BY_KIND` piece by its `kind`, a variant piece by its `light_kind` (a TV, the
+## tool cart), a piece that names its share (`neon_as`: a desk) by that, any other by its painter
+## id.
 static func neon_for(art: String, opts: Dictionary, piece_seed: int) -> String:
-	var kind := art
-	var own := light_kind(art, opts)
-	if BY_KIND.has(art):
-		kind = String(opts.get("kind", ""))
-	elif own != "":
-		kind = own
+	var kind := _neon_kind(art, opts)
 	var share: float = ObjectArtLightConfig.neon_share.get(kind, 0.0)
 	var roll := absi(hash([kind, piece_seed]))
 	if share <= 0.0 or float(roll % 1000) / 1000.0 >= share:

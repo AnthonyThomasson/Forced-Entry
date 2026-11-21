@@ -102,23 +102,26 @@ const SMOOTH_MAX_MS := 33.4
 ## viewed invader lives) and a 35.8 max, at the tip the invader lives the whole window (the fight
 ## moved) and the window reads avg 18.4 / p95 27.9 / max 34.0 over 16.7 / 20 / 33.4. Not tuned, no
 ## standard loosened: `perf3d` re-picks the seed and the premise.
-## Accepted drift (#194 unbake-a, 2026-11-21; measured at e9156c56 before the unbake-b merge, not
-## again after it: the home tops add 7 bodies to a 691-body district): the painted props of the desk, side table, console,
-## nightstand, dresser, counters, island and workbench are items now (`RoomItems.carry`, SI13), and
-## those tops take no random fill; the district of seed 2 holds 782 bodies (775 at 08f43a10, 63
-## `ItemBody` against 56; seed 35, the most of ten tried, 818 against 817; Jolt's cap is 10240) and
-## every item is asleep within 4 s. Two runs a side at 08f43a10 and e9156c56 (load 4 to 5, not
-## quiet): `match_10v10_stress` max 27.3 and under 33.4 at the base, 39.2 and 39.8 at the tip (avg
-## 13.8 and 14.2, p95 18.6 and 19.0: inside), `match_10v10_opening` max 30.0 and 31.1 against 42.6
-## and 39.8 (it misses its avg and p95 at the base already), `match_npc_vision` red at both (the
-## premise, the viewed invader living). The fight is another one, not a dearer one: the first frame
-## it differs on is 65 (an NPC 1 px off), contact comes at 14.6 s against 6.0 s, 72 decisions asked
-## against 60, and its worst frames hold the same work as the base's (a decision with a grenade
-## build, a shot's sounds). The items' own cost is nil: over a fixed 6 s warm-up and 300 frames in
-## that district (no wait for contact), avg / p95 / max in ms read 14.4 to 15.0 / 19.6 to 20.7 /
-## 23.3 to 31.0 at the base and 10.7 to 11.3 / 12.8 to 13.7 / 15.2 to 22.3 at the tip, with at most
-## 3 rigid bodies awake after it at the base and none at the tip. Not tuned, no budget loosened:
-## perf3d re-picks the 10v10 seeds (at least 24 a side) and the `match_npc_vision` premise.
+## Red at the tip, owned by perf3d (#194 unbake-a, 2026-11-21; measured at e9156c56, before the
+## unbake-b merge: not again after it, the home tops add 7 bodies to a 691-body district;
+## `match_10v10_stress` max 39 against its 33.4 budget, passed at the base; not accepted, not
+## tuned): the painted props of the desk,
+## side table, console, nightstand, dresser, counters, island and workbench are items now
+## (`RoomItems.carry`, SI13), and those tops take no random fill; the district of seed 2 holds 782
+## bodies (775 at 08f43a10, 63 `ItemBody` against 56; seed 35, the most of ten tried, 818 against
+## 817; Jolt's cap is 10240) and every item is asleep within 4 s. Two runs a side at 08f43a10 and
+## e9156c56 (load 4 to 5, not quiet): `match_10v10_stress` max 27.3 and under 33.4 at the base, 39.2
+## and 39.8 at the tip (avg 13.8 and 14.2, p95 18.6 and 19.0: inside), `match_10v10_opening` max
+## 30.0 and 31.1 against 42.6 and 39.8 (it misses its avg and p95 at the base already),
+## `match_npc_vision` red at both (the premise, the viewed invader living). The fight is another
+## one, not a dearer one: the first frame it differs on is 65 (an NPC 1 px off), contact comes at
+## 14.6 s against 6.0 s, 72 decisions asked against 60, and its worst frames hold the same work as
+## the base's (a decision with a grenade build, a shot's sounds). The items' own cost is nil: over a
+## fixed 6 s warm-up and 300 frames in that district (no wait for contact), avg / p95 / max in ms
+## read 14.4 to 15.0 / 19.6 to 20.7 / 23.3 to 31.0 at the base and 10.7 to 11.3 / 12.8 to 13.7 /
+## 15.2 to 22.3 at the tip, with at most 3 rigid bodies awake after it at the base and none at the
+## tip. Not tuned, no budget loosened: perf3d re-picks the 10v10 seeds (at least 24 a side) and the
+## `match_npc_vision` premise.
 const MATCH_SEED := 2
 const MATCH_PLAN := "garage_home"
 ## Test seconds a match guard's warm-up runs before it waits for contact (`warm_until_contact`).

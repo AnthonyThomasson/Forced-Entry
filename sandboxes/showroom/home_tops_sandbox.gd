@@ -7,6 +7,9 @@ extends GameTest
 ## and the keyboard stays; knock a piece over and its items spill. Walk over a keyboard or papers
 ## knocked to the floor: they are stepped over.
 ##
+## The items are carried once the world's lights are built, so the monitor gives none here (a built
+## house carries before its lights: the desk glows in a match).
+##
 ## Nothing is asserted. Temporary showroom: it goes with the ticket's last job.
 
 const ARENA := Rect2(0, 0, 1000, 560)
