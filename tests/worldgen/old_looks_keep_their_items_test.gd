@@ -9,6 +9,9 @@ extends GameTest
 const Houses := preload("res://tests/_worldgen/door_house_probe.gd")
 const PLANS := ["micro_flat", "corner_flat", "starter_home", "garage_home"]
 const SEEDS := [2, 5, 9, 11, 13, 16]
+## The top (px) of a stack's two crates, and how far (px) the third's lift may be off it.
+const CRATE_PAIR_TOP := 40.0
+const LIFT_SLACK := 1.0
 
 
 func describe() -> Dictionary:
@@ -63,13 +66,7 @@ func _check(t: TestContext, where: String, placed: Array, seen: Dictionary) -> v
 		var keys: Array = on[base]
 		match String(base.object_name):
 			"Crates":
-				seen["Crates"] += 1
-				t.check(not base.solid, "%s: a crate stack is no solid piece" % where)
-				t.check(
-					keys.count("crate") == keys.size() and keys.size() in [2, 3],
-					"%s: two or three loose crates (%s)" % [where, keys],
-				)
-				seen["Crates%d" % keys.size()] = seen.get("Crates%d" % keys.size(), 0) + 1
+				_check_crates(t, where, placed, base, seen)
 			"Pallet":
 				seen["Pallet"] += 1
 				t.check(not base.solid, "%s: a pallet place is no solid piece" % where)
@@ -94,3 +91,33 @@ func _check(t: TestContext, where: String, placed: Array, seen: Dictionary) -> v
 				)
 				if base.object_name == "Books":
 					seen["Books"] += 1
+
+
+## The crate stack `base` with the item `keys` placed on it: two or three loose crates, no solid
+## piece, and a third stands on the pair (their top, 40 px up), not through it.
+func _check_crates(
+	t: TestContext,
+	where: String,
+	placed: Array,
+	base: Node2D,
+	seen: Dictionary,
+) -> void:
+	var keys: Array = []
+	var lifts: Array = []
+	for entry: Dictionary in placed:
+		if entry["on"] == base:
+			keys.append(entry["key"])
+			lifts.append((entry["node"].rest as PieceRest).lift)
+	seen["Crates"] += 1
+	t.check(not base.solid, "%s: a crate stack is no solid piece" % where)
+	t.check(
+		keys.count("crate") == keys.size() and keys.size() in [2, 3],
+		"%s: two or three loose crates (%s)" % [where, keys],
+	)
+	seen["Crates%d" % keys.size()] = seen.get("Crates%d" % keys.size(), 0) + 1
+	if keys.size() != 3:
+		return
+	t.check(
+		absf(float(lifts.max()) - CRATE_PAIR_TOP) <= LIFT_SLACK,
+		"%s: the third crate rests on the pair (lifts %s)" % [where, lifts],
+	)
