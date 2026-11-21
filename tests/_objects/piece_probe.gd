@@ -71,3 +71,30 @@ static func ray_level(t: TestContext, from: Vector2, to: Vector2, height: float)
 	if not hit.is_empty():
 		hit["owner"] = TwinSpace.owner_of(hit["collider"])
 	return hit
+
+
+## The plan point inside `rect` (10 px grid, 50 px in from its edges) farthest from every piece of
+## the world but those in `skip`, by the gap from its middle to the piece's bounding circle: a spot
+## a free piece set there touches nothing (a room's middle may hold a bed, and a piece set on one
+## is settled clear of it and leans on it).
+static func clear_spot(t: TestContext, rect: Rect2, skip: Array = []) -> Vector2:
+	var best := rect.get_center()
+	var best_gap := -INF
+	var pieces := t.world.get_tree().get_nodes_in_group(TwinSpace.PIECES)
+	var x := rect.position.x + 50.0
+	while x < rect.end.x - 50.0:
+		var y := rect.position.y + 50.0
+		while y < rect.end.y - 50.0:
+			var gap := INF
+			for piece: Node2D in pieces:
+				if skip.has(piece):
+					continue
+				var size: Vector2 = piece.get(&"size")
+				var reach := maxf(size.x, size.y) * 0.5
+				gap = minf(gap, piece.global_position.distance_to(Vector2(x, y)) - reach)
+			if gap > best_gap:
+				best_gap = gap
+				best = Vector2(x, y)
+			y += 10.0
+		x += 10.0
+	return best
