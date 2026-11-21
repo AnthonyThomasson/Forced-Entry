@@ -256,12 +256,17 @@ it touches along the way out (`DoorFallConfig.bowl_accel`, px/s^2 times their ma
 character it met, is sent on again; once let go, for `bowl_frames` (90) frames or until it lies flat or at rest, it shoves each
 character it touches along its face's normal, away from it, and, as a leaf held up by one loses the turn it was given and would rock
 back upright, it is turned on toward its fall again under `commit_degrees` (10). A character the leaf falls on is bowled out of its
-way (up to the length of the leaf, about 100 px, never held under it), and it lies down flat and clear of its doorway: it ends flat, or
-leaning on a piece of furniture, never standing in the doorway. A character a wall holds in place holds the leaf, and a leaf that
-rests on a character (or on anything) is awake only while something pushes it: the engine does not sleep a body that touches a
-kinematic one, so a leaf (`DoorSlab`, through `PieceBody.rest_on_a_character`; the character's twin is told, `CharacterTwin.hold`, and wakes it when it leaves: a leaf is never left asleep in the air, the general rule of interface 29) awake and slower than `PieceBodyConfig.rest_speed` (6 px/s) and `rest_spin` (0.2 rad/s) for
-`rest_frames` (60) frames with no shove given to it, that touches a character, is put to sleep; it sleeps within about 2 s of the
-last shove, pushes no one after it (a character walking into it wakes it and shoves it as any piece). Tests:
+way (`bowl_accel` is 2000 px/s^2: a 33 px/s knock a frame, which a character's knockback friction mostly bleeds as it is given), and the leaf lies down
+flat and clear of its doorway. That is what is tested for a character in the way (top within `step_over`, the far side of the wall line, a clear
+gap). A leaf can still end standing on something: leaning on a piece of furniture (D18), or on a character a wall or an
+anchored piece holds where they stand (a character is only bowled away when nothing is in the way). That leaf rests on them: the engine does not sleep a body that touches a
+kinematic one, so a leaf (`DoorSlab`, which watches itself while it is awake and not flat: the twin space tells no one of a body that does not move; through
+`PieceBody.rest_on_a_character`; the character's twin is told, `CharacterTwin.hold`, wakes it when it leaves, and, a body moved every frame (even by nothing) waking what touches it, stands still while it is idle and holds a
+body: `docs/twins.md`) awake and slower than `PieceBodyConfig.rest_speed` (6 px/s) and `rest_spin` (0.2 rad/s) for
+`rest_frames` (60) frames with no shove given to it, that touches a character, is put to sleep. It is asleep within 4 s of being knocked down
+(tested; the character's knockback has to bleed first, under a second), pushes no one after it (a character walking into it wakes it and shoves it as any piece), and
+when the character walks off, dies or is moved it falls and ends flat or leaning on what is under it (the post that held the character), never hanging asleep in the air:
+`objects/door_resting_on_a_held_character_sleeps_and_falls_when_it_leaves`. Tests:
 `objects/ajar_door_kicked_from_the_open_side_falls_away`, `ajar_door_shot_from_the_open_side_falls_away` (each with `_flipped`: the
 hinges on the other jambs), `ajar_door_kicked_from_the_closed_side_falls_away`, `ajar_door_shot_from_the_closed_side_falls_away`
 (also `_flipped`; these two closed-side tests are guards: green on the commit before the carry too) (four angles, 20 to 85 degrees,

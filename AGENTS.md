@@ -5,7 +5,7 @@ A small top-down Godot 4.4 demo, organized into seventeen isolated domains under
 **Always load the `architecture` skill before planning any change or exploring the codebase.** It is the map: the domains,
 the cross-cutting conventions and the whole sanctioned cross-domain interface surface. Inside a domain, also load its
 `domain-<name>` skill. Behaviour specs that tests assert live in `docs/` (`flanking-behavior.md`, `cover-and-stance.md`,
-`tactical-entry.md`, `gaze-and-fire.md`, `grenades.md`, `hearing.md`, `outfits.md`, `vehicles.md`, `lighting.md`,
+`tactical-entry.md`, `gaze-and-fire.md`, `grenades.md`, `hearing.md`, `outfits.md`, `vehicles.md`, `twins.md`, `lighting.md`,
 `leadership.md`, `doors.md`, `player-vision.md`, `stacked-items.md`).
 
 **Working on a GitHub ticket (issue), in any role, load the `ticket` skill first.** Herdr's default workflows run the
