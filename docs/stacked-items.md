@@ -163,7 +163,7 @@ empty.
   items in runs of up to six side by side (one body, the spines drawn from `art_opts.spines`: a bookshelf of hundreds of
   books would be as many bodies); shelving and linen-shelf boxes are `box` items sized to the row; shoe racks hold `shoes` (a pair).
 - **Crate stack and pallet** (`StockroomCatalog`): `crate_stack` and `wrapped_pallet` are bare places (non-solid, no art, no mass:
-  `PieceHeights.parts_of` says 0). The stack is two loose `crate` items (38 px across, 20 high, the top one 4 px off), the pallet a
+  `PieceHeights.parts_of` says 0). The stack is two or three loose `crate` items (38 px across, 20 high, the second 4 px off; a third, 34 px across, on the pair for about half the places: the row's `maybe`, by where the place stands), the pallet a
   `pallet` item (a low item a walker steps over, 5 px) with four `wrapped_box` items on it. The stockroom's floor stacks
   (`ItemsCatalog.FLOOR`) are gone, so a stockroom is not strewn twice.
 - **Hotplate** (`KitchenetteCatalog`): the piece is the crate (12 px, still giving the ring's light); the plate (`hob`, with its
