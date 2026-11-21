@@ -98,7 +98,7 @@ const SMOOTH_MAX_MS := 33.4
 ## `perf/match_npc_vision`; the five that failed in the loaded run (`nav_plan_ring_stress`,
 ## `nav_snap_repeat_stress`, `npc_crowd_stress`, `shot_layer_cost`, `vehicle_fleet_stress`) pass
 ## alone at both revisions, as do the four match guards at the tip (the base's own 10v10 p95 read
-## 23.4 ## and 20.6 in that run). `match_npc_vision` fails at both: at the base its premise (the
+## 23.4 and 20.6 in that run). `match_npc_vision` fails at both: at the base its premise (the
 ## viewed invader lives) and a 35.8 max, at the tip the invader lives the whole window (the fight
 ## moved) and the window reads avg 18.4 / p95 27.9 / max 34.0 over 16.7 / 20 / 33.4. Not tuned, no
 ## standard loosened: `perf3d` re-picks the seed and the premise.
