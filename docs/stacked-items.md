@@ -57,8 +57,10 @@ Tests: `objects/walker_steps_over_a_fallen_plate` (a puppet walks over a plate a
 What lands (a grenade, a casing, a chip, a dropped item, a ragdoll: `TWIN_SURFACES`) rests on a walk-over item, and so does
 another item: the free item's mask holds `TWIN_WALKOVER`, so a book set on a plate, or let fall onto one, rests on its top, not
 through it on the floor. A free piece that is no item does not (its mask has no `TWIN_WALKOVER`, as a fallen door's neither).
+It is still met the other way round: a chair or any piece shoved along the floor into a walk-over item pushes it on ahead
+(the item's own mask holds the piece's layer, `TWIN_WORLD`), it does not slide over or through it.
 
-Tests: `objects/book_falls_onto_a_plate`.
+Tests: `objects/book_falls_onto_a_plate`, `objects/shoved_chair_pushes_floor_plates`.
 
 ## SI6. The nav map
 
