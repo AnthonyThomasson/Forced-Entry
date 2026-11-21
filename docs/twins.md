@@ -7,7 +7,7 @@ kinematic cylinder (`CharacterTwin`). The tests named under each rule assert thi
 under it goes (and never sleeps one that touches a kinematic body that is moved every frame), and nothing wakes it when that body is
 gone: a bookshelf leaning on a character who walks off would hang in the air asleep. So a character's twin keeps the awake free
 bodies its cylinder touches and the free bodies put to sleep on it by their own rule (`CharacterTwin.hold`: `PieceBody.rest_on_a_character`),
-and wakes each when it no longer touches one: every one of them when the character dies, ducks or stands, rides, is moved by a script or leaves the tree,
+and wakes each that may hang on it (one lying still that leans more than 2 degrees or stands off the floor; one upright on the floor sleeps of itself, one moving is awake while it moves: waking those would only change when they sleep, and with it a fight's fingerprint: `perf/grenade_match_stress` is the same fight as before) when it no longer touches one: every one of them when the character dies, ducks or stands, rides, is moved by a script or leaves the tree,
 and each one it has walked clear of when it walks. The woken body then falls or settles as physics decides (flat, or leaning on
 what is under it). A body that is asleep on a character, with nothing else under it, is woken by the character's leaving and by nothing else.
 

@@ -45,6 +45,11 @@ const FITS_SLACK := 0.5
 const FITS_KEEP := 0.25
 ## How near (px) a free body is to the cylinder to count as resting on or against it.
 const REST_MARGIN := 1.0
+## A free body slower than this (px/s) lies still; its up axis leaning more than 2 degrees (the
+## cosine) or its origin more than this many px off the floor is not standing on the floor alone.
+const REST_SPEED := 6.0
+const LEAN_AT_REST := 0.9994
+const LIFTED := 1.0
 ## How many free bodies one look reads at once.
 const REST_HITS := 16
 
@@ -294,11 +299,24 @@ func _wake_what_is_left(staying: bool, from: Transform3D) -> void:
 	for id: int in before:
 		if not now.has(id):
 			var body := instance_from_id(id) as RigidBody3D
-			if body != null and body.is_inside_tree():
+			if body != null and body.is_inside_tree() and (_held.has(id) or _hangs(body)):
 				_wake(body)
 			_held.erase(id)
 	_touched = now
 	_touched_fresh = staying
+
+
+## Whether the awake free `body`, that touched the cylinder, may be hanging on it (lacking the
+## support that kept it up): it lies still and leans or stands off the floor. One upright on the
+## floor sleeps of itself when the cylinder goes, and one moving is awake while it moves: waking
+## those only changes when they sleep.
+static func _hangs(body: RigidBody3D) -> bool:
+	if body.linear_velocity.length() > REST_SPEED * RenderConfig.unit:
+		return false
+	return (
+		body.global_transform.basis.y.normalized().y < LEAN_AT_REST
+		or body.global_position.y > LIFTED * RenderConfig.unit
+	)
 
 
 ## A free `body` that rests on this one has been put to sleep there by its own rule (the engine
