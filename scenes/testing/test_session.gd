@@ -51,6 +51,10 @@ var bundle_dir := ""
 ## its window is to be looked at: the in-game runner, a `--shots` run). A test that builds its own
 ## picture (`TestSetup.own_picture`) is left to it.
 var picture := false
+## Whether this is a batch run whose perf tests measure their own render (the batch host sets it,
+## `GameTestSuite.before`, unless `shots`): a perf test then gets no view of the session's. The
+## in-game runner leaves it off, so a perf test opened there shows its picture.
+var measures_perf := false
 ## The open test's descriptor ({} between tests; the setup, context and world below are null then).
 var entry: Dictionary = {}
 ## The open test's setup, as its `configure` declared it.
@@ -71,8 +75,6 @@ var _concluded := false
 ## How the open requires_von test's Von decisions are answered, and what that run leaves behind
 ## (its recording, the asks it had no answer for).
 var _von_run: VonRun = null
-## Whether the open test was skipped for want of the Von decision server (its record says so).
-var _von_skipped := false
 
 
 func _process(_delta: float) -> void:
@@ -112,7 +114,7 @@ func start(test_entry: Dictionary) -> void:
 	entry = test_entry
 	setup = null
 	_concluded = false
-	_von_skipped = false
+	von.skipped = false
 	var skip_reason := await _begin_von()
 	ctx = TestContext.new(get_tree(), entry)
 	if skip_reason == VonGate.NOT_LIVE and (von.require or von.record):
@@ -128,7 +130,7 @@ func start(test_entry: Dictionary) -> void:
 		_fail_at_start("Test script " + String(entry["error"]))
 		return
 	if skip_reason != "":
-		_von_skipped = true
+		von.skipped = true
 		ctx.skip(skip_reason)
 		return
 	var test: GameTest = load(entry["path"]).new()
@@ -158,10 +160,10 @@ func start(test_entry: Dictionary) -> void:
 		await ctx.finished
 
 
-## Whether the open test is a perf test in a run that is not looking at pictures (`shots` off): its
-## frame times are the cost of what it draws itself, so the session adds no view of its own.
+## Whether the open test is a perf test in a batch that measures them (`measures_perf`): its frame
+## times are the cost of what it draws itself, so the session adds no view of its own.
 func _measures_its_own_render() -> bool:
-	return entry["domain"] == "perf" and not shots
+	return measures_perf and entry["domain"] == "perf"
 
 
 ## The 3D view that shows the open test's world (`picture`), or null: what a test of the picture
@@ -294,7 +296,7 @@ func result(snapshot := {}) -> Dictionary:
 		"status": ctx.verdict.status, "reason": ctx.verdict.reason,
 		"time": snappedf(ctx.time, 0.01),
 		"checks": ctx.verdict.checks.duplicate(), "logs": ctx.verdict.logs.duplicate(),
-		"manual": entry.get("manual", false), "von": _von_skipped,
+		"manual": entry.get("manual", false), "von": von.skipped,
 	}
 	if BUNDLED.has(ctx.verdict.status):
 		record["events"] = ctx.bundle.plain_events(ctx.events)

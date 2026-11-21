@@ -39,7 +39,7 @@
       bar's `PERF` toggle and hands every other toggle to the world's `set_overlay`, which routes by the match's one rule
       (`MatchBuilder.set_overlay`; the bar is 22): any NPC flag reaches the NPCs in the bar's scope, and its "Show on" row (`OverlayRegistry.scopes_of(MODE_PLAY)`: `defenders`,
       `invaders`, `all`, default `all`) reaches the world's `set_overlay_scope(scope)`, which re-applies every toggle at once by `MatchBuilder.set_overlay_scope`. Its scene carries General's camera (`general/camera_controller.gd`; `GameTestSuite`
-      makes one of its own): `frame(targets)` points it at the setup's camera targets (every actor by default); clear `pan_enabled` where a
+      makes one of its own): `frame(targets, within)` points it at the setup's camera targets (every actor by default); clear `pan_enabled` where a
       human-driven player walks on WASD or the test locks the camera.
     - **Pointer:** `Pointer.inject(screen)` (26) stands a screen point in for the mouse wherever its position is polled (the player's aim,
       the camera's look-ahead, the command menu's non-mouse fallback) until `Pointer.release()`, and never warps the real mouse; the test

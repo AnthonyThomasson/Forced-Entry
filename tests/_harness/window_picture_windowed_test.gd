@@ -1,14 +1,16 @@
 extends GameTest
-## Harness self-test (#194 blanktest, windowed only): a batch run that opens a window
+## Harness self-test (windowed only): a batch run that opens a window
 ## (`tools/run_tests.sh --windowed`, `--shots`) shows each test's world, not the root's flat clear
 ## colour. The batch's own suite (`GameTestSuite.before`, its session and camera, built as gdUnit
 ## builds them) plays a few representative tests one after another in one process (an arena test,
 ## one with actors, a vehicle, a test that builds its own picture); after each, its 3D view, when
 ## the test has one to show, draws more than one colour and carries meshes, and the second and third
 ## tests are as drawn as the first.
-## A perf test measures its own render (no view of the session's is added to it).
+## A perf batch measures its own render (no view of the session's is added to a perf test); the
+## in-game runner is no batch, so a perf test opened there shows a picture like any other.
 
 const Suite := preload("res://scenes/testing/game_test_suite.gd")
+const SessionScript := preload("res://scenes/testing/test_session.gd")
 const Catalog := preload("res://scenes/testing/test_catalog.gd")
 ## Tests to play: an arena test, one with actors, a vehicle test (each shows the game).
 const SHOWN: Array[String] = [
@@ -65,6 +67,14 @@ func run(t: TestContext) -> void:
 	await session.close()
 	suite.after()
 	suite.free()
+	# the runner's session (picture on, `measures_perf` left off): a perf test shows its picture
+	var runner: Node = SessionScript.new()
+	runner.set("picture", true)
+	t.world.add_child(runner)
+	await runner.start(Catalog.describe(_path(PERF)))
+	t.check(runner.view() != null, "%s opened by the runner shows the session's picture" % PERF)
+	await runner.close()
+	runner.free()
 
 
 ## The view's frame holds colours and the view's world holds meshes.

@@ -69,6 +69,8 @@ func before() -> void:
 	_session.shots = TestBatch.flag("--shots")
 	# a window (--shots or --windowed) shows the game: the world's own 2D picture is hidden
 	_session.picture = DisplayServer.get_name() != "headless"
+	# a perf test measures its own render, unless the run is for looking at pictures
+	_session.measures_perf = not _session.shots
 	_session.bundle_dir = TestBatch.bundle_dir()
 	# one launcher, and the server it started, for the whole process
 	_session.von.launcher_parent = get_tree().root
