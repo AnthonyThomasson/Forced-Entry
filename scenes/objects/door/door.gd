@@ -342,6 +342,7 @@ func _hurt(
 func _fall(direction: Vector2, shove: Vector2, height: float) -> void:
 	_down = true
 	set_physics_process(false)
+	var ajar := swing.angle > 0.0
 	swing.angle = open_angle
 	swing.halt()
 	push.stop()
@@ -349,10 +350,18 @@ func _fall(direction: Vector2, shove: Vector2, height: float) -> void:
 	var side := signf(direction.dot(across))
 	if is_zero_approx(side):
 		side = signf(across.dot(swing_into))
+	var drop := Vector2.ZERO
+	var open_side := signf(across.dot(swing_into))
+	if ajar and open_side != 0.0:
+		# a leaf ajar stands on a diagonal in its frame: tipped toward the wall it was shut in it
+		# would lie across the jambs, so it is dropped out of its frame and falls the side it was
+		# opened to (`DoorSlab.release`)
+		drop = swing_into * DoorFallConfig.frame_out
+		side = open_side
 	TwinSpace.retwin(self)
 	var slab := TwinSpace.twin_for(self) as DoorSlab
 	if slab != null:
-		slab.release(shove, height, across * (side if side != 0.0 else 1.0))
+		slab.release(shove, height, across * (side if side != 0.0 else 1.0), drop)
 	else:
 		footprint.flat = true  # no twin space to fall in: out of the way
 	changed.emit()

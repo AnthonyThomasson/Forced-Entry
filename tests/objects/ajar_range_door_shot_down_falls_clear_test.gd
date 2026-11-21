@@ -19,7 +19,7 @@ func describe() -> Dictionary:
 		"name": "The gun range's ajar solid door shot down falls clear of its frame",
 		"description": "The human shoots the ajar solid door down from the range with the rifle: "
 			+ "the leaf is not wedged in the doorway, which is clear.",
-		"tags": ["door", "objects", "player", "gap"],
+		"tags": ["door", "objects", "player"],
 		"timeout": 40.0,
 	}
 

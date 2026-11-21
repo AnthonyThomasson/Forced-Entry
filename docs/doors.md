@@ -230,6 +230,15 @@ swings into when the blow had no direction, or a wound with none). The slab stan
 at each end (`DoorFallConfig.head_gap`, `side_gap`) so it tips out of its frame between the jambs; its mass is the door's
 `get_mass` and `max_linear_velocity` is the 5000 px/s global Jolt cap (a blast's throw is far below it).
 
+A leaf knocked down **ajar** stands on a diagonal across its doorway's wall line, where either tip would catch a jamb with
+its hinge end or its free end and leave it wedged in the frame (D18: once down the doorway is clear). So it is dropped
+`DoorFallConfig.frame_out` (7 px, as far as nothing stops it) out of its frame toward the side it was opened to (`swing_into`) and
+always falls that way, whichever side the blow came from; the part of a shove that same physics frame (the blow's own, and a
+blast's that follows it) that would throw it the other way, toward the wall, is the frame's to take (`DoorSlab.release`, `push`).
+A shut leaf has no such side and falls the way of the blow. Tests: `objects/ajar_range_door_shot_down_falls_clear` (the range's
+ajar solid door shot down from the range with the rifle), `ajar_doors_knocked_down_from_the_range` / `_from_the_room` (kicks, four
+angles, both hinges and swings), `ajar_doors_blasted_down`.
+
 Geometry follows the body, in 3D: a bullet's ray, sight, cover and a grenade's flight and fragments meet it at its real,
 lying height (a leaf lying flat is 6 px thick, a leaf leaning on a wall or lying on a bed is as high as it stands), the
 door's shadow and mesh turn with it (`DoorMesh` follows the leader, `door.look` carries its art, the shattered panes, no

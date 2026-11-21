@@ -24,3 +24,7 @@ static var step_over: float = 10.0
 ## mouth: what it covers of the doorway there is what it takes from the gap a body can pass (a
 ## body's radius).
 static var mouth: float = 14.0
+## How far (px) a leaf knocked down ajar is dropped out of its frame toward the side it was opened
+## to: past the face of the wall (half its 12 px), so that tipping that way it lies on the floor
+## clear of the jambs, which its ends would catch where it stands.
+static var frame_out: float = 7.0
