@@ -8,12 +8,15 @@ extends RefCounted
 
 const ItemStockMesh = preload("res://scenes/objects/art/item_stock_mesh.gd")
 const ItemHomeMesh = preload("res://scenes/objects/art/item_home_mesh.gd")
-const OPTIONS := ["kind", "height"]
+const Decay = preload("res://scenes/objects/art/decay.gd")
+const OPTIONS := ["kind", "height", "neon", "plain"]
 
 
 ## The node an item `piece` is shown by, in 3D units with its origin at the piece's origin.
 static func build(piece: Node2D) -> Node3D:
 	var spec := FurnitureSpec.of(piece)
+	if spec.opts.get("plain", false):  # An old prop's own colour, not the run-down grade.
+		spec.color = spec.paint
 	var rig := FurnitureMesh.show(piece, FurnitureMesh.fetch(
 		"item", spec, _tuning(spec), func() -> Mesh: return _mesh(spec)
 	))
@@ -23,6 +26,14 @@ static func build(piece: Node2D) -> Node3D:
 			FurnitureMesh.fetch_glow("item", spec, _tuning(spec), func() -> Mesh:
 				return ItemStockMesh.glow(spec, foot, height_of(spec))),
 			ObjectArtKitchenBathConfig.hotplate_ring_color,
+		)
+	if _kind(spec) == "monitor":  # Its front edge glows, the screen's green or the desk's neon.
+		var foot := spec.within(Rect2(Vector2.ZERO, spec.size))
+		rig.add_glow(
+			FurnitureMesh.fetch_glow("item", spec, _tuning(spec), func() -> Mesh:
+				return _monitor_glow(spec, foot, height_of(spec))),
+			Decay.screen_color(spec.opts),
+			ObjectMeshStateConfig.screen_strength,
 		)
 	return rig
 
@@ -81,6 +92,9 @@ static func _mesh(spec: FurnitureSpec) -> Mesh:
 		"bowl":
 			kit.cylinder(Vector3.ZERO, radius * 0.6, high * 0.4, spec.color)
 			kit.cylinder(Vector3(0.0, high * 0.4, 0.0), radius, high * 0.6, spec.color)
+			kit.cylinder(  # The darker well inside the rim.
+				Vector3(0.0, high, 0.0), radius * 0.66, 0.1, spec.color.darkened(0.15)
+			)
 		"book":
 			_book(kit, spec, foot, high)
 		"desk_lamp":
@@ -99,9 +113,12 @@ static func _mesh(spec: FurnitureSpec) -> Mesh:
 	return kit.build()
 
 
-## A cup: the body and the handle nub on its right.
+## A cup: the body, its coffee and the handle nub on its right.
 static func _cup(kit: MeshKit, spec: FurnitureSpec, radius: float, high: float) -> void:
 	kit.cylinder(Vector3(-0.5, 0.0, 0.0), radius - 0.5, high, spec.color)
+	kit.cylinder(
+		Vector3(-0.5, high, 0.0), radius - 1.5, 0.1, ObjectArtDecorConfig.prop_colors["coffee"]
+	)
 	var nub := Rect2(radius - 1.0, -0.5, 1.5, 1.0)
 	kit.box(MeshKit.volume(nub, high * 0.3, high * 0.4), spec.color.darkened(0.2))
 
@@ -128,6 +145,19 @@ static func _monitor(kit: MeshKit, spec: FurnitureSpec, foot: Rect2, high: float
 	kit.box(MeshKit.volume(stand, 0.0, 3.0), spec.color.darkened(0.3))
 	var screen := Rect2(foot.position, Vector2(foot.size.x, foot.size.y * 0.3))
 	kit.box(MeshKit.volume(screen, 3.0, high - 3.0), spec.color, spec.color.lightened(0.2))
+
+
+## The monitor's lit edge (the old prop's glowing bar): a strip along the top of the screen's front
+## and a panel proud of its front face, emissive so the room's light does not swamp them.
+static func _monitor_glow(spec: FurnitureSpec, foot: Rect2, high: float) -> Mesh:
+	var kit := spec.kit()
+	var lit := Decay.screen_color(spec.opts)
+	var depth := foot.size.y * 0.3
+	var top := Rect2(foot.position.x + 1.0, foot.position.y + depth - 1.2, foot.size.x - 2.0, 1.0)
+	kit.box(MeshKit.volume(top, high, 0.3), lit)
+	var face := Rect2(foot.position.x + 1.0, foot.position.y + depth, foot.size.x - 2.0, 0.4)
+	kit.box(MeshKit.volume(face, 3.5, high - 4.5), lit)
+	return kit.build()
 
 
 ## A crate: the body and a slat across its front.

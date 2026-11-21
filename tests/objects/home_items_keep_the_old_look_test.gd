@@ -5,7 +5,9 @@ extends GameTest
 ## kind is painted as the old prop was (on a table-brown ground) and as the item (on its own
 ## canvas of its footprint): the drawn area is as wide and as deep within 3 px and its mean colour
 ## within 0.1 a channel. A monitor's lit screen edge is drawn glowing, in the screen's green or its
-## neon, as the prop's was.
+## neon, as the prop's was. The reused catalogue kinds (a book, a mug and a bowl) take the old
+## prop's size, orientation and palette colour from the `carries` rows that set them, and draw in
+## that colour as given (`plain`, not the run-down grade the mesh grades a catalogue colour to).
 
 const Props := preload("res://scenes/objects/art/props.gd")
 const ItemPainter := preload("res://scenes/objects/art/item_painter.gd")
@@ -14,6 +16,11 @@ const KINDS := [
 	"monitor", "keyboard", "papers", "clock", "vase", "fruit_bowl", "cutting_board", "tools",
 	"vise",
 ]
+## The reused kinds: their old prop's name, and the piece rows that carry them (piece, key).
+const REUSED := {
+	"book": "book", "cup": "mug", "bowl": "bowl",
+}
+const CARRIERS := ["side_table", "nightstand", "dresser", "desk", "console_table"]
 const GROUND := Color(0.3, 0.2, 0.1)
 ## How far (px) the item's drawn width or depth may differ from the prop's.
 const SIZE_SLACK := 3
@@ -56,6 +63,55 @@ func run(t: TestContext) -> void:
 				],
 			)
 	_check_glow(t)
+	_check_reused(t)
+
+
+## Every carried book, mug and bowl is as big, as turned and as bright as the prop it replaced.
+func _check_reused(t: TestContext) -> void:
+	var seen := {}
+	for piece: String in CARRIERS:
+		var definition := ObjectDefinitions.get_definition(piece)
+		for row: Dictionary in definition.get("carries", []):
+			var kind: String = row["key"]
+			if not REUSED.has(kind):
+				continue
+			seen[kind] = true
+			var item := PieceCarries.patched(
+				ObjectDefinitions.get_definition(kind), PieceCarries.patch_of(row)
+			)
+			var old := _old(REUSED[kind])
+			var size := Vector2i(item["size"])
+			var gap := size - Vector2i(old["size"])
+			var where := "%s's %s" % [piece, kind]
+			t.check(
+				absi(gap.x) <= SIZE_SLACK and absi(gap.y) <= SIZE_SLACK,
+				"%s is as big as its prop (%v against %v)" % [where, size, old["size"]],
+			)
+			t.check(
+				(size.x >= size.y) == (old["size"].x >= old["size"].y),
+				"%s lies the way its prop did (%v against %v)" % [where, size, old["size"]],
+			)
+			t.check(
+				_palette_gap(kind, item["color"]) <= COLOUR_SLACK,
+				"%s is a palette colour of its prop (%s)" % [where, item["color"].to_html(false)],
+			)
+			t.check(
+				bool(item["art_opts"].get("plain", false)),
+				"%s is drawn in its own colour, not graded" % where,
+			)
+	for kind: String in REUSED:
+		t.check(seen.has(kind), "premise: a home top carries a %s" % kind)
+
+
+## How far `colour` is from the nearest colour its prop `kind` is drawn in: the books' palette
+## list, else the ceramic of a mug and a bowl.
+func _palette_gap(kind: String, colour: Color) -> float:
+	var palette: Dictionary = ObjectArtDecorConfig.prop_colors
+	var options: Array = palette["books"] if kind == "book" else [palette["ceramic"]]
+	var best := 9.0
+	for option: Color in options:
+		best = minf(best, _off(colour, option))
+	return best
 
 
 ## The monitor's screen edge is drawn glowing in the screen green, or in the piece's neon.

@@ -46,7 +46,10 @@ const OBJECTS := {
 		},
 		"carries": [
 			{ "key": "vase", "at": Vector2(-25.9, -4.4), "on_top": true },
-			{ "key": "book", "at": Vector2(16.3, -3), "on_top": true },
+			{
+				"key": "book", "at": Vector2(16.3, -3), "on_top": true,
+				"size": Vector2(12, 9), "color": Color(0.3, 0.3, 0.22),
+			},
 		],
 		"weight": 35,
 		"penetration": 55,

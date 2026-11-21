@@ -66,6 +66,10 @@ static func carry(base: Node2D, definition: Dictionary, parent: Node, room: Stri
 		}
 		if not row["on_top"]:
 			opts["rest_at"] = row["lift"]
+		if row["key"] == "monitor":  # Its screen is its desk's neon, as the desk's prop was.
+			var neon: String = (base.look.art_opts as Dictionary).get("neon", "")
+			if neon != "":
+				opts["neon"] = neon
 		var node := ObjectFactory.spawn_on(
 			item, base, (row["at"] as Vector2) - base.position, parent, opts
 		)

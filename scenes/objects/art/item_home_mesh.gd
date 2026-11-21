@@ -111,24 +111,37 @@ static func _fruit_bowl(kit: MeshKit, spec: FurnitureSpec, radius: float, high: 
 		kit.sphere(at, round_fruit, fruit[k % fruit.size()])
 
 
-## A tool roll: a hammer, a wrench and a screwdriver side by side, each a slim bar.
-static func _tools(kit: MeshKit, spec: FurnitureSpec, foot: Rect2, high: float) -> void:
-	var lane := foot.size.y / 3.0
-	var rows := [spec.color.darkened(0.3), spec.color, Color(0.9, 0.75, 0.2)]
-	for k in 3:
-		var bar := Rect2(
-			foot.position + Vector2(0.0, lane * k + lane * 0.2), Vector2(foot.size.x, lane * 0.6)
-		)
-		kit.box(MeshKit.volume(bar, 0.0, high), rows[k])
-
-
-## A vise: a jaw block, a pair of jaws and a screw handle out of its front.
-static func _vise(kit: MeshKit, spec: FurnitureSpec, foot: Rect2, high: float) -> void:
-	var body := Rect2(foot.position, Vector2(foot.size.x, foot.size.y * 0.7))
-	kit.box(MeshKit.volume(body, 0.0, high * 0.6), spec.color)
-	var jaw := Rect2(body.position + Vector2(1.0, 0.0), Vector2(body.size.x - 2.0, 2.0))
-	kit.box(MeshKit.volume(jaw, high * 0.6, high * 0.4), spec.color.lightened(0.15))
-	var screw := Rect2(
-		Vector2(foot.get_center().x - 0.5, body.end.y), Vector2(1.0, foot.size.y * 0.3)
+## The tools: a hammer, a wrench and a screwdriver laid apart, each slim, as the old prop drew
+## them (`props.gd`): the hammer's wooden handle and iron head, the wrench's bar and ring, the
+## screwdriver's yellow handle and bright shaft.
+static func _tools(kit: MeshKit, _spec: FurnitureSpec, foot: Rect2, high: float) -> void:
+	var palette: Dictionary = ObjectArtDecorConfig.prop_colors
+	var metal: Color = palette["metal"]
+	var o := foot.get_center()
+	kit.box(
+		MeshKit.volume(Rect2(o.x - 6.0, o.y - 2.5, 9.0, 1.0), 0.0, high * 0.4),
+		palette["wood_light"],
 	)
-	kit.box(MeshKit.volume(screw, high * 0.2, high * 0.2), spec.color.lightened(0.3))
+	kit.box(
+		MeshKit.volume(Rect2(o.x + 2.0, o.y - 4.5, 2.0, 5.0), 0.0, high), metal.darkened(0.3)
+	)
+	kit.box(MeshKit.volume(Rect2(o.x - 5.0, o.y + 2.5, 8.0, 1.0), 0.0, high * 0.4), metal)
+	kit.cylinder(Vector3(o.x + 4.0, 0.0, o.y + 3.0), 2.0, high * 0.5, metal)
+	kit.box(MeshKit.volume(Rect2(o.x + 5.0, o.y - 5.0, 2.0, 4.0), 0.0, high), palette["accent"])
+	kit.box(
+		MeshKit.volume(Rect2(o.x + 5.5, o.y - 1.0, 1.0, 5.0), 0.0, high * 0.4),
+		metal.lightened(0.1),
+	)
+
+
+## A bench vise as the old prop drew it: a small stand with a bright jaw across it, and its screw
+## handle out of the front (a stem and a cross bar).
+static func _vise(kit: MeshKit, spec: FurnitureSpec, foot: Rect2, high: float) -> void:
+	var metal: Color = ObjectArtDecorConfig.prop_colors["metal"]
+	var o := foot.get_center()
+	var stand := Rect2(o.x - 5.0, o.y - 6.0, 10.0, 8.0)
+	kit.box(MeshKit.volume(stand, 0.0, high * 0.6), spec.color, spec.color.lightened(0.05))
+	var jaw := Rect2(o.x - 4.0, o.y - 2.5, 8.0, 1.0)
+	kit.box(MeshKit.volume(jaw, high * 0.6, high * 0.4), metal.lightened(0.15))
+	kit.box(MeshKit.volume(Rect2(o.x - 0.5, o.y + 2.0, 1.0, 3.0), 0.0, high * 0.3), metal)
+	kit.box(MeshKit.volume(Rect2(o.x - 3.0, o.y + 4.5, 6.0, 1.0), 0.0, high * 0.3), metal)

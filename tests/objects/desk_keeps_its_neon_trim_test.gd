@@ -2,8 +2,9 @@ extends GameTest
 ## D21 unbake (#194 17g, `docs/stacked-items.md` SI13): a desk lost its monitor prop but not its
 ## neon trim. About half the desks (`ObjectArtLightConfig.neon_share["desk"]`, asked by the desk's
 ## own `neon_as` option, so no other table takes one) get a cyan or magenta strip round the edge,
-## and the strip gives its light (the `trim` row). The monitor item on it takes no neon of its own:
-## its screen is the plain green one, so a desk's trim and its monitor never disagree.
+## and the strip gives its light (the `trim` row). The monitor item draws no neon of its own, but
+## a neon desk's monitor takes the desk's (its lit edge and its light), and one on a plain desk is
+## the plain green screen, so a desk's trim and its monitor never disagree (SI14).
 
 const ObjectArt := preload("res://scenes/objects/art/object_art.gd")
 const AT := Vector2(400, 250)
@@ -24,6 +25,7 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 800, 500))
 	s.object(&"desk", "desk", AT, { "neon": "cyan" })
 	s.object(&"plain", "table", AT + Vector2(0.0, 150.0), { "neon": "" })
+	s.object(&"bare", "desk", AT + Vector2(0.0, -150.0), { "neon": "" })
 	s.switch(&"nav.rebake", false)
 
 
@@ -61,3 +63,28 @@ func run(t: TestContext) -> void:
 	t.expect_eq(
 		(t.object(&"plain").call(&"get_lights") as Array).size(), 0, "a plain table gives none"
 	)
+
+	_monitors(t, desk)
+
+
+## The monitor a neon desk carries has the desk's neon (art option and light), a plain desk's none.
+func _monitors(t: TestContext, desk: Node2D) -> void:
+	var definition := ObjectDefinitions.get_definition("desk")
+	var neon := _monitor_of(RoomItems.carry(desk, definition, t.world, "test"))
+	if not t.require(neon != null, "the neon desk carries a monitor"):
+		return
+	t.expect_eq(neon.look.art_opts.get("neon"), "cyan", "its monitor takes the desk's neon")
+	var lights: Array = neon.call(&"get_lights")
+	if t.require(lights.size() == 1, "the monitor gives one light (%d)" % lights.size()):
+		t.expect_eq(lights[0]["colour"], ObjectArtLightConfig.neon_cyan, "in the desk's neon")
+	var bare := t.object(&"bare")
+	var plain := _monitor_of(RoomItems.carry(bare, definition, t.world, "test"))
+	if t.require(plain != null, "the plain desk carries a monitor"):
+		t.check(not plain.look.art_opts.has("neon"), "a plain desk's monitor has no neon")
+
+
+func _monitor_of(carried: Array) -> Node2D:
+	for c: Dictionary in carried:
+		if c["key"] == "monitor":
+			return c["node"]
+	return null

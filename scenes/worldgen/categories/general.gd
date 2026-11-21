@@ -104,7 +104,12 @@ const OBJECTS := {
 		"color": Color(0.55, 0.35, 0.2),
 		"material": "wood",
 		"art": "table",
-		"carries": [{ "key": "book", "at": Vector2(0, 0), "on_top": true }],
+		"carries": [
+			{
+				"key": "book", "at": Vector2(0, 0), "on_top": true,
+				"size": Vector2(12, 9), "color": Color(0.5, 0.4, 0.22),
+			},
+		],
 		"weight": 8,
 		"penetration": 45,
 		"interactions": [{ "id": "examine", "label": "Examine" }],
@@ -190,7 +195,10 @@ const OBJECTS := {
 		},
 		"carries": [
 			{ "key": "clock", "at": Vector2(-7.5, -4.4), "on_top": true },
-			{ "key": "book", "at": Vector2(6.1, -3), "on_top": true },
+			{
+				"key": "book", "at": Vector2(6.1, -3), "on_top": true,
+				"size": Vector2(12, 9), "color": Color(0.55, 0.5, 0.38),
+			},
 		],
 		"weight": 10,
 		"penetration": 45,
@@ -210,7 +218,10 @@ const OBJECTS := {
 		"carries": [
 			{ "key": "monitor", "at": Vector2(0, -12.3), "on_top": true },
 			{ "key": "keyboard", "at": Vector2(0, 5.3), "on_top": true },
-			{ "key": "cup", "at": Vector2(37.6, 2.2), "on_top": true },
+			{
+				"key": "cup", "at": Vector2(37.6, 2.2), "on_top": true,
+				"color": Color(0.94, 0.93, 0.9),
+			},
 			{ "key": "papers", "at": Vector2(-39.8, 0), "on_top": true },
 		],
 		"weight": 24,
@@ -264,7 +275,10 @@ const OBJECTS := {
 			"plank_px": 7,
 		},
 		"carries": [
-			{ "key": "bowl", "at": Vector2(-16.8, 0), "on_top": true },
+			{
+				"key": "bowl", "at": Vector2(-16.8, 0), "on_top": true,
+				"size": Vector2(12, 12), "color": Color(0.94, 0.93, 0.9),
+			},
 			{ "key": "vase", "at": Vector2(21, 0), "on_top": true },
 		],
 		"weight": 14,

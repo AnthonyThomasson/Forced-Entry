@@ -18,4 +18,4 @@ static var fruit_bowl_height: float = 6.0
 static var cutting_board_height: float = 1.5
 ## A hammer, a wrench and a screwdriver laid together.
 static var tools_height: float = 2.5
-static var vise_height: float = 8.0
+static var vise_height: float = 5.0

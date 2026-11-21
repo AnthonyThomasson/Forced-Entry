@@ -49,10 +49,6 @@ static func rows(definition: Dictionary, base: Node2D) -> Array[Dictionary]:
 	for row: Dictionary in canonical(definition, spec):
 		if row.get("maybe", false) and hash([base.position, row["key"], row["lift"]]) % 2 != 0:
 			continue
-		var patch := {}
-		for field: String in ["size", "color", "weight", "height", "spines"]:
-			if row.has(field):
-				patch[field] = row[field]
 		out.append({
 			"key": row["key"],
 			"at": base.position + (row["at"] as Vector2).rotated(spec.turns * PI * 0.5),
@@ -60,20 +56,33 @@ static func rows(definition: Dictionary, base: Node2D) -> Array[Dictionary]:
 			"size": row.get("size", Vector2.ZERO),
 			"lift": float(row.get("lift", 0.0)),
 			"on_top": bool(row.get("on_top", false)),
-			"patch": patch,
+			"patch": patch_of(row),
 		})
 	return out
 
 
+## What a carrying `row` changes in its item's catalogue row (`patched`): its footprint, colour,
+## weight, height and spines, and `plain` for a home top's item: it keeps the old prop's own
+## colour, not the run-down grade a catalogue colour is drawn in.
+static func patch_of(row: Dictionary) -> Dictionary:
+	var patch := {}
+	for field: String in ["size", "color", "weight", "height", "spines"]:
+		if row.has(field):
+			patch[field] = row[field]
+	if row.get("on_top", false):
+		patch["plain"] = true
+	return patch
+
+
 ## `item` (a catalogue row) with a carrying row's `patch` applied: its footprint, its colour, its
-## weight and its height (in its `art_opts`, where the mesh reads it).
+## weight, its height and `plain` (in its `art_opts`, where the mesh reads them).
 static func patched(item: Dictionary, patch: Dictionary) -> Dictionary:
 	var out := item.duplicate(true)
 	for field: String in ["size", "color", "weight"]:
 		if patch.has(field):
 			out[field] = patch[field]
 	var opts: Dictionary = out.get("art_opts", {})
-	for field: String in ["height", "spines"]:
+	for field: String in ["height", "spines", "plain"]:
 		if patch.has(field):
 			opts[field] = patch[field]
 	out["art_opts"] = opts

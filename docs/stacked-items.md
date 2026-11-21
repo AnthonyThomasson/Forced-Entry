@@ -213,13 +213,17 @@ item's own size. `RoomItems.carry` (one, SI13's) sets them all; a piece that car
 
 The new kinds are `HomeItemsCatalog` rows (art id `item`: `item_home_painter.gd`, `item_home_mesh.gd`, heights in `ObjectMeshHomeItemConfig`):
 keyboard (18 x 6, 1.5 high, plastic), papers (11 x 14, 0.6, paper), clock (8 round, 4), vase (8 round, 10, ceramic), fruit bowl (12 round, 6),
-cutting board (16 x 11, 1.5, wood), tools (16 x 14, 2.5, metal) and vise (10 x 12, 8, metal, weight 10: a cast-iron bench vise, the heaviest of
+cutting board (16 x 11, 1.5, wood), tools (16 x 14, 2.5, metal) and vise (10 x 12, 5, metal, weight 10: a cast-iron bench vise, the heaviest of
 them); the monitor is 24 x 8 as its prop was. All of them, the vase too, lie within a step (`DoorFallConfig.step_over` 10 px; the rule is "no
 higher than", and the vase's 10 is at the line), so a walker steps over one on the floor (SI4); thin paper (a 1 px penetration) stops no round.
 They place only on the piece's footprint, so a sampled house has them asleep within two seconds (`worldgen/items_settle_in_houses`).
 **The old look is kept**: a home item paints in the prop palette (`ObjectArtDecorConfig.prop_colors`) at the prop's size, not in the catalogue
-colour's run-down grade (it read darker), and the monitor's lit front edge is drawn `glowing` in `Decay.screen_color` (the screen's green, or
-the neon) so its 3D mesh glows, as the prop's was.
+colour's run-down grade (it read darker: a carrying `on_top` row sets `art_opts.plain`, so the mesh uses the item's own colour), and the monitor's lit
+front edge is drawn `glowing` in `Decay.screen_color` (the screen's green, or the neon) and is an emissive glow node of its mesh (`ItemMesh._monitor_glow`:
+a strip on the screen's top and a panel on its front, in the room's light too: a painted edge went dull under it; `objects/monitor_edge_glows_in_a_lit_room_windowed`).
+The reused kinds take the prop's size, orientation and palette colour from the `carries` row that sets them (a book 12 x 9 lying landscape in a
+book colour, a mug and a bowl ceramic, the bowl 12 round; `objects/home_items_keep_the_old_look`), a mug has its coffee and a bowl its well, and the
+tools and the vise are slim and small as drawn (a hammer, a wrench and a screwdriver apart; a stand with its jaw and screw).
 
 **The desk's light** is the monitor item's: `ObjectArt.light_kind("item", { kind: "monitor" })` is the `monitor` row of
 `ObjectArtLightConfig.specs` (it was the `desk` row of a table that painted a monitor), so a desk gives no screen light, the monitor does. The row's
@@ -228,7 +232,8 @@ glow is 8 px over a desk's top, and a monitor shoved off its desk takes its glow
 (interface 20; `lighting/knocked_monitor_takes_its_glow`). Its pool stands `ahead` 22 px past the item's front edge: where the desk's old
 row had it (12 px inside the desk's front edge). **The neon** is the desk's: `ObjectArtLightConfig.neon_share["desk"]` (a table's `neon_as`
 option names it; no other table takes one) gives about half the desks a neon strip round the edge and its `trim` light, as before; a monitor
-item takes none of its own (`neon_share` has no `monitor`), so a desk's trim and its screen never disagree. A light is built with the
+item rolls none of its own (`neon_share` has no `monitor`): `RoomItems.carry` hands a desk's neon to the monitor it sets (its lit edge and its light), so a
+desk's trim and its screen never disagree (`objects/desk_keeps_its_neon_trim`). A light is built with the
 world's lighting: an item set on a built world later (a test's `carry`) has none.
 
 A piece set bare (a test's `s.object(&"desk", "desk", ...)`, `worldgen.items` off) carries nothing: the premise of a test built on one is a
