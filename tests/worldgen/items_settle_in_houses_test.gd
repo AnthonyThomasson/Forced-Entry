@@ -5,23 +5,15 @@ extends GameTest
 
 const Houses := preload("res://tests/_worldgen/door_house_probe.gd")
 const Settle := preload("res://tests/_worldgen/item_settle_probe.gd")
-const PLANS := [
-	"starter_home",
-	"open_plan_home",
-	"bungalow",
-	"garage_home",
-	"two_bed_flat",
-
-	"office_loft",
-]
 const SEEDS := [2, 5, 9, 13, 16, 21]
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "A house's small items settle where they were set",
-		"description": "Six floorplans over seven seeds (16 among them): each item is asleep "
-			+ "within a few px and degrees of where it was set after two seconds.",
+		"description": "Over every floorplan and six seeds (16 among them), one house at a time: "
+			+ "each item is asleep within a few px and degrees of where it was set after two "
+			+ "seconds.",
 		"tags": ["worldgen", "stacking", "house", "3d", "items"],
 		"timeout": 400.0,
 	}
@@ -35,8 +27,6 @@ func run(t: TestContext) -> void:
 	var plans: Array = HouseDefinitions.get_all()
 	var checked := 0
 	for plan_key: String in plans:
-		if not plan_key in plans:
-			continue
 		for house_seed: int in SEEDS:
 			var house := Houses.generated(t, plan_key, house_seed)
 			checked += await Settle.check(t, "%s seed %d" % [plan_key, house_seed], house, 0)

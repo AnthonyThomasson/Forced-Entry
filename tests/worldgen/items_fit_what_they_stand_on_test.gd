@@ -6,6 +6,7 @@ extends GameTest
 ## seeded houses and a district's towers.
 
 const Houses := preload("res://tests/_worldgen/door_house_probe.gd")
+const CounterMesh := preload("res://scenes/objects/art/counter_mesh.gd")
 const PLANS := [
 	"starter_home",
 	"open_plan_home",
@@ -35,7 +36,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var stats := { "stacked": 0, "tops": 0 }
-	for tower: Dictionary in DistrictReads.get_towers(t.world):
+	for tower: Dictionary in DistrictReads.get_towers(t.world.district):
 		_check(t, "district 11", RoomItems.placed_in(tower["node"]), stats)
 	for plan_key: String in PLANS:
 		if not plan_key in HouseDefinitions.get_all():
@@ -75,18 +76,44 @@ func _check(t: TestContext, where: String, placed: Array, stats: Dictionary) -> 
 		_check_top(t, where, node, mine, base as Node2D)
 
 
-## The item `node` (footprint `mine`) on the furniture `base`: inside its top, off what rises.
+## The item `node` (footprint `mine`) on the furniture `base`: inside its top, off what rises. The
+## top and the lip are derived here from the piece's own data (`PieceHeights.parts`, the counter's
+## `CounterMesh.splash_of`), not read back from `ObjectFactory.flat_top` that placed the item.
 func _check_top(t: TestContext, where: String, node: Node2D, mine: Rect2, base: Node2D) -> void:
-	var flat := ObjectFactory.flat_top(base)
-	var parent := base.get_parent() as Node2D
-	var top := Rect2(parent.to_global(flat["top"].position), flat["top"].size)
+	var spec := FurnitureSpec.of(base)
+	var parts := PieceHeights.parts(spec)
+	var lowest := INF
+	for part: Dictionary in parts:
+		lowest = minf(lowest, part["top"])
+	var top := _world_rect(base, spec, Rect2(0.0, 0.0, spec.size.x, spec.size.y))
 	t.check(
 		top.grow(EPS).encloses(mine),
 		"%s: %s lies inside the top of %s" % [where, node.name, base.name],
 	)
-	for lip: Rect2 in flat["raised"]:
-		var part := Rect2(parent.to_global(lip.position), lip.size)
+	var lips: Array[Rect2] = []
+	for part: Dictionary in parts:
+		if part["top"] > lowest + 0.5:
+			var unit: Rect2 = part["rect"]
+			lips.append(_world_rect(base, spec, Rect2(
+				unit.position * spec.size, unit.size * spec.size,
+			)))
+	var splash := CounterMesh.splash_of(spec)
+	if spec.art == "counter" and splash > 0.0:
+		lips.append(_world_rect(base, spec, Rect2(0.0, 0.0, spec.size.x, splash)))
+	for part in lips:
 		t.check(
 			not part.intersects(mine),
 			"%s: %s is off the lip of %s" % [where, node.name, base.name],
 		)
+	if spec.art == "counter" and splash > 0.0:
+		t.check(lips.size() > 0, "%s: a counter's backsplash is a lip" % where)
+
+
+## `area` (px from the piece's back-left corner, in its painter's frame) as a world rect, turned
+## the way `base` faces.
+func _world_rect(base: Node2D, spec: FurnitureSpec, area: Rect2) -> Rect2:
+	var centre := area.position + area.size * 0.5 - spec.size * 0.5
+	var turned := centre.rotated(spec.turns * PI * 0.5)
+	var plan := Vector2(area.size.y, area.size.x) if spec.turns % 2 == 1 else area.size
+	var at := (base.get_parent() as Node2D).to_global(base.position + turned)
+	return Rect2(at - plan * 0.5, plan)

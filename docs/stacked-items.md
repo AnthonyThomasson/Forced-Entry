@@ -119,7 +119,7 @@ Tests: `worldgen/stacking_keeps_the_layout` (a seeded house's and a district's w
 the same with items on and off), `worldgen/tops_get_a_few_items` (about half the tops, 1 to 3, inside the top, the same seed the
 same items), `worldgen/items_fit_what_they_stand_on` (inside the footprint under, off a backsplash), `worldgen/items_settle_in_district_11`,
 `_in_district_16`, `_in_houses` (after 2 s every item is asleep within 3 px and 8 degrees of where it was set; a three-high stack
-takes over 1 s to sleep).
+is measured asleep by 1.0 s).
 
 ## SI10. The AI's cover is the stack's height
 
