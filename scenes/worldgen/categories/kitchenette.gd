@@ -35,7 +35,7 @@ const OBJECTS := {
 				"height": 3.0,
 			},
 			{
-				"key": "pan", "at": Vector2(4, 0), "size": Vector2(22, 22), "lift": 15.0,
+				"key": "pan", "at": Vector2(6.5, 0), "size": Vector2(27, 22), "lift": 15.0,
 				"height": 4.0,
 			},
 		],

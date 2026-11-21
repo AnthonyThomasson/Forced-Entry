@@ -6,6 +6,8 @@ extends RefCounted
 ## plate with its hot ring, a pan with its handle and a pot with its two. Every one stands on its
 ## own origin (y 0), like every item.
 
+## How far (px) a pan's handle reaches past its disc.
+const PAN_HANDLE := 5.0
 const KINDS := ["pallet", "wrapped_box", "book_stood", "shoes", "hob", "pan", "pot"]
 ## The options the kinds here read (`item_mesh.gd` adds them to its own).
 const OPTIONS := ["spines"]
@@ -55,7 +57,7 @@ static func build(
 static func glow(spec: FurnitureSpec, foot: Rect2, high: float) -> Mesh:
 	var kit := spec.kit()
 	var radius := maxf(3.0, floorf(foot.size.y * 0.5) - 2.0)
-	var at := foot.position + Vector2(radius + 2.0 - 3.0, foot.size.y * 0.5)
+	var at := foot.position + Vector2(radius + 2.0, foot.size.y * 0.5)
 	kit.cylinder(
 		Vector3(at.x, high, at.y), radius, 0.6, ObjectArtKitchenBathConfig.hotplate_ring_color
 	)
@@ -108,10 +110,10 @@ static func _shoes(kit: MeshKit, foot: Rect2, high: float, colour: Color) -> voi
 
 ## A pan: a round dish and its handle reaching out to the right, both inside the footprint.
 static func _pan(kit: MeshKit, foot: Rect2, high: float, colour: Color) -> void:
-	var radius := minf(foot.size.x, foot.size.y) * 0.5 - 2.0
-	var mid := foot.get_center() - Vector2(2.0, 0.0)
+	var radius := foot.size.y * 0.5
+	var mid := foot.position + Vector2(radius, radius)
 	kit.cylinder(Vector3(mid.x, 0.0, mid.y), radius, high, colour, colour.lightened(0.15))
-	var grip := Rect2(mid + Vector2(radius - 1.0, -1.0), Vector2(4.0, 2.0))
+	var grip := Rect2(mid + Vector2(radius, -1.0), Vector2(PAN_HANDLE, 2.0))
 	kit.box(MeshKit.volume(grip, high - 1.5, 1.5), colour)
 
 

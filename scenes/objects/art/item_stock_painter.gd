@@ -44,14 +44,9 @@ static func paint(c: PixelCanvas, base: Color, kind: String) -> void:
 		"hob":
 			Kit.fill_rect(c, Rect2i(0, 0, c.w, c.h), base, _LOW)
 		"pan":
-			var r := maxi(1, mini(c.w, c.h) >> 1)
-			Kit.disc(c, Vector2i(c.w >> 1, c.h >> 1) - Vector2i(2, 0), maxi(1, r - 2), base, _TALL)
-			Kit.fill_rect(
-				c,
-				Rect2i((c.w >> 1) + r - 3, (c.h >> 1) - 1, 5, 2),
-				base.darkened(0.2),
-				_TALL,
-			)
+			var r := maxi(1, c.h >> 1)
+			Kit.disc(c, Vector2i(r, r), r, base, _TALL)
+			Kit.fill_rect(c, Rect2i(2 * r, r - 1, 5, 2), base.darkened(0.2), _TALL)
 		_:
 			var r := maxi(1, mini(c.w, c.h) >> 1)
 			Kit.disc(c, Vector2i(c.w >> 1, c.h >> 1), r, base, _TALL)

@@ -67,8 +67,8 @@ const OBJECTS := {
 	},
 	"pan": {
 		"name": "Pan",
-		"shape": "circle",
-		"size": Vector2(14, 14),
+		"shape": "rect",
+		"size": Vector2(19, 14),
 		"color": Color(0.2, 0.19, 0.18),
 		"material": "metal",
 		"art": "item",
