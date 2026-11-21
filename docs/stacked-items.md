@@ -71,7 +71,9 @@ A walk-over item is no hole in the nav bake (`PieceRest.walk_over`; `NavHoles.cu
 taller item is a hole as any piece is: a box, a crate or a lamp on the floor carves its footprint, so a stack of three is one
 hole (the holes of its items overlap) and an item on a table sits inside the table's.
 
-Tests: `navigation/walk_over_items_leave_the_map_open`.
+Tests: `navigation/walk_over_items_leave_the_map_open`, `navigation/house_items_carve_like_pieces` (a built garage house: its floor stacks are
+holes and the map closed under them, an item on a table sits in the table's hole, a plate and a cup set on the floor add none, a crate one, and
+the holes equal a full re-cut, also after a loaded table is moved).
 
 ## SI7. Bullets by material
 
