@@ -16,8 +16,9 @@ const FIRE_FROM := 140.0
 ## How long W is held (s): at the walking pace (about 100 px/s) it covers 250 px, from the firing
 ## spot to well beyond where the leaf lies in the room.
 const HOLD := 2.5
-## Where the walk must have got to (px of y): 200 px of the 250.
-const REACHED := -60.0
+## Where the walk must have got to (px of y): the human ends about 230 px north of the doorway's
+## row; shoving the leaf along ahead of it (before the fix) it was held to about 70.
+const REACHED := -150.0
 ## The most the leaf may be shoved by the walk (px).
 const MOVED := 5.0
 
