@@ -2,7 +2,7 @@ extends RefCounted
 ## Objects domain (private): the lights a piece gives, its `get_lights()` declaration (read
 ## duck-typed by the Lighting domain, which gives each one an OmniLight3D). What
 ## gives light is what the piece's painter draws glowing: a lamp's bulb, a screen's face (a TV, a
-## desk's monitor, the den's monitor wall, the rig's halo, a cart's display), a neon tube, a server
+## monitor item, the den's monitor wall, the rig's halo, a cart's display), a neon tube, a server
 ## rack's LEDs, the scanner's beam, the hot ring, the surgeon's lamp, a street lamp's lens or sign,
 ## and a piece's neon trim. Each light is plain data, in the piece's own frame:
 ##   `offset` (Vector2) and `turn` (rad, the pool's long axis from +x), `colour`, `energy`, `radius`
@@ -74,7 +74,7 @@ static func _by_kind(
 	match kind:
 		"lamp":
 			light["colour"] = neon if neon.a > 0.0 else ObjectArtDecorConfig.lamp_glow_color
-		"tv", "desk":
+		"tv", "monitor":
 			light["turn"] = spill
 		"fridge":
 			light["turn"] = spill

@@ -101,8 +101,8 @@ consoles and night stands; boxes on workbenches and filing cabinets), else `TOPS
 general rule: any table, counter or cabinet takes a small piece; a shelf carries its own, `PieceCarries`), and an empty row keeps a top bare (a basin, a mirror, a
 shoe rack). About half the tops carry items (`WorldGenItemConfig.top_chance`, 0.5): 1 to `top_max` (3) items (a plate or a book may
 be stacked on one more now and then, `stack_chance`), each inside the top's main flat part (`ObjectFactory.flat_top`: the footprint
-but for a part that rises over it, a counter's backsplash, which an item keeps off: set against it, it would lean) and off the props
-its painter draws; a monitor faces as its desk does. `ItemsCatalog.FLOOR` gives a stockroom, a garage, a home office and a laundry
+but for a part that rises over it, a counter's backsplash, which an item keeps off: set against it, it would lean); a monitor
+faces as its desk does. A piece that carries its own items (SI13, SI14) takes no fill. `ItemsCatalog.FLOOR` gives a stockroom, a garage, a home office and a laundry
 room floor stacks of 2 to 3 boxes and crates by a wall or in a corner, `floor_clear` (22 px) from furniture, doorway boxes and each
 other, so a walker keeps a lane. **An item goes only where its footprint fits**: on a stack, one at least as big as the one under it
 (a crate on a crate, a box on a box or a crate, never a crate on a box: it would overhang and topple), put off its centre by at most
@@ -152,7 +152,7 @@ A piece whose look or mesh used to build loose things in gives them up as separa
 were, and is drawn without them: its mesh, its painter and its `PieceHeights` leave them out. This part is the shelves and the stock;
 the home tops (`unbake-a`) and the shops and special rooms (`unbake-c`) follow the same rule. **The unbake rule:** an emptied
 piece says what it carries as **data** (`PieceCarries`, Objects: a catalogue row's `carries`, rows of `{ key, at, size, lift, height,
-color, weight }`, `at` from the piece's centre in the painter's canonical frame, or, for a shelf, `art_opts.loose` and the generator
+color, weight, maybe, on_top }`, `at` from the piece's centre in the painter's canonical frame, or, for a shelf, `art_opts.loose` and the generator
 `ShelfLoose` that walks the boards the old mesh walked, with the same seed); `RoomItems.carry` sets each item with
 `ObjectFactory.spawn_on` and `rest_at` (the height it stands on), the entry `carried: true`. The random few-per-top fill skips an
 emptied piece (`ItemsCatalog.options_for` is empty for it). With `worldgen.items` off a house is built bare: an emptied piece shows
@@ -187,3 +187,45 @@ rifle through), `art/emptied_shelves_windowed` (the contents read as bright as t
 hysteresis tests (`vehicle/car_tips_a_bookshelf_but_slides_a_sofa`, `objects/tipped_piece_has_hysteresis_and_cuts_when_changed`) on
 the real bookshelf, `worldgen/old_looks_keep_their_items` (stockrooms, kitchenettes, shelves), and the settle and fit tests
 (`worldgen/items_settle_in_*`, `items_fit_what_they_stand_on`) over the carried items.
+
+## SI14. Unbake: the home tops carry their old props as items (job `unbake-a`; D21)
+
+A piece used to paint small props on its top (a desk's monitor, keyboard, mug and papers) that showed in 3D only as a flat texture. The
+unbake rule of SI13 holds: a loose thing a piece's look builds in is a separate item. For the home tops each painted prop is now an item, set
+where it was drawn, so the old look is kept and each moves alone (SI3). `art_opts.props` is gone from the catalogue; a piece's row holds
+`carries` rows in the one schema of SI13 (`PieceCarries`: `{ key, at, ... }`, `at` in px from the piece's centre in the painter's frame, the
+front toward +y; the points are those the old painter drew, the prop's unit point through the painter's rect inset 3 px). The home rows say
+**`on_top: true`** and no `lift` or `size`: the item rests on the piece's top where it is (`ObjectFactory.top_at` reads the part under the
+point, so an item set on a counter's slab starts on the slab, not the backsplash, and on what already lies there) and has the catalogue
+item's own size. `RoomItems.carry` (one, SI13's) sets them all; a piece that carries takes no random few-per-top fill
+(`ItemsCatalog.options_for` is empty for it: one guard, `PieceCarries.carries`).
+
+| piece | carries |
+|---|---|
+| `desk` | monitor, keyboard, mug (`cup`), papers |
+| `side_table` | book |
+| `nightstand` | clock, book |
+| `dresser` | vase, book |
+| `console_table` | bowl, vase |
+| `kitchen_counter`, `kitchenette_counter` | cutting board |
+| `island` | fruit bowl |
+| `workbench` | tools, vise |
+
+The new kinds are `HomeItemsCatalog` rows (art id `item`: `item_home_painter.gd`, `item_home_mesh.gd`, heights in `ObjectMeshHomeItemConfig`):
+keyboard (18 x 6, 1.5 high, plastic), papers (11 x 14, 0.6, paper), clock (8 round, 4), vase (8 round, 10, ceramic), fruit bowl (12 round, 6),
+cutting board (16 x 11, 1.5, wood), tools (16 x 14, 2.5, metal) and vise (10 x 8, 8, metal). All but the vase lie within a step, so a walker steps
+over one on the floor (SI4); thin paper (a 1 px penetration) stops no round. They place only on the piece's footprint, so a sampled house has them
+asleep within two seconds (`worldgen/items_settle_in_houses`).
+
+**The desk's light** is the monitor item's: `ObjectArt.light_kind("item", { kind: "monitor" })` is the `monitor` row of
+`ObjectArtLightConfig.specs` (it was the `desk` row of a table that painted a monitor), so a desk gives no light, the monitor does, and a
+monitor shoved off its desk takes its glow with it (interface 20; the light keeps its declared height `lift` 39, a monitor on the floor glows
+from there). A monitor takes its neon tint from its own place (`ObjectArt.neon_for`), as the desk did.
+
+A piece set bare (a test's `s.object(&"desk", "desk", ...)`, `worldgen.items` off) carries nothing: the premise of a test built on one is a
+bare desk (the ajar-door tests, the blast and casing tests).
+
+Tests: `objects/emptied_desk_carries_its_items` (four items, each asleep on the top, a shove moves the monitor alone),
+`worldgen/old_looks_keep_their_items` (the one test of SI13 and SI14: also each home top paints no props and carries exactly its rows at the drawn points),
+`lighting/knocked_monitor_takes_its_glow`, `objects/piece_heights` (the new kinds' tops), `worldgen/items_settle_in_houses`,
+`_in_district_11`, `_in_district_16` and `worldgen/items_fit_what_they_stand_on` (they read every `Items` node, carried ones included).

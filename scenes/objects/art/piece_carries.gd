@@ -4,17 +4,19 @@ extends RefCounted
 ## piece whose look used to build loose things in (a shelf's books, a crate stack's crates, a
 ## pallet's wrapped boxes, a hotplate's plate and pan) draws and builds none of them now; the
 ## things are items (rule 9: free bodies) set where they were drawn. This is the read of those
-## places, as rows `{ key, at, rotated, size, lift, patch }` a placer sets items by
+## places, as rows `{ key, at, rotated, size, lift, on_top, patch }` a placer sets items by
 ## (`ObjectFactory.spawn_on` with `rest_at`; World-Gen's `RoomItems.carry`): `key` the item's
 ## catalogue key, `at` its centre as a plan point (in the space the piece's `position` is in,
 ## turned the way the piece faces), `size` its footprint in the piece's canonical frame, `lift` the
 ## height (px above the floor) it stands on and `patch` what differs from the catalogue row (size,
 ## height, colour, weight, spines).
 ## A piece says what it carries in its catalogue row's `carries` (`[{ key, at, size, lift, height,
-## color, weight, maybe }]`, `at` from the piece's centre in the canonical frame, x across and the
+## color, weight, maybe, on_top }]`, `at` from the piece's centre in the canonical frame, x across and the
 ## front toward +y, `lift` from the floor; a `maybe` row is there for about half the pieces, by
-## where the piece stands, so a seed's layout says which: a crate stack's third crate), or, a shelf
-## with `art_opts.loose`, by `ShelfLoose`.
+## where the piece stands, so a seed's layout says which: a crate stack's third crate; an `on_top`
+## row has no `lift`: the item rests on the piece's top under it, a counter's slab and not its
+## backsplash, on what is already there, as a home top's desk and nightstand carry them, and takes
+## the catalogue item's own `size`), or, a shelf with `art_opts.loose`, by `ShelfLoose`.
 
 const ShelfLoose = preload("res://scenes/objects/art/shelf_loose.gd")
 
@@ -47,16 +49,17 @@ static func rows(definition: Dictionary, base: Node2D) -> Array[Dictionary]:
 	for row: Dictionary in canonical(definition, spec):
 		if row.get("maybe", false) and hash([base.position, row["key"], row["lift"]]) % 2 != 0:
 			continue
-		var patch := { "size": row["size"] }
-		for field: String in ["color", "weight", "height", "spines"]:
+		var patch := {}
+		for field: String in ["size", "color", "weight", "height", "spines"]:
 			if row.has(field):
 				patch[field] = row[field]
 		out.append({
 			"key": row["key"],
 			"at": base.position + (row["at"] as Vector2).rotated(spec.turns * PI * 0.5),
 			"rotated": spec.turns % 2 == 1,
-			"size": row["size"],
+			"size": row.get("size", Vector2.ZERO),
 			"lift": float(row.get("lift", 0.0)),
+			"on_top": bool(row.get("on_top", false)),
 			"patch": patch,
 		})
 	return out
@@ -66,8 +69,7 @@ static func rows(definition: Dictionary, base: Node2D) -> Array[Dictionary]:
 ## weight and its height (in its `art_opts`, where the mesh reads it).
 static func patched(item: Dictionary, patch: Dictionary) -> Dictionary:
 	var out := item.duplicate(true)
-	out["size"] = patch["size"]
-	for field: String in ["color", "weight"]:
+	for field: String in ["size", "color", "weight"]:
 		if patch.has(field):
 			out[field] = patch[field]
 	var opts: Dictionary = out.get("art_opts", {})

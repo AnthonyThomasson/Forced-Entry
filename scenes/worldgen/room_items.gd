@@ -13,8 +13,6 @@ class_name RoomItems
 ## crate on a box), a hair off centre by no more than the margin that leaves (`_jitter`): an item
 ## that overhangs what it stands on topples at the start.
 
-## How far (px) an item's edge stays from a painted prop's centre.
-const PROP_CLEAR := 4.0
 ## The most (px) an item set on another of its kind on a top, and one in a floor stack, is put off
 ## the centre of what it stands on (cut to what the footprints leave).
 const JITTER_TOP := 1.0
@@ -65,8 +63,9 @@ static func carry(base: Node2D, definition: Dictionary, parent: Node, room: Stri
 			"rotated": row["rotated"],
 			"facing": facing if facing is Vector2 else Vector2.DOWN,
 			"name": row["key"],
-			"rest_at": row["lift"],
 		}
+		if not row["on_top"]:
+			opts["rest_at"] = row["lift"]
 		var node := ObjectFactory.spawn_on(
 			item, base, (row["at"] as Vector2) - base.position, parent, opts
 		)
@@ -75,8 +74,8 @@ static func carry(base: Node2D, definition: Dictionary, parent: Node, room: Stri
 
 
 ## The items on the top of `piece` (`{ key, definition, node }`): none, or 1 to `top_max` with
-## `top_chance`, each of its catalogue row's kinds (`ItemsCatalog.options_for`), kept inside the top
-## and off the props its art paints.
+## `top_chance`, each of its catalogue row's kinds (`ItemsCatalog.options_for`), kept inside the
+## top.
 static func _on_top(site: RoomSite, piece: Dictionary, rng: RandomNumberGenerator) -> Array:
 	var base: Node2D = piece["node"]
 	var options := ItemsCatalog.options_for(piece["key"], piece["definition"])
@@ -87,7 +86,6 @@ static func _on_top(site: RoomSite, piece: Dictionary, rng: RandomNumberGenerato
 		"base": base,
 		"rect": (flat["top"] as Rect2).grow(-WorldGenItemConfig.edge),
 		"raised": flat["raised"],
-		"props": _prop_points(base),
 		"laid": [] as Array[Rect2],
 	}
 	var out: Array = []
@@ -96,7 +94,7 @@ static func _on_top(site: RoomSite, piece: Dictionary, rng: RandomNumberGenerato
 	return out
 
 
-## One item `key` on `top` (`{ base, rect, props, laid }`): `[]` when no try finds it a place, else
+## One item `key` on `top` (`{ base, rect, raised, laid }`): `[]` when no try finds it a place, else
 ## it, and a second on it now and then when it is a plate or a book.
 static func _one_on(
 	site: RoomSite,
@@ -149,8 +147,8 @@ static func _facing_of(base: Node2D, key: String, rng: RandomNumberGenerator) ->
 	return face if face is Vector2 else Vector2.DOWN
 
 
-## A point for a footprint `foot` inside `top`'s rect, off what it has `laid`, its `raised` parts
-## and its `props`; (INF, INF) when no try fits.
+## A point for a footprint `foot` inside `top`'s rect, off what it has `laid` and its `raised`
+## parts; (INF, INF) when no try fits.
 static func _spot_on(top: Dictionary, foot: Vector2, rng: RandomNumberGenerator) -> Vector2:
 	var area: Rect2 = top["rect"]
 	var span := area.size - foot
@@ -165,8 +163,7 @@ static func _spot_on(top: Dictionary, foot: Vector2, rng: RandomNumberGenerator)
 
 
 ## Whether `rect` is on an item already `laid` on `top` (`WorldGenItemConfig.spacing` apart), on a
-## part that stands higher than the top (a counter's backsplash: an item set against it leans) or on
-## a prop the painter draws there.
+## part that stands higher than the top (a counter's backsplash: an item set against it leans).
 static func _crowded(top: Dictionary, rect: Rect2) -> bool:
 	var spacing := WorldGenItemConfig.spacing
 	for other: Rect2 in top["laid"]:
@@ -175,33 +172,7 @@ static func _crowded(top: Dictionary, rect: Rect2) -> bool:
 	for lip: Rect2 in top["raised"]:
 		if lip.grow(spacing).intersects(rect):
 			return true
-	for point: Vector2 in top["props"]:
-		if rect.grow(PROP_CLEAR).has_point(point):
-			return true
 	return false
-
-
-## Where the painter draws props on `base` (the `art_opts.props` `at` fractions of its footprint,
-## turned the way the piece faces), in the furniture node's space.
-static func _prop_points(base: Node2D) -> Array[Vector2]:
-	var out: Array[Vector2] = []
-	var look: Variant = base.get(&"look")
-	if not look is Object:
-		return out
-	var opts: Variant = (look as Object).get(&"art_opts")
-	if not opts is Dictionary or not (opts as Dictionary).has("props"):
-		return out
-	var face: Variant = (look as Object).get(&"facing")
-	var toward: Vector2 = face if face is Vector2 else Vector2.DOWN
-	var turns := roundi(Vector2.DOWN.angle_to(toward) / (PI * 0.5))
-	var canonical: Vector2 = base.size
-	if posmod(turns, 2) == 1:
-		canonical = Vector2(canonical.y, canonical.x)
-	for prop: Dictionary in (opts as Dictionary)["props"]:
-		var unit: Vector2 = prop.get("at", Vector2(0.5, 0.5))
-		var from_centre := ((unit - Vector2(0.5, 0.5)) * canonical).rotated(turns * PI * 0.5)
-		out.append(base.position + from_centre)
-	return out
 
 
 ## The floor stacks of `site`'s room type (`ItemsCatalog.FLOOR`): 1 or more stacks of 2 to 3 boxes

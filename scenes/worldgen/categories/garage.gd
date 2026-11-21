@@ -23,11 +23,11 @@ const OBJECTS := {
 		"art_opts": {
 			"plank_px": 4,
 			"height": 38.0,
-			"props": [
-				{ "kind": "tools", "at": Vector2(0.38, 0.5) },
-				{ "kind": "vise", "at": Vector2(0.85, 0.45) },
-			],
 		},
+		"carries": [
+			{ "key": "tools", "at": Vector2(-12.5, 0), "on_top": true },
+			{ "key": "vise", "at": Vector2(36.4, -1.9), "on_top": true },
+		],
 		"weight": 90,
 		"penetration": 60,
 	},

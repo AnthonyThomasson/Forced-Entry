@@ -13,6 +13,7 @@ extends RefCounted
 
 const Kit = preload("res://scenes/objects/art/paint_kit.gd")
 const ItemStockPainter = preload("res://scenes/objects/art/item_stock_painter.gd")
+const ItemHomePainter = preload("res://scenes/objects/art/item_home_painter.gd")
 
 
 ## Paint the item `opts.kind` onto `c` in `base`.
@@ -32,11 +33,10 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 			_monitor(c, base)
 		"crate":
 			_crate(c, base)
-		_:
-			var kind := String(opts.get("kind", "box"))
-			if kind in ItemStockPainter.KINDS:
-				ItemStockPainter.paint(c, base, kind)
-			else:
+		var other:
+			if other in ItemStockPainter.KINDS:
+				ItemStockPainter.paint(c, base, other)
+			elif not ItemHomePainter.paint(c, base, other):
 				_box(c, base)
 	c.cast_shadows()
 

@@ -4,13 +4,13 @@ extends RefCounted
 ## glazed (showing stacked plates) or a hinged lid with straps, and along the front a lip strip
 ## showing the doors or drawers with their handles. Options (`art_opts`, defaulting to
 ## ObjectArtStorageConfig.cabinet_*): `front` ("doors" | "drawers" | "lid" | "none"), `count`,
-## `front_depth`, `crown`, `top` ("solid" | "glass" | "lid"), `labels`, `handle` (a Color), `props`,
+## `front_depth`, `crown`, `top` ("solid" | "glass" | "lid"), `labels`, `handle` (a Color),
 ## `neon` (a neon under-glow along the front, glowing). Run down (decay.gd: `casegoods`): grime,
 ## scratches, stickers, rust on metal.
 
 const Props = preload("res://scenes/objects/art/props.gd")
 const Decay = preload("res://scenes/objects/art/decay.gd")
-## Cast-shadow height of the carcass (props stand above it).
+## Cast-shadow height of the carcass (the glass top's plates stand above it).
 const _BODY_HEIGHT := 4
 
 
@@ -41,7 +41,6 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 
 	_front(c, Rect2i(0, c.h - lip, c.w, lip), base, opts)
 	c.outline(body, t.outline)
-	Props.draw_all(c, opts.get("props", []), top_rect.grow(-3), Decay.screen_color(opts))
 	c.cast_shadows()
 	casegoods(c, material)
 	var neon := Decay.neon(opts)

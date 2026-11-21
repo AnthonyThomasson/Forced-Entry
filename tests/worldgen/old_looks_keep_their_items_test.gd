@@ -5,10 +5,30 @@ extends GameTest
 ## its pallet a pallet item with four wrapped boxes on it, a kitchenette's hotplate a crate piece
 ## with a hotplate plate and a pan on it, and a bookshelf, shelving, linen shelf or shoe rack
 ## carries the books, boxes or shoes it drew. Nothing is strewn on the stockroom floor besides.
+## The home tops too (#194 unbake-a, SI14): every desk, side table, console table, nightstand,
+## dresser, kitchen and kitchenette counter, island and workbench paints no props and carries
+## exactly the items its row says (`HOME`), each set where the drawing had it (the row's `at`, px
+## from the piece's centre in its frame, turned the way it faces), and no item of the random fill.
 
 const Houses := preload("res://tests/_worldgen/door_house_probe.gd")
 const PLANS := ["micro_flat", "corner_flat", "starter_home", "garage_home"]
 const SEEDS := [2, 5, 9, 11, 13, 16]
+## The seeds of the plans that carry no stock (the home tops are in all of them).
+const HOME_SEEDS := [2, 5, 13]
+## The home tops that were emptied and the items each now carries: the premise, written out here.
+const HOME := {
+	"desk": ["cup", "keyboard", "monitor", "papers"],
+	"side_table": ["book"],
+	"console_table": ["bowl", "vase"],
+	"nightstand": ["book", "clock"],
+	"dresser": ["book", "vase"],
+	"kitchen_counter": ["cutting_board"],
+	"kitchenette_counter": ["cutting_board"],
+	"island": ["fruit_bowl"],
+	"workbench": ["tools", "vise"],
+}
+## How far (px) a home item stands from its drawn point at the start, before it settles.
+const DRAWN := 1.0
 ## The top (px) of a stack's two crates, and how far (px) the third's lift may be off it.
 const CRATE_PAIR_TOP := 40.0
 const LIFT_SLACK := 1.0
@@ -17,7 +37,7 @@ const LIFT_SLACK := 1.0
 func describe() -> Dictionary:
 	return {
 		"name": "Emptied pieces keep their old look as items",
-		"description": "A district's stockrooms get loose crates and a pallet with boxes (no "
+		"description": "The home tops carry the items they painted as props; a district's stockrooms get loose crates and a pallet with boxes (no "
 			+ "stack piece, nothing else on the floor); a kitchenette gets its crate, a hotplate "
 			+ "and a pan; shelves carry their books, boxes and shoes.",
 		"tags": ["worldgen", "stacking", "items", "district", "house", "unbake"],
@@ -34,14 +54,15 @@ func run(t: TestContext) -> void:
 		"Crates": 0, "Crates2": 0, "Crates3": 0, "Pallet": 0, "Hotplate": 0, "Shelves": 0,
 		"Books": 0, "Tins": 0,
 	}
+	for home: String in HOME:
+		seen[home] = 0
 	for tower: Dictionary in DistrictReads.get_towers(t.world.district):
 		_check(t, "district 11", RoomItems.placed_in(tower["node"]), seen)
-	for plan_key: String in PLANS:
-		if not plan_key in HouseDefinitions.get_all():
-			continue
-		for house_seed: int in SEEDS:
+	for plan_key: String in HouseDefinitions.get_all():
+		for house_seed: int in (SEEDS if plan_key in PLANS else HOME_SEEDS):
 			var house := Houses.generated(t, plan_key, house_seed)
 			_check(t, "%s seed %d" % [plan_key, house_seed], RoomItems.placed_in(house), seen)
+			_check_home(t, "%s seed %d" % [plan_key, house_seed], house, seen)
 			house.queue_free()
 			await t.frames(1)
 	for kind: String in seen:
@@ -127,3 +148,57 @@ func _check_crates(
 func _holds(keys: Array, thing: String) -> bool:
 	var allowed := [thing, "paint_tin"]
 	return not keys.is_empty() and keys.all(func(key: String) -> bool: return key in allowed)
+
+
+## Every home top of `house` (a piece of a `<room> Furniture` node named in `HOME`): it paints no
+## props, carries what `HOME` says (nothing of the random fill) and each item is at its drawn point.
+func _check_home(t: TestContext, where: String, house: Node2D, seen: Dictionary) -> void:
+	var placed := RoomItems.placed_in(house)
+	for room: Node in house.get_children():
+		if not String(room.name).ends_with(" Furniture"):
+			continue
+		for piece: Node2D in room.get_children():
+			var key := _home_key(piece)
+			if key == "":
+				continue
+			seen[key] += 1
+			var label := "%s: %s" % [where, piece.name]
+			t.check(
+				not (piece.look.art_opts as Dictionary).has("props"), "%s paints no props" % label
+			)
+			var items: Array = placed.filter(
+				func(entry: Dictionary) -> bool: return entry["on"] == piece
+			)
+			var keys: Array = items.map(func(entry: Dictionary) -> String: return entry["key"])
+			keys.sort()
+			t.expect_eq(keys, HOME[key], "%s carries its items and no fill" % label)
+			_check_drawn(t, label, key, piece, items)
+
+
+## The catalogue key of the home top `piece` is (its node is named by its key), else "".
+func _home_key(piece: Node2D) -> String:
+	var stem := String(piece.name).rstrip("0123456789")
+	for key: String in HOME:
+		if stem == key.capitalize():
+			return key
+	return ""
+
+
+## Each row of the home top `piece`'s `carries` has its item at the point it was drawn.
+func _check_drawn(
+	t: TestContext,
+	label: String,
+	key: String,
+	piece: Node2D,
+	items: Array,
+) -> void:
+	var turns := roundi(Vector2.DOWN.angle_to(piece.look.facing) / (PI * 0.5))
+	for row: Dictionary in ObjectDefinitions.get_definition(key)["carries"]:
+		var want: Vector2 = piece.global_position + (row["at"] as Vector2).rotated(
+			turns * PI * 0.5
+		)
+		var found := false
+		for entry: Dictionary in items:
+			if entry["key"] == row["key"]:
+				found = found or (entry["node"] as Node2D).global_position.distance_to(want) <= DRAWN
+		t.check(found, "%s: the %s is where it was drawn" % [label, row["key"]])

@@ -13,8 +13,8 @@ const OBJECTS := {
 		"art": "counter",
 		"art_opts": {
 			"basin": "single",
-			"props": [{ "kind": "cutting_board", "at": Vector2(0.22, 0.55) }],
 		},
+		"carries": [{ "key": "cutting_board", "at": Vector2(-26.3, 3.3), "on_top": true }],
 		"weight": 70,
 		"penetration": 70,
 		"interactions": [

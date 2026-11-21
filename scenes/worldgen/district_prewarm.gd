@@ -90,9 +90,10 @@ static func _carried_requests() -> Array:
 			spec.size = turned
 			rows.append_array(PieceCarries.canonical(definition, spec))
 		for row: Dictionary in rows:
-			var patch := { "size": row["size"] }
-			if row.has("color"):
-				patch["color"] = row["color"]
+			var patch := {}
+			for field: String in ["size", "color"]:
+				if row.has(field):
+					patch[field] = row[field]
 			var item := PieceCarries.patched(ObjectDefinitions.get_definition(row["key"]), patch)
 			var opts: Dictionary = item.get("art_opts", {}).merged(
 				{ "material": item.get("material", "") }

@@ -100,22 +100,14 @@ const OBJECTS := {
 }
 ## What lies on a flat top, by the piece's catalogue key: `[item key, weight]` pairs (`RoomItems`
 ## draws 1 to `WorldGenItemConfig.top_max` of them on about half the tops). A key here beats
-## `TOPS_BY_ART`; an empty list keeps a top bare. An emptied piece (`PieceCarries`: a loose shelf, a
-## crate stack, a pallet, a hotplate) has no row: its own items are set by `RoomItems.carry`.
+## `TOPS_BY_ART`; an empty list keeps a top bare. A piece that carries its own items (`PieceCarries`:
+## a loose shelf, a crate stack, a pallet, a hotplate, and a desk, a nightstand, a counter:
+## `HomeItemsCatalog`) has no row: its items are set by `RoomItems.carry`, it takes no random fill.
 const TOPS := {
 	"table": [["plate", 3.0], ["cup", 3.0], ["bowl", 2.0], ["book", 1.0]],
 	"dining_table": [["plate", 4.0], ["cup", 3.0], ["bowl", 2.0]],
 	"coffee_table": [["cup", 3.0], ["book", 3.0], ["bowl", 1.0], ["desk_lamp", 0.5]],
-	"side_table": [["desk_lamp", 3.0], ["book", 2.0], ["cup", 2.0]],
-	"kitchen_counter": [["plate", 3.0], ["cup", 3.0], ["bowl", 3.0]],
-	"island": [["plate", 3.0], ["cup", 2.0], ["bowl", 3.0]],
-	"kitchenette_counter": [["plate", 3.0], ["cup", 3.0], ["bowl", 2.0]],
-	"desk": [["monitor", 3.0], ["book", 3.0], ["desk_lamp", 2.0], ["cup", 2.0]],
-	"console_table": [["book", 3.0], ["desk_lamp", 2.0], ["bowl", 2.0]],
-	"workbench": [["box", 3.0], ["desk_lamp", 2.0], ["cup", 1.0]],
 	"filing_cabinet": [["box", 3.0], ["book", 2.0]],
-	"nightstand": [["desk_lamp", 3.0], ["book", 2.0], ["cup", 2.0]],
-	"dresser": [["book", 2.0], ["desk_lamp", 2.0], ["box", 2.0]],
 	"mirror": [],
 	"sink": [],
 	"laundry_sink": [],
@@ -172,6 +164,6 @@ static func options_for(key: String, definition: Dictionary) -> Array:
 static func fitting(options: Array, under: Vector2) -> Array:
 	return options.filter(
 		func(option: Array) -> bool:
-			var size: Vector2 = OBJECTS[option[0]]["size"]
+			var size: Vector2 = ObjectDefinitions.get_definition(option[0])["size"]
 			return size.x <= under.x and size.y <= under.y
 	)

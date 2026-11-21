@@ -32,12 +32,12 @@ static var specs: Dictionary = {
 		"ahead": 26.0,
 		"rhythm": [[&"shimmer", 1.0]],
 	},
-	"desk": {
+	"monitor": {
 		"lift": 39.0,
 		"energy": 0.6,
 		"radius": 105.0,
 		"shape": &"wide",
-		"ahead": -12.0,
+		"ahead": 8.0,
 		"rhythm": [[&"shimmer", 1.0]],
 	},
 	"monitor_wall": {
@@ -132,11 +132,11 @@ static var decay_screen_color: Color = Color(0.45, 0.95, 0.42)
 static var neon_cyan: Color = Color(0.15, 0.92, 1.0)
 static var neon_magenta: Color = Color(1.0, 0.2, 0.72)
 ## The share of each kind of light-giving piece that takes a neon trim or screen
-## (`ObjectArt.neon_for`): `tv` an appliance with a TV panel, `desk` a table with a monitor on it,
+## (`ObjectArt.neon_for`): `tv` an appliance with a TV panel, `monitor` a monitor item (on a desk),
 ## the new rooms' pieces by their `kind` (`monitor_wall`, `server_rack`, `rig`, `tool_cart`), the
 ## rest by their painter id. A kind not listed never does.
 static var neon_share: Dictionary = {
-	"tv": 0.6, "desk": 0.5, "lamp": 0.45, "fixture": 0.5, "counter": 0.35, "cabinet": 0.3,
+	"tv": 0.6, "monitor": 0.5, "lamp": 0.45, "fixture": 0.5, "counter": 0.35, "cabinet": 0.3,
 	"shelf": 0.35, "bed": 0.3, "appliance": 0.25, "monitor_wall": 0.6, "server_rack": 0.5,
 	"rig": 0.6, "tool_cart": 0.4,
 }

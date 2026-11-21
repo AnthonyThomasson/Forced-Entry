@@ -13,7 +13,12 @@ class_name GeneralCatalog
 ##     solid (optional, default true; false = walk-over decor under all);
 ##   art (optional pixel-art painter id, e.g. "sofa", "cabinet", "appliance"; omitted =
 ##     flat shape + label) and art_opts (optional painter variant/overrides, e.g.
-##     { "front": "drawers", "count": 3 } or { "props": [...] });
+##     { "front": "drawers", "count": 3 });
+##   carries (optional `[{ key, at, ... }]`: the items the piece holds from the start, each a free item
+##     of its own set by `RoomItems.carry` (`PieceCarries` is the schema, `docs/stacked-items.md`
+##     SI13 and SI14): `at` px from the piece's centre in the painter's frame (the front toward +y);
+##     `on_top: true` rests it on the piece's top where it is, the home tops' (`HomeItemsCatalog`).
+##     A piece that carries items takes no random few-per-top fill);
 ##   anchored (optional, default false: a solid piece that never moves, the street lamps' posts) and
 ##     overhang (optional `{ size, reach }`: an overhead part beyond the footprint, above the
 ##     characters, a street lamp's arm and head).
@@ -98,7 +103,7 @@ const OBJECTS := {
 		"color": Color(0.55, 0.35, 0.2),
 		"material": "wood",
 		"art": "table",
-		"art_opts": { "props": [{ "kind": "book", "at": Vector2(0.5, 0.5) }] },
+		"carries": [{ "key": "book", "at": Vector2(0, 0), "on_top": true }],
 		"weight": 8,
 		"penetration": 45,
 		"interactions": [{ "id": "examine", "label": "Examine" }],
@@ -181,11 +186,11 @@ const OBJECTS := {
 		"art_opts": {
 			"front": "drawers",
 			"count": 1,
-			"props": [
-				{ "kind": "clock", "at": Vector2(0.28, 0.45) },
-				{ "kind": "book", "at": Vector2(0.68, 0.5) },
-			],
 		},
+		"carries": [
+			{ "key": "clock", "at": Vector2(-7.5, -4.4), "on_top": true },
+			{ "key": "book", "at": Vector2(6.1, -3), "on_top": true },
+		],
 		"weight": 10,
 		"penetration": 45,
 		"interactions": [
@@ -200,14 +205,12 @@ const OBJECTS := {
 		"color": Color(0.4, 0.25, 0.1),
 		"material": "wood",
 		"art": "table",
-		"art_opts": {
-			"props": [
-				{ "kind": "monitor", "at": Vector2(0.5, 0.22) },
-				{ "kind": "keyboard", "at": Vector2(0.5, 0.62) },
-				{ "kind": "mug", "at": Vector2(0.83, 0.55) },
-				{ "kind": "papers", "at": Vector2(0.15, 0.5) },
-			],
-		},
+		"carries": [
+			{ "key": "monitor", "at": Vector2(0, -12.3), "on_top": true },
+			{ "key": "keyboard", "at": Vector2(0, 5.3), "on_top": true },
+			{ "key": "cup", "at": Vector2(37.6, 2.2), "on_top": true },
+			{ "key": "papers", "at": Vector2(-39.8, 0), "on_top": true },
+		],
 		"weight": 24,
 		"penetration": 50,
 		"interactions": [
@@ -257,11 +260,11 @@ const OBJECTS := {
 		"art": "table",
 		"art_opts": {
 			"plank_px": 7,
-			"props": [
-				{ "kind": "bowl", "at": Vector2(0.3, 0.5) },
-				{ "kind": "vase", "at": Vector2(0.75, 0.5) },
-			],
 		},
+		"carries": [
+			{ "key": "bowl", "at": Vector2(-16.8, 0), "on_top": true },
+			{ "key": "vase", "at": Vector2(21, 0), "on_top": true },
+		],
 		"weight": 14,
 		"penetration": 45,
 	},

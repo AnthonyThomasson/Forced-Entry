@@ -43,11 +43,11 @@ const OBJECTS := {
 		"art_opts": {
 			"front": "drawers",
 			"count": 3,
-			"props": [
-				{ "kind": "vase", "at": Vector2(0.15, 0.45) },
-				{ "kind": "book", "at": Vector2(0.72, 0.5) },
-			],
 		},
+		"carries": [
+			{ "key": "vase", "at": Vector2(-25.9, -4.4), "on_top": true },
+			{ "key": "book", "at": Vector2(16.3, -3), "on_top": true },
+		],
 		"weight": 35,
 		"penetration": 55,
 		"interactions": [

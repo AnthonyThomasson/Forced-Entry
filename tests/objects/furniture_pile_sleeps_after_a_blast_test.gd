@@ -10,6 +10,8 @@ const SEED := 7
 const PLAN := "garage_home"
 ## How long (sim s) the whole house may take to come to rest.
 const SETTLE := 10.0
+## How long (sim s) the small items set on the furniture take to lie asleep before the blasts.
+const SETTLE_ITEMS := 2.0
 
 
 func describe() -> Dictionary:
@@ -30,7 +32,9 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var house: Node2D = t.world.get("house")
-	await t.seconds(0.5)
+	# The house's small items (a desk's monitor, a counter's board) settle on their tops within
+	# `SETTLE_ITEMS` s (`worldgen/items_settle_in_houses`); the furniture is the premise here.
+	await t.seconds(SETTLE_ITEMS)
 	var pieces: Array[Node] = []
 	for body in PlanProbe.pieces_under(house):
 		if Probe.body(body) != null:

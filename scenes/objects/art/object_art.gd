@@ -165,7 +165,7 @@ static func porous(art: String, opts: Dictionary) -> bool:
 
 
 ## The light row of a piece whose painter gives light only in some of its variants (a TV among the
-## appliances, a desk with a monitor, the tool cart, the scanner post, the shop's drinks fridge, the
+## appliances, a monitor item, the tool cart, the scanner post, the shop's drinks fridge, the
 ## noodle bar's menu board); "" for any other. The one
 ## rule both the piece's lights (`ObjectLights`) and its neon share (`neon_for`) read.
 static func light_kind(art: String, opts: Dictionary) -> String:
@@ -174,10 +174,8 @@ static func light_kind(art: String, opts: Dictionary) -> String:
 	match art:
 		"appliance":
 			row = "tv" if String(opts.get("panel", "")) == "tv" else ""
-		"table":
-			var is_monitor := func(p: Variant) -> bool:
-				return p is Dictionary and p.get("kind", "") == "monitor"
-			row = "desk" if (opts.get("props", []) as Array).any(is_monitor) else ""
+		"item":
+			row = "monitor" if kind == "monitor" else ""
 		"clinic":
 			row = "tool_cart" if kind == "tool_cart" else ""
 		"security":
@@ -198,8 +196,6 @@ static func neon_variants(art: String, opts: Dictionary) -> Array:
 		kind = String(opts.get("kind", ""))
 	elif own != "":
 		kind = own
-	elif art == "table":
-		return [""]
 	return ["", "cyan", "magenta"] if ObjectArtLightConfig.neon_share.get(kind, 0.0) > 0.0 else [""]
 
 
@@ -215,8 +211,6 @@ static func neon_for(art: String, opts: Dictionary, piece_seed: int) -> String:
 		kind = String(opts.get("kind", ""))
 	elif own != "":
 		kind = own
-	elif art == "table":
-		return ""
 	var share: float = ObjectArtLightConfig.neon_share.get(kind, 0.0)
 	var roll := absi(hash([kind, piece_seed]))
 	if share <= 0.0 or float(roll % 1000) / 1000.0 >= share:

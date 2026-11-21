@@ -7,6 +7,7 @@ extends RefCounted
 ## its own origin (y 0), so the free body that carries it puts it on the floor or on a top.
 
 const ItemStockMesh = preload("res://scenes/objects/art/item_stock_mesh.gd")
+const ItemHomeMesh = preload("res://scenes/objects/art/item_home_mesh.gd")
 const OPTIONS := ["kind", "height"]
 
 
@@ -47,6 +48,8 @@ static func height_of(spec: FurnitureSpec) -> float:
 		"monitor": ObjectMeshItemConfig.monitor_height,
 		"crate": ObjectMeshItemConfig.crate_height,
 	}
+	if ItemHomeMesh.has(_kind(spec)):
+		return ItemHomeMesh.height_of(_kind(spec))
 	return kinds.get(_kind(spec), ObjectMeshItemConfig.box_height)
 
 
@@ -89,6 +92,8 @@ static func _mesh(spec: FurnitureSpec) -> Mesh:
 		_:
 			if _kind(spec) in ItemStockMesh.KINDS:
 				ItemStockMesh.build(kit, spec, _kind(spec), foot, high)
+			elif ItemHomeMesh.has(_kind(spec)):
+				ItemHomeMesh.shape(kit, spec, _kind(spec), foot, high)
 			else:
 				_box(kit, spec, foot, high)
 	return kit.build()

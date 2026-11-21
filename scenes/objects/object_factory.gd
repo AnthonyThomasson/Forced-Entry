@@ -157,7 +157,22 @@ static func top_at(base: Node2D, point: Vector2) -> float:
 				return PlanSpace.height_of(hit["position"])
 	var rest: Variant = base.get(&"rest")
 	var lift: float = (rest as PieceRest).lift if rest is PieceRest else 0.0
-	return lift + PieceHeights.top_of_spec(FurnitureSpec.of(base))
+	return lift + _part_top_at(base, point)
+
+
+## The top (px, above `base`'s own lift) of the highest part of `base` over plan `point`: a
+## counter's slab where an item stands on it, its backsplash only at the back, so an item starts on
+## what it stands on and does not fall from the highest part. The highest top of all when no part is
+## there.
+static func _part_top_at(base: Node2D, point: Vector2) -> float:
+	var spec := FurnitureSpec.of(base)
+	var turned := (point - base.global_position).rotated(-spec.turns * PI * 0.5)
+	var unit := (turned + spec.size * 0.5) / Vector2(maxf(spec.size.x, 1.0), maxf(spec.size.y, 1.0))
+	var best := -1.0
+	for part: Dictionary in PieceHeights.parts(spec):
+		if (part["rect"] as Rect2).grow(0.001).has_point(unit):
+			best = maxf(best, part["top"])
+	return best if best >= 0.0 else PieceHeights.top_of_spec(spec)
 
 
 ## The top (px) of the highest item already set on `base` that still has no twin and that `item`'s

@@ -1,10 +1,11 @@
 extends GameTest
 ## D20 / SI9 (#194 stack-b): a few small items on the flat tops, on about half of them. Over a
 ## sample of seeded houses: of the tops that take items (a table, a desk, a counter, a shelf: what
-## `ItemsCatalog.options_for` says) between 30 and 70 percent carry any, each carries 1 to
-## `top_max` (a book or a plate may be stacked on one more), every item lies inside its base's
-## footprint, is one of its catalogue row's kinds and rests on a body of its base's room. Boxes and
-## crates stand stacked two or three high on the floor of a storage room, a garage or an office.
+## `ItemsCatalog.options_for` says; a piece that carries its own items takes no fill) between 30 and
+## 70 percent carry any, each carries 1 to `top_max` (a book or a plate may be stacked on one more),
+## every item lies inside its base's footprint, is one of its catalogue row's kinds and rests on a
+## body of its base's room. Boxes and crates stand stacked two or three high on the floor of a
+## storage room, a garage or an office.
 ## The same seed gives the same items; items off gives none.
 
 const Houses := preload("res://tests/_worldgen/door_house_probe.gd")
@@ -53,6 +54,8 @@ func run(t: TestContext) -> void:
 				if item["on"] == null:
 					floor_stacks += 1
 					continue
+				if _carries(item["on"]):
+					continue  # Its items are its own (`worldgen/old_looks_keep_their_items`).
 				by_base[item["on"]] = (by_base.get(item["on"], []) as Array) + [item]
 			tops += _tops_of(house)
 			laden += by_base.size()
@@ -68,6 +71,13 @@ func run(t: TestContext) -> void:
 	)
 	t.check(floor_stacks > 0, "storage rooms hold floor stacks (%d)" % floor_stacks)
 	await _off(t)
+
+
+## Whether the piece `base` carries its own items (its catalogue row says `carries`), read from its
+## node name.
+func _carries(base: Node) -> bool:
+	var key := String(base.name).rstrip("0123456789").to_lower().replace(" ", "_")
+	return ObjectDefinitions.get_definition(key).has("carries")
 
 
 ## How many pieces of `house` take items on top (`ItemsCatalog.options_for`), read from the

@@ -16,14 +16,14 @@ const COLUMNS := 4
 const GAP := Vector2(260.0, 200.0)
 
 ## One piece per kind of light: its catalogue key and the row of `ObjectArtLightConfig.specs` it
-## gives light by; `edit` changes the catalogue's piece (a desk with a monitor, a desk's neon trim).
+## gives light by; `edit` changes the catalogue's piece (a desk's neon trim).
 var _cases: Array[Dictionary] = []
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "Every kind of light hangs where its glowing part is, not at the piece's centre",
-		"description": "A piece of each kind (lamp, TV, desk monitor, monitor wall, rack, rig, "
+		"description": "A piece of each kind (lamp, TV, monitor item, monitor wall, rack, rig, "
 			+ "surgical lamp, tool cart, scanner, fridge, menu board, hotplate, neon tube, street "
 			+ "lamp and sign, neon trim): its 3D light stands over its declared place at its "
 			+ "declared lift, which is inside the height range of its mesh.",
@@ -96,7 +96,7 @@ func _ranges() -> Dictionary:
 			ObjectMeshDecorConfig.lamp_height,
 		),
 		"tv": Vector2(0.0, ObjectMeshKitchenConfig.appliance_heights["tv"]),
-		"desk": desk,
+		"monitor": desk,
 		"monitor_wall": desk,
 		"server_rack": Vector2(tech.rack_height * 0.5, tech.rack_height),
 		"rig": Vector2(recliner, recliner),
@@ -126,7 +126,7 @@ func _kinds() -> Array[Dictionary]:
 	return [
 		{ "row": "lamp", "key": "lamp", "opts": { "neon": "" } },
 		{ "row": "tv", "key": "tv" },
-		{ "row": "desk", "key": "desk", "opts": { "props": [{ "kind": "monitor" }] } },
+		{ "row": "monitor", "key": "monitor" },
 		{ "row": "monitor_wall", "key": "monitor_wall" },
 		{ "row": "server_rack", "key": "server_rack" },
 		{ "row": "rig", "key": "recliner_rig" },
