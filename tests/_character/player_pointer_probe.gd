@@ -16,13 +16,20 @@ const HELD_FRAMES := 5
 const STILL := 0.5
 ## How many frames `aim` waits for the aim to settle on its point.
 const GIVE_UP := 600
+## How far (px) the aim may be from its point and still be on it.
+const ON_IT := 3.0
 
 
 ## Turn the player `you` toward the world point `toward`: the pointer is injected on the screen
 ## point it is at, again each frame, until the aim has been within 3 px of it and the screen point
 ## has held still for `HELD_FRAMES` frames in a row (the camera has settled). Returns that screen
-## point (what `at` places events on); the test fails if the aim never settles there.
-static func aim(t: TestContext, you: Node, toward: Vector2) -> Vector2:
+## point (what `at` places events on); the test fails if the aim never settles there. With the
+## picture shown (3D) the aim is what the cursor's line meets (a standing door's face, a body), a
+## few px off the ground point under it: a test that aims at a thing standing on `toward` passes
+## the `within` that thing's depth allows.
+static func aim(
+	t: TestContext, you: Node, toward: Vector2, within := ON_IT
+) -> Vector2:
 	var pointer := Vector2.ZERO
 	var held := 0
 	for i in GIVE_UP:
@@ -30,7 +37,7 @@ static func aim(t: TestContext, you: Node, toward: Vector2) -> Vector2:
 		pointer = Pointer.screen_of(you, toward)
 		Pointer.inject(pointer)
 		await t.frames(1)
-		var on_it: bool = you.movement.aim_point.distance_to(toward) < 3.0
+		var on_it: bool = you.movement.aim_point.distance_to(toward) < within
 		var still := i > 0 and pointer.distance_to(was) < STILL
 		held = held + 1 if on_it and still else 0
 		if held >= HELD_FRAMES:

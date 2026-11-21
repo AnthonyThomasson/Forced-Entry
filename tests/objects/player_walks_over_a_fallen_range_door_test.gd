@@ -11,6 +11,9 @@ const Probe := preload("res://tests/_objects/piece_probe.gd")
 const PlayerPointer := preload("res://tests/_character/player_pointer_probe.gd")
 ## The range doors that fall to a rifle (indices of `RANGE_DOORS`).
 const DOORS := [0, 3]
+## How far (px) the aim may sit off the door's ground point: with the picture shown the player
+## aims at the standing door's face, which the cursor's line meets 3 px before it (the window).
+const DOOR_FACE := 6.0
 ## The firing spot south of a doorway (px of y).
 const FIRE_FROM := 140.0
 ## How long W is held (s): at the walking pace (about 100 px/s) it covers 250 px, from the firing
@@ -49,7 +52,7 @@ func run(t: TestContext) -> void:
 		var x: float = GunRange._room_centre_x(i)
 		you.global_position = Vector2(x, FIRE_FROM)
 		await t.frames(5)
-		await PlayerPointer.aim(t, you, Vector2(x, 0.0))
+		await PlayerPointer.aim(t, you, Vector2(x, 0.0), DOOR_FACE)
 		for _shot in 12:
 			if door.is_down():
 				break
