@@ -67,7 +67,8 @@ func before() -> void:
 	_session.von.live = TestBatch.flag("--include-von") or TestBatch.flag("--require-von")
 	_session.von.record = TestBatch.flag("--record-von")
 	_session.shots = TestBatch.flag("--shots")
-	_session.picture = _session.shots  # a screenshot shows the game, not the hidden 2D world
+	# a window (--shots or --windowed) shows the game: the world's own 2D picture is hidden
+	_session.picture = DisplayServer.get_name() != "headless"
 	_session.bundle_dir = TestBatch.bundle_dir()
 	# one launcher, and the server it started, for the whole process
 	_session.von.launcher_parent = get_tree().root

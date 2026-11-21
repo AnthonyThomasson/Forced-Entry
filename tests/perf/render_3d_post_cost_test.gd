@@ -21,8 +21,15 @@ const ROUNDS := 3
 const SETTLE := 20
 const ROUTE_RADIUS := 520.0
 const LIMIT_MS := 33.4
+## The least mean brightness a lit frame of the district has (measured lit 0.27, unlit 0.002).
+const LIT := 0.1
+## The seed the view's lights flicker by.
+const LIGHT_SEED := 10
 
 var _view: CanvasLayer
+## The mean brightness (0 to 1) of each mid-route frame: a view with no light draws outlines on
+## black.
+var _brightness: Array[float] = []
 var _camera: Camera2D
 var _root_rid: RID
 
@@ -79,8 +86,15 @@ func _restore() -> void:
 	_camera.set_physics_process(true)
 
 
-## Every mode at every size recorded all its frames, each a finite positive time.
+## Every mode at every size recorded all its frames, each a finite positive time, and the view drew
+## the lit district (not black).
 func _check(t: TestContext, results: Dictionary) -> void:
+	t.check(not _brightness.is_empty(), "a mid-route frame was read")
+	for light: float in _brightness:
+		t.check(
+			light >= LIT,
+			"the view draws the lit district, not black (mean brightness %.3f)" % light,
+		)
 	for size: String in results:
 		for mode: String in results[size]:
 			var frame: Dictionary = results[size][mode]["frame"]
@@ -106,6 +120,8 @@ func _set_up(t: TestContext) -> void:
 	t.world.add_child(_view)
 	_view.begin(_camera)
 	_view.mirror_world(t.world)
+	# lit as Main lights it: without lights every surface draws black
+	_view.light_world(t.world, LIGHT_SEED, WorldGen.district_rooms(t.world.district))
 	t.world.visible = false
 	_root_rid = t.world.get_viewport().get_viewport_rid()
 	RenderingServer.viewport_set_measure_render_time(_root_rid, true)
@@ -143,6 +159,7 @@ func _block(t: TestContext, mode: String, centre: Vector2, into: Dictionary) -> 
 		await t.frames(1)
 		if i == int(FRAMES * 0.5):
 			_shot(t, mode)
+			_brightness.append(_mean_brightness(t))
 		var now := Time.get_ticks_usec()
 		into["frame"].append((now - last) / 1000.0)
 		last = now
@@ -153,6 +170,17 @@ func _block(t: TestContext, mode: String, centre: Vector2, into: Dictionary) -> 
 		cpu += RenderingServer.viewport_get_measured_render_time_cpu(view_rid)
 		into["gpu"].append(gpu)
 		into["cpu"].append(cpu)
+
+
+## The mean brightness (0 to 1) of the root viewport's frame, sampled on a 48 x 32 grid.
+func _mean_brightness(t: TestContext) -> float:
+	var image := t.world.get_viewport().get_texture().get_image()
+	image.resize(48, 32, Image.INTERPOLATE_NEAREST)
+	var total := 0.0
+	for y in 32:
+		for x in 48:
+			total += image.get_pixel(x, y).get_luminance()
+	return total / float(48 * 32)
 
 
 ## With `POST_PROBE_SHOTS=<dir>` set, save the mid-route frame of each mode at each window size

@@ -149,11 +149,17 @@ func start(test_entry: Dictionary) -> void:
 	for id in world.actors:
 		_observe_actor(id, world.actors[id])
 	world_built.emit(setup)
-	if picture and not setup.owns_picture:
+	if picture and not setup.owns_picture and not _measures_its_own_render():
 		_show_picture()
 	_drive(test, ctx)
 	if not ctx.is_finished:
 		await ctx.finished
+
+
+## Whether the open test is a perf test in a run that is not looking at pictures (`shots` off): its
+## frame times are the cost of what it draws itself, so the session adds no view of its own.
+func _measures_its_own_render() -> bool:
+	return entry["domain"] == "perf" and not shots
 
 
 ## The 3D view that shows the open test's world (`picture`), or null: what a test of the picture
