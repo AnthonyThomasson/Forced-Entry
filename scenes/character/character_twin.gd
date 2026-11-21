@@ -43,6 +43,10 @@ const FITS_SLACK := 0.5
 ## How long (s) an answer of `fits` is kept while the body stands where it was asked: an NPC pinned
 ## under a shelf asks to stand every tick, and a shelf does not move in a quarter second.
 const FITS_KEEP := 0.25
+## How near (px) a free body is to the cylinder to count as resting on or against it.
+const REST_MARGIN := 1.0
+## How many free bodies one look reads at once.
+const REST_HITS := 16
 
 ## The character this is the body of.
 var _character: Character
@@ -60,6 +64,18 @@ var _real := Vector2.ZERO
 var _wanted := Vector2.ZERO
 ## The last answer `fits` gave per posture: `[where it stood, when, the answer]`.
 var _fit := {}
+## The free bodies the cylinder touched where it last stood (as instance ids), and whether that is
+## fresh (the body moved last frame, so no body has come to it since): see `_wake_what_is_left`.
+var _touched := {}
+var _touched_fresh := false
+## The free bodies put to sleep on it by their own rule (`hold`), as instance ids.
+var _held := {}
+
+
+## A body that leaves the tree wakes what rested on it.
+func _exit_tree() -> void:
+	if get_world_3d() != null:
+		_wake_what_is_left(false, global_transform)
 
 
 ## Add the hook to `space` (a `TwinSpace`).
@@ -103,6 +119,8 @@ func follow(footprint: Node2D) -> void:
 
 ## Stand where the 2D body `footprint` stands, on the floor, at rest.
 func adopt(footprint: Node2D) -> void:
+	if is_inside_tree() and not _written.origin.is_equal_approx(footprint.global_position):
+		_wake_what_is_left(false, global_transform)
 	_written = footprint.global_transform
 	global_transform = PlanSpace.lift_transform(_written)
 	velocity = Vector3.ZERO
@@ -113,12 +131,15 @@ func adopt(footprint: Node2D) -> void:
 func twin_update(_body: Node2D) -> void:
 	var now: StringName = _character.movement.body_posture()
 	if now != _posture:
+		_wake_what_is_left(false, global_transform)
 		_set_posture(now)
 	var layer := 0 if _character.is_dead else PhysicsLayers.TWIN_CHARACTER
 	if layer != collision_layer:
+		_wake_what_is_left(false, global_transform)
 		collision_layer = layer
 	var seated: bool = _character.use.is_riding()
 	if seated != _seated:
+		_wake_what_is_left(false, global_transform)
 		_seated = seated
 		_holder.disabled = seated
 
@@ -130,8 +151,10 @@ func walk(wanted: Vector2) -> Vector2:
 	follow(_character)
 	_wanted = wanted.normalized()
 	velocity = Vector3(wanted.x, 0.0, wanted.y) * RenderConfig.unit
+	var from := global_position
 	move_and_slide()
 	global_position.y = 0.0
+	_moved_from(from)
 	_real = Vector2(get_real_velocity().x, get_real_velocity().z) / RenderConfig.unit
 	_write()
 	return Vector2(velocity.x, velocity.z) / RenderConfig.unit
@@ -148,8 +171,10 @@ func shift(aside: Vector2, clear_of: PhysicsBody3D) -> bool:
 		add_collision_exception_with(clear_of)
 	var free := not test_move(global_transform, motion, null, SAFE_MARGIN)
 	if free:
+		var from := global_position
 		global_position += motion
 		force_update_transform()
+		_moved_from(from)
 		_write()
 	if not excepted:
 		remove_collision_exception_with(clear_of)
@@ -242,6 +267,68 @@ func _fits_now(posture: StringName) -> bool:
 	)
 	var space := TwinSpace.space_of(_character)
 	return space == null or space.intersect_shape(query, 1).is_empty()
+
+
+## The body moved from `from` to where it stands: free bodies it no longer touches are woken.
+func _moved_from(from: Vector3) -> void:
+	if from.is_equal_approx(global_position):
+		_touched_fresh = false
+		return
+	_wake_what_is_left(true, Transform3D(global_transform.basis, from))
+
+
+## **A body does not hold up what rests on it when it leaves.** The engine sleeps a free body the
+## frame the kinematic body under it goes (a body resting on one never sleeps, and nothing wakes it
+## when it is gone), so a bookshelf leaning on a character who walks off, dies, ducks or is moved
+## would hang in the air asleep. The cylinder keeps the free bodies it touched (`_touched`), and
+## wakes each one it no longer touches: all of them when it is gone (`staying` false: it left the
+## layer, rides, changed height, was moved by a script or left the tree), those it has walked
+## clear of when it walked (`staying` true). The woken body falls or settles as physics decides.
+func _wake_what_is_left(staying: bool, from: Transform3D) -> void:
+	var before := (_touched if _touched_fresh else _touching(from)).duplicate()
+	before.merge(_held)
+	var now := _touching(global_transform) if staying else {}
+	for id: int in before:
+		if not now.has(id):
+			var body := instance_from_id(id) as RigidBody3D
+			if body != null and body.is_inside_tree():
+				_wake(body)
+			_held.erase(id)
+	_touched = now
+	_touched_fresh = staying
+
+
+## A free `body` that rests on this one has been put to sleep there by its own rule (the engine
+## keeps such a body awake for ever, `PieceBody.rest_on_a_character`): it is woken as any other
+## when this body leaves, though it sleeps.
+func hold(body: RigidBody3D) -> void:
+	_held[body.get_instance_id()] = true
+
+
+## The awake free bodies the cylinder touches when it stands as `at`: their instance ids (a body
+## asleep against it is held by nothing it does: only one the engine keeps awake rests on it).
+func _touching(at: Transform3D) -> Dictionary:
+	var found := {}
+	if _holder.disabled or not is_inside_tree() or collision_layer == 0:
+		return found
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = _shape
+	query.collision_mask = PhysicsLayers.TWIN_WORLD
+	query.margin = REST_MARGIN
+	query.transform = at * _holder.transform
+	for hit: Dictionary in get_world_3d().direct_space_state.intersect_shape(query, REST_HITS):
+		var body := hit["collider"] as RigidBody3D
+		if body != null and (not body.sleeping or _held.has(body.get_instance_id())):
+			found[(hit["collider"] as Object).get_instance_id()] = true
+	return found
+
+
+## Wake the free `body`: its sleep timer starts again, so it settles where it now has no support
+## (the engine sleeps a body whose time to rest has run out the frame it is let go).
+static func _wake(body: RigidBody3D) -> void:
+	body.can_sleep = false
+	body.can_sleep = true
+	body.sleeping = false
 
 
 ## Write the 2D body where this body stands.

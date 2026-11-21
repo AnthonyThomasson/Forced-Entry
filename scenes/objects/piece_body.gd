@@ -269,8 +269,15 @@ func rest_on_a_character() -> void:
 		return
 	# touching none: look again in half as long
 	_rest_for = int(PieceBodyConfig.rest_frames * 0.5)
-	if not _characters_touching().is_empty():
-		sleeping = true
+	var under := _characters_touching()
+	if under.is_empty():
+		return
+	# each character it lies on will wake it when it leaves (`CharacterTwin.hold`)
+	for who: Node2D in under:
+		var twin := TwinSpace.walker_of(who)
+		if twin != null and twin.has_method(&"hold"):
+			twin.call(&"hold", self)
+	sleeping = true
 
 
 ## The 2D bodies of the living characters this piece's shapes touch now, in a fixed order (by

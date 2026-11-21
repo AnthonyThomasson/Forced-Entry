@@ -259,7 +259,7 @@ back upright, it is turned on toward its fall again under `commit_degrees` (10).
 way (up to the length of the leaf, about 100 px, never held under it), and it lies down flat and clear of its doorway: it ends flat, or
 leaning on a piece of furniture, never standing in the doorway. A character a wall holds in place holds the leaf, and a leaf that
 rests on a character (or on anything) is awake only while something pushes it: the engine does not sleep a body that touches a
-kinematic one, so a leaf (`DoorSlab`, through `PieceBody.rest_on_a_character`) awake and slower than `PieceBodyConfig.rest_speed` (6 px/s) and `rest_spin` (0.2 rad/s) for
+kinematic one, so a leaf (`DoorSlab`, through `PieceBody.rest_on_a_character`; the character's twin is told, `CharacterTwin.hold`, and wakes it when it leaves: a leaf is never left asleep in the air, the general rule of interface 29) awake and slower than `PieceBodyConfig.rest_speed` (6 px/s) and `rest_spin` (0.2 rad/s) for
 `rest_frames` (60) frames with no shove given to it, that touches a character, is put to sleep; it sleeps within about 2 s of the
 last shove, pushes no one after it (a character walking into it wakes it and shoves it as any piece). Tests:
 `objects/ajar_door_kicked_from_the_open_side_falls_away`, `ajar_door_shot_from_the_open_side_falls_away` (each with `_flipped`: the
