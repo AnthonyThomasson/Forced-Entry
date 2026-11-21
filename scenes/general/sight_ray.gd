@@ -20,7 +20,8 @@ extends RefCounted
 ## over, a pane looked through. The same rule at one height as the eye ray's. Line of fire and
 ## cover are physical and are not this.
 
-## The twin layers a sight ray asks: the world and the vehicles, not the characters.
+## The twin layers a sight ray asks: the world, the vehicles and what lies flat (`TWIN_WALKOVER`),
+## not the characters.
 const MASK := PhysicsLayers.TWIN_SURFACES
 ## The height (px) of what lies on the floor (a grenade, a dropped item): the one point it is
 ## looked at by.

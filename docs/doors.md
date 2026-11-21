@@ -251,7 +251,7 @@ floor) is walk-over: its `footprint` (`DoorFootprint`, polygon data the slab wri
 lying door; the slab is on `PhysicsLayers.TWIN_WALKOVER`, which a walker's and a vehicle's mask leave out, so the walker keeps its pace and the leaf stays where it lay: `objects/player_walks_over_a_fallen_range_door`) but a blast asks for, so it is shoved like a piece (a second blast slides it; a walker steps over it and pushes
 nothing, a fist passes above a leaf 6 px thick and a kick only grazes it) and not a hole in the nav bake. One leaning or lying higher (fallen onto a wardrobe,
 above a bed) is an obstacle: its footprint is the slab's hull, a hole in the bake (`NavLeaves.fallen_hole`, re-baked as a
-tipped piece's is). A swinging door's leaf stops at a lying slab, flat or leaning, as at any piece (its probe is the
+tipped piece's is). A free piece (a shoved chair, a table: `PieceBody`) meets a flat leaf without its mask holding `TWIN_WALKOVER`: it bumps the leaf and stops at it, neither sliding over it nor ending under it (`objects/shoved_chair_meets_a_flat_door`; the pair meets by the slab's own mask, which holds `TWIN_WORLD`). Adding `TWIN_WALKOVER` to the piece's mask made it worse: a shoved chair then rode on past the leaf (it ended 180 px beyond a leaf it had shoved 70 px), so the mask stays as it was. A swinging door's leaf stops at a lying slab, flat or leaning, as at any piece (its probe is the
 leaf's whole height in the twin space). The AI reads the same slab: `gap()` is what the leaf leaves of
 the doorway within `DoorFallConfig.mouth` of the wall line (`DoorFootprint.clear_width`: all of it when the leaf lies flat or
 elsewhere, little or none when it is propped across the threshold), `open_amount()` is 1, and the AI's door state
