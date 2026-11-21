@@ -38,7 +38,7 @@ static func _board(
 	room: float,
 	out: Array[Dictionary],
 ) -> void:
-	var side := ObjectMeshStorageConfig.shelf_side
+	var side := ShelfMesh.HULL  # inside the sides the body has, not the thinner ones drawn
 	var x := side + 0.5
 	var end := spec.size.x - side - 0.5
 	var kind := ShelfMesh.contents_of(spec)
@@ -120,7 +120,7 @@ static func _book(
 	var bw := minf(rng.randf_range(2.0, 4.0), end - at.x)
 	if rng.randf() < 0.1:
 		return at.x + rng.randf_range(1.0, 3.0)
-	var area := Rect2(at.x, 2.0, bw, spec.size.y * 0.6)
+	var area := Rect2(at.x, ShelfMesh.HULL + 0.5, bw, spec.size.y * 0.6)
 	var high := at.z * rng.randf_range(0.6, 0.95)
 	out.append(_row(spec, "book_stood", area, Vector2(at.y, high), _pick(rng, "books")))
 	return at.x + bw
@@ -135,7 +135,7 @@ static func _box(
 	out: Array[Dictionary],
 ) -> float:
 	var bw := minf(rng.randf_range(0.22, 0.34) * spec.size.x, end - at.x)
-	var area := Rect2(at.x, 2.0, bw, spec.size.y - 4.0)
+	var area := Rect2(at.x, ShelfMesh.HULL + 0.5, bw, spec.size.y - ShelfMesh.HULL - 2.5)
 	var high := at.z * rng.randf_range(0.5, 0.8)
 	out.append(_row(spec, "box", area, Vector2(at.y, high), ObjectArtStorageConfig.shelf_box_color))
 	return at.x + bw + 1.0

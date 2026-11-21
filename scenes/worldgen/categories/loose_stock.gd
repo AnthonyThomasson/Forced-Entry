@@ -39,7 +39,9 @@ const OBJECTS := {
 		"art": "item",
 		"art_opts": { "kind": "book_stood" },
 		"weight": 0.4,
-		"penetration": 12,
+		# A run of up to six books side by side (a hand of paper): a pistol round that goes
+		# through it is spent (it loses over half its speed), a rifle round carries on.
+		"penetration": 70,
 	},
 	"shoes": {
 		"name": "Shoes",

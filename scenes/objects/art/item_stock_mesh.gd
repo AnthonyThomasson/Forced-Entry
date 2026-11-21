@@ -71,7 +71,8 @@ static func _books(kit: MeshKit, spec: FurnitureSpec, foot: Rect2, high: float) 
 	for spine: Array in spines:
 		var area := Rect2(foot.position + Vector2(spine[0], 0.0), Vector2(spine[1], foot.size.y))
 		var colour: Color = spine[3]
-		kit.box(MeshKit.volume(area, 0.0, spine[2]), colour, colour.lightened(0.1))
+		var paper: Color = ObjectArtDecorConfig.prop_colors["paper"]
+		kit.box(MeshKit.volume(area, 0.0, spine[2]), colour, paper)
 		var edge := Rect2(area.end.x - 0.6, area.position.y, 0.6, area.size.y)
 		kit.box(MeshKit.volume(edge, 0.0, spine[2]), Color(0.92, 0.9, 0.82))
 

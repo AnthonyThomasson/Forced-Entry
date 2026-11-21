@@ -115,6 +115,12 @@ static func parts(spec: FurnitureSpec) -> Array[Dictionary]:
 	return out
 
 
+## Whether the piece is thin parts round empty compartments (an emptied shelf), so its body moves
+## as the solid box of its extent (`PieceBody`).
+static func hollow(spec: FurnitureSpec) -> bool:
+	return spec.art == "shelf" and ShelfMesh.is_loose(spec)
+
+
 ## A piece that is one part: the top the mesh script's own `height_of` says.
 static func _plain(spec: FurnitureSpec) -> Array[Dictionary]:
 	return [_part(_height_of(spec))]

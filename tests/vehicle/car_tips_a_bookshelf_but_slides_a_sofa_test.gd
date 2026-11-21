@@ -28,7 +28,7 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"nav.rebake", false)
 	s.vehicle(&"car_a", &"car", Vector2(300, 300))
 	s.vehicle(&"car_b", &"car", Vector2(300, 800))
-	s.object(&"shelf", _solid_bookshelf(), SHELF_AT)
+	s.object(&"shelf", "bookshelf", SHELF_AT)
 	s.object(&"sofa", "sofa", SOFA_AT)
 
 
@@ -69,11 +69,3 @@ func run(t: TestContext) -> void:
 		(t.vehicle(&"car_a").global_position as Vector2).x > SHELF_AT.x - 150.0,
 		"the car that met the bookshelf carried on",
 	)
-
-
-## The bookshelf as a solid tall, thin, light piece, as before the unbake (D21): its boards are
-## hollow now (a bumper meets an open compartment), and its books are items.
-func _solid_bookshelf() -> Dictionary:
-	var shelf: Dictionary = ObjectDefinitions.get_definition("bookshelf").duplicate(true)
-	shelf["art_opts"] = { "contents": "books" }
-	return shelf

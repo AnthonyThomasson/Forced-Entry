@@ -23,10 +23,12 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 	c.surface(frame, material, base)
 	var border := maxi(2, roundi(mini(c.w, c.h) * 0.08))
 	var well := Rect2i(0, 0, c.w, c.h).grow(-border)
-	c.fill(PixelShape.rounded(well, 0), t.shadow.darkened(0.3), 1)
 	var contents := String(opts.get("contents", ObjectArtStorageConfig.shelf_contents))
-	if bool(opts.get("loose", false)):
-		contents = ""  # Emptied (decision D21): what it held is loose items on its boards.
+	var loose := bool(opts.get("loose", false))
+	# Emptied (decision D21): what it held is loose items on its boards, the boards bare wood.
+	c.fill(PixelShape.rounded(well, 0), t.shadow if loose else t.shadow.darkened(0.3), 1)
+	if loose:
+		contents = ""
 	match contents:
 		"books":
 			_books(c, well)

@@ -124,6 +124,47 @@ func _centre_on_origin() -> void:
 		moment += volume * holder.position.y
 	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
 	center_of_mass = Vector3(0.0, moment / weight if weight > 0.0 else 0.0, 0.0)
+	if _is_hollow():
+		_as_solid()
+
+
+## Whether the piece is built of thin parts round empty compartments (an emptied shelf:
+## `PieceHeights.hollow`), not a mass.
+func _is_hollow() -> bool:
+	var look: Variant = _piece.get(&"look") if _piece != null else null
+	return (
+		look is Object
+		and (look as Object).get(&"art") == "shelf"
+		and PieceHeights.hollow(FurnitureSpec.of(_piece))
+	)
+
+
+## A hollow piece moves as the solid box of its extent: its centre of mass at the box's middle and
+## its inertia the box's, as the engine would have for the piece built solid (the thin parts' own
+## would have a shelf yaw, lean and tip unlike a real one: its things on the boards weigh what the
+## boards do not).
+func _as_solid() -> void:
+	var low := Vector3(INF, INF, INF)
+	var high := Vector3(-INF, -INF, -INF)
+	for child in get_children():
+		var holder := child as CollisionShape3D
+		if holder == null or not holder.shape is BoxShape3D:
+			continue
+		var half := (holder.shape as BoxShape3D).size * 0.5
+		low = low.min(holder.position - half)
+		high = high.max(holder.position + half)
+	if low.x > high.x:
+		return
+	var size := high - low
+	center_of_mass = Vector3(0.0, (low.y + high.y) * 0.5, 0.0)
+	inertia = (
+		mass / 12.0
+		* Vector3(
+			size.y * size.y + size.z * size.z,
+			size.x * size.x + size.z * size.z,
+			size.x * size.x + size.y * size.y,
+		)
+	)
 
 
 ## Move the piece clear of what it overlaps (a wall or another piece it was placed against),

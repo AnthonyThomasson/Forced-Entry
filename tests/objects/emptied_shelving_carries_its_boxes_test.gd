@@ -35,7 +35,7 @@ func run(t: TestContext) -> void:
 	var definition := ObjectDefinitions.get_definition("shelving")
 	t.require(PieceCarries.carries(definition), "premise: the shelving is emptied")
 	var parts := PieceHeights.parts_of(definition)
-	t.check(parts.size() == 7, "the shelf is 3 side/back parts and 4 boards (%d)" % parts.size())
+	t.check(parts.size() == 6, "the shelf is 3 side/back parts and 3 boards (%d)" % parts.size())
 	t.check(
 		absf(PieceHeights.top_of(definition) - 77.0) < 0.01, "the shelf stands 77 px high",
 	)

@@ -158,10 +158,17 @@ color, weight }`, `at` from the piece's centre in the painter's canonical frame,
 emptied piece (`ItemsCatalog.options_for` is empty for it). With `worldgen.items` off a house is built bare: an emptied piece shows
 empty.
 
-- **Shelves** (bookshelf, shelving, linen shelf, shoe rack: `art: "shelf"`, `art_opts.loose`): sides, back and a slab per board are the
-  parts (`ShelfMesh.hollow_parts`), so the compartments are open and what stands on a board rests on it. Books are `book_stood`
-  items in runs of up to six side by side (one body, the spines drawn from `art_opts.spines`: a bookshelf of hundreds of
-  books would be as many bodies); shelving and linen-shelf boxes are `box` items sized to the row; shoe racks hold `shoes` (a pair).
+- **Shelves** (bookshelf, shelving, linen shelf, shoe rack: `art: "shelf"`, `art_opts.loose`): the sides, the back and a slab per board
+  but the top one are the parts (`ShelfMesh.hollow_parts`), so the compartments are open to a round, a line of sight and what stands
+  on a board; the shelf has **no top board** (the camera looks down at it: what it holds is seen, lit, as the old flat paint showed it,
+  the top compartment's things on its boards; the bare boards are painted wood). The sides and the back are `ShelfMesh.HULL` (4 px)
+  thick as bodies, thicker than drawn (a car shoves a 2 px plate along without laying the shelf over), and the things keep inside them.
+  The body moves as the solid box of its extent (centre of mass and inertia: `PieceBody`, `PieceHeights.hollow`), so a shove lays it
+  over as it laid the solid shelf. Books are `book_stood` items in runs of up to six side by side (one body, the spines drawn from
+  `art_opts.spines`, pale page-block tops as the old mesh drew): a bookshelf of hundreds of books would be as many bodies; a run is
+  18 px of paper, penetration 70: **a pistol round through a run is spent** (it loses over half its speed) and a rifle round carries
+  on. Shelving and linen-shelf boxes are `box` items sized to the row; shoe racks hold `shoes` (a pair). **Sight:** a viewer in front
+  looks into an empty compartment (the front is open) and sees its back; the back and the sides stop sight at every height.
 - **Crate stack and pallet** (`StockroomCatalog`): `crate_stack` and `wrapped_pallet` are bare places (non-solid, no art, no mass:
   `PieceHeights.parts_of` says 0). The stack is two or three loose `crate` items (38 px across, 20 high, the second 4 px off; a third, 34 px across, on the pair for about half the places: the row's `maybe`, by where the place stands), the pallet a
   `pallet` item (a low item a walker steps over, 5 px) with four `wrapped_box` items on it. The stockroom's floor stacks
@@ -173,5 +180,10 @@ empty.
   by its `kind` alone (`ObjectArt._art_opts`) and `DistrictPrewarm` warms every carried item at its size.
 
 Tests: `objects/emptied_shelving_carries_its_boxes`, `objects/bookshelf_tips_and_spills_its_books` (the books stand asleep at the
-start; a tipped shelf spills them), `worldgen/old_looks_keep_their_items` (stockrooms, kitchenettes, shelves), and the settle and fit tests
+start; a tipped shelf spills them), `objects/emptied_shelves_keep_their_things` (nothing thrown out of a compartment),
+`objects/hollow_shelf_compartments_are_open` (a ray between boards reaches the back, at a board the lip, a side stops it),
+`objects/hollow_shelf_moves_like_a_solid_one` (inertia, tipping, slide), `projectile/round_through_a_run_of_books` (pistol stopped,
+rifle through), `art/emptied_shelves_windowed` (the contents read as bright as the old look under the game camera), the car and the
+hysteresis tests (`vehicle/car_tips_a_bookshelf_but_slides_a_sofa`, `objects/tipped_piece_has_hysteresis_and_cuts_when_changed`) on
+the real bookshelf, `worldgen/old_looks_keep_their_items` (stockrooms, kitchenettes, shelves), and the settle and fit tests
 (`worldgen/items_settle_in_*`, `items_fit_what_they_stand_on`) over the carried items.

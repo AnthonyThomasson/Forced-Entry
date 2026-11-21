@@ -452,3 +452,5 @@ measured").
   `Can't emit non-existing signal ""` / `Attempt to connect nonexistent signal ''` lines, again after `Queue done:`, in the same
   teardown; it was not compared with `origin/main` (it came once in five and did not come again). The five matches of Main, which
   quit through the game, print none of this.
+
+An emptied shelf (`docs/stacked-items.md` SI13) is hollow: a viewer in front looks into a compartment between its boards and sees the back, as a shelf's front is open; its back and its sides stop sight at every height. Test: `objects/hollow_shelf_compartments_are_open`.

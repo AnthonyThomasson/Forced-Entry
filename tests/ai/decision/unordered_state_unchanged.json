@@ -66,7 +66,7 @@
     "auto": false,
     "node": "engage",
     "offered": {
-     "ambush": "wait in ambush behind the books — you shoot when they show — they are standing still",
+     "ambush": "wait in ambush behind the wall — you shoot when they show — they are standing still",
      "fire_here": "fire from where you stand (in the living room) — clear shot — in the open",
      "fire_south_west": "fire from behind the wall in the living room, south-west of them — clear shot — cover close by (the wall) — short exposed route",
      "fire_west": "fire from behind the armchair in the living room, west of them — clear shot — cover close by (the armchair) — short exposed route"
