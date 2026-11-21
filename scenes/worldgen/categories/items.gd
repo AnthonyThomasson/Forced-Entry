@@ -100,9 +100,10 @@ const OBJECTS := {
 }
 ## What lies on a flat top, by the piece's catalogue key: `[item key, weight]` pairs (`RoomItems`
 ## draws 1 to `WorldGenItemConfig.top_max` of them on about half the tops). A key here beats
-## `TOPS_BY_ART`; an empty list keeps a top bare. A piece that carries its own items (`PieceCarries`:
-## a loose shelf, a crate stack, a pallet, a hotplate, and a desk, a nightstand, a counter:
-## `HomeItemsCatalog`) has no row: its items are set by `RoomItems.carry`, it takes no random fill.
+## `TOPS_BY_ART`; an empty list keeps a top bare. A piece that carries its own items
+## (`PieceCarries`: a loose shelf, a crate stack, a pallet, a hotplate, and a desk, a nightstand, a
+## counter: `HomeItemsCatalog`) has no row: its items are set by `RoomItems.carry`, it takes no
+## random fill.
 const TOPS := {
 	"table": [["plate", 3.0], ["cup", 3.0], ["bowl", 2.0], ["book", 1.0]],
 	"dining_table": [["plate", 4.0], ["cup", 3.0], ["bowl", 2.0]],

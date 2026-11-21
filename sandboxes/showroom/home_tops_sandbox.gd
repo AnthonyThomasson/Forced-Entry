@@ -50,4 +50,6 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	for row: Array in PIECES:
 		var key: String = row[0]
-		RoomItems.carry(t.object(StringName(key)), ObjectDefinitions.get_definition(key), t.world)
+		RoomItems.carry(
+			t.object(StringName(key)), ObjectDefinitions.get_definition(key), t.world, "showroom"
+		)

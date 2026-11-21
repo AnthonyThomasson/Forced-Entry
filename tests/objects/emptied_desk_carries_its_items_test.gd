@@ -31,7 +31,9 @@ func run(t: TestContext) -> void:
 		not (desk.look.art_opts as Dictionary).has("props"),
 		"the desk paints no props (they are items now)",
 	)
-	var carried := RoomItems.carry(desk, ObjectDefinitions.get_definition("desk"), t.world)
+	var carried := RoomItems.carry(
+		desk, ObjectDefinitions.get_definition("desk"), t.world, "test"
+	)
 	var keys: Array = carried.map(func(c: Dictionary) -> String: return c["key"])
 	keys.sort()
 	var want := WANT.duplicate()

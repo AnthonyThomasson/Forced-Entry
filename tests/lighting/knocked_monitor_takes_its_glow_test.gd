@@ -28,7 +28,9 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var desk: Node2D = t.object(&"desk")
-	var carried := RoomItems.carry(desk, ObjectDefinitions.get_definition("desk"), t.world)
+	var carried := RoomItems.carry(
+		desk, ObjectDefinitions.get_definition("desk"), t.world, "test"
+	)
 	var monitor: Node2D = null
 	for c: Dictionary in carried:
 		if c["key"] == "monitor":

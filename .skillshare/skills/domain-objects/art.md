@@ -39,7 +39,7 @@ One look for every piece.
 - Each knob reads `opts.get(key, ObjectArt<Topic>Config.<painter>_<key>)` (the floor, wall, street and wear knobs without the
   painter prefix: `ObjectArtFloorConfig.<key>`), so a catalogue `art_opts` picks a variant or overrides one piece.
 - Round footprints keep their art inside the inscribed circle.
-- A top paints no loose things (`docs/stacked-items.md` SI13): a desk's monitor and mug, a counter's board are items (`item_home_painter.gd`,
+- A top paints no loose things (`docs/stacked-items.md` SI14): a desk's monitor and mug, a counter's board are items (`item_home_painter.gd`,
   a row's `carries`, `RoomItems.carry`). `table` / `counter` take no `props`; `props.gd` stays for the cabinet's plates, the tech desk and
   `Props.pick`; colours in `ObjectArtDecorConfig.prop_colors`.
 - `wear` draws one world-placed mark a canvas (the floor's, wall's and street's marks, `SKILL.md`, "Wear").

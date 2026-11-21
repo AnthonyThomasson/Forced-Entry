@@ -11,12 +11,12 @@ extends RefCounted
 ## height (px above the floor) it stands on and `patch` what differs from the catalogue row (size,
 ## height, colour, weight, spines).
 ## A piece says what it carries in its catalogue row's `carries` (`[{ key, at, size, lift, height,
-## color, weight, maybe, on_top }]`, `at` from the piece's centre in the canonical frame, x across and the
-## front toward +y, `lift` from the floor; a `maybe` row is there for about half the pieces, by
-## where the piece stands, so a seed's layout says which: a crate stack's third crate; an `on_top`
-## row has no `lift`: the item rests on the piece's top under it, a counter's slab and not its
-## backsplash, on what is already there, as a home top's desk and nightstand carry them, and takes
-## the catalogue item's own `size`), or, a shelf with `art_opts.loose`, by `ShelfLoose`.
+## color, weight, maybe, on_top }]`): `at` from the piece's centre in the canonical frame, x across
+## and the front toward +y; `lift` from the floor; a `maybe` row is there for about half the
+## pieces, by where the piece stands, so a seed's layout says which (a crate stack's third crate);
+## an `on_top` row has no `lift`: the item rests on the piece's top under it (a counter's slab, not
+## its backsplash) on what is already there, as a home top's desk and counter carry theirs, and
+## takes the catalogue item's own `size`. A shelf with `art_opts.loose` says it by `ShelfLoose`.
 
 const ShelfLoose = preload("res://scenes/objects/art/shelf_loose.gd")
 

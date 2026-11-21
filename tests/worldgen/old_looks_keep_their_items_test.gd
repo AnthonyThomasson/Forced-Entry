@@ -27,6 +27,45 @@ const HOME := {
 	"island": ["fruit_bowl"],
 	"workbench": ["tools", "vise"],
 }
+## Where each home top's items were drawn: px from the piece's centre in its frame (the front
+## toward +y), the old painter's props (the prop's unit point through the painter's rect inset 3
+## px). Written out here, not read from the rows, so a row moved is a test that fails.
+const DRAWN_AT := {
+	"side_table": {
+		"book": Vector2(0, 0),
+	},
+	"nightstand": {
+		"clock": Vector2(-7.5, -4.4),
+		"book": Vector2(6.1, -3),
+	},
+	"desk": {
+		"monitor": Vector2(0, -12.3),
+		"keyboard": Vector2(0, 5.3),
+		"cup": Vector2(37.6, 2.2),
+		"papers": Vector2(-39.8, 0),
+	},
+	"console_table": {
+		"bowl": Vector2(-16.8, 0),
+		"vase": Vector2(21, 0),
+	},
+	"dresser": {
+		"vase": Vector2(-25.9, -4.4),
+		"book": Vector2(16.3, -3),
+	},
+	"kitchen_counter": {
+		"cutting_board": Vector2(-16.9, 4),
+	},
+	"island": {
+		"fruit_bowl": Vector2(0, -4.9),
+	},
+	"kitchenette_counter": {
+		"cutting_board": Vector2(-26.3, 3.3),
+	},
+	"workbench": {
+		"tools": Vector2(-12.5, 0),
+		"vise": Vector2(36.4, -1.9),
+	},
+}
 ## How far (px) a home item stands from its drawn point at the start, before it settles.
 const DRAWN := 1.0
 ## The top (px) of a stack's two crates, and how far (px) the third's lift may be off it.
@@ -37,9 +76,10 @@ const LIFT_SLACK := 1.0
 func describe() -> Dictionary:
 	return {
 		"name": "Emptied pieces keep their old look as items",
-		"description": "The home tops carry the items they painted as props; a district's stockrooms get loose crates and a pallet with boxes (no "
-			+ "stack piece, nothing else on the floor); a kitchenette gets its crate, a hotplate "
-			+ "and a pan; shelves carry their books, boxes and shoes.",
+		"description": "The home tops carry the items they painted as props; a district's "
+			+ "stockrooms get loose crates and a pallet with boxes (no stack piece, nothing else "
+			+ "on the floor); a kitchenette gets its crate, a hotplate and a pan; shelves carry "
+			+ "their books, boxes and shoes.",
 		"tags": ["worldgen", "stacking", "items", "district", "house", "unbake"],
 		"timeout": 120.0,
 	}
@@ -194,11 +234,13 @@ func _check_drawn(
 ) -> void:
 	var turns := roundi(Vector2.DOWN.angle_to(piece.look.facing) / (PI * 0.5))
 	for row: Dictionary in ObjectDefinitions.get_definition(key)["carries"]:
-		var want: Vector2 = piece.global_position + (row["at"] as Vector2).rotated(
+		t.expect_eq(row["at"], DRAWN_AT[key][row["key"]], "%s: its row's point" % label)
+		var want: Vector2 = piece.global_position + (DRAWN_AT[key][row["key"]] as Vector2).rotated(
 			turns * PI * 0.5
 		)
 		var found := false
 		for entry: Dictionary in items:
 			if entry["key"] == row["key"]:
-				found = found or (entry["node"] as Node2D).global_position.distance_to(want) <= DRAWN
+				var node: Node2D = entry["node"]
+				found = found or node.global_position.distance_to(want) <= DRAWN
 		t.check(found, "%s: the %s is where it was drawn" % [label, row["key"]])

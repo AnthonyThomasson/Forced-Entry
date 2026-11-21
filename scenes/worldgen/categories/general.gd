@@ -14,7 +14,8 @@ class_name GeneralCatalog
 ##   art (optional pixel-art painter id, e.g. "sofa", "cabinet", "appliance"; omitted =
 ##     flat shape + label) and art_opts (optional painter variant/overrides, e.g.
 ##     { "front": "drawers", "count": 3 });
-##   carries (optional `[{ key, at, ... }]`: the items the piece holds from the start, each a free item
+## carries (optional `[{ key, at, ... }]`: the items the piece holds from the start, each a free
+## item
 ##     of its own set by `RoomItems.carry` (`PieceCarries` is the schema, `docs/stacked-items.md`
 ##     SI13 and SI14): `at` px from the piece's centre in the painter's frame (the front toward +y);
 ##     `on_top: true` rests it on the piece's top where it is, the home tops' (`HomeItemsCatalog`).
