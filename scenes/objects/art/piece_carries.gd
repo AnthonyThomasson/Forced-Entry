@@ -11,8 +11,10 @@ extends RefCounted
 ## height (px above the floor) it stands on and `patch` what differs from the catalogue row (size,
 ## height, colour, weight, spines).
 ## A piece says what it carries in its catalogue row's `carries` (`[{ key, at, size, lift, height,
-## color, weight }]`, `at` from the piece's centre in the canonical frame, x across and the front
-## toward +y, `lift` from the floor), or, a shelf with `art_opts.loose`, by `ShelfLoose`.
+## color, weight, maybe }]`, `at` from the piece's centre in the canonical frame, x across and the
+## front toward +y, `lift` from the floor; a `maybe` row is there for about half the pieces, by
+## where the piece stands, so a seed's layout says which: a crate stack's third crate), or, a shelf
+## with `art_opts.loose`, by `ShelfLoose`.
 
 const ShelfLoose = preload("res://scenes/objects/art/shelf_loose.gd")
 
@@ -43,6 +45,8 @@ static func rows(definition: Dictionary, base: Node2D) -> Array[Dictionary]:
 		return out
 	var spec := FurnitureSpec.of(base)
 	for row: Dictionary in canonical(definition, spec):
+		if row.get("maybe", false) and hash([base.position, row["key"], row["lift"]]) % 2 != 0:
+			continue
 		var patch := { "size": row["size"] }
 		for field: String in ["color", "weight", "height", "spines"]:
 			if row.has(field):

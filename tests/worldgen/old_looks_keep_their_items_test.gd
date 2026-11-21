@@ -1,6 +1,7 @@
 extends GameTest
 ## The emptied pieces keep their old look as items (#194 unbake-b, D21, rule 9,
-## `docs/stacked-items.md` SI13): a stockroom's crate stack is two loose crates and no stack piece,
+## `docs/stacked-items.md` SI13): a stockroom's crate stack is two or three loose crates (by its
+## place: a third stands on the pair for about half of them) and no stack piece,
 ## its pallet a pallet item with four wrapped boxes on it, a kitchenette's hotplate a crate piece
 ## with a hotplate plate and a pan on it, and a bookshelf, shelving, linen shelf or shoe rack
 ## carries the books, boxes or shoes it drew. Nothing is strewn on the stockroom floor besides.
@@ -26,7 +27,10 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var seen := { "Crates": 0, "Pallet": 0, "Hotplate": 0, "Shelves": 0, "Books": 0 }
+	var seen := {
+		"Crates": 0, "Crates2": 0, "Crates3": 0, "Pallet": 0, "Hotplate": 0, "Shelves": 0,
+		"Books": 0,
+	}
 	for tower: Dictionary in DistrictReads.get_towers(t.world.district):
 		_check(t, "district 11", RoomItems.placed_in(tower["node"]), seen)
 	for plan_key: String in PLANS:
@@ -61,7 +65,11 @@ func _check(t: TestContext, where: String, placed: Array, seen: Dictionary) -> v
 			"Crates":
 				seen["Crates"] += 1
 				t.check(not base.solid, "%s: a crate stack is no solid piece" % where)
-				t.check(keys == ["crate", "crate"], "%s: two loose crates (%s)" % [where, keys])
+				t.check(
+					keys.count("crate") == keys.size() and keys.size() in [2, 3],
+					"%s: two or three loose crates (%s)" % [where, keys],
+				)
+				seen["Crates%d" % keys.size()] = seen.get("Crates%d" % keys.size(), 0) + 1
 			"Pallet":
 				seen["Pallet"] += 1
 				t.check(not base.solid, "%s: a pallet place is no solid piece" % where)

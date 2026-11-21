@@ -6,7 +6,8 @@ class_name StockroomCatalog
 ## SI13): `crate_stack` and `wrapped_pallet` are bare places (non-solid, no art) that carry loose
 ## items where the old stack and pallet drew theirs (`carries`: the crates of `ItemsCatalog` and the
 ## pallet and wrapped boxes of `LooseStockCatalog`; `at` from the place's centre, `lift` the height
-## it stands on, px).
+## it stands on, px; `maybe`: there for about half of the places, so a crate stack is two or three
+## crates).
 
 const OBJECTS := {
 	"crate_stack": {
@@ -24,6 +25,10 @@ const OBJECTS := {
 			{
 				"key": "crate", "at": Vector2(4, -4), "size": Vector2(38, 38), "lift": 20.0,
 				"height": 20.0, "weight": 40.0,
+			},
+			{
+				"key": "crate", "at": Vector2(0, 0), "size": Vector2(34, 34), "lift": 40.0,
+				"height": 20.0, "weight": 40.0, "maybe": true,
 			},
 		],
 	},
