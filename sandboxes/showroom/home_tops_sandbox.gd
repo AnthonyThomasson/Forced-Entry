@@ -1,6 +1,6 @@
 extends GameTest
 ## A showroom of the home tops that gave up their painted props (#194 17g, D21,
-## `docs/stacked-items.md` SI13): you are the player, with a pistol (3) and fists (2), in a room
+## `docs/stacked-items.md` SI14): you are the player, with a pistol (3) and fists (2), in a room
 ## holding a desk (a monitor, a keyboard, a mug and papers), a side table, a console table, a
 ## nightstand, a dresser, a kitchen counter, an island and a workbench, each carrying the items its
 ## row names where the old art drew them. Each item is its own body: shove or shoot the monitor
@@ -41,7 +41,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(ARENA)
-	s.actor(&"you", &"player", Vector2(100, 470), { "start_slot": 3 })
+	s.actor(&"you", &"player", Vector2(290, 175), { "start_slot": 3 })
 	for row: Array in PIECES:
 		s.object(StringName(row[0]), row[0], row[1])
 	s.switch(&"nav.rebake", false)
