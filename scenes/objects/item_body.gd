@@ -8,11 +8,17 @@ extends PieceBody
 ## pushes it (a character body tests its own mask against the other's layer, so the layer, not the
 ## item's mask, is what lets it by), and its footprint is no hole in the nav bake
 ## (`PieceRest.walk_over`). A round (`TWIN_ALL`), a blast and a fall (`TWIN_SURFACES`) still meet
-## it; a vehicle's body does not (its mask has no `TWIN_WALKOVER`): a car drives over a flat item. A
+## it; a vehicle's body does not (its mask has no `TWIN_WALKOVER`, and the item's has no
+## `TWIN_VEHICLE`
+## while it lies flat): a car drives over a flat item, no strike and no flick. A
 ## free item that falls onto it rests on it (an item's mask has
 ## `TWIN_WALKOVER`: a book falls onto a plate on the floor). Taller (a box, a crate, a lamp) or up
 ## on a table it is an obstacle like any piece, and a walker shoves it by today's rules
 ## (`Knockback.push`).
+
+## What a walk-over item leaves out of its mask: a walker and a vehicle pass over it, whoever's mask
+## it is (a vehicle's body would otherwise meet the item's own mask and flick it).
+const _PASSED := PhysicsLayers.TWIN_CHARACTER | PhysicsLayers.TWIN_VEHICLE
 
 ## The mask it has while it is not walk-over (a piece's, and what lies flat), and whether it is
 ## walk-over now.
@@ -58,4 +64,4 @@ func _step(footprint: Node2D) -> void:
 	if flat != _flat:
 		_flat = flat
 		collision_layer = PhysicsLayers.TWIN_WALKOVER if flat else PhysicsLayers.TWIN_WORLD
-		collision_mask = _full_mask & ~PhysicsLayers.TWIN_CHARACTER if flat else _full_mask
+		collision_mask = _full_mask & ~_PASSED if flat else _full_mask

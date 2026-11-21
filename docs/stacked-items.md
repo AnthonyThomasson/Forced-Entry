@@ -47,13 +47,16 @@ An item whose highest point is within `DoorFallConfig.step_over` (10 px) is walk
 box, a crate, a lamp, a monitor, an item on its side), or up on a table, it is on `TWIN_WORLD` and an obstacle like any piece:
 a walker shoves it by today's rules (`Knockback.push`). The layer changes while it lies: tipped up it is an obstacle, lying flat
 again it is walked over. A round and a blast meet it either way (a line asks `TWIN_ALL`). A vehicle's body does not meet a walk-over item either
-(its mask has no `TWIN_WALKOVER`): a car drives over a flat item, with no strike on it.
+(its mask has no `TWIN_WALKOVER`, and the item's has no `TWIN_VEHICLE` while it lies flat, as a fallen leaf's): a car drives over a
+flat item, with no strike and no flick. A box, a crate or a tipped item is a piece to it: struck, shoved on and scattered (free
+bodies, nothing joins them).
 
 A swinging door goes over a walk-over item as a walker does (`Door._overlapping` leaves one out): it shuts over a plate and is
 no more scraped to a stop by it; it still stops at a crate and at a fallen door's leaf, which lies as flat but is no item.
 
 Tests: `objects/walker_steps_over_a_fallen_plate` (a puppet walks over a plate and a cup; the same walk shoves a crate),
-`objects/door_shuts_over_a_plate`, `objects/item_flipped_up_walks_over_again` (a plate flicked up is on `TWIN_WORLD` while it tumbles, back on `TWIN_WALKOVER` flat).
+`objects/door_shuts_over_a_plate`, `objects/item_flipped_up_walks_over_again` (a plate flicked up is on `TWIN_WORLD` while it tumbles, back on `TWIN_WALKOVER` flat),
+`vehicle/car_drives_over_plates_and_shoves_a_stack` (a car drives over three plates: they stay, no crash, no speed lost; then shoves and scatters a stack of three boxes).
 
 ## SI5. What falls onto a walk-over item
 
