@@ -7,7 +7,7 @@
       `MatchBuilder.populate` over the staged world (read `t.world.match_handle`); `TestSetup.squads` runs `MatchBuilder.squads_over`, the
       human leader getting its stack radio from `MatchBuilder.bind_player` (read `t.world.squad(faction)`, `t.world.player_stack`).
     - **A district world:** `TestSetup.district(seed, plan := "", entrance := Vector2.ZERO)` declares `{ kind: "district", seed, plan,
-      entrance }` (`--seed=N` pins its seed). `TestWorld` builds no district itself: it hands the spec
+      entrance }` (the runner's `--seed=N` pins its seed as it does a house's). `TestWorld` builds no district itself: it hands the spec
       to `MatchBuilder.stage` (23), which generates it (1) and bakes it over every tower and street. `t.world.district` is the district
       root (null in any other world); `t.world.house`, `rooms` and `openings` are the centre tower's, so every injected NPC is bound as in a
       house. A district world takes no placed objects (a `push_error`); the tower reads are `DistrictReads` (1).
@@ -19,7 +19,7 @@
       player's keys do.
     - **Doors:** a hand-laid layout's doorway may declare `door: { material, style, hinge, swing_into, angle?, name? }`; the layout builder
       builds it with `WorldGen.door_definition` and `DoorFactory.spawn` (1, 2, 24) and `t.object(name)` finds it. A generated house is
-      built with its doors unless the switch `worldgen.doors` is off. `s.object(id, key, offset, { on: id })`: a small item on an earlier object's top (2).
+      built with its doors unless the switch `worldgen.doors` (`WorldGenDoorConfig.enabled`, on by default) is off.
     - **Events:** `EventBus` and character signals (7, 10) feed its event log.
     - **Behaviour switches** set existing exported props and config-holder `static var`s by name, and an NPC's tunables by the indexed
       path `tuning:<topic>:<name>` (7). A name the holder lacks fails the test. Statics are restored after each test. Examples:

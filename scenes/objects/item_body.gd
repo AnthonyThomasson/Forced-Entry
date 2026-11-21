@@ -7,8 +7,9 @@ extends PieceBody
 ## `PhysicsLayers.TWIN_WALKOVER` and ignores characters: a walker passes it and it stays, nothing
 ## pushes it (a character body tests its own mask against the other's layer, so the layer, not the
 ## item's mask, is what lets it by), and its footprint is no hole in the nav bake
-## (`PieceRest.walk_over`). A vehicle, a round (`TWIN_ALL`), a blast and a fall (`TWIN_SURFACES`)
-## still meet it, and a free item that falls onto it rests on it (an item's mask has
+## (`PieceRest.walk_over`). A round (`TWIN_ALL`), a blast and a fall (`TWIN_SURFACES`) still meet
+## it; a vehicle's body does not (its mask has no `TWIN_WALKOVER`): a car drives over a flat item. A
+## free item that falls onto it rests on it (an item's mask has
 ## `TWIN_WALKOVER`: a book falls onto a plate on the floor). Taller (a box, a crate, a lamp) or up
 ## on a table it is an obstacle like any piece, and a walker shoves it by today's rules
 ## (`Knockback.push`).

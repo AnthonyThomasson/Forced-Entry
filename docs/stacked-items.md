@@ -22,10 +22,15 @@ Tests: `objects/piece_heights` (the rows' tops).
 
 `ObjectFactory.spawn_on(definition, base, offset, parent, opts)` sets an item on another piece's top: the body starts at
 `ObjectFactory.top_at` (a ray down at that plan point against the twin space, so a box already standing there raises it; a
-table's 31 px, a crate's 16) a hair above it, falls the last of it and settles asleep with its underside on the top. An item
-set on the same spot goes on top of the first: a stack. It stays where it was put on the plan.
+table's 31 px, a crate's 16) a hair above it (`PieceBody.REST_GAP`, 0.4 px: it is set down, it does not pop), falls the last of it
+and settles asleep with its underside on the top. An item set on the same spot goes on top of the first: a stack. A house is built
+before the twin space takes any piece over, so items set in one frame have no twin to ask: `spawn_on` keeps the chain itself (what
+it set on a base that has no twin yet, `PieceRest.stacked`, read where the footprints overlap) and the ray reads the rest. It stays
+where it was put on the plan.
 
-Tests: `objects/stacked_items_rest_on_their_top` (a plate and a cup on a table; a box on a crate on a crate).
+Tests: `objects/stacked_items_rest_on_their_top` (a plate and a cup on a table; a box on a crate on a crate),
+`objects/items_set_on_one_spot_in_one_frame` (three plates and a cup on one spot, one frame), `objects/item_set_on_a_twinned_stack_reads_the_ray`
+(a plate set later over a settled box), `objects/item_set_down_does_not_pop` (the first-frame gap, the landing speed).
 
 ## SI3. Free bodies, physics only
 
@@ -41,9 +46,11 @@ An item whose highest point is within `DoorFallConfig.step_over` (10 px) is walk
 (and off the layer a walker meets, `TWIN_BLOCKS`) and ignores characters, so a walker passes it and nothing pushes it. Taller (a
 box, a crate, a lamp, a monitor, an item on its side), or up on a table, it is on `TWIN_WORLD` and an obstacle like any piece:
 a walker shoves it by today's rules (`Knockback.push`). The layer changes while it lies: tipped up it is an obstacle, lying flat
-again it is walked over. A vehicle, a round and a blast meet it either way (a line asks `TWIN_ALL`).
+again it is walked over. A round and a blast meet it either way (a line asks `TWIN_ALL`). A vehicle's body does not meet a walk-over item either
+(its mask has no `TWIN_WALKOVER`): a car drives over a flat item, with no strike on it.
 
-Tests: `objects/walker_steps_over_a_fallen_plate` (a puppet walks over a plate and a cup; the same walk shoves a crate).
+Tests: `objects/walker_steps_over_a_fallen_plate` (a puppet walks over a plate and a cup; the same walk shoves a crate),
+`objects/item_flipped_up_walks_over_again` (a plate flicked up is on `TWIN_WORLD` while it tumbles, back on `TWIN_WALKOVER` flat).
 
 ## SI5. What falls onto a walk-over item
 
@@ -63,9 +70,11 @@ Tests: `navigation/walk_over_items_leave_the_map_open`.
 ## SI7. Bullets by material
 
 A round meets an item at its real height and goes by its material and thickness like any piece's: it passes a plate (6 px of
-ceramic) and knocks it off, a crate (wood, 20 px) stops it. A box stack is cover at its real height (`PieceHeights`).
+ceramic) and knocks it off, a crate (wood, 20 px) stops it. A box stack is cover at its real height for rounds (`PieceHeights`); the AI choosing cover by the stacked top (the twin's, not the
+catalogue's) is `stack-b`'s job.
 
-Tests: `projectile/round_through_a_plate_stopped_by_a_crate`.
+Tests: `projectile/round_through_a_plate_stopped_by_a_crate`, `projectile/round_through_books_and_a_monitor` (each book of a stack
+by its height; a monitor).
 
 ## SI8. Layouts do not move
 
