@@ -86,6 +86,22 @@ const SMOOTH_MAX_MS := 33.4
 ## Not tuned, no standard loosened: stack-b moved the fight and
 ## perf3d re-picks (the 10v10 guards over at least 24 seeds a side on a quiet machine, the
 ## `match_npc_vision` premise and seed).
+## Accepted drift (#194 unbake-b, 2026-11-21): the shelves and the stock give up what they built
+## in (`docs/stacked-items.md` SI13: books in runs of up to six, shelf boxes, shoes, two or three
+## loose crates a stack, a pallet with four wrapped boxes, the hotplate's plate and pan are items;
+## the crate stacks and pallets are non-solid places; the stockroom's floor is not strewn twice).
+## Twin bodies: the district of seed 2 holds 691 (785 at stack-b: the places carry no body and a
+## run of books is one body), the biggest of seeds 1 to 16 (13) 864 with 124 items, against Jolt's
+## 10240. Absolute standards (`tools/run_tests.sh --domain=perf`, `--base=08f43a10` and the tip,
+## the failing ones again alone, one after the other, load 6 to 13 from other workers: a loaded
+## run fails nearly every guard at either revision): at the tip every guard passes alone but
+## `perf/match_npc_vision`; the five that failed in the loaded run (`nav_plan_ring_stress`,
+## `nav_snap_repeat_stress`, `npc_crowd_stress`, `shot_layer_cost`, `vehicle_fleet_stress`) pass
+## alone at both revisions, as do the four match guards at the tip (the base's own 10v10 p95 read
+## 23.4 ## and 20.6 in that run). `match_npc_vision` fails at both: at the base its premise (the
+## viewed invader lives) and a 35.8 max, at the tip the invader lives the whole window (the fight
+## moved) and the window reads avg 18.4 / p95 27.9 / max 34.0 over 16.7 / 20 / 33.4. Not tuned, no
+## standard loosened: `perf3d` re-picks the seed and the premise.
 const MATCH_SEED := 2
 const MATCH_PLAN := "garage_home"
 ## Test seconds a match guard's warm-up runs before it waits for contact (`warm_until_contact`).
