@@ -151,7 +151,9 @@ func twin_update(_body: Node2D) -> void:
 
 ## One frame's walk: move at the plan velocity `wanted` (px/s) for a physics step, slide along what
 ## stops it, and write the footprint where the body ended. Returns the plan velocity left after the
-## slide. A footprint moved since the last frame (a door's nudge, a script) is taken first.
+## slide. A footprint moved since the last frame (a door's nudge, a script) is taken first. A
+## body holding a sleeping free body (`hold`) with no walk to make is not moved at all (no
+## `move_and_slide`, no depenetration) until it walks.
 func walk(wanted: Vector2) -> Vector2:
 	follow(_character)
 	_wanted = wanted.normalized()
@@ -319,9 +321,9 @@ static func _hangs(body: RigidBody3D) -> bool:
 	)
 
 
-## A free `body` that rests on this one has been put to sleep there by its own rule (the engine
-## keeps such a body awake for ever, `PieceBody.rest_on_a_character`): it is woken as any other
-## when this body leaves, though it sleeps.
+## A free `body` that rests on this one holds there (`PieceBody.hold_on_a_character`): while it
+## does, this body stands still when it has no walk (`walk`), so the engine can put it to sleep, and
+## it is woken as any other when this body leaves.
 func hold(body: RigidBody3D) -> void:
 	_held[body.get_instance_id()] = true
 

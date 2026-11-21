@@ -254,9 +254,11 @@ func twin_update(footprint: Node2D) -> void:
 ## a piece resting on one stays awake for ever, creeping on it and pushing it. A kind of piece that
 ## can fall on a character (`DoorSlab`) calls this each frame. One awake and at rest
 ## (`PieceBodyConfig.rest_speed`, `rest_spin`) for `PieceBodyConfig.rest_frames` frames, with
-## no shove given it, that touches a character is put to sleep where it lies; a character that
-## moves into it wakes it again (it is shoved as any piece is).
-func rest_on_a_character() -> void:
+## no shove given it, that touches a character is **held** by it: each character it touches is told
+## (`CharacterTwin.hold`) and stands still while idle (not moved, so not waking what touches it),
+## and the engine then puts the piece to sleep where it lies by itself. It is not put to sleep here.
+## The twin wakes it when it leaves; a character that moves into it shoves it as any piece is.
+func hold_on_a_character() -> void:
 	if (
 		plan_velocity().length() > PieceBodyConfig.rest_speed
 		or absf(plan_spin()) > PieceBodyConfig.rest_spin
@@ -269,15 +271,10 @@ func rest_on_a_character() -> void:
 		return
 	# touching none: look again in half as long
 	_rest_for = int(PieceBodyConfig.rest_frames * 0.5)
-	var under := _characters_touching()
-	if under.is_empty():
-		return
-	# each character it lies on will wake it when it leaves (`CharacterTwin.hold`)
-	for who: Node2D in under:
+	for who: Node2D in _characters_touching():
 		var twin := TwinSpace.walker_of(who)
 		if twin != null and twin.has_method(&"hold"):
 			twin.call(&"hold", self)
-	sleeping = true
 
 
 ## The 2D bodies of the living characters this piece's shapes touch now, in a fixed order (by

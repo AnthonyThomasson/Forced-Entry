@@ -173,8 +173,8 @@ func _bowl(delta: float) -> void:
 		set_physics_process(false)
 		return
 	# awake and standing on its own: the twin space tells no one a body that does not move, so a
-	# leaf at rest on a character is watched here (the engine never sleeps it)
-	rest_on_a_character()
+	# leaf at rest on a character is watched here, and held by it (the engine then sleeps it)
+	hold_on_a_character()
 	_bowl_left -= 1
 	if _bowl_left <= 0:
 		return
