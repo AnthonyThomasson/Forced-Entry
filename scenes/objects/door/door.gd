@@ -438,10 +438,19 @@ func _overlapping(pose: Transform2D, inset: float) -> Array:
 	var bodies := []
 	for found in space.intersect_shape(query, OVERLAP_HITS):
 		var body := TwinSpace.owner_of(found["collider"])
+		if _walked_over(found["collider"]):
+			continue
 		if body != null and body != self and not bodies.has(body):
 			bodies.append(body)
 	bodies.sort_custom(_nearer_the_origin)
 	return bodies
+
+
+## Whether `collider` is an item lying within a step (`ItemBody.walk_over`): the leaf swings over a
+## plate as a walker steps over it. A fallen door's leaf lies as flat and is no item: it stops the
+## leaf.
+func _walked_over(collider: Object) -> bool:
+	return collider is ItemBody and (collider as ItemBody).is_flat()
 
 
 ## Bodies in a fixed order: by where they stand.

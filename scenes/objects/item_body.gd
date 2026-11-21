@@ -38,6 +38,11 @@ func twin_update(footprint: Node2D) -> void:
 	_step(footprint)
 
 
+## Whether the item lies on the walk-over layer now (what the last step decided).
+func is_flat() -> bool:
+	return _flat
+
+
 ## Whether the item is walk-over now: its highest point within a step of the floor.
 func walk_over() -> bool:
 	return _extent().y / RenderConfig.unit <= DoorFallConfig.step_over
