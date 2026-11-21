@@ -18,10 +18,6 @@ const FLAT_MASK := PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_GROUND
 ## The mask it has when it is not flat (a piece's), and whether it is flat now.
 var _full_mask := 0
 var _flat := false
-## The way across the leaf's face toward the wall it was shut in, and the physics frame it was
-## knocked down ajar in (`release`): a shove that frame throwing it that way is the frame's to take.
-var _wall_side := Vector2.ZERO
-var _fell_frame := -1
 
 
 ## A slab for `door` (its `get_mass()` is the weight); the shape is added by the builder.
@@ -32,27 +28,21 @@ func _init(door: Node2D = null) -> void:
 
 ## The leaf comes off its hinges: it is thrown by the blow's `impulse` (plan space) at `height` px
 ## (a negative height: the leaf's centre), and wrenched over across its face toward `fall`, a unit
-## vector on the plan: the way the tearing hinges lay it down (`DoorFallConfig.fall_nudge`).
-func release(impulse: Vector2, height: float, fall: Vector2, drop := Vector2.ZERO) -> void:
+## vector on the plan: the way the tearing hinges lay it down (`DoorFallConfig.fall_nudge`). A leaf
+## felled ajar is first carried out of its frame along `out` (a unit vector, the blow's side of the
+## wall; zero for a shut leaf) until it stands wholly past the wall line `line` (its hinge's
+## coordinate along `out`) and the wall's face, so that it tips and lies clear of the jambs.
+func release(
+	impulse: Vector2, height: float, fall: Vector2, out := Vector2.ZERO, line := 0.0
+) -> void:
 	sleeping = false
-	if drop != Vector2.ZERO:
-		_wall_side = -fall
-		_fell_frame = Engine.get_physics_frames()
-		_drop_out(drop)
+	if out != Vector2.ZERO:
+		_drop_out(out, line)
+		_lean_toward(fall)
 	if impulse.length_squared() > 0.0:
 		push(impulse, Vector2.ZERO, height)
 	push(fall * mass * DoorFallConfig.fall_nudge, Vector2.ZERO, _extent().y / RenderConfig.unit)
 	twin_update(_piece)
-
-
-## A shove, less the part of it that throws a leaf knocked down ajar toward the wall it was shut in,
-## in the frame it fell in (the blow's own and a blast's that follows it: the frame takes it, and
-## the leaf falls the side it was opened to).
-func push(impulse: Vector2, at: Vector2 = Vector2.ZERO, height: float = -1.0) -> void:
-	var toward := impulse.dot(_wall_side)
-	if Engine.get_physics_frames() == _fell_frame and toward > 0.0:
-		impulse -= _wall_side * toward
-	super(impulse, at, height)
 
 
 ## The footprint follows (the twin space calls this after it has written the 2D door): the hull of
@@ -78,13 +68,36 @@ func _restore_footprint(door: Node2D) -> void:
 	door.get(&"footprint").hull = PackedVector2Array()
 
 
-## The leaf is dropped `by` px (plan space) out of its frame as far as nothing stops it: an ajar
+## The leaf is already leaning `DoorFallConfig.lean_out` degrees toward `fall` (a unit plan
+## vector), turned about its lower edge on that side.
+func _lean_toward(fall: Vector2) -> void:
+	var toward := PlanSpace.lift(fall).normalized()
+	var turn := Basis(Vector3.UP.cross(toward).normalized(), deg_to_rad(DoorFallConfig.lean_out))
+	var foot := global_position + toward * (DoorConfig.leaf_thickness * 0.5 * RenderConfig.unit)
+	var about := global_position - foot
+	global_transform = Transform3D(turn * global_transform.basis, foot + turn * about)
+	force_update_transform()
+
+
+## The leaf is carried along `out` (a unit plan vector) as far as nothing stops it, until its
+## rearmost point stands `DoorFallConfig.frame_out` past the wall line `line` (along `out`): an ajar
 ## leaf stands across its doorway's wall line, where its ends would catch a jamb whichever way it
-## tips.
-func _drop_out(by: Vector2) -> void:
+## tips, and wholly on the blow's side of the wall it tips and lies clear.
+func _drop_out(out: Vector2, line: float) -> void:
+	var rear := INF
+	for child in get_children():
+		var holder := child as CollisionShape3D
+		if holder == null or holder.shape == null:
+			continue
+		for corner in _corners(holder.shape):
+			var at := PlanSpace.plan_of(global_transform * (holder.transform * corner))
+			rear = minf(rear, at.dot(out))
+	var by := maxf(line + DoorFallConfig.frame_out - rear, 0.0)
+	if by <= 0.0:
+		return
 	var query := PhysicsTestMotionParameters3D.new()
 	query.from = global_transform
-	query.motion = PlanSpace.lift(by)
+	query.motion = PlanSpace.lift(out * by)
 	var result := PhysicsTestMotionResult3D.new()
 	var travel := query.motion
 	if PhysicsServer3D.body_test_motion(get_rid(), query, result):

@@ -10,6 +10,9 @@ const FREE_GAP := 48.0
 ## A kick's blow: the damage that fells a solid door and the shove it gives (px/s), at the lock.
 const FELLING := 1000.0
 const SHOVE := 800.0
+## How far (px) past the wall line (the doorways' y is 0) a leaf felled by a blow must lie, at
+## least, to have fallen the blow's way and not across the doorway's wall.
+const FAR := 8.0
 ## How far (px) from the leaf's middle a frag goes off, and how high.
 const BLAST_AWAY := 40.0
 const BLAST_HEIGHT := 42.0
@@ -78,3 +81,51 @@ static func blast_all(t: TestContext, angles: Array, sides: Array) -> void:
 				+ "(%.0f of %.0f px; top %.0f, lean %.0f)"
 			) % [i, angles[i], sides[i], leaf.gap(), FREE_GAP, Probe.top(leaf), Probe.lean(leaf)],
 		)
+
+
+## Fell the first `count` range doors ajar at `angles` (each swinging `intos[i]`) with a blow of
+## `kind` (`&"kick"` or `&"rifle"`), each from the door's open side (`from_open`) or from its closed
+## side: the leaf falls with the blow, so it lies on the far side of the wall line from whoever
+## struck it, and leaves its doorway clear.
+static func fell_with_the_blow(
+	t: TestContext, angles: Array, intos: Array, kind: StringName, from_open: bool
+) -> void:
+	for i in angles.size():
+		var leaf = door(t, i)
+		var along: Vector2 = (intos[i] as Vector2) * (-1.0 if from_open else 1.0)
+		if kind == &"kick":
+			leaf.take_blow(&"kick", FELLING, along * SHOVE, 40.0)
+		else:
+			leaf.take_hit(_round(leaf.global_position, along))
+	for i in angles.size():
+		var leaf = door(t, i)
+		var along: Vector2 = (intos[i] as Vector2) * (-1.0 if from_open else 1.0)
+		var label := "%s door %d (ajar %.0f, struck from %s)" % [
+			kind, i, angles[i], "its open side" if from_open else "its closed side",
+		]
+		if not t.require(leaf.is_down(), "%s is knocked down" % label):
+			return
+		await Probe.settle(t, leaf, 10.0)
+		var lies := Probe.middle(leaf).y * along.y
+		t.check(
+			lies >= FAR,
+			"%s lies on the far side of the wall line (%.0f px past it, wanted %.0f)"
+				% [label, lies, FAR],
+		)
+		t.check(
+			leaf.gap() >= FREE_GAP - 1.0,
+			"%s leaves the doorway clear (%.0f of %.0f px; top %.0f, lean %.0f)"
+				% [label, leaf.gap(), FREE_GAP, Probe.top(leaf), Probe.lean(leaf)],
+		)
+
+
+## A rifle round that fells a door, striking its middle going `along`.
+static func _round(at: Vector2, along: Vector2) -> HitInfo:
+	var hit := HitInfo.new()
+	hit.position = at
+	hit.normal = -along
+	hit.direction = along
+	hit.damage = FELLING
+	hit.speed_factor = 1.0
+	hit.height = BLAST_HEIGHT
+	return hit
