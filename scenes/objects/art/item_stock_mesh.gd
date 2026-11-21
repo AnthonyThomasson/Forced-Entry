@@ -2,13 +2,13 @@ extends RefCounted
 ## Objects domain, the 3D meshes of the items the shelves and the stockroom give up
 ## (`item_mesh.gd` hands the kinds named here to it; `docs/stacked-items.md` SI13): a pallet
 ## (stringers and
-## slats), a shrink-wrapped box with its label, a standing book, a pair of shoes, the hotplate's
-## plate with its hot ring, a pan with its handle and a pot with its two. Every one stands on its
-## own origin (y 0), like every item.
+## slats), a shrink-wrapped box with its label, a standing book, a pair of shoes, a paint tin, the
+## hotplate's plate with its hot ring, a pan with its handle and a pot with its two. Every one
+## stands on its own origin (y 0), like every item.
 
 ## How far (px) a pan's handle reaches past its disc.
 const PAN_HANDLE := 5.0
-const KINDS := ["pallet", "wrapped_box", "book_stood", "shoes", "hob", "pan", "pot"]
+const KINDS := ["pallet", "wrapped_box", "book_stood", "shoes", "paint_tin", "hob", "pan", "pot"]
 ## The options the kinds here read (`item_mesh.gd` adds them to its own).
 const OPTIONS := ["spines"]
 
@@ -20,6 +20,7 @@ static func height_of(kind: String) -> float:
 		"wrapped_box": ObjectMeshStockItemConfig.wrapped_box_height,
 		"book_stood": ObjectMeshStockItemConfig.book_stood_height,
 		"shoes": ObjectMeshStockItemConfig.shoes_height,
+		"paint_tin": ObjectMeshStockItemConfig.paint_tin_height,
 		"hob": ObjectMeshKitchenConfig.hotplate_plate_height,
 		"pan": ObjectMeshKitchenConfig.hotplate_pan_height,
 		"pot": ObjectMeshStockItemConfig.pot_height,
@@ -45,6 +46,8 @@ static func build(
 			_books(kit, spec, foot, high)
 		"shoes":
 			_shoes(kit, foot, high, colour)
+		"paint_tin":
+			_tin(kit, foot, high, colour)
 		"hob":
 			kit.box(MeshKit.volume(foot, 0.0, high), colour, colour.lightened(0.1))
 		"pan":
@@ -115,6 +118,16 @@ static func _pan(kit: MeshKit, foot: Rect2, high: float, colour: Color) -> void:
 	kit.cylinder(Vector3(mid.x, 0.0, mid.y), radius, high, colour, colour.lightened(0.15))
 	var grip := Rect2(mid + Vector2(radius, -1.0), Vector2(PAN_HANDLE, 2.0))
 	kit.box(MeshKit.volume(grip, high - 1.5, 1.5), colour)
+
+
+## A paint tin: a round can with its lid on, a darker band round the middle for the label.
+static func _tin(kit: MeshKit, foot: Rect2, high: float, colour: Color) -> void:
+	var radius := minf(foot.size.x, foot.size.y) * 0.5
+	var mid := foot.get_center()
+	kit.cylinder(Vector3(mid.x, 0.0, mid.y), radius, high, colour, colour.lightened(0.12))
+	kit.cylinder(
+		Vector3(mid.x, high * 0.3, mid.y), radius + 0.2, high * 0.4, colour.darkened(0.3)
+	)
 
 
 ## A pot: a tall round body and two handles.

@@ -96,9 +96,9 @@ their own RNG stream, after the furniture.
 `RoomItems` (World-Gen, `scenes/worldgen/room_items.gd`) places items in every room of a house and of a district tower, after the
 room's furniture, clutter and neon, from an RNG of its own, `hash([run seed, room key, "items"])`: no seed's furniture, doors,
 clutter, neon or wear moves, and nothing is added to `RoomSite.solids`. What goes on a piece is catalogue data (`ItemsCatalog`):
-`TOPS` by the piece's key (tableware on dining tables, kitchen counters and islands; books, lamps and monitors on desks, shelves,
-consoles and night stands; boxes on workbenches, garage shelving, filing cabinets), else `TOPS_BY_ART` by its painter (the
-general rule: any table, counter, shelf or cabinet takes a small piece), and an empty row keeps a top bare (a basin, a mirror, a
+`TOPS` by the piece's key (tableware on dining tables, kitchen counters and islands; books, lamps and monitors on desks,
+consoles and night stands; boxes on workbenches and filing cabinets), else `TOPS_BY_ART` by its painter (the
+general rule: any table, counter or cabinet takes a small piece; a shelf carries its own, `PieceCarries`), and an empty row keeps a top bare (a basin, a mirror, a
 shoe rack). About half the tops carry items (`WorldGenItemConfig.top_chance`, 0.5): 1 to `top_max` (3) items (a plate or a book may
 be stacked on one more now and then, `stack_chance`), each inside the top's main flat part (`ObjectFactory.flat_top`: the footprint
 but for a part that rises over it, a counter's backsplash, which an item keeps off: set against it, it would lean) and off the props
@@ -167,7 +167,7 @@ empty.
   over as it laid the solid shelf. Books are `book_stood` items in runs of up to six side by side (one body, the spines drawn from
   `art_opts.spines`, pale page-block tops as the old mesh drew): a bookshelf of hundreds of books would be as many bodies; a run is
   18 px of paper, penetration 70: **a pistol round through a run is spent** (it loses over half its speed) and a rifle round carries
-  on. Shelving and linen-shelf boxes are `box` items sized to the row; shoe racks hold `shoes` (a pair). **Sight:** a viewer in front
+  on. Shelving and linen-shelf boxes are `box` items sized to the row, with the odd `paint_tin` (the old painter's, 3 places in 10 of a board); shoe racks hold `shoes` (a pair). **Sight:** a viewer in front
   looks into an empty compartment (the front is open) and sees its back; the back and the sides stop sight at every height.
 - **Crate stack and pallet** (`StockroomCatalog`): `crate_stack` and `wrapped_pallet` are bare places (non-solid, no art, no mass:
   `PieceHeights.parts_of` says 0). The stack is two or three loose `crate` items (38 px across, 20 high, the second 4 px off; a third, 34 px across, on the pair for about half the places: the row's `maybe`, by where the place stands), the pallet a
@@ -176,7 +176,7 @@ empty.
 - **Hotplate** (`KitchenetteCatalog`): the piece is the crate (12 px, still giving the ring's light); the plate (`hob`, with its
   hot ring glowing) and the pan stand on it.
 - New kinds (`LooseStockCatalog`; `item_stock_mesh.gd`, `item_stock_painter.gd`, heights in `ObjectMeshStockItemConfig`): `pallet`,
-  `wrapped_box`, `book_stood`, `shoes`, `hob`, `pan`, `pot` (the noodle bar's, unused by this job). An item's flat art is painted
+  `wrapped_box`, `book_stood`, `shoes`, `paint_tin` (the old painter's odd tin on a shelf of boxes: 30 % of the places on a board, at most 5 px a radius, 8 high), `hob`, `pan`, `pot` (the noodle bar's, unused by this job). An item's flat art is painted
   by its `kind` alone (`ObjectArt._art_opts`) and `DistrictPrewarm` warms every carried item at its size.
 
 Tests: `objects/emptied_shelving_carries_its_boxes`, `objects/bookshelf_tips_and_spills_its_books` (the books stand asleep at the

@@ -4,11 +4,12 @@ extends RefCounted
 ##   `pallet`: slats across a deck;   `wrapped_box`: a box under shrink wrap with a label;
 ##   `book_stood`: a book's top (its cover and the page edge);   `shoes`: a pair of soles;
 ##   `hob`: a plate with a hot ring (the ring glows: `hotplate_painter.gd`'s old look);
-##   `pan`: a dish with a handle;   `pot`: a round pot with two handles.
+## `paint_tin`: a can with its label ring; `pan`: a dish with a handle; `pot`: a round pot with two
+## handles.
 ## Canonical frame: the front toward +y; the catalogue colour is the item's own.
 
 const Kit = preload("res://scenes/objects/art/paint_kit.gd")
-const KINDS := ["pallet", "wrapped_box", "book_stood", "shoes", "hob", "pan", "pot"]
+const KINDS := ["pallet", "wrapped_box", "book_stood", "shoes", "paint_tin", "hob", "pan", "pot"]
 ## Heights for cast shadows.
 const _LOW := 3
 const _TALL := 10
@@ -41,6 +42,12 @@ static func paint(c: PixelCanvas, base: Color, kind: String) -> void:
 					base.darkened(0.55),
 					_LOW,
 				)
+		"paint_tin":
+			var r := maxi(1, mini(c.w, c.h) >> 1)
+			var mid := Vector2i(c.w >> 1, c.h >> 1)
+			Kit.disc(c, mid, r, base.darkened(0.4), _TALL)
+			Kit.disc(c, mid, maxi(1, r - 1), base, _TALL)
+			Kit.disc(c, mid, maxi(1, r - 2), ObjectArtDecorConfig.prop_colors["books"][0], _TALL)
 		"hob":
 			Kit.fill_rect(c, Rect2i(0, 0, c.w, c.h), base, _LOW)
 		"pan":

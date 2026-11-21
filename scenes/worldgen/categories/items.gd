@@ -125,7 +125,6 @@ const TOPS := {
 const TOPS_BY_ART := {
 	"table": [["cup", 3.0], ["book", 3.0], ["plate", 2.0]],
 	"counter": [["plate", 3.0], ["cup", 3.0], ["bowl", 2.0]],
-	"shelf": [["book", 3.0], ["box", 2.0]],
 	"cabinet": [["book", 2.0], ["desk_lamp", 2.0], ["cup", 1.0]],
 }
 ## The kinds that go on each other in a stack on a top (a book on a book, a plate on a plate).

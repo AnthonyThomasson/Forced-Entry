@@ -1,10 +1,11 @@
 extends RefCounted
 ## Objects domain, what an open shelf holds when it is emptied (`docs/stacked-items.md` SI13,
-## decision D21): the books, the boxes or the pairs of shoes that `shelf_mesh.gd` and
-## `shelf_painter.gd` used to build into the shelf, as rows for loose items to stand where they
-## stood (`PieceCarries`). The pieces are picked by a generator seeded from the look (the footprint,
-## the contents, the boards), so every shelf of one look carries the same things, and they are the
-## ones the old mesh drew: the same walk along each board, the same sizes and gaps.
+## decision D21): the books, the boxes (and the odd paint tin) or the pairs of shoes that
+## `shelf_mesh.gd` and `shelf_painter.gd` used to build into the shelf, as rows for loose items to
+## stand where they stood (`PieceCarries`). The pieces are picked by a generator seeded from the
+## look (the footprint, the contents, the boards), so every shelf of one look carries the same
+## things, and they are the ones the old mesh drew: the same walk along each board, the same sizes
+## and gaps.
 ## A row is `{ key, at, size, lift, height, color }`: the item's catalogue key, its centre from the
 ## shelf's centre in the canonical frame (x across, the front toward +y), its footprint, the board's
 ## top it stands on and how tall it is. A run of books (`RUN` at most, side by side on one board) is
@@ -14,6 +15,10 @@ extends RefCounted
 const ShelfMesh = preload("res://scenes/objects/art/shelf_mesh.gd")
 ## The most books in one run.
 const RUN := 6
+## How likely a place on a board of boxes is a paint tin, its largest radius and its height (px).
+const TIN_CHANCE := 0.3
+const TIN_RADIUS := 5.0
+const TIN_HEIGHT := 8.0
 
 
 ## The rows of the shelf `spec` (art "shelf", `art_opts.loose`): `[]` for a shelf with no contents.
@@ -134,11 +139,30 @@ static func _box(
 	end: float,
 	out: Array[Dictionary],
 ) -> float:
+	if rng.randf() < TIN_CHANCE:
+		return _tin(spec, rng, at, end, out)
 	var bw := minf(rng.randf_range(0.22, 0.34) * spec.size.x, end - at.x)
 	var area := Rect2(at.x, ShelfMesh.HULL + 0.5, bw, spec.size.y - ShelfMesh.HULL - 2.5)
 	var high := at.z * rng.randf_range(0.5, 0.8)
 	out.append(_row(spec, "box", area, Vector2(at.y, high), ObjectArtStorageConfig.shelf_box_color))
 	return at.x + bw + 1.0
+
+
+## The odd paint tin of a board of boxes (the old painter's: as wide as the board's depth allows,
+## at most 5 px a side of radius, against the back); the x past it.
+static func _tin(
+	spec: FurnitureSpec,
+	rng: RandomNumberGenerator,
+	at: Vector3,
+	end: float,
+	out: Array[Dictionary],
+) -> float:
+	var depth := (spec.size.y - ShelfMesh.HULL - 2.5) * rng.randf_range(0.6, 0.95)
+	var rad := minf(maxf(1.0, floorf(depth * 0.5)), minf(TIN_RADIUS, (end - at.x) * 0.5))
+	var area := Rect2(at.x, ShelfMesh.HULL + 1.5, rad * 2.0, rad * 2.0)
+	var colour: Color = ObjectArtDecorConfig.prop_colors["metal"]
+	out.append(_row(spec, "paint_tin", area, Vector2(at.y, minf(at.z * 0.8, TIN_HEIGHT)), colour))
+	return at.x + rad * 2.0 + 2.0
 
 
 ## A pair of shoes (placed like `_book`); the x past it.

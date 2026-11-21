@@ -12,5 +12,7 @@ static var wrapped_box_height: float = 40.0
 ## A standing book (the default when no height is given), a pair of shoes.
 static var book_stood_height: float = 16.0
 static var shoes_height: float = 6.0
+## A paint tin (on a shelf of boxes, the odd one).
+static var paint_tin_height: float = 8.0
 ## A pot (the hotplate's plate and pan are `ObjectMeshKitchenConfig.hotplate_*`).
 static var pot_height: float = 10.0

@@ -32,7 +32,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var seen := {
 		"Crates": 0, "Crates2": 0, "Crates3": 0, "Pallet": 0, "Hotplate": 0, "Shelves": 0,
-		"Books": 0,
+		"Books": 0, "Tins": 0,
 	}
 	for tower: Dictionary in DistrictReads.get_towers(t.world.district):
 		_check(t, "district 11", RoomItems.placed_in(tower["node"]), seen)
@@ -86,11 +86,11 @@ func _check(t: TestContext, where: String, placed: Array, seen: Dictionary) -> v
 					"Books": "book_stood", "Shelves": "box", "Linen": "box", "Shoes": "shoes",
 				}[base.object_name]
 				t.check(
-					keys.all(func(key: String) -> bool: return key == thing) and keys.size() > 0,
+					_holds(keys, thing),
 					"%s: %s carries %s (%s)" % [where, base.object_name, thing, keys.slice(0, 4)],
 				)
-				if base.object_name == "Books":
-					seen["Books"] += 1
+				seen["Books"] += int(base.object_name == "Books")
+				seen["Tins"] += keys.count("paint_tin")
 
 
 ## The crate stack `base` with the item `keys` placed on it: two or three loose crates, no solid
@@ -121,3 +121,9 @@ func _check_crates(
 		absf(float(lifts.max()) - CRATE_PAIR_TOP) <= LIFT_SLACK,
 		"%s: the third crate rests on the pair (lifts %s)" % [where, lifts],
 	)
+
+
+## Whether the item `keys` of a shelf are its `thing` (a shelf of boxes holds the odd paint tin).
+func _holds(keys: Array, thing: String) -> bool:
+	var allowed := [thing, "paint_tin"]
+	return not keys.is_empty() and keys.all(func(key: String) -> bool: return key in allowed)

@@ -44,7 +44,7 @@ func run(t: TestContext) -> void:
 	await t.frames(3)
 	for entry: Dictionary in placed:
 		var item: Node2D = entry["node"]
-		t.check(entry["key"] == "box", "a loose cardboard box (%s)" % entry["key"])
+		t.check(entry["key"] in ["box", "paint_tin"], "a loose box or tin (%s)" % entry["key"])
 		t.check(
 			await Probe.settle(t, item, 4.0), "%s settles asleep" % item.name,
 		)

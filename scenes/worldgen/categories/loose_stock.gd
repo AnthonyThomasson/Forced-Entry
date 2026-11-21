@@ -1,9 +1,10 @@
 class_name LooseStockCatalog
 ## World Generation domain: the items the shelves and the stockroom give up (`docs/stacked-items.md`
-## SI13, decision D21): a pallet, a shrink-wrapped box, a standing book, a pair of shoes, the
-## hotplate's plate (`hob`), a pan and a pot. Each is a small free piece (Objects' `item` painter
-## and mesh), like `ItemsCatalog`'s: an emptied piece (`PieceCarries`) sets them where it used to
-## draw them, and `RoomItems` never strews them on a top at random (they are in no `TOPS` row).
+## SI13, decision D21): a pallet, a shrink-wrapped box, a standing book, a pair of shoes, a paint
+## tin, the hotplate's plate (`hob`), a pan and a pot. Each is a small free piece (Objects' `item`
+## painter and mesh), like `ItemsCatalog`'s: an emptied piece (`PieceCarries`) sets them where it
+## used to draw them, and `RoomItems` never strews them on a top at random (they are in no `TOPS`
+## row).
 ## The footprints here are a default: a carrying row sets the size, height and colour it needs
 ## (a book is as tall as its board's room, a loose crate of a stack is 38 px across).
 
@@ -75,6 +76,17 @@ const OBJECTS := {
 		"art_opts": { "kind": "pan" },
 		"weight": 1.2,
 		"penetration": 20,
+	},
+	"paint_tin": {
+		"name": "Paint tin",
+		"shape": "circle",
+		"size": Vector2(10, 10),
+		"color": Color(0.66, 0.68, 0.72),
+		"material": "metal",
+		"art": "item",
+		"art_opts": { "kind": "paint_tin" },
+		"weight": 1.5,
+		"penetration": 25,
 	},
 	"pot": {
 		"name": "Pot",
