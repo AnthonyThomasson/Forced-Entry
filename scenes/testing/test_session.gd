@@ -32,6 +32,8 @@ const VonGate = preload("res://scenes/testing/test_von_gate.gd")
 const MAIN_VIEW3D := preload("res://scenes/main_view3d.gd")
 ## The verdicts that carry a bundle (event log, final state, traces) and a `--shots` screenshot.
 const BUNDLED := ["FAIL", "TIMEOUT", "GAP"]
+## How far (px) outside every room of the world an actor stands before the camera stops framing it.
+const OFF_STAGE := 1500.0
 ## The skip reason of a live-only test in a `--record-von` run: nothing of it is recorded.
 const LIVE_ONLY_RECORD := "live-only: nothing to record (--require-von runs it against the server)"
 
@@ -301,6 +303,20 @@ func result(snapshot := {}) -> Dictionary:
 		record["traces"] = ctx.bundle.traces.duplicate(true)
 		record["shots"] = ctx.bundle.shots.duplicate()
 	return record
+
+
+## The ground the open world's camera frames its targets on: the world's rooms (a district's every
+## room) grown by `OFF_STAGE` each way; empty with none, so the framing keeps to no ground. An actor
+## parked beyond it (a test puts one far off to take it out of the fight) is not framed.
+func camera_ground() -> Rect2:
+	var rooms: Array = (
+		WorldGen.district_rooms(world.district) if world.district != null else world.rooms
+	)
+	var ground := Rect2()
+	for i in rooms.size():
+		var rect: Rect2 = rooms[i]["rect"]
+		ground = rect if i == 0 else ground.merge(rect)
+	return ground.grow(OFF_STAGE) if not rooms.is_empty() else ground
 
 
 ## The nodes the open world's camera frames: the setup's camera targets (default: every actor); an

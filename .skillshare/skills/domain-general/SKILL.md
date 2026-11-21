@@ -73,7 +73,7 @@ All input goes through `Keybinds`; gameplay never hard-codes action strings or `
 
 ## Camera
 
-`camera_controller.gd` follows its exported `target_path`, or **frames** a list (`frame(targets)`: the midpoint of the live targets, zoomed to fit plus `frame_margin`, dropping any `is_dead`; the spectator view). `pan_enabled` (per instance) removes hand pan; the test runner turns it off for a human-driven player, where WASD walks.
+`camera_controller.gd` follows its exported `target_path`, or **frames** a list (`frame(targets, within := Rect2())`: the midpoint of the live targets, zoomed to fit plus `frame_margin`, dropping any `is_dead` and any outside `within`, the test host's world ground; the spectator view). `pan_enabled` (per instance) removes hand pan; the test runner turns it off for a human-driven player, where WASD walks.
 
 - **Zoom** (both modes; 3D: whole steps, `camera3d.md`): the wheel, or a trackpad's `InputEventPanGesture` (macOS sends no wheel events; not rebindable), scales a lasting `_zoom_bias` that multiplies the automatic zoom `_base_zoom`, so it works the same in both modes and may pass the fit's `min_zoom`/`max_zoom` (limited by `wheel_min_zoom`/`wheel_max_zoom`). Both are read through `Keybinds.scroll_notches(event)`, in `_unhandled_input`, so scrolling UI gets the wheel first, and a door held by Space takes the event before it (`_input` of the player's controller).
 - **Hand pan** (framing only): camera keys, or the mouse within `edge_pan_margin` of an edge (only once the pointer was seen moving over the window, cleared on mouse-exit / focus-out), set `_manual`, which suspends the framing position; `manual_hold` seconds without panning eases back in. Test: `tests/general/camera_manual_pan_test.gd`.

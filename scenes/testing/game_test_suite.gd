@@ -117,7 +117,7 @@ func _on_world_built(_setup: TestSetup) -> void:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 		DisplayServer.window_move_to_foreground()
 	_camera.make_current()
-	_camera.frame(_session.camera_targets())
+	_camera.frame(_session.camera_targets(), _session.camera_ground())
 
 
 ## Map a verdict record to gdUnit's.
