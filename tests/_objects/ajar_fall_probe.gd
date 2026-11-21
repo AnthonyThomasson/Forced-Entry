@@ -24,11 +24,18 @@ const DESK_SHOVED := 30.0
 ## How deep (px) the leaf may rest in the desk it leans on (a resting contact's slop; a leaf carried
 ## into it is 11 to 18).
 const DEEPEST := 2.0
+## How far (degrees) a leaf leaning on a desk must lean to be leaning and not standing in the
+## doorway, how long (s) a leaf felled has to be asleep, and how far (px) a character it fell on may
+## be moved in the 2 s after (a leaf at rest pushes no one).
+const REAL_LEAN := 20.0
+const ASLEEP_WITHIN := 4.0
+const AT_REST_FOR := 2.0
+const NO_CREEP := 0.5
 ## The desk's size (px).
 const DESK := Vector2(120.0, 50.0)
 ## The fewest px of a doorway a leaf leaning on a desk may leave (it may lean there: D18), and the
 ## most (px) the leaf's drawn middle may move in one physics frame at the start of its fall.
-const NO_POP := 20.0
+const NO_POP := 12.0
 const POP_FRAMES := 10
 
 
@@ -66,7 +73,7 @@ static func fell_all(t: TestContext, angles: Array, along: Vector2, label: Strin
 		var leaf = door(t, i)
 		if not t.require(leaf.is_down(), "%s door %d is knocked down" % [label, i]):
 			return
-		await Probe.settle(t, leaf, 10.0)
+		await _settles(t, leaf, "door", 10.0)
 		t.check(
 			leaf.gap() >= FREE_GAP - 1.0,
 			"%s door %d (ajar %.0f) leaves the doorway clear (%.0f of %.0f px; top %.0f, lean %.0f)"
@@ -87,7 +94,7 @@ static func blast_all(t: TestContext, angles: Array, sides: Array) -> void:
 		await t.seconds(0.3)
 		if not t.require(leaf.is_down(), "blasted door %d is knocked down" % i):
 			return
-		await Probe.settle(t, leaf, 10.0)
+		await _settles(t, leaf, "door", 10.0)
 		t.check(
 			leaf.gap() >= FREE_GAP - 1.0,
 			(
@@ -119,7 +126,7 @@ static func fell_with_the_blow(
 		]
 		if not t.require(leaf.is_down(), "%s is knocked down" % label):
 			return
-		await Probe.settle(t, leaf, 10.0)
+		await _settles(t, leaf, "door", 10.0)
 		var lies := Probe.middle(leaf).y * along.y
 		t.check(
 			lies >= FAR,
@@ -215,22 +222,38 @@ static func fell_into_the_way(
 		]
 		if not t.require(leaf.is_down(), "%s is knocked down" % label):
 			return
-		await Probe.settle(t, leaf, 10.0)
+		await _settles(t, leaf, label, ASLEEP_WITHIN)
 		var thing := _way(t, i, what)
 		var moved := thing.global_position.distance_to(before[i])
 		if what == &"puppet":
-			_check_puppet(t, leaf, label)
+			await _check_puppet(t, leaf, thing, label)
 		else:
 			_check_desk(t, leaf, thing, moved, label)
 
 
-## The leaf at rest with a character in its way does not rest in them.
-static func _check_puppet(t: TestContext, leaf: Node2D, label: String) -> void:
+## The leaf at rest with a character in its way: it does not rest in them, it lies down and leaves
+## the doorway clear (there is no piece for it to lean on: a character is no wall), and in the 2 s
+## after it is asleep it moves the character no further (`NO_CREEP`) and stays asleep.
+static func _check_puppet(t: TestContext, leaf: Node2D, puppet: Node2D, label: String) -> void:
 	var deep := depth_in_characters(leaf)
 	t.check(
 		deep <= DEEPEST,
 		"%s: the leaf does not rest in the character (%.1f px deep)" % [label, deep],
 	)
+	t.check(
+		leaf.gap() >= FREE_GAP - 1.0,
+		"%s: the leaf lies clear of the doorway (gap %.0f of %.0f, lean %.0f, top %.0f)"
+			% [label, leaf.gap(), FREE_GAP, Probe.lean(leaf), Probe.top(leaf)],
+	)
+	var spot := puppet.global_position
+	await t.seconds(AT_REST_FOR)
+	var crept := puppet.global_position.distance_to(spot)
+	t.check(
+		crept <= NO_CREEP,
+		"%s: the leaf at rest pushes the character no further (%.1f px in %.0f s)"
+			% [label, crept, AT_REST_FOR],
+	)
+	t.check(Probe.asleep(leaf), "%s: the leaf is still asleep after %.0f s" % [label, AT_REST_FOR])
 
 
 ## The leaf at rest with a desk in its way: clear of the doorway or leaning on the desk, not in the
@@ -238,11 +261,11 @@ static func _check_puppet(t: TestContext, leaf: Node2D, label: String) -> void:
 static func _check_desk(
 	t: TestContext, leaf: Node2D, desk: Node2D, moved: float, label: String
 ) -> void:
-	var leans: bool = Probe.top(leaf) > DoorFallConfig.step_over
+	var leans: bool = Probe.lean(leaf) >= REAL_LEAN
 	t.check(
 		leaf.gap() >= FREE_GAP - 1.0 or leans,
-		"%s leaves the doorway clear or leans on the desk (gap %.0f, top %.0f)"
-			% [label, leaf.gap(), Probe.top(leaf)],
+		"%s leaves the doorway clear or leans on the desk (gap %.0f, lean %.0f, top %.0f)"
+			% [label, leaf.gap(), Probe.lean(leaf), Probe.top(leaf)],
 	)
 	t.check(moved <= DESK_SHOVED, "%s: the desk is not bulldozed (%.0f px)" % [label, moved])
 	var deep := _depth_in(leaf, desk)
@@ -297,7 +320,7 @@ static func fell_and_lean(
 		var leaf = door(t, i)
 		if not t.require(leaf.is_down(), "door %d is knocked down" % i):
 			return
-		await Probe.settle(t, leaf, 10.0)
+		await _settles(t, leaf, "door", 10.0)
 		var along := blow_along(intos, i, from_open)
 		var face: Vector2 = faces[i]
 		var way := face * (1.0 if face.dot(along) >= 0.0 else -1.0)
@@ -312,6 +335,12 @@ static func fell_and_lean(
 ## The plan point of the origin of the leaf's 3D body (the drawn door follows it).
 static func _origin(leaf: Node2D) -> Vector2:
 	return PlanSpace.plan_of(TwinSpace.twin_for(leaf).global_position)
+
+
+## Wait for the leaf to sleep, `within` s, and check that it did (`label` names the leaf).
+static func _settles(t: TestContext, leaf: Node2D, label: String, within: float) -> void:
+	var slept: bool = await Probe.settle(t, leaf, within)
+	t.check(slept, "%s: the leaf is asleep within %.0f s" % [label, within])
 
 
 ## The thing put in door `i`'s way: a puppet (`what` is `&"puppet"`) or a desk.

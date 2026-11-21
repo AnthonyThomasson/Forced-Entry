@@ -24,3 +24,10 @@ static var upright_degrees: float = 15.0
 ## Below this horizontal speed (px/s) the plan drag is not applied (writing a velocity to the engine
 ## wakes the body, and a piece at rest must be left to fall asleep).
 static var drag_floor: float = 6.0
+## A piece awake and slower than this (px/s, and rad/s of turn) for `rest_frames` is at rest: the
+## engine does not sleep a body that touches a character (a kinematic body moved every frame), so a
+## piece resting on one is put to sleep (`PieceBody`).
+static var rest_speed: float = 6.0
+static var rest_spin: float = 0.2
+## How many physics frames of that, none of them with a shove given to it, make a piece at rest.
+static var rest_frames: int = 60

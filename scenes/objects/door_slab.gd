@@ -20,13 +20,14 @@ var _full_mask := 0
 var _flat := false
 ## What a leaf knocked down ajar is sent out with (`release`): the way out (plan), the wall line's
 ## coordinate along it, the physics frames it has been carried, and what it is given when let go:
-## the blow's throw and its height and the way it falls.
+## the shoves it is given (each `[impulse, height]`: the blow's, then any that arrive during the
+## carry) and the way it falls, and the physics frames it has left to shove a character it falls on.
 var _out := Vector2.ZERO
 var _line := 0.0
 var _carried_for := 0
-var _throw := Vector2.ZERO
-var _throw_height := -1.0
+var _throws: Array = []
 var _fall := Vector2.ZERO
+var _bowl_left := 0
 
 
 ## A slab for `door` (its `get_mass()` is the weight); the shape is added by the builder.
@@ -38,8 +39,16 @@ func _init(door: Node2D = null) -> void:
 
 ## While a leaf is carried: it is let go once it stands clear of its frame, has met a piece (it
 ## then falls on it, as on a bed: D18) or has been carried for `DoorFallConfig.carry_frames`.
-func _physics_process(_delta: float) -> void:
+## Once let go, while it falls: it shoves the characters it touches (`_bowl`).
+func _physics_process(delta: float) -> void:
+	if _out == Vector2.ZERO:
+		_bowl(delta)
+		return
 	_carried_for += 1
+	_shove_characters(_out, delta)
+	var way := PlanSpace.lift(_out * DoorFallConfig.carry_speed)
+	if linear_velocity.dot(way.normalized()) < DoorFallConfig.carry_speed * RenderConfig.unit * 0.5:
+		linear_velocity = way  # stopped by a character, who has been shoved: on it goes
 	if (
 		_rear() >= _line + DoorFallConfig.frame_out
 		or _carried_for >= DoorFallConfig.carry_frames
@@ -61,8 +70,7 @@ func release(
 	impulse: Vector2, height: float, fall: Vector2, out := Vector2.ZERO, line := 0.0
 ) -> void:
 	sleeping = false
-	_throw = impulse
-	_throw_height = height
+	_throws = [[impulse, height]]
 	_fall = fall
 	if out == Vector2.ZERO:
 		_let_go()
@@ -81,6 +89,7 @@ func release(
 ## the projected leaf when it is tipped (`PieceBody`), then whether it is flat on the floor.
 func twin_update(footprint: Node2D) -> void:
 	super.twin_update(footprint)
+	rest_on_a_character()
 	var top := _extent().y / RenderConfig.unit
 	var flat := top <= DoorFallConfig.step_over
 	(footprint.get(&"footprint") as RefCounted).call(&"lie_at", top)
@@ -96,7 +105,7 @@ func push(impulse: Vector2, at: Vector2 = Vector2.ZERO, height: float = -1.0) ->
 	if _out == Vector2.ZERO:
 		super(impulse, at, height)
 	else:
-		_throw += impulse
+		_throws.append([impulse, height])
 
 
 ## A leaf being carried out of its frame hands its momentum to no one: it meets a character as any
@@ -116,24 +125,83 @@ func _restore_footprint(door: Node2D) -> void:
 	door.get(&"footprint").hull = PackedVector2Array()
 
 
-## The carry ends: the leaf is free to turn, stops where it is, and is thrown by the blow, wrenched
-## and turned toward its fall (`DoorFallConfig.lean_spin`).
+## The carry ends: the leaf is free to turn, stops where it is, and is thrown by the blow (and by
+## any shove that came during the carry, each at its own height), wrenched and turned toward its
+## fall (`DoorFallConfig.lean_spin`); then, while it falls, it shoves a character in its way.
 func _let_go() -> void:
-	set_physics_process(false)
 	axis_lock_angular_x = false
 	axis_lock_angular_z = false
 	if _out != Vector2.ZERO:
 		linear_velocity = Vector3.ZERO
 		var toward := PlanSpace.lift(_fall).normalized()
 		angular_velocity = Vector3.UP.cross(toward).normalized() * DoorFallConfig.lean_spin
-	var back := _throw.dot(_out)
-	if back < 0.0:
-		_throw -= _out * back  # no shove sends the leaf back into the frame it was carried out of
+	var carried_out := _out
 	_out = Vector2.ZERO
-	if _throw.length_squared() > 0.0:
-		push(_throw, Vector2.ZERO, _throw_height)
+	for throw: Array in _throws:
+		var impulse: Vector2 = throw[0]
+		var back := impulse.dot(carried_out)
+		if back < 0.0:
+			impulse -= carried_out * back  # no shove sends the leaf back into the frame it left
+		if impulse.length_squared() > 0.0:
+			push(impulse, Vector2.ZERO, throw[1])
+	_throws = []
 	push(_fall * mass * DoorFallConfig.fall_nudge, Vector2.ZERO, _extent().y / RenderConfig.unit)
+	_bowl_left = DoorFallConfig.bowl_frames
+	set_physics_process(true)
 	twin_update(_piece)
+
+
+## A leaf is no wall to a character: they are kinematic, which a leaf can neither push nor tip
+## over, so one carried out of its frame against a character stood in the doorway held by them, and
+## one let go flush against one stood upright on them for ever, held awake, pushing them. So while
+## it is carried it shoves what it meets along its way out (`_shove_characters`), and while it
+## falls (`DoorFallConfig.bowl_frames` after it is let go, or until it lies flat or at rest) it
+## shoves each character it touches along its face's normal, away from it
+## (`DoorFallConfig.bowl_accel`): they are bowled out of its way and it goes down. One a wall holds
+## in place holds it, and the leaf then rests on them (`PieceBody`).
+func _bowl(delta: float) -> void:
+	_bowl_left -= 1
+	if _bowl_left <= 0 or _flat or sleeping:
+		set_physics_process(false)
+		return
+	_keep_turning()
+	_shove_characters(_face_normal(), delta)
+
+
+## Shove every living character the leaf touches along `way` (a unit plan vector; away from the
+## leaf's middle across it when they stand on its other side) for one physics step.
+func _shove_characters(way: Vector2, delta: float) -> void:
+	var middle := PlanSpace.plan_of(global_transform * center_of_mass)
+	for other: Node2D in _characters_touching():
+		var side := 1.0 if way.dot(other.global_position - middle) >= 0.0 else -1.0
+		var impulse := way * side * float(other.call(&"get_mass")) * DoorFallConfig.bowl_accel
+		other.call(&"apply_impulse", impulse * delta)
+
+
+## A leaf let go that is held up (by a character it leans on) has its turn taken from it and would
+## rock back upright: until it has passed `DoorFallConfig.commit_degrees` it is turned on toward its
+## fall at `DoorFallConfig.lean_spin` again.
+func _keep_turning() -> void:
+	if global_transform.basis.y.normalized().y < cos(deg_to_rad(DoorFallConfig.commit_degrees)):
+		return
+	var toward := PlanSpace.lift(_fall).normalized()
+	var turn := Vector3.UP.cross(toward).normalized()
+	if angular_velocity.dot(turn) < DoorFallConfig.lean_spin:
+		angular_velocity += turn * (DoorFallConfig.lean_spin - angular_velocity.dot(turn))
+
+
+## The unit plan vector across the leaf's face as it stands now (its thin axis, flattened on the
+## plan): the way a character it falls on is shoved. The way it falls when it lies too flat to say.
+func _face_normal() -> Vector2:
+	for child in get_children():
+		var holder := child as CollisionShape3D
+		var box := holder.shape as BoxShape3D if holder != null else null
+		if box == null:
+			continue
+		var turned := global_transform.basis * holder.transform.basis
+		var plan := PlanSpace.plan_of(turned.x if box.size.x < box.size.z else turned.z)
+		return plan.normalized() if plan.length() > 0.05 else _fall
+	return _fall
 
 
 ## How far (px) along the carry the leaf's rearmost point stands now.

@@ -239,22 +239,38 @@ So the leaf is first **carried** out of its frame that way, by the physics and n
 angular X and Z locked so that it slides edge-on through the 48 px gap between the jambs; each physics frame the rearmost corner of
 its shapes is read against the wall line, and when it stands wholly past the line and the wall's face (`DoorFallConfig.frame_out`,
 7 px) the leaf is let go. It is also let go on its first touch of a piece of furniture (it leans on it as on a bed: D18) and after
-`DoorFallConfig.carry_frames` (40) frames, where a character that stopped it stands: a character is met by the physics as it is
-(the leaf stops against them, hands them no momentum while carried, and does not rest in them). Letting go unlocks the axes, stops
-the carry and gives the blow's throw (a shove that arrived during the carry, a blast's, is kept for then, less the part that
+`DoorFallConfig.carry_frames` (40) frames. The X/Z lock is what keeps a character standing at the leaf's side from tipping it over
+in the frame (without it a leaf at 85 degrees lies half-leaning when one does). Letting go unlocks the axes, stops
+the carry and gives the blow's throw (each shove that arrived during the carry, a blast's, is kept for then at its own height, less the part that
 would send the leaf back toward the wall), the wrench and a turn toward its fall (`DoorFallConfig.lean_spin`, an angular
 velocity: the leaf tips over, it is not set at an angle); it then falls and lies as physics decides. The fall is across the
 leaf's face (a leaf only lies flat that way: an edge-on leaf tipped in its own plane rocks back on its 48 px base), on the face
 toward the blow's side: at 85 degrees that is mostly along the wall, but past it, where nothing is in its way. A shut leaf has no
-such frame to clear and falls the way of the blow, its shove untouched. Tests:
+such frame to clear and falls the way of the blow, its shove untouched.
+
+**A character under a falling leaf.** A character's 3D body is kinematic (moved every frame by its walk): a leaf can neither push
+it nor tip over it, so a leaf let go flush against one stood upright on their face (it leans on a vertical wall of the character's
+height), held awake for ever by the contact and shoving them on, 12 to 87 px over seconds, or, felled shut onto one, leaned on them
+at 20 to 60 degrees pushing them 7 px/s. So a character is not a wall to the leaf. While the leaf is carried it shoves each character
+it touches along the way out (`DoorFallConfig.bowl_accel`, px/s^2 times their mass, a step at a time) and, its speed taken by the
+character it met, is sent on again; once let go, for `bowl_frames` (90) frames or until it lies flat or at rest, it shoves each
+character it touches along its face's normal, away from it, and, as a leaf held up by one loses the turn it was given and would rock
+back upright, it is turned on toward its fall again under `commit_degrees` (10). A character the leaf falls on is bowled out of its
+way (up to the length of the leaf, about 100 px, never held under it), and it lies down flat and clear of its doorway: it ends flat, or
+leaning on a piece of furniture, never standing in the doorway. A character a wall holds in place holds the leaf, and a leaf that
+rests on a character (or on anything) is awake only while something pushes it: the engine does not sleep a body that touches a
+kinematic one, so a leaf (`DoorSlab`, through `PieceBody.rest_on_a_character`) awake and slower than `PieceBodyConfig.rest_speed` (6 px/s) and `rest_spin` (0.2 rad/s) for
+`rest_frames` (60) frames with no shove given to it, that touches a character, is put to sleep; it sleeps within about 2 s of the
+last shove, pushes no one after it (a character walking into it wakes it and shoves it as any piece). Tests:
 `objects/ajar_door_kicked_from_the_open_side_falls_away`, `ajar_door_shot_from_the_open_side_falls_away` (each with `_flipped`: the
 hinges on the other jambs), `ajar_door_kicked_from_the_closed_side_falls_away`, `ajar_door_shot_from_the_closed_side_falls_away`
 (also `_flipped`; these two closed-side tests are guards: green on the commit before the carry too) (four angles, 20 to 85 degrees,
 both swings: the leaf lies on the far side of the wall line from the blow and the doorway is clear),
-`ajar_door_falls_toward_a_character_from_open_side` / `_from_closed_side` (a character 14 px past the wall line: the leaf does not
-rest in them), `ajar_door_falls_toward_a_desk_from_open_side` / `_from_closed_side` (a desk 25 px past it: the leaf leans on it
+`ajar_door_falls_toward_a_character_from_open_side` / `_from_closed_side` (each with `_flipped`; a character 14 px past the wall line: the leaf does not
+rest in them, lies flat with the doorway clear, is asleep within 4 s and pushes the character no further in the 2 s after),
+`shut_door_falls_onto_a_character_from_open_side` / `_from_closed_side` (the same with the doors shut), `ajar_door_falls_toward_a_desk_from_open_side` / `_from_closed_side` (a desk 25 px past it: the leaf leans on it, at 20 degrees or more,
 or leaves the doorway clear, is not in it and the desk is not bulldozed; each with `_flipped`), `ajar_door_is_carried_not_popped_from_open_side`
-/ `_from_closed_side` (no frame moves the drawn leaf more than 20 px for its first 10 frames), `ajar_door_leans_away_from_the_blow_from_open_side` /
+/ `_from_closed_side` (no frame moves the drawn leaf more than 12 px for its first 10 frames), `ajar_door_leans_away_from_the_blow_from_open_side` /
 `_from_closed_side` (at 20 and 85 degrees among others; each with `_flipped`), `objects/ajar_range_door_shot_down_falls_clear` (the range's ajar solid door shot down from the range with the
 rifle), `ajar_doors_knocked_down_from_the_range` / `_from_the_room` (kicks, four angles, both hinges and swings),
 `ajar_doors_blasted_down`.

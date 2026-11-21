@@ -40,3 +40,16 @@ static var carry_frames: int = 40
 ## pass the angle a free slab this thick stops standing on its foot (about 4 degrees), so it goes
 ## over and does not rock back upright, whatever the blow's shove and the floor's friction do.
 static var lean_spin: float = 2.0
+## How hard (px/s^2) a leaf falling on a character shoves them along its face's normal while it
+## touches them: what the weight of a tipping leaf gives a body that is no wall (a character is
+## moved by the physics only as a kinematic, which a leaf can neither push nor tip over), so a leaf
+## let go against one is not left standing flush on them.
+static var bowl_accel: float = 6000.0
+## The most physics frames after it is let go that a falling leaf shoves a character (the
+## leaf is then flat, or lies on what holds it and is put to rest: `PieceBody`).
+static var bowl_frames: int = 90
+## How far (degrees) a leaf let go may lean and still be turned on toward its fall while it is
+## shoved at by a character (`DoorSlab`): a leaf held up by one when it is let go loses the turn it
+## was given and would rock back upright (it stops standing on its foot at about 4 degrees), so it
+## is given the turn again until it passes this.
+static var commit_degrees: float = 10.0

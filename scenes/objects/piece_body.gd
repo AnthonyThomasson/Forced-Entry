@@ -47,6 +47,8 @@ var _tipped := false
 ## and the bodies it touched then (instance ids): a body is handed momentum once a touch.
 var _carried := Vector2.ZERO
 var _touching: Dictionary = {}
+## The physics frames it has been awake and at rest (`PieceBodyConfig.rest_speed`), without a shove.
+var _rest_for := 0
 
 
 ## A body for `of` (an `EnvironmentObject`, or a felled door: `DoorSlab`), of `weight` (the
@@ -150,6 +152,7 @@ func settle_out() -> void:
 ## as the 2D body did; a height outside the piece (a blast's burst over its top) is the nearest
 ## point of it. A tall piece shoved above its centre leans and tips; low it slides.
 func push(impulse: Vector2, at: Vector2 = Vector2.ZERO, height: float = -1.0) -> void:
+	_rest_for = 0
 	var lift := impulse * RenderConfig.unit
 	var offset := Vector3(at.x, 0.0, at.y) * RenderConfig.unit
 	var centre := global_transform.basis * center_of_mass  # from the origin, in the world's axes
@@ -245,6 +248,51 @@ func twin_update(footprint: Node2D) -> void:
 		_footprint_tipped = false
 		_hull = PackedVector2Array()
 		_restore_footprint(footprint)
+
+
+## The engine does not sleep a body that touches a character (a kinematic body, moved every frame):
+## a piece resting on one stays awake for ever, creeping on it and pushing it. A kind of piece that
+## can fall on a character (`DoorSlab`) calls this each frame. One awake and at rest
+## (`PieceBodyConfig.rest_speed`, `rest_spin`) for `PieceBodyConfig.rest_frames` frames, with
+## no shove given it, that touches a character is put to sleep where it lies; a character that
+## moves into it wakes it again (it is shoved as any piece is).
+func rest_on_a_character() -> void:
+	if (
+		plan_velocity().length() > PieceBodyConfig.rest_speed
+		or absf(plan_spin()) > PieceBodyConfig.rest_spin
+		or sleeping
+	):
+		_rest_for = 0
+		return
+	_rest_for += 1
+	if _rest_for < PieceBodyConfig.rest_frames:
+		return
+	# touching none: look again in half as long
+	_rest_for = int(PieceBodyConfig.rest_frames * 0.5)
+	if not _characters_touching().is_empty():
+		sleeping = true
+
+
+## The 2D bodies of the living characters this piece's shapes touch now, in a fixed order (by
+## where they stand).
+func _characters_touching() -> Array:
+	var found: Array = []
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.collision_mask = PhysicsLayers.TWIN_CHARACTER
+	query.margin = STRIKE_MARGIN
+	var space := get_world_3d().direct_space_state
+	for child in get_children():
+		var holder := child as CollisionShape3D
+		if holder == null or holder.shape == null:
+			continue
+		query.shape = holder.shape
+		query.transform = global_transform * holder.transform
+		for hit: Dictionary in space.intersect_shape(query, STRIKE_HITS):
+			var other := TwinSpace.owner_of(hit["collider"])
+			if other != null and other != _piece and not found.has(other):
+				found.append(other)
+	found.sort_custom(_nearer_the_origin)
+	return found
 
 
 ## The drag a 2D body had, on the floor plane and about up only: a piece comes to rest as a shoved
