@@ -25,13 +25,18 @@ static var step_over: float = 10.0
 ## mouth: what it covers of the doorway there is what it takes from the gap a body can pass (a
 ## body's radius).
 static var mouth: float = 14.0
-## How far (px) past the wall line the rearmost point of a leaf knocked down ajar stands once it
-## has been carried out of its frame with the blow: past the face of the wall (half its 12 px), so
-## that tipping that way it lies on the floor clear of the jambs, which its ends would catch where
-## it stands.
+## How far (px) past the wall line the rearmost point of a leaf knocked down ajar must stand before
+## it is let go to fall: past the face of the wall (half its 12 px), so that tipping it lies on the
+## floor clear of the jambs, which its ends would catch where it stands.
 static var frame_out: float = 7.0
-## How far (degrees) a leaf knocked down ajar is already leaning, with the blow, when it has been
-## carried out of its frame: past the angle at which a free slab this thick stops standing on its
-## foot (about 4 degrees), so it goes over and does not rock back upright, whatever the blow's
-## shove and the floor's friction do to it.
-static var lean_out: float = 8.0
+## The speed (px/s) a leaf knocked down ajar is sent out of its frame with, once: the physics
+## carries it (it slides edge-on through the doorway, and meets a character or a piece in its way as
+## any body does).
+static var carry_speed: float = 600.0
+## The most physics frames the carry may last: a leaf that is held up (a character in its way) is
+## let go to fall where it stands after them.
+static var carry_frames: int = 40
+## How fast (rad/s) a leaf let go out of its frame is already turning toward its fall: enough to
+## pass the angle a free slab this thick stops standing on its foot (about 4 degrees), so it goes
+## over and does not rock back upright, whatever the blow's shove and the floor's friction do.
+static var lean_spin: float = 2.0

@@ -350,20 +350,20 @@ func _fall(direction: Vector2, shove: Vector2, height: float) -> void:
 	var side := signf(direction.dot(across))
 	if is_zero_approx(side):
 		side = signf(across.dot(swing_into))
+	var fall := across * (side if side != 0.0 else 1.0)
 	var out := Vector2.ZERO
-	var open_side := signf(across.dot(swing_into))
-	if ajar and open_side != 0.0:
+	if ajar and not is_zero_approx(across.dot(swing_into)):
 		# a leaf ajar stands on a diagonal across its doorway's wall line, where whichever way it
 		# tipped its ends would catch a jamb: it falls with the blow (the room it swings into when
-		# the blow had no direction) and is carried out of the frame that way first
-		# (`DoorSlab.release`)
-		var toward_wall := direction.dot(swing_into) < 0.0
-		out = -swing_into if toward_wall else swing_into
-		side = -open_side if toward_wall else open_side
+		# the blow had none), away from whoever knocked it down, and is carried out of the frame
+		# that way first (`DoorSlab.release`); a leaf only falls flat across its face, so that is
+		# the face on the blow's side, however edge-on to the blow it stands
+		out = -swing_into if direction.dot(swing_into) < 0.0 else swing_into
+		fall = across * signf(across.dot(out))
 	TwinSpace.retwin(self)
 	var slab := TwinSpace.twin_for(self) as DoorSlab
 	if slab != null:
-		slab.release(shove, height, across * (side if side != 0.0 else 1.0), out, hinge.dot(out))
+		slab.release(shove, height, fall, out, hinge.dot(out))
 	else:
 		footprint.flat = true  # no twin space to fall in: out of the way
 	changed.emit()

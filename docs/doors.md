@@ -234,16 +234,30 @@ A leaf knocked down **ajar** stands on a diagonal across its doorway's wall line
 its hinge end or its free end and leave it wedged in the frame (D18: once down the doorway is clear). It falls **with the blow**,
 away from whoever knocked it down (a blow with no direction, or a wound, takes the room it swings into): the side of the wall the
 blow goes to is the side it lies on, a kick or a round from the open side landing it on the closed side and the other way about.
-So the leaf is first carried out of its frame that way, along the wall's normal, until it stands wholly past the wall line and the
-wall's face (`DoorFallConfig.frame_out`, 7 px, as far as nothing stops it: a leaf ajar 85 degrees carried to the far side is
-carried a whole leaf's length, one with its free end 7 px out of the wall is carried the 7), already leaning with the blow past the
-angle a slab this thick stops standing on its foot (`DoorFallConfig.lean_out`), and then falls and lies as physics decides
-(`DoorSlab.release`). A shut leaf has no such frame to clear and falls the way of the blow, its shove untouched. Tests:
+So the leaf is first **carried** out of its frame that way, by the physics and not by a jump: on release it is given
+`DoorFallConfig.carry_speed` (600 px/s) along the wall's normal, once (so a heavy piece in its way is not bulldozed), with its
+angular X and Z locked so that it slides edge-on through the 48 px gap between the jambs; each physics frame the rearmost corner of
+its shapes is read against the wall line, and when it stands wholly past the line and the wall's face (`DoorFallConfig.frame_out`,
+7 px) the leaf is let go. It is also let go on its first touch of a piece of furniture (it leans on it as on a bed: D18) and after
+`DoorFallConfig.carry_frames` (40) frames, where a character that stopped it stands: a character is met by the physics as it is
+(the leaf stops against them, hands them no momentum while carried, and does not rest in them). Letting go unlocks the axes, stops
+the carry and gives the blow's throw (a shove that arrived during the carry, a blast's, is kept for then, less the part that
+would send the leaf back toward the wall), the wrench and a turn toward its fall (`DoorFallConfig.lean_spin`, an angular
+velocity: the leaf tips over, it is not set at an angle); it then falls and lies as physics decides. The fall is across the
+leaf's face (a leaf only lies flat that way: an edge-on leaf tipped in its own plane rocks back on its 48 px base), on the face
+toward the blow's side: at 85 degrees that is mostly along the wall, but past it, where nothing is in its way. A shut leaf has no
+such frame to clear and falls the way of the blow, its shove untouched. Tests:
 `objects/ajar_door_kicked_from_the_open_side_falls_away`, `ajar_door_shot_from_the_open_side_falls_away` (each with `_flipped`: the
 hinges on the other jambs), `ajar_door_kicked_from_the_closed_side_falls_away`, `ajar_door_shot_from_the_closed_side_falls_away`
-(four angles, 20 to 85 degrees, both swings: the leaf lies on the far side of the wall line from the blow and the doorway is clear),
-`objects/ajar_range_door_shot_down_falls_clear` (the range's ajar solid door shot down from the range with the rifle),
-`ajar_doors_knocked_down_from_the_range` / `_from_the_room` (kicks, four angles, both hinges and swings), `ajar_doors_blasted_down`.
+(also `_flipped`; these two closed-side tests are guards: green on the commit before the carry too) (four angles, 20 to 85 degrees,
+both swings: the leaf lies on the far side of the wall line from the blow and the doorway is clear),
+`ajar_door_falls_toward_a_character_from_open_side` / `_from_closed_side` (a character 14 px past the wall line: the leaf does not
+rest in them), `ajar_door_falls_toward_a_desk_from_open_side` / `_from_closed_side` (a desk 25 px past it: the leaf leans on it
+or leaves the doorway clear, is not in it and the desk is not bulldozed; each with `_flipped`), `ajar_door_is_carried_not_popped_from_open_side`
+/ `_from_closed_side` (no frame moves the drawn leaf more than 20 px for its first 10 frames), `ajar_door_leans_away_from_the_blow_from_open_side` /
+`_from_closed_side` (at 20 and 85 degrees among others; each with `_flipped`), `objects/ajar_range_door_shot_down_falls_clear` (the range's ajar solid door shot down from the range with the
+rifle), `ajar_doors_knocked_down_from_the_range` / `_from_the_room` (kicks, four angles, both hinges and swings),
+`ajar_doors_blasted_down`.
 
 Geometry follows the body, in 3D: a bullet's ray, sight, cover and a grenade's flight and fragments meet it at its real,
 lying height (a leaf lying flat is 6 px thick, a leaf leaning on a wall or lying on a bed is as high as it stands), the

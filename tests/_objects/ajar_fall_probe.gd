@@ -16,6 +16,20 @@ const FAR := 8.0
 ## How far (px) from the leaf's middle a frag goes off, and how high.
 const BLAST_AWAY := 40.0
 const BLAST_HEIGHT := 42.0
+## How far (px) past the wall line, on the landing side, the thing in a falling leaf's way stands
+## (a character's middle; a desk's near edge), and how much a desk may be shoved at most.
+const PUPPET_PAST := 14.0
+const DESK_PAST := 25.0
+const DESK_SHOVED := 30.0
+## How deep (px) the leaf may rest in the desk it leans on (a resting contact's slop; a leaf carried
+## into it is 11 to 18).
+const DEEPEST := 2.0
+## The desk's size (px).
+const DESK := Vector2(120.0, 50.0)
+## The fewest px of a doorway a leaf leaning on a desk may leave (it may lean there: D18), and the
+## most (px) the leaf's drawn middle may move in one physics frame at the start of its fall.
+const NO_POP := 20.0
+const POP_FRAMES := 10
 
 
 ## The range's layout with door `i` of `material` ajar `angles[i]` degrees, hinged on the side
@@ -129,3 +143,200 @@ static func _round(at: Vector2, along: Vector2) -> HitInfo:
 	hit.speed_factor = 1.0
 	hit.height = BLAST_HEIGHT
 	return hit
+
+
+## The landing side of door `i` struck from its open side (`from_open`) or its closed side: the
+## way the blow goes along the plan (`intos[i]` is the room it swings into).
+static func blow_along(intos: Array, i: int, from_open: bool) -> Vector2:
+	return (intos[i] as Vector2) * (-1.0 if from_open else 1.0)
+
+
+## Put a thing in the way of every door's falling leaf: a puppet (`&"puppet"`) 14 px past its
+## wall line, or a desk (`&"desk"`) 25 px past it, on the side the blow goes to.
+static func in_the_way(
+	s: TestSetup, what: StringName, hinges: Array, intos: Array, from_open: bool
+) -> void:
+	for i in hinges.size():
+		var landing := blow_along(intos, i, from_open)
+		var x: float = (GunRange._doorways()[i]["pos"] as Vector2).x
+		if what == &"puppet":
+			# the blow's landing side holds the standing leaf when it comes from the closed side:
+			# the character stands by its hinge then, where the leaf is carried too
+			var at := x if from_open else x + 36.0 * float(hinges[i])
+			s.actor(StringName("way_%d" % i), &"puppet", Vector2(at, PUPPET_PAST * landing.y))
+		else:
+			var y := (DESK_PAST + 25.0) * landing.y
+			s.object(StringName("way_%d" % i), "desk", Vector2(x, y))
+
+
+## Strike door `i` with a blow of `kind` along `along`.
+static func strike(t: TestContext, i: int, kind: StringName, along: Vector2) -> void:
+	var leaf = door(t, i)
+	if kind == &"kick":
+		leaf.take_blow(&"kick", FELLING, along * SHOVE, 40.0)
+	else:
+		leaf.take_hit(_round(leaf.global_position, along))
+
+
+## How deep (px) the shapes of the leaf's 3D body are in the 3D bodies of characters now: the
+## longest overlap the physics server reports between them.
+static func depth_in_characters(leaf: Node2D) -> float:
+	var body := Probe.body(leaf)
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.collision_mask = PhysicsLayers.TWIN_CHARACTER
+	var deepest := 0.0
+	for child in body.get_children():
+		var holder := child as CollisionShape3D
+		if holder == null or holder.shape == null:
+			continue
+		query.shape = holder.shape
+		query.transform = body.global_transform * holder.transform
+		var pairs := body.get_world_3d().direct_space_state.collide_shape(query, 16)
+		for i in range(0, pairs.size() - 1, 2):
+			deepest = maxf(deepest, (pairs[i] - pairs[i + 1]).length() / RenderConfig.unit)
+	return deepest
+
+
+## Fell every ajar range door with a blow while a puppet or a desk is in the way of its leaf, and
+## check where each leaf lies: never overlapping the puppet, clear of the doorway or leaning on the
+## desk (the desk shoved by no more than `DESK_SHOVED` px).
+static func fell_into_the_way(
+	t: TestContext, angles: Array, intos: Array, what: StringName, from_open: bool
+) -> void:
+	var before: Array = []
+	for i in angles.size():
+		before.append(_way(t, i, what).global_position)
+	for i in angles.size():
+		strike(t, i, &"kick", blow_along(intos, i, from_open))
+	for i in angles.size():
+		var leaf = door(t, i)
+		var label := "door %d (ajar %.0f, from %s) with a %s in the way" % [
+			i, angles[i], "its open side" if from_open else "its closed side", what,
+		]
+		if not t.require(leaf.is_down(), "%s is knocked down" % label):
+			return
+		await Probe.settle(t, leaf, 10.0)
+		var thing := _way(t, i, what)
+		var moved := thing.global_position.distance_to(before[i])
+		if what == &"puppet":
+			_check_puppet(t, leaf, label)
+		else:
+			_check_desk(t, leaf, thing, moved, label)
+
+
+## The leaf at rest with a character in its way does not rest in them.
+static func _check_puppet(t: TestContext, leaf: Node2D, label: String) -> void:
+	var deep := depth_in_characters(leaf)
+	t.check(
+		deep <= DEEPEST,
+		"%s: the leaf does not rest in the character (%.1f px deep)" % [label, deep],
+	)
+
+
+## The leaf at rest with a desk in its way: clear of the doorway or leaning on the desk, not in the
+## desk, and the desk (shoved `moved` px) not bulldozed.
+static func _check_desk(
+	t: TestContext, leaf: Node2D, desk: Node2D, moved: float, label: String
+) -> void:
+	var leans: bool = Probe.top(leaf) > DoorFallConfig.step_over
+	t.check(
+		leaf.gap() >= FREE_GAP - 1.0 or leans,
+		"%s leaves the doorway clear or leans on the desk (gap %.0f, top %.0f)"
+			% [label, leaf.gap(), Probe.top(leaf)],
+	)
+	t.check(moved <= DESK_SHOVED, "%s: the desk is not bulldozed (%.0f px)" % [label, moved])
+	var deep := _depth_in(leaf, desk)
+	t.check(deep <= DEEPEST, "%s: the leaf is not in the desk (%.1f px deep)" % [label, deep])
+
+
+## Fell every ajar range door and follow the middle of each leaf frame by frame for its first
+## `POP_FRAMES` frames: it is carried, not moved in a jump.
+static func fell_without_a_pop(
+	t: TestContext, angles: Array, intos: Array, from_open: bool
+) -> void:
+	var last: Array = []
+	var worst: Array = []
+	for i in angles.size():
+		last.append(_origin(door(t, i)))
+		worst.append(0.0)
+	for i in angles.size():
+		strike(t, i, &"kick", blow_along(intos, i, from_open))
+	for _frame in POP_FRAMES:
+		await t.frames(1)
+		for i in angles.size():
+			var now := _origin(door(t, i))
+			worst[i] = maxf(worst[i], now.distance_to(last[i]))
+			last[i] = now
+	for i in angles.size():
+		_check_pop(t, i, angles[i], worst[i], from_open)
+
+
+## The most (`worst`, px) door `i`'s leaf, ajar `angle`, moved in a frame is no jump.
+static func _check_pop(
+	t: TestContext, i: int, angle: float, worst: float, from_open: bool
+) -> void:
+	var from := "its open side" if from_open else "its closed side"
+	t.check(
+		worst <= NO_POP,
+		"door %d (ajar %.0f, from %s): the leaf moves %.1f px a frame at most (wanted %.0f)"
+			% [i, angle, from, worst, NO_POP],
+	)
+
+
+## Fell every ajar range door and read which way each leaf lies: toward the blow's way along its
+## face (`across` signed by the blow), the lean of its top.
+static func fell_and_lean(
+	t: TestContext, angles: Array, intos: Array, from_open: bool
+) -> void:
+	var faces: Array = []
+	for i in angles.size():
+		var leaf = door(t, i)
+		faces.append(leaf.global_transform.y.normalized())
+		strike(t, i, &"kick", blow_along(intos, i, from_open))
+	for i in angles.size():
+		var leaf = door(t, i)
+		if not t.require(leaf.is_down(), "door %d is knocked down" % i):
+			return
+		await Probe.settle(t, leaf, 10.0)
+		var along := blow_along(intos, i, from_open)
+		var face: Vector2 = faces[i]
+		var way := face * (1.0 if face.dot(along) >= 0.0 else -1.0)
+		var top := PlanSpace.plan_of(Probe.body(leaf).global_transform.basis.y).normalized()
+		t.check(
+			top.dot(way) >= 0.5,
+			"door %d (ajar %.0f): its top lies toward the blow's side of its face (%.2f)"
+				% [i, angles[i], top.dot(way)],
+		)
+
+
+## The plan point of the origin of the leaf's 3D body (the drawn door follows it).
+static func _origin(leaf: Node2D) -> Vector2:
+	return PlanSpace.plan_of(TwinSpace.twin_for(leaf).global_position)
+
+
+## The thing put in door `i`'s way: a puppet (`what` is `&"puppet"`) or a desk.
+static func _way(t: TestContext, i: int, what: StringName) -> Node2D:
+	var id := StringName("way_%d" % i)
+	return t.actor(id) if what == &"puppet" else t.object(id)
+
+
+## How deep (px) the shapes of the leaf's 3D body are in the desk `piece` now: the longest overlap
+## the physics server reports between them whose desk-side point lies on the desk's footprint.
+static func _depth_in(leaf: Node2D, piece: Node2D) -> float:
+	var body := Probe.body(leaf)
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.collision_mask = PhysicsLayers.TWIN_WORLD
+	query.exclude = [body.get_rid()]
+	var footprint := Rect2(piece.global_position - DESK / 2.0, DESK).grow(2.0)
+	var deepest := 0.0
+	for child in body.get_children():
+		var holder := child as CollisionShape3D
+		if holder == null or holder.shape == null:
+			continue
+		query.shape = holder.shape
+		query.transform = body.global_transform * holder.transform
+		var pairs := body.get_world_3d().direct_space_state.collide_shape(query, 16)
+		for i in range(0, pairs.size() - 1, 2):
+			if footprint.has_point(PlanSpace.plan_of(pairs[i + 1])):
+				deepest = maxf(deepest, (pairs[i] - pairs[i + 1]).length() / RenderConfig.unit)
+	return deepest
