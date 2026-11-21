@@ -68,6 +68,20 @@ const SMOOTH_MAX_MS := 33.4
 ## A/B (`tools/perf_ab.sh eb62a885 09478516 --different-fights`): `match_5v5_stress` +2.5%,
 ## `grenade_match_stress` -12.3%, `match_10v10_opening` -2.5%, `match_npc_vision` -21.9%,
 ## `match_10v10_stress` +54.7% (avg; the fight above).
+## Accepted drift (#194 stack-b, 2026-11-21): the houses and the district tower rooms are built with
+## small items on their flat tops and boxes and crates stacked on a storage floor (`RoomItems`,
+## `docs/stacked-items.md` SI9: the district of seed 2 holds 785 twin bodies, 729 before, 56 of them
+## `ItemBody`; Jolt's cap is 10240). The items change the fights (a bullet meets a plate, a monitor,
+## a box stack; `tools/perf_ab.sh f25eef47 bad409a7 --different-fights`, 6 rounds, a loaded machine,
+## medians avg / p95 / max): `match_5v5_stress` 8.43 / 13.51 / 30.54 to 8.22 / 13.82 / 23.95,
+## `grenade_match_stress` 8.84 / 15.17 / 25.71 to 7.42 / 13.22 / 31.43, `match_10v10_stress`
+## 11.19 /
+## 17.02 / 26.02 to 14.81 / 19.62 / 24.46 (+32% avg: 6 shots in its window with items, 1 without;
+## contact still at 6.0 s; single runs read p95 20.2 to 29, over its 20 ms), `match_npc_vision`
+## 14.17 / 20.30 / 24.77 to 12.12 / 18.16 / 36.98 (the max is the opening frame: a decision, a cone
+## start, three callouts; its premise, the viewed invader living, fails at the base too). Not tuned,
+## no standard loosened: stack-b moved the fight and perf3d re-picks (the 10v10 guards over at
+## least 24 seeds a side on a quiet machine, the `match_npc_vision` premise and seed).
 const MATCH_SEED := 2
 const MATCH_PLAN := "garage_home"
 ## Test seconds a match guard's warm-up runs before it waits for contact (`warm_until_contact`).

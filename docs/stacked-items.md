@@ -120,3 +120,18 @@ body of a stack really stands: one box (12 px) and two leave a ducked head (35.9
 hide it. It does not read a catalogue row's height (`PieceHeights.top_of`, 12 for the box).
 
 Tests: `ai/combat/box_stack_is_cover_by_height`.
+
+## SI11. A car among them
+
+A car drives over a row of plates (they stay, no crash, no speed lost: SI4) and goes through a stack of boxes, shoving it on and
+scattering it into free bodies. A flat item that a car's body tumbled into the `TWIN_WORLD` layer would be struck as a crash, so a
+flat item's mask leaves out `TWIN_VEHICLE` as it leaves out `TWIN_CHARACTER`.
+
+Tests: `vehicle/car_drives_over_plates_and_shoves_a_stack`.
+
+## SI12. Cost: the fights moved, perf3d re-picks
+
+Items add bodies (the match district of seed 2: 785 twin bodies, 729 before, 56 of them items; Jolt's cap is 10240, which fifty
+houses built in one frame pass) and change the four match guards' fights (a round meets a plate or a box stack): `perf_probe.gd`
+records the A/B numbers. No budget is loosened; `perf3d` re-picks the 10v10 guards' fight over at least 24 seeds on a quiet machine
+and the `match_npc_vision` premise.
