@@ -90,11 +90,15 @@ static func spawn_on(
 	opts: Dictionary = {},
 ) -> Node:
 	var point := base.to_global(offset)
-	var height := top_at(base, point)
 	var local := (parent as Node2D).to_local(point) if parent is Node2D else point
 	var item := spawn(definition, local, parent, opts)
-	if item != null:
-		item.rest.lift = height
+	if item == null:
+		return null
+	var rest := item.rest as PieceRest
+	rest.lift = maxf(top_at(base, point), _chain_top(base, item))
+	var base_rest: Variant = base.get(&"rest")
+	if base_rest is PieceRest:
+		(base_rest as PieceRest).stacked.append(item)
 	return item
 
 
@@ -117,3 +121,30 @@ static func top_at(base: Node2D, point: Vector2) -> float:
 	var rest: Variant = base.get(&"rest")
 	var lift: float = (rest as PieceRest).lift if rest is PieceRest else 0.0
 	return lift + PieceHeights.top_of_spec(FurnitureSpec.of(base))
+
+
+## The top (px) of the highest item already set on `base` that still has no twin and that `item`'s
+## footprint overlaps: two items set on one spot in one frame (a house is built before the twin
+## space takes any piece over) stack on each other, which the twin space cannot say yet. An item
+## with a twin is read through `top_at`'s ray, which sees where it really lies. 0 when none.
+static func _chain_top(base: Node2D, item: Node2D) -> float:
+	var base_rest: Variant = base.get(&"rest")
+	if not base_rest is PieceRest:
+		return 0.0
+	var mine := Rect2(item.global_position - item.size * 0.5, item.size)
+	var best := 0.0
+	var kept: Array[Node2D] = []
+	for other in (base_rest as PieceRest).stacked:
+		if not is_instance_valid(other) or TwinSpace.twin_for(other) != null:
+			continue  # gone, or a twin now: the ray sees it
+		kept.append(other)
+		if other == item:
+			continue
+		if not mine.intersects(Rect2(other.global_position - other.size * 0.5, other.size)):
+			continue
+		var top: float = (other.rest as PieceRest).lift + PieceHeights.top_of_spec(
+			FurnitureSpec.of(other)
+		)
+		best = maxf(best, top)
+	(base_rest as PieceRest).stacked = kept
+	return best
