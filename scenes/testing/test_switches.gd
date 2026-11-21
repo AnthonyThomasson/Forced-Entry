@@ -67,6 +67,11 @@ static var ROWS := {
 			+ "archways).",
 		"static": [[WorldGenDoorConfig, &"enabled"]],
 	},
+	&"worldgen.items": {
+		"description": "A generated house is built with its small items (off = the tops and "
+			+ "floors stay bare): tableware, books, lamps, boxes and crates.",
+		"static": [[WorldGenItemConfig, &"enabled"]],
+	},
 	&"nav.rebake": {
 		"description": "The navmesh is re-carved as furniture is shoved around.",
 		"world": { "node": "NavUpdater", "props": ["enabled"] },

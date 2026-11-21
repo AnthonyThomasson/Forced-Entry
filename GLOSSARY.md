@@ -133,6 +133,12 @@ It lies on `PhysicsLayers.TWIN_WALKOVER`: a walker or a car does not meet it and
 blast and anything that falls onto it still meet it. Stood up, tipped or set on a table it is on `TWIN_WORLD` and an obstacle. `docs/stacked-items.md`.
 _Avoid_: flat item, small item (as a rule)
 
+**Top** (of a piece):
+A flat surface a small item can rest on: a table, desk, counter, shelf or cabinet (`ItemsCatalog.TOPS` by key, `TOPS_BY_ART` by painter; an
+empty row, a basin or a mirror is no top). `RoomItems` sets 1 to 3 items on about half of them and stacks boxes and crates 2 to 3 high
+on a storage room's floor, from an RNG stream of its own after the furniture. `docs/stacked-items.md` SI9.
+_Avoid_: surface (a `SoundSurface` is a floor's sound)
+
 **Lintel**:
 The header of a wall over a doorway, from the door's top (84 px) to the wall's (96 px): a twin of the doorway (`ObjectTwins`), so a
 ray or a grenade at that height is stopped where one lower passes under. Not the door's leaf, which stands only as high as the door.

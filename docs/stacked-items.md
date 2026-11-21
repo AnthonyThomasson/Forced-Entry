@@ -3,8 +3,8 @@
 Small pieces that rest on any flat top and on each other: tableware on tables, books, lamps and monitors on shelves and
 desks, boxes and crates stacked two or three high. Decision D20 of #194 (rule 9, the phase-3 gate). Rules SI1 to SI8; each is
 enforced by the tests named under it (`tools/run_tests.sh <id>`), following the convention of `docs/doors.md`. This is the
-**piece** half (job `stack-a`): the catalogue rows, the bodies, the walk-over rule and the bullets. Placing them in houses and
-districts, the nav carve for a tall stack, the AI's cover by height and the perf re-pin are `stack-b`.
+**piece** half (job `stack-a`): the catalogue rows, the bodies, the walk-over rule and the bullets; SI9 to SI12 are the **world**
+half (job `stack-b`): placing them in houses and districts, the AI's cover by the stack's height, a car among them and the perf re-pin.
 
 An item is a free piece (`docs/adr/0014-twin-staging-and-plan-space.md`): the 3D body in the twin space is the truth, its 2D
 node a footprint. Scale: 1 px a 3D unit, 42.3 px a metre.
@@ -68,20 +68,50 @@ Tests: `objects/book_falls_onto_a_plate`, `objects/shoved_chair_pushes_floor_pla
 ## SI6. The nav map
 
 A walk-over item is no hole in the nav bake (`PieceRest.walk_over`; `NavHoles.cut` skips it): the map has floor under it. A
-taller item is a hole as any piece is (`stack-b` carves a tall stack by its footprint).
+taller item is a hole as any piece is: a box, a crate or a lamp on the floor carves its footprint, so a stack of three is one
+hole (the holes of its items overlap) and an item on a table sits inside the table's.
 
 Tests: `navigation/walk_over_items_leave_the_map_open`.
 
 ## SI7. Bullets by material
 
 A round meets an item at its real height and goes by its material and thickness like any piece's: it passes a plate (6 px of
-ceramic) and knocks it off, a crate (wood, 20 px) stops it. A box stack is cover at its real height for rounds (`PieceHeights`); the AI choosing cover by the stacked top (the twin's, not the
-catalogue's) is `stack-b`'s job.
+ceramic) and knocks it off, a crate (wood, 20 px) stops it. A box stack is cover at its real height for rounds (`PieceHeights`); the AI choosing cover by the stack's height is SI10.
 
 Tests: `projectile/round_through_a_plate_stopped_by_a_crate`, `projectile/round_through_books_and_a_monitor` (each book of a stack
 by its height; a monitor).
 
 ## SI8. Layouts do not move
 
-Items are in no recipe and no seeded layout: today's furniture, house layouts and test premises are unchanged. `stack-b` places
-them on their own RNG stream.
+Items are in no recipe and no seeded layout: today's furniture, house layouts and test premises are unchanged. SI9 places them on
+their own RNG stream, after the furniture.
+
+## SI9. Placement: a few on a flat top, stacks on a storage floor
+
+`RoomItems` (World-Gen, `scenes/worldgen/room_items.gd`) places items in every room of a house and of a district tower, after the
+room's furniture, clutter and neon, from an RNG of its own, `hash([run seed, room key, "items"])`: no seed's furniture, doors,
+clutter, neon or wear moves, and nothing is added to `RoomSite.solids`. What goes on a piece is catalogue data (`ItemsCatalog`):
+`TOPS` by the piece's key (tableware on dining tables, kitchen counters and islands; books, lamps and monitors on desks, shelves,
+consoles and night stands; boxes on workbenches, garage shelving, filing cabinets), else `TOPS_BY_ART` by its painter (the
+general rule: any table, counter, shelf or cabinet takes a small piece), and an empty row keeps a top bare (a basin, a mirror, a
+shoe rack). About half the tops carry items (`WorldGenItemConfig.top_chance`, 0.5): 1 to `top_max` (3), kept inside the top and
+off the props its painter draws, a plate or a book now and then stacked on one already there (`stack_chance`); a monitor faces
+as its desk does. `ItemsCatalog.FLOOR` gives a stockroom, a garage, a home office and a laundry room floor stacks of 2 to 3 boxes
+and crates (a crate or a box at the bottom, boxes on it) by a wall or in a corner, `floor_clear` (22 px) from furniture, doorway
+boxes and each other, so a walker keeps a lane. The items sit under a `<Room> Items` node beside the room's furniture node;
+`RoomItems.placed_in(house)` reads `[{ room, key, node, on }]`. The test switch `worldgen.items` (`WorldGenItemConfig.enabled`)
+builds a house bare. Tests keep items **on** unless a premise needs a bare top: `house_turns` (about fifty houses in one frame
+pass the twin space's cap of 10240 bodies), `furniture_holes_cache_matches_recut` (a moved table spills its items, each a cut)
+and the two `bake_matches_recorded_colliders` (their figures are of the bare world the 2D colliders baked).
+
+Tests: `worldgen/stacking_keeps_the_layout` (a seeded house's and a district's furniture and tree the same with items on and
+off), `worldgen/tops_get_a_few_items` (about half the tops, 1 to 3, inside the top, the same seed the same items).
+
+## SI10. The AI's cover is the stack's height
+
+The AI reads cover through the twin space: 3D lines from the threat's eye to a ducked body's head, chest and hips
+(`AgentVision.hiding_piece`, `docs/cover-and-stance.md`), so what hides a spot is what the lines meet, at the height each
+body of a stack really stands: one box (12 px) and two leave a ducked head (35.9) showing, three (36) or a crate and two boxes
+hide it. It does not read a catalogue row's height (`PieceHeights.top_of`, 12 for the box).
+
+Tests: `ai/combat/box_stack_is_cover_by_height`.

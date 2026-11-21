@@ -32,6 +32,9 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.house(SEED, PLAN)
 	s.switch(&"nav.rebake", false)
+	# A moved table lets its items slide off (each a cut of its own), and the premise counts the
+	# cuts of one piece: bare tops.
+	s.switch(&"worldgen.items", false)
 
 
 func run(t: TestContext) -> void:

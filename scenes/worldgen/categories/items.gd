@@ -2,10 +2,11 @@ class_name ItemsCatalog
 ## World Generation domain: the small items (#194 stack-a, D20, `docs/stacked-items.md`): tableware,
 ## books, a desk lamp, a monitor, boxes and crates. Each is a free piece (Objects' `item` painter
 ## and mesh): it rests on the floor or on a flat top of another piece (`ObjectFactory.spawn_on`,
-## interface 2), settles asleep and moves alone. Nothing places them in a house yet (stack-b does):
-## they are here for the sandbox, the tests and, later, the placement. The cups, plates, bowls and
-## books lie no higher than a step (`DoorFallConfig.step_over`), so a walker steps over one on the
-## floor. Sizes are footprints in px (42.3 px a metre); the heights are `ObjectMeshItemConfig`'s.
+## interface 2), settles asleep and moves alone. `RoomItems` places them in a house and a district
+## tower from the data below (`TOPS`, `TOPS_BY_ART`, `FLOOR`; `docs/stacked-items.md` SI9). The
+## cups, plates, bowls and books lie no higher than a step (`DoorFallConfig.step_over`), so a
+## walker steps over one on the floor. Sizes are footprints in px (42.3 px a metre); the heights
+## are `ObjectMeshItemConfig`'s.
 
 const OBJECTS := {
 	"plate": {
@@ -97,3 +98,73 @@ const OBJECTS := {
 		"penetration": 70,
 	},
 }
+## What lies on a flat top, by the piece's catalogue key: `[item key, weight]` pairs (`RoomItems`
+## draws 1 to `WorldGenItemConfig.top_max` of them on about half the tops). A key here beats
+## `TOPS_BY_ART`; an empty list keeps a top bare.
+const TOPS := {
+	"table": [["plate", 3.0], ["cup", 3.0], ["bowl", 2.0], ["book", 1.0]],
+	"dining_table": [["plate", 4.0], ["cup", 3.0], ["bowl", 2.0]],
+	"coffee_table": [["cup", 3.0], ["book", 3.0], ["bowl", 1.0], ["desk_lamp", 0.5]],
+	"side_table": [["desk_lamp", 3.0], ["book", 2.0], ["cup", 2.0]],
+	"kitchen_counter": [["plate", 3.0], ["cup", 3.0], ["bowl", 3.0]],
+	"island": [["plate", 3.0], ["cup", 2.0], ["bowl", 3.0]],
+	"kitchenette_counter": [["plate", 3.0], ["cup", 3.0], ["bowl", 2.0]],
+	"desk": [["monitor", 3.0], ["book", 3.0], ["desk_lamp", 2.0], ["cup", 2.0]],
+	"console_table": [["book", 3.0], ["desk_lamp", 2.0], ["bowl", 2.0]],
+	"workbench": [["box", 3.0], ["desk_lamp", 2.0], ["cup", 1.0]],
+	"bookshelf": [["book", 4.0], ["desk_lamp", 1.0], ["box", 1.0]],
+	"shelving": [["box", 4.0], ["crate", 1.0]],
+	"linen_shelf": [["box", 3.0], ["book", 1.0]],
+	"filing_cabinet": [["box", 3.0], ["book", 2.0]],
+	"nightstand": [["desk_lamp", 3.0], ["book", 2.0], ["cup", 2.0]],
+	"dresser": [["book", 2.0], ["desk_lamp", 2.0], ["box", 2.0]],
+	"shoe_rack": [],
+	"mirror": [],
+	"sink": [],
+	"laundry_sink": [],
+}
+## What lies on a flat top of a piece with no `TOPS` row, by its art id (the general rule: any
+## small piece on any flat top). A counter with a basin is no flat top.
+const TOPS_BY_ART := {
+	"table": [["cup", 3.0], ["book", 3.0], ["plate", 2.0]],
+	"counter": [["plate", 3.0], ["cup", 3.0], ["bowl", 2.0]],
+	"shelf": [["book", 3.0], ["box", 2.0]],
+	"cabinet": [["book", 2.0], ["desk_lamp", 2.0], ["cup", 1.0]],
+}
+## The kinds that go on each other in a stack on a top (a book on a book, a plate on a plate).
+const STACKS_ON_TOPS := ["plate", "book"]
+## The floor stacks of boxes and crates a room type gets (`RoomItems`): `chance` a room has any,
+## `count` the stacks (inclusive range), `high` how many items each (inclusive), `base` what the
+## bottom one is, `top` what goes on it (`[key, weight]` pairs).
+const FLOOR := {
+	"stockroom": {
+		"chance": 1.0, "count": Vector2i(1, 3), "high": Vector2i(2, 3),
+		"base": [["crate", 2.0], ["box", 3.0]], "top": [["box", 3.0], ["crate", 1.0]],
+	},
+	"garage": {
+		"chance": 0.8, "count": Vector2i(1, 2), "high": Vector2i(2, 3),
+		"base": [["crate", 2.0], ["box", 3.0]], "top": [["box", 3.0]],
+	},
+	"home_office": {
+		"chance": 0.6, "count": Vector2i(1, 2), "high": Vector2i(2, 3),
+		"base": [["box", 3.0]], "top": [["box", 3.0]],
+	},
+	"laundry_room": {
+		"chance": 0.4, "count": Vector2i(1, 1), "high": Vector2i(2, 2),
+		"base": [["box", 3.0]], "top": [["box", 3.0]],
+	},
+}
+
+
+## The `[key, weight]` options for items on the top of the piece `key` (catalogue `definition`):
+## its `TOPS` row, else its art's `TOPS_BY_ART` row; `[]` when it has no flat top to speak of (a
+## basin, a mat, a floor piece that is not solid, an unknown art).
+static func options_for(key: String, definition: Dictionary) -> Array:
+	if not definition.get("solid", true) or definition.get("ground", false):
+		return []
+	if TOPS.has(key):
+		return TOPS[key]
+	var opts: Variant = definition.get("art_opts", {})
+	if opts is Dictionary and (opts as Dictionary).has("basin"):
+		return []
+	return TOPS_BY_ART.get(definition.get("art", ""), [])

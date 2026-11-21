@@ -41,6 +41,9 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 200, 200))
+	# ~50 houses are built in one frame: with their small items they pass the twin space's Jolt cap
+	# of 10240 bodies, and the turn is no business of the items.
+	s.switch(&"worldgen.items", false)
 
 
 ## A house of `plan` from `house_seed`, turned `turn` quarter turns.

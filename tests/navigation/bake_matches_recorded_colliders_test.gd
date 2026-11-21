@@ -67,6 +67,10 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.district(SEED)
 	s.switch(&"nav.rebake", false)
+	# The record is of the bare world the old colliders baked (before items stood on tops and
+	# floors, D20): its figures are that world's, and it cannot be re-recorded from the colliders
+	# any more.
+	s.switch(&"worldgen.items", false)
 
 
 func run(t: TestContext) -> void:

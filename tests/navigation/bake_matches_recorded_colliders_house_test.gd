@@ -20,6 +20,10 @@ func configure(s: TestSetup) -> void:
 	s.object(&"shelf", "bookshelf", Vector2.ZERO)
 	s.actor(&"stander", &"puppet", Vector2.ZERO)
 	s.switch(&"nav.rebake", false)
+	# The record is of the bare world the old colliders baked (before items stood on tops and
+	# floors, D20): its figures are that world's, and it cannot be re-recorded from the colliders
+	# any more.
+	s.switch(&"worldgen.items", false)
 
 
 func _record() -> Dictionary:

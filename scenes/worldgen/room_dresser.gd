@@ -43,7 +43,7 @@ static func strew(site: RoomSite, clutter: Array) -> Array:
 		var laid := _lay_clutter(site, definition, key, rng, placed)
 		if not laid.is_empty():
 			out.append(laid)
-	_neon_tube(site, _here(site) + placed)
+	_neon_tube(site, solids_of(site) + placed)
 	return out
 
 
@@ -83,8 +83,8 @@ static func _lay_clutter(
 	placed: Array,
 ) -> Dictionary:
 	var rect: Rect2 = site.room["rect"]
-	var inner := _inner(site)
-	var here := _here(site)
+	var inner := inner_of(site)
+	var here := solids_of(site)
 	var size: Vector2 = definition["size"]
 	var long := size.x >= size.y * 2.0
 	for _try in WorldGenDressConfig.tries:
@@ -117,13 +117,13 @@ static func _clutter_facing(rotated: bool, rng: RandomNumberGenerator) -> Vector
 
 ## Where `site`'s dressing may lie: its room's rect inset from the walls by
 ## `WorldGenDressConfig.inset`.
-static func _inner(site: RoomSite) -> Rect2:
+static func inner_of(site: RoomSite) -> Rect2:
 	var rect: Rect2 = site.room["rect"]
 	return rect.grow(-(site.wall_thickness * 0.5 + WorldGenDressConfig.inset))
 
 
 ## The footprints of `site`'s solid furniture within its room.
-static func _here(site: RoomSite) -> Array:
+static func solids_of(site: RoomSite) -> Array:
 	var rect: Rect2 = site.room["rect"]
 	return site.solids.filter(func(s: Rect2) -> bool: return s.intersects(rect))
 
@@ -174,8 +174,8 @@ static func _wear_clusters(
 	doors: Array,
 ) -> Array:
 	var rect: Rect2 = site.room["rect"]
-	var inner := _inner(site)
-	var here := _here(site)
+	var inner := inner_of(site)
+	var here := solids_of(site)
 	var clusters: Array = []
 	for _c in count:
 		for _try in WorldGenDressConfig.tries:
