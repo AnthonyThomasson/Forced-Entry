@@ -72,16 +72,20 @@ const SMOOTH_MAX_MS := 33.4
 ## small items on their flat tops and boxes and crates stacked on a storage floor (`RoomItems`,
 ## `docs/stacked-items.md` SI9: the district of seed 2 holds 785 twin bodies, 729 before, 56 of them
 ## `ItemBody`; Jolt's cap is 10240). The items change the fights (a bullet meets a plate, a monitor,
-## a box stack; `tools/perf_ab.sh f25eef47 bad409a7 --different-fights`, 6 rounds, a loaded machine,
-## medians avg / p95 / max): `match_5v5_stress` 8.43 / 13.51 / 30.54 to 8.22 / 13.82 / 23.95,
-## `grenade_match_stress` 8.84 / 15.17 / 25.71 to 7.42 / 13.22 / 31.43, `match_10v10_stress`
-## 11.19 /
-## 17.02 / 26.02 to 14.81 / 19.62 / 24.46 (+32% avg: 6 shots in its window with items, 1 without;
-## contact still at 6.0 s; single runs read p95 20.2 to 29, over its 20 ms), `match_npc_vision`
-## 14.17 / 20.30 / 24.77 to 12.12 / 18.16 / 36.98 (the max is the opening frame: a decision, a cone
-## start, three callouts; its premise, the viewed invader living, fails at the base too). Not tuned,
-## no standard loosened: stack-b moved the fight and perf3d re-picks (the 10v10 guards over at
-## least 24 seeds a side on a quiet machine, the `match_npc_vision` premise and seed).
+## a box stack; an item goes only on what is as big as it, the review's M1 fix, which moved the
+## stacks again): `tools/perf_ab.sh f25eef47 9cfd891c --different-fights`, 6 rounds, medians avg /
+## p95 / max in ms): `match_5v5_stress` 7.86 / 12.73 / 29.16 to 7.69 / 12.84 / 21.85,
+## `grenade_match_stress` 8.32 / 14.26 / 24.67 to 7.01 / 12.58 / 30.13, `match_10v10_stress`
+## 10.34 / 15.57 / 22.30 to 13.82 / 19.17 / 23.93 (+33.8% avg: the fight differs from frame 47 and
+## it is another one; the first A/B before the fix read +32%; single runs read p95 20.2 to 29, over
+## its 20 ms), `match_npc_vision` 13.14 / 18.63 / 23.34 to 11.40 / 16.69 / 34.00 (the max is the
+## opening frame: a decision, a cone start, three callouts; its premise, the viewed invader
+## living, fails at the base too). Two more guards miss their budgets with the items, and are left
+## so (two runs each, a quiet machine): `match_10v10_opening` p95 21.8 and 22.4 ms (20.2 and 20.8 at
+## the base, over its 20 already), `match_npc_vision` max 34.6 ms over its 33.4 (and the premise).
+## Not tuned, no standard loosened: stack-b moved the fight and
+## perf3d re-picks (the 10v10 guards over at least 24 seeds a side on a quiet machine, the
+## `match_npc_vision` premise and seed).
 const MATCH_SEED := 2
 const MATCH_PLAN := "garage_home"
 ## Test seconds a match guard's warm-up runs before it waits for contact (`warm_until_contact`).
