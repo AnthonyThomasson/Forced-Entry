@@ -35,6 +35,7 @@ func _init(door: Node2D = null) -> void:
 	super(door, door.call(&"get_mass") if door != null else 1.0)
 	_full_mask = collision_mask
 	set_physics_process(false)
+	sleeping_state_changed.connect(_on_sleeping_changed)
 
 
 ## While a leaf is carried: it is let go once it stands clear of its frame, has met a piece (it
@@ -90,7 +91,6 @@ func release(
 ## the projected leaf when it is tipped (`PieceBody`), then whether it is flat on the floor.
 func twin_update(footprint: Node2D) -> void:
 	super.twin_update(footprint)
-	rest_on_a_character()
 	var top := _extent().y / RenderConfig.unit
 	var flat := top <= DoorFallConfig.step_over
 	(footprint.get(&"footprint") as RefCounted).call(&"lie_at", top)
@@ -98,6 +98,8 @@ func twin_update(footprint: Node2D) -> void:
 		_flat = flat
 		collision_mask = FLAT_MASK if flat else _full_mask
 		collision_layer = PhysicsLayers.TWIN_WALKOVER if flat else PhysicsLayers.TWIN_WORLD
+		if not flat:
+			set_physics_process(true)  # stood up on something: watched for a character under it
 
 
 ## A shove while the leaf is carried out of its frame (a blast's, that follows the blow that
@@ -152,6 +154,12 @@ func _let_go() -> void:
 	twin_update(_piece)
 
 
+## A leaf that wakes is watched again: one at rest on a character is put to sleep there.
+func _on_sleeping_changed() -> void:
+	if not sleeping:
+		set_physics_process(true)
+
+
 ## A leaf is no wall to a character: they are kinematic, which a leaf can neither push nor tip
 ## over, so one carried out of its frame against a character stood in the doorway held by them, and
 ## one let go flush against one stood upright on them for ever, held awake, pushing them. So while
@@ -161,9 +169,14 @@ func _let_go() -> void:
 ## (`DoorFallConfig.bowl_accel`): they are bowled out of its way and it goes down. One a wall holds
 ## in place holds it, and the leaf then rests on them (`PieceBody`).
 func _bowl(delta: float) -> void:
-	_bowl_left -= 1
-	if _bowl_left <= 0 or _flat or sleeping:
+	if _flat or sleeping:
 		set_physics_process(false)
+		return
+	# awake and standing on its own: the twin space tells no one a body that does not move, so a
+	# leaf at rest on a character is watched here (the engine never sleeps it)
+	rest_on_a_character()
+	_bowl_left -= 1
+	if _bowl_left <= 0:
 		return
 	_keep_turning()
 	_shove_characters(_face_normal(), delta)

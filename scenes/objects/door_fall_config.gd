@@ -44,7 +44,7 @@ static var lean_spin: float = 2.0
 ## touches them: what the weight of a tipping leaf gives a body that is no wall (a character is
 ## moved by the physics only as a kinematic, which a leaf can neither push nor tip over), so a leaf
 ## let go against one is not left standing flush on them.
-static var bowl_accel: float = 6000.0
+static var bowl_accel: float = 2000.0
 ## The most physics frames after it is let go that a falling leaf shoves a character (the
 ## leaf is then flat, or lies on what holds it and is put to rest: `PieceBody`).
 static var bowl_frames: int = 90

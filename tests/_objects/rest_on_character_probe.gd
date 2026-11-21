@@ -48,3 +48,22 @@ static func leave(t: TestContext, id: StringName, how: StringName) -> void:
 ## The label of a pair.
 static func label(what: String, how: StringName) -> String:
 	return "%s on a character who %s" % [what, how]
+
+
+## Whether the 3D body of `leaf` touches (within 1 px) the 3D body of the piece `post`.
+static func touches(leaf: Node2D, post: Node2D) -> bool:
+	var body := Probe.body(leaf)
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.collision_mask = PhysicsLayers.TWIN_WORLD
+	query.margin = 1.0
+	query.exclude = [body.get_rid()]
+	for child in body.get_children():
+		var holder := child as CollisionShape3D
+		if holder == null or holder.shape == null:
+			continue
+		query.shape = holder.shape
+		query.transform = body.global_transform * holder.transform
+		for hit: Dictionary in body.get_world_3d().direct_space_state.intersect_shape(query, 16):
+			if TwinSpace.owner_of(hit["collider"]) == post:
+				return true
+	return false

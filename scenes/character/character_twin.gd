@@ -150,6 +150,9 @@ func twin_update(_body: Node2D) -> void:
 func walk(wanted: Vector2) -> Vector2:
 	follow(_character)
 	_wanted = wanted.normalized()
+	if wanted == Vector2.ZERO and _holds_one():
+		_real = Vector2.ZERO
+		return Vector2.ZERO
 	velocity = Vector3(wanted.x, 0.0, wanted.y) * RenderConfig.unit
 	var from := global_position
 	move_and_slide()
@@ -303,6 +306,26 @@ func _wake_what_is_left(staying: bool, from: Transform3D) -> void:
 ## when this body leaves, though it sleeps.
 func hold(body: RigidBody3D) -> void:
 	_held[body.get_instance_id()] = true
+
+
+## Whether a body rests on this one (`hold`): a character standing still under it is not moved (a
+## body moved every frame, even by nothing, keeps what touches it awake: it never sleeps; left
+## alone, it sleeps itself after a moment, and the body with it). A held body that is gone, or is
+## awake and no longer touching, is let go of.
+func _holds_one() -> bool:
+	var awake := false
+	for id: int in _held.keys():
+		var body := instance_from_id(id) as RigidBody3D
+		if body == null or not body.is_inside_tree():
+			_held.erase(id)
+		elif not body.sleeping:
+			awake = true
+	if awake:
+		var near := _touching(global_transform)
+		for id: int in _held.keys():
+			if not near.has(id):
+				_held.erase(id)
+	return not _held.is_empty()
 
 
 ## The awake free bodies the cylinder touches when it stands as `at`: their instance ids (a body
