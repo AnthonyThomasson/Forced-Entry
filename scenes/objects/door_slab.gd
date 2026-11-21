@@ -62,10 +62,11 @@ func _physics_process(delta: float) -> void:
 ## plan: the way the tearing hinges lay it down (`DoorFallConfig.fall_nudge`). A leaf felled ajar
 ## (`out` is the unit plan vector away from the blow, zero for a shut leaf) first stands across its
 ## doorway's wall line, where its ends would catch a jamb whichever way it tipped: it is sent out
-## along `out` (`DoorFallConfig.carry_speed`, once; the physics carries it edge-on through the gap
-## and meets what is in its way) until its rearmost point stands `DoorFallConfig.frame_out` past
-## the wall line `line` (its hinge's coordinate along `out`), and then it is let go: the blow's
-## throw, the wrench and the turn toward `fall` are given.
+## along `out` (`DoorFallConfig.carry_speed`; the physics carries it edge-on through the gap and
+## meets what is in its way: a piece stops it and lets it go, a character is shoved on, and it is
+## sent out again when they have stopped it) until its rearmost point stands
+## `DoorFallConfig.frame_out` past the wall line `line` (its hinge's coordinate along `out`), and
+## then it is let go: the blow's throw, the wrench and the turn toward `fall` are given.
 func release(
 	impulse: Vector2, height: float, fall: Vector2, out := Vector2.ZERO, line := 0.0
 ) -> void:
@@ -108,8 +109,8 @@ func push(impulse: Vector2, at: Vector2 = Vector2.ZERO, height: float = -1.0) ->
 		_throws.append([impulse, height])
 
 
-## A leaf being carried out of its frame hands its momentum to no one: it meets a character as any
-## body does (it stops against them) and does not throw them.
+## A leaf being carried out of its frame hands its momentum to no one once, as a sliding piece does:
+## it shoves the characters it meets every frame instead (`_shove_characters`).
 func _hand_over() -> void:
 	if _out == Vector2.ZERO:
 		super()
