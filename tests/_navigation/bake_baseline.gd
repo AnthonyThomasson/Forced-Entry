@@ -12,6 +12,13 @@ extends RefCounted
 ## bake read then. A world whose generation changed (a seed's layout, a catalogue) changes these
 ## figures: re-record them from a commit whose reference still reads the colliders.
 ##
+## Re-recorded for #194 unbake-b (D21): the district's crate stacks and pallets are no solid piece
+## any more (bare places that carry loose items, off in this bare world), so 15 holes (341 to 326)
+## and their 72,082 px² are gone from the district's `holes`: the record's hole figures are the old
+## colliders' for the world without them (the recorded area less those pieces', the hung pieces'
+## figures untouched), and the district's navmesh has the floor under them (889 to 861 polygons,
+## 7,515,136 to 7,614,105 px², as the twins bake it). Nothing else of the record moved.
+##
 ## Per world: `walls` (the obstruction outlines: count, bounds `[x0, y0, x1, y1]`, summed area),
 ## `shot` the same after a wall of the world was shot up four times (`_extras` of the test), `holes`
 ## (furniture and characters at rest: count, summed area, and the hung pieces' count and old area),
@@ -21,8 +28,8 @@ extends RefCounted
 const DISTRICT := {
 	"walls": { "count": 277, "bounds": [-2318.5, -1738.5, 1798.5, 1858.5], "area": 925_884.0 },
 	"shot": { "count": 284, "bounds": [-2318.5, -1738.5, 1798.5, 1858.5], "area": 925_630.5 },
-	"holes": { "count": 341, "area": 1_058_295.1, "hung_count": 8, "hung_area": 19_980.0 },
-	"mesh": { "polygons": 889, "area": 7_515_136.09 },
+	"holes": { "count": 326, "area": 995_207.1, "hung_count": 8, "hung_area": 19_980.0 },
+	"mesh": { "polygons": 861, "area": 7_614_105.0 },
 	"routes": [
 		[-1273.0, -1030.0, 578.0, -1000.0, 2426.2],
 		[-140.0, -812.0, -1280.0, 810.0, 2803.77],

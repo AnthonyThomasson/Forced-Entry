@@ -27,6 +27,8 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.district(SEED)
 	s.switch(&"nav.rebake", true)
+	# Bare: what stands on or in the shoved piece (items, D20, D21) falls where it stood.
+	s.switch(&"worldgen.items", false)
 
 
 func run(t: TestContext) -> void:

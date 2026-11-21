@@ -7,6 +7,10 @@ extends GameTest
 ## the living room), each level's node, question, state text, options and pick, and the decision
 ## path adopted. Nothing in this world has an order. The target ids (`t_<instance id>`) are compared
 ## as `t_ID`: the id is the hostile's instance id, which shifts with any node added at start-up.
+## One option of the capture was re-recorded for #194 unbake-b (D21): the Terrace's bookshelf is
+## hollow boards now, with its books as items, so the invader's ambush post in the living room
+## is "behind the books" (the shelf's side and back) where it was "behind the wall"; nothing else of
+## the walk moved.
 ## (The Von scenario fixtures, `tools/von_scenarios`, are checked with `tools/von_probe.py`, not
 ## here.)
 ##

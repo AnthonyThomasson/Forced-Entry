@@ -145,3 +145,33 @@ that nears it aborts the engine, it does not degrade: `worldgen/house_turns`, ab
 builds them bare) and change the four match guards' fights (a round meets a plate or a box stack): `perf_probe.gd`
 records the A/B numbers. No budget is loosened; `perf3d` re-picks the 10v10 guards' fight over at least 24 seeds on a quiet machine
 and the `match_npc_vision` premise.
+
+## SI13. Unbake: what a piece built in is loose items (job `unbake-b`, shelves and stock; D21)
+
+A piece whose look or mesh used to build loose things in gives them up as separate items (rule 9), set where the drawn ones
+were, and is drawn without them: its mesh, its painter and its `PieceHeights` leave them out. This part is the shelves and the stock;
+the home tops (`unbake-a`) and the shops and special rooms (`unbake-c`) follow the same rule. **The unbake rule:** an emptied
+piece says what it carries as **data** (`PieceCarries`, Objects: a catalogue row's `carries`, rows of `{ key, at, size, lift, height,
+color, weight }`, `at` from the piece's centre in the painter's canonical frame, or, for a shelf, `art_opts.loose` and the generator
+`ShelfLoose` that walks the boards the old mesh walked, with the same seed); `RoomItems.carry` sets each item with
+`ObjectFactory.spawn_on` and `rest_at` (the height it stands on), the entry `carried: true`. The random few-per-top fill skips an
+emptied piece (`ItemsCatalog.options_for` is empty for it). With `worldgen.items` off a house is built bare: an emptied piece shows
+empty.
+
+- **Shelves** (bookshelf, shelving, linen shelf, shoe rack: `art: "shelf"`, `art_opts.loose`): sides, back and a slab per board are the
+  parts (`ShelfMesh.hollow_parts`), so the compartments are open and what stands on a board rests on it. Books are `book_stood`
+  items in runs of up to six side by side (one body, the spines drawn from `art_opts.spines`: a bookshelf of hundreds of
+  books would be as many bodies); shelving and linen-shelf boxes are `box` items sized to the row; shoe racks hold `shoes` (a pair).
+- **Crate stack and pallet** (`StockroomCatalog`): `crate_stack` and `wrapped_pallet` are bare places (non-solid, no art, no mass:
+  `PieceHeights.parts_of` says 0). The stack is two loose `crate` items (38 px across, 20 high, the top one 4 px off), the pallet a
+  `pallet` item (a low item a walker steps over, 5 px) with four `wrapped_box` items on it. The stockroom's floor stacks
+  (`ItemsCatalog.FLOOR`) are gone, so a stockroom is not strewn twice.
+- **Hotplate** (`KitchenetteCatalog`): the piece is the crate (12 px, still giving the ring's light); the plate (`hob`, with its
+  hot ring glowing) and the pan stand on it.
+- New kinds (`LooseStockCatalog`; `item_stock_mesh.gd`, `item_stock_painter.gd`, heights in `ObjectMeshStockItemConfig`): `pallet`,
+  `wrapped_box`, `book_stood`, `shoes`, `hob`, `pan`, `pot` (the noodle bar's, unused by this job). An item's flat art is painted
+  by its `kind` alone (`ObjectArt._art_opts`) and `DistrictPrewarm` warms every carried item at its size.
+
+Tests: `objects/emptied_shelving_carries_its_boxes`, `objects/bookshelf_tips_and_spills_its_books` (the books stand asleep at the
+start; a tipped shelf spills them), `worldgen/old_looks_keep_their_items` (stockrooms, kitchenettes, shelves), and the settle and fit tests
+(`worldgen/items_settle_in_*`, `items_fit_what_they_stand_on`) over the carried items.

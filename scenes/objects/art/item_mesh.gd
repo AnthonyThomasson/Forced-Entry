@@ -6,15 +6,24 @@ extends RefCounted
 ## monitor (a screen on a stand), a box with a tape strip, a crate with slats. Every item stands on
 ## its own origin (y 0), so the free body that carries it puts it on the floor or on a top.
 
+const ItemStockMesh = preload("res://scenes/objects/art/item_stock_mesh.gd")
 const OPTIONS := ["kind", "height"]
 
 
 ## The node an item `piece` is shown by, in 3D units with its origin at the piece's origin.
 static func build(piece: Node2D) -> Node3D:
 	var spec := FurnitureSpec.of(piece)
-	return FurnitureMesh.show(piece, FurnitureMesh.fetch(
+	var rig := FurnitureMesh.show(piece, FurnitureMesh.fetch(
 		"item", spec, _tuning(spec), func() -> Mesh: return _mesh(spec)
 	))
+	if _kind(spec) == "hob":  # Its left ring glows hot: the hotplate's old look.
+		var foot := spec.within(Rect2(Vector2.ZERO, spec.size))
+		rig.add_glow(
+			FurnitureMesh.fetch_glow("item", spec, _tuning(spec), func() -> Mesh:
+				return ItemStockMesh.glow(spec, foot, height_of(spec))),
+			ObjectArtKitchenBathConfig.hotplate_ring_color,
+		)
+	return rig
 
 
 ## The kind the piece is: its `art_opts.kind`.
@@ -27,6 +36,8 @@ static func height_of(spec: FurnitureSpec) -> float:
 	var own: Variant = spec.opts.get("height")
 	if own is float or own is int:
 		return float(own)
+	if _kind(spec) in ItemStockMesh.KINDS:
+		return ItemStockMesh.height_of(_kind(spec))
 	var kinds := {
 		"plate": ObjectMeshItemConfig.plate_height,
 		"cup": ObjectMeshItemConfig.cup_height,
@@ -41,7 +52,11 @@ static func height_of(spec: FurnitureSpec) -> float:
 
 ## Every value the shape reads, so a retuned one is another mesh.
 static func _tuning(spec: FurnitureSpec) -> Dictionary:
-	return { "opts": spec.read(OPTIONS), "height": height_of(spec), "colour": spec.color }
+	return {
+		"opts": spec.read(OPTIONS + ItemStockMesh.OPTIONS),
+		"height": height_of(spec),
+		"colour": spec.color,
+	}
 
 
 ## The radius of a round item: inscribed in its footprint.
@@ -72,7 +87,10 @@ static func _mesh(spec: FurnitureSpec) -> Mesh:
 		"crate":
 			_crate(kit, spec, foot, high)
 		_:
-			_box(kit, spec, foot, high)
+			if _kind(spec) in ItemStockMesh.KINDS:
+				ItemStockMesh.build(kit, spec, _kind(spec), foot, high)
+			else:
+				_box(kit, spec, foot, high)
 	return kit.build()
 
 

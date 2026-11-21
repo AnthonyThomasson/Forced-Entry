@@ -15,7 +15,7 @@ const PLANS := [
 	"two_bed_flat",
 	"office_loft",
 ]
-const SEEDS := [2, 5, 9, 11, 13, 16, 21]
+const SEEDS := [2, 5, 9, 11, 13, 16, 21, 3, 4, 6, 7, 8]
 ## Slack (px) for float rounding.
 const EPS := 0.05
 
@@ -56,6 +56,8 @@ func _check(t: TestContext, where: String, placed: Array, stats: Dictionary) -> 
 	for entry: Dictionary in placed:
 		var node: Node2D = entry["node"]
 		var base: Variant = entry["on"]
+		if entry.get("carried", false):
+			continue  # Carried (unbake, D21): it stands on a board, a pallet or a crate.
 		if base == null:
 			under[node] = node
 			continue

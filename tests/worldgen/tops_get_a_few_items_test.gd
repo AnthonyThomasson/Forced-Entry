@@ -48,6 +48,8 @@ func run(t: TestContext) -> void:
 			var items := RoomItems.placed_in(house)
 			var by_base := {}
 			for item: Dictionary in items:
+				if item.get("carried", false):
+					continue  # Carried (unbake, D21): a row of data, not a fill.
 				if item["on"] == null:
 					floor_stacks += 1
 					continue
@@ -95,8 +97,8 @@ func _check_items(t: TestContext, where: String, items: Array) -> void:
 			"%s: the item %s stands" % [where, item["key"]],
 		)
 		var base: Node2D = item["on"]
-		if base == null or node == null:
-			continue
+		if base == null or node == null or item.get("carried", false):
+			continue  # Carried: `old_looks_keep_their_items`.
 		var foot := Rect2(base.global_position - base.size * 0.5, base.size)
 		t.check(
 			foot.grow(0.5).has_point(node.global_position),

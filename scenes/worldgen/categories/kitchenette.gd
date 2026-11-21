@@ -29,6 +29,16 @@ const OBJECTS := {
 		"color": Color(0.3, 0.3, 0.32),
 		"material": "metal",
 		"art": "hotplate",
+		"carries": [
+			{
+				"key": "hob", "at": Vector2(0, 0), "size": Vector2(34, 24), "lift": 12.0,
+				"height": 3.0,
+			},
+			{
+				"key": "pan", "at": Vector2(4, 0), "size": Vector2(22, 22), "lift": 15.0,
+				"height": 4.0,
+			},
+		],
 		"weight": 12,
 		"penetration": 40,
 		"interactions": [

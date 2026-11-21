@@ -41,7 +41,8 @@ const KINDS := {
 	&"coat_rack": { "art": "coat_rack", "top": 76.0, "cover": 0.3 },
 	&"recliner_rig": { "art": "recliner", "top": 30.0, "base": 0.0, "cover": 0.8 },
 	&"mirror": { "art": "fixture", "top": 80.0, "base": 46.0, "cover": 0.8, "wall": true },
-	&"hotplate": { "art": "hotplate", "top": 19.0, "base": 0.0, "cover": 0.8 },
+	&"hotplate": { "art": "hotplate", "top": 12.0, "base": 0.0, "cover": 0.8 },
+	&"hob": { "art": "item", "top": 3.0, "base": 0.0, "cover": 0.8 },
 }
 
 
@@ -156,6 +157,8 @@ func _check_colours(t: TestContext, mirror: MeshCarrier) -> void:
 		var mesh := rig.body.mesh as ArrayMesh
 		if id == &"lamp":
 			want = ObjectArtDecorConfig.lamp_tin_color  # the shade is tin, whatever the piece's
+		elif id == &"hotplate":
+			want = ObjectArtKitchenBathConfig.hotplate_crate_color  # a crate; the plate is an item
 		elif id == &"plant":
 			want = want.lerp(ObjectArtDecorConfig.plant_dead_color, ObjectArtDecorConfig.plant_wilt)
 		elif id == &"bed":
@@ -218,10 +221,10 @@ func _check_lamp(t: TestContext, mirror: MeshCarrier) -> void:
 	)
 	rig.set_lit(true)
 	t.expect_near(_strength(glow), 0.6, 0.001, "lit again, the bulb is back at its own strength")
-	var stove := _rig_of(mirror, t.object(&"hotplate"))
+	var stove := _rig_of(mirror, t.object(&"hob"))
 	if t.require(
 		stove != null and stove.glows.size() == 1,
-		"the hotplate glows too (its hot ring)",
+		"the hotplate plate glows too (its hot ring)",
 	):
 		t.expect_near(
 			_strength(stove.glows[0]),

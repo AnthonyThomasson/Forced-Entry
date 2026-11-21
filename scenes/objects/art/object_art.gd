@@ -238,7 +238,9 @@ static func _finished(opts: Dictionary, material: String) -> Dictionary:
 ## finish (`material`, `""` when absent) last.
 static func _art_opts(art: String, opts: Dictionary) -> Dictionary:
 	var rest := opts
-	if opts.has("material"):
+	if art == "item":  # An item's flat art is painted by its kind alone (its mesh reads the rest).
+		rest = { "kind": opts.get("kind", "box") }
+	elif opts.has("material"):
 		rest = opts.duplicate()
 		rest.erase("material")
 	return _graded(art, rest).merged({ "material": opts.get("material", "") }, true)

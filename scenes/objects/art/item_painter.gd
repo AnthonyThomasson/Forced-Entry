@@ -12,6 +12,7 @@ extends RefCounted
 ## Canonical frame: the front toward +y; the catalogue colour is the item's own.
 
 const Kit = preload("res://scenes/objects/art/paint_kit.gd")
+const ItemStockPainter = preload("res://scenes/objects/art/item_stock_painter.gd")
 
 
 ## Paint the item `opts.kind` onto `c` in `base`.
@@ -32,7 +33,11 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 		"crate":
 			_crate(c, base)
 		_:
-			_box(c, base)
+			var kind := String(opts.get("kind", "box"))
+			if kind in ItemStockPainter.KINDS:
+				ItemStockPainter.paint(c, base, kind)
+			else:
+				_box(c, base)
 	c.cast_shadows()
 
 

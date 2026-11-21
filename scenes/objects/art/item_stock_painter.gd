@@ -1,0 +1,58 @@
+extends RefCounted
+## Top-down pixel-art painter of the items the shelves and the stockroom give up (Objects domain,
+## private; `item_painter.gd` hands the kinds named here to it; `docs/stacked-items.md` SI13):
+##   `pallet`: slats across a deck;   `wrapped_box`: a box under shrink wrap with a label;
+##   `book_stood`: a book's top (its cover and the page edge);   `shoes`: a pair of soles;
+##   `hob`: a plate with a hot ring (the ring glows: `hotplate_painter.gd`'s old look);
+##   `pan`: a dish with a handle;   `pot`: a round pot with two handles.
+## Canonical frame: the front toward +y; the catalogue colour is the item's own.
+
+const Kit = preload("res://scenes/objects/art/paint_kit.gd")
+const KINDS := ["pallet", "wrapped_box", "book_stood", "shoes", "hob", "pan", "pot"]
+## Heights for cast shadows.
+const _LOW := 3
+const _TALL := 10
+
+
+## Paint the item `kind` onto `c` in `base`.
+static func paint(c: PixelCanvas, base: Color, kind: String) -> void:
+	match kind:
+		"pallet":
+			for y in range(0, c.h, 12):
+				Kit.fill_rect(c, Rect2i(0, y, c.w, mini(9, c.h - y)), base, 2)
+		"wrapped_box":
+			var whole := Rect2i(0, 0, c.w, c.h)
+			Kit.fill_rect(c, whole, base, _TALL)
+			Kit.over_rect(c, whole.grow(-1), Color(0.9, 0.94, 1.0, 0.14))
+			Kit.fill_rect(
+				c, Rect2i((c.w >> 1) - 5, (c.h >> 1) - 3, 10, 6), Color(0.92, 0.9, 0.84), _TALL + 1
+			)
+		"book_stood":
+			Kit.fill_rect(c, Rect2i(0, 0, c.w, c.h), base, _TALL)
+			Kit.fill_rect(c, Rect2i(maxi(0, c.w - 1), 0, 1, c.h), Color(0.92, 0.9, 0.82), _TALL)
+		"shoes":
+			var sole := maxi(1, (c.w - 1) >> 1)
+			for i in 2:
+				var r := Rect2i(i * (sole + 1), 0, sole, c.h)
+				Kit.fill_rect(c, r, base, _LOW)
+				Kit.fill_rect(
+					c,
+					Rect2i(r.position + Vector2i(1, 1), Vector2i(maxi(1, sole - 2), 2)),
+					base.darkened(0.55),
+					_LOW,
+				)
+		"hob":
+			Kit.fill_rect(c, Rect2i(0, 0, c.w, c.h), base, _LOW)
+		"pan":
+			var r := maxi(1, mini(c.w, c.h) >> 1)
+			Kit.disc(c, Vector2i(c.w >> 1, c.h >> 1) - Vector2i(2, 0), maxi(1, r - 2), base, _TALL)
+			Kit.fill_rect(
+				c,
+				Rect2i((c.w >> 1) + r - 3, (c.h >> 1) - 1, 5, 2),
+				base.darkened(0.2),
+				_TALL,
+			)
+		_:
+			var r := maxi(1, mini(c.w, c.h) >> 1)
+			Kit.disc(c, Vector2i(c.w >> 1, c.h >> 1), r, base, _TALL)
+			Kit.disc(c, Vector2i(c.w >> 1, c.h >> 1), maxi(1, r - 2), base.darkened(0.45), _TALL)

@@ -133,6 +133,10 @@ It lies on `PhysicsLayers.TWIN_WALKOVER`: a walker or a car does not meet it and
 blast and anything that falls onto it still meet it. Stood up, tipped or set on a table it is on `TWIN_WORLD` and an obstacle. `docs/stacked-items.md`.
 _Avoid_: flat item, small item (as a rule)
 
+**Emptied piece** (a piece that carries):
+A piece whose look used to build loose things in (a shelf's books, a crate stack's crates, a pallet's wrapped boxes, a hotplate's plate and pan) and now carries them as items, set where they were drawn (`PieceCarries`, `RoomItems.carry`; its catalogue row's `carries`, or a shelf's `art_opts.loose`). It is drawn and built bare, and the random few-per-top fill skips it. A **place** is one with no mass or art of its own (`crate_stack`, `wrapped_pallet`). `docs/stacked-items.md` SI13.
+_Avoid_: unbaked piece (the decision's name, D21)
+
 **Top** (of a piece):
 A flat surface a small item can rest on: a table, desk, counter, shelf or cabinet (`ItemsCatalog.TOPS` by key, `TOPS_BY_ART` by painter; an
 empty row, a basin or a mirror is no top). `RoomItems` sets 1 to 3 items on about half of them (a plate or book may be stacked on one) and stacks boxes and crates 2 to 3 high

@@ -36,6 +36,7 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(80_000, 80_000, 100, 100), { "walls": false })
 	s.switch(&"nav.rebake", false)
 	var shelf: Dictionary = WorldGen.object_definition("bookshelf").duplicate()
+	shelf["art_opts"] = { "contents": "books" }  # Solid, as before the unbake (D21): boards now.
 	shelf["anchored"] = true
 	s.object(&"shelf", shelf, SHELF_AT)
 

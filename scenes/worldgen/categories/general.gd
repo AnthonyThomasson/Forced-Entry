@@ -110,7 +110,7 @@ const OBJECTS := {
 		"color": Color(0.4, 0.2, 0.0),
 		"material": "wood",
 		"art": "shelf",
-		"art_opts": { "contents": "books" },
+		"art_opts": { "contents": "books", "loose": true },
 		"weight": 30,
 		"penetration": 60,
 		"interactions": [
@@ -136,7 +136,7 @@ const OBJECTS := {
 		"color": Color(0.45, 0.3, 0.15),
 		"material": "wood",
 		"art": "shelf",
-		"art_opts": { "contents": "shoes" },
+		"art_opts": { "contents": "shoes", "loose": true },
 		"weight": 7,
 		"penetration": 35,
 		"interactions": [{ "id": "examine", "label": "Examine" }],

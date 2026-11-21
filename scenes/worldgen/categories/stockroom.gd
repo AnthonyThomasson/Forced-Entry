@@ -2,6 +2,11 @@ class_name StockroomCatalog
 ## World Generation domain: stockroom objects, arrangements and recipe: the back room of a shop or
 ## noodle bar. Stacked crates, a pallet of wrapped boxes and a wall safe (Objects' `stock`
 ## painter). Shared clutter (cardboard, trash) lives in GeneralCatalog.
+## The crates and the pallet are no piece of furniture (decision D21, `docs/stacked-items.md`
+## SI13): `crate_stack` and `wrapped_pallet` are bare places (non-solid, no art) that carry loose
+## items where the old stack and pallet drew theirs (`carries`: the crates of `ItemsCatalog` and the
+## pallet and wrapped boxes of `LooseStockCatalog`; `at` from the place's centre, `lift` the height
+## it stands on, px).
 
 const OBJECTS := {
 	"crate_stack": {
@@ -9,24 +14,33 @@ const OBJECTS := {
 		"shape": "rect",
 		"size": Vector2(46, 46),
 		"color": Color(0.5, 0.38, 0.24),
+		"solid": false,
 		"material": "wood",
-		"art": "stock",
-		"art_opts": { "kind": "crates" },
-		"weight": 80,
-		"penetration": 40,
-		"interactions": [{ "id": "examine", "label": "Examine" }],
+		"carries": [
+			{
+				"key": "crate", "at": Vector2(-4, 4), "size": Vector2(38, 38), "lift": 0.0,
+				"height": 20.0, "weight": 40.0,
+			},
+			{
+				"key": "crate", "at": Vector2(4, -4), "size": Vector2(38, 38), "lift": 20.0,
+				"height": 20.0, "weight": 40.0,
+			},
+		],
 	},
 	"wrapped_pallet": {
 		"name": "Pallet",
 		"shape": "rect",
 		"size": Vector2(64, 56),
 		"color": Color(0.5, 0.38, 0.24),
+		"solid": false,
 		"material": "wood",
-		"art": "stock",
-		"art_opts": { "kind": "pallet" },
-		"weight": 90,
-		"penetration": 35,
-		"interactions": [{ "id": "examine", "label": "Examine" }],
+		"carries": [
+			{ "key": "pallet", "at": Vector2(0, 0), "size": Vector2(64, 56), "lift": 0.0 },
+			{ "key": "wrapped_box", "at": Vector2(-16, -15), "size": Vector2(28, 22), "lift": 5.0 },
+			{ "key": "wrapped_box", "at": Vector2(16, -15), "size": Vector2(28, 22), "lift": 5.0 },
+			{ "key": "wrapped_box", "at": Vector2(-16, 15), "size": Vector2(28, 22), "lift": 5.0 },
+			{ "key": "wrapped_box", "at": Vector2(16, 15), "size": Vector2(28, 22), "lift": 5.0 },
+		],
 	},
 	"wall_safe": {
 		"name": "Safe",

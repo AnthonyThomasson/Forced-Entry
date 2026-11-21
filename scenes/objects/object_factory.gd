@@ -80,8 +80,10 @@ static func spawn(
 ## table, a shelf, a box), at `offset` px from `base`'s origin in its frame, under `parent`
 ## (`docs/stacked-items.md`). The item's free body starts at that top's height
 ## (`top_at`) and settles asleep on it; it is its own body from then on (a shove, a round, a blast
-## or a tipping base moves it alone). `opts` as `spawn`'s. Another item set on the same spot goes on
-## top of the first (a stack).
+## or a tipping base moves it alone). `opts` as `spawn`'s, and `rest_at` (px above the floor): where
+## the item is set down when the caller knows it (a board of a shelf, a pallet's deck, an item
+## carried by an emptied piece: `PieceCarries`), instead of the base's top. Another item set on the
+## same spot goes on top of the first (a stack).
 static func spawn_on(
 	definition: Dictionary,
 	base: Node2D,
@@ -95,7 +97,10 @@ static func spawn_on(
 	if item == null:
 		return null
 	var rest := item.rest as PieceRest
-	rest.lift = maxf(top_at(base, point), _chain_top(base, item))
+	if opts.has("rest_at"):
+		rest.lift = float(opts["rest_at"])
+	else:
+		rest.lift = maxf(top_at(base, point), _chain_top(base, item))
 	var base_rest: Variant = base.get(&"rest")
 	if base_rest is PieceRest:
 		(base_rest as PieceRest).stacked.append(item)

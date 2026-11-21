@@ -3,7 +3,8 @@ extends RefCounted
 ## (front toward +y): a material frame around a shadowed well, filled with what the shelf holds as
 ## seen from above — rows of book tops, cardboard boxes and paint tins, or pairs of shoes. Metal
 ## frames show corner uprights. Options (`art_opts`, defaulting to ObjectArtStorageConfig.shelf_*):
-## `contents` ("books" | "boxes" | "shoes"), `neon` (a neon strip round the frame, glowing). Run
+## `contents` ("books" | "boxes" | "shoes"), `neon` (a neon strip round the frame, glowing), `loose`
+## (emptied: no contents drawn, they are loose items: `shelf_loose.gd`). Run
 ## down like a cabinet.
 
 const Props = preload("res://scenes/objects/art/props.gd")
@@ -23,7 +24,10 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 	var border := maxi(2, roundi(mini(c.w, c.h) * 0.08))
 	var well := Rect2i(0, 0, c.w, c.h).grow(-border)
 	c.fill(PixelShape.rounded(well, 0), t.shadow.darkened(0.3), 1)
-	match String(opts.get("contents", ObjectArtStorageConfig.shelf_contents)):
+	var contents := String(opts.get("contents", ObjectArtStorageConfig.shelf_contents))
+	if bool(opts.get("loose", false)):
+		contents = ""  # Emptied (decision D21): what it held is loose items on its boards.
+	match contents:
 		"books":
 			_books(c, well)
 		"boxes":

@@ -17,7 +17,9 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.house(HOUSE_SEED, HOUSE_PLAN)
-	s.object(&"shelf", "bookshelf", Vector2.ZERO)
+	var shelf: Dictionary = ObjectDefinitions.get_definition("bookshelf").duplicate(true)
+	shelf["art_opts"] = { "contents": "books" }  # Solid, as when recorded: hollow boards since D21.
+	s.object(&"shelf", shelf, Vector2.ZERO)
 	s.actor(&"stander", &"puppet", Vector2.ZERO)
 	s.switch(&"nav.rebake", false)
 	# The record is of the bare world the old colliders baked (before items stood on tops and

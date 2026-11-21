@@ -38,7 +38,7 @@ const OBJECTS := {
 		"color": Color(0.55, 0.55, 0.58),
 		"material": "metal",
 		"art": "shelf",
-		"art_opts": { "contents": "boxes" },
+		"art_opts": { "contents": "boxes", "loose": true },
 		"weight": 40,
 		"penetration": 70,
 	},

@@ -13,8 +13,5 @@ static var aisle_height: float = 58.0
 static var aisle_tiers: int = 3
 static var fridge_height: float = 80.0
 static var snack_height: float = 76.0
-## The stockroom: one crate of a stack, a pallet's slats and a wrapped box on it, the safe.
-static var crate_height: float = 20.0
-static var pallet_height: float = 5.0
-static var pallet_box_height: float = 40.0
+## The stockroom's safe (its crates and pallet are loose items: `ObjectMeshStockItemConfig`).
 static var safe_height: float = 40.0

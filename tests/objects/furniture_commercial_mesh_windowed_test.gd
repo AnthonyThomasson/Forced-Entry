@@ -46,7 +46,7 @@ const SCENES := [
 const GALLERY := [
 	"monitor_wall", "server_rack", "tool_cart", "cyberware_shelf", "barricade", "scanner_post",
 	"lockers", "shop_counter", "shelf_aisle", "drinks_fridge", "snack_machine", "noodle_counter",
-	"bar_stool", "noodle_booth", "menu_board", "crate_stack", "wrapped_pallet", "wall_safe",
+	"bar_stool", "noodle_booth", "menu_board", "wall_safe",
 	"vending_machine", "street_bench", "street_bin", "drain_grate", "litter", "podium", "rebar",
 	"rubble", "scaffold", "cement_bags", "wall_stain", "trash", "cables", "cable_nest", "cardboard",
 	"puddle", "neon_tube", "streetlight", "street_sign", "awning", "glyph_sign", "car",

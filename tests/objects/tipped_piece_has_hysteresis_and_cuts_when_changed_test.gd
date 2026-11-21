@@ -13,8 +13,8 @@ func describe() -> Dictionary:
 	return {
 		"name": "A tipped piece stays tipped until it is nearly upright, and slides without recuts",
 		"description": "A chair held at 20 degrees is upright, tipped after it passed 30, upright "
-			+ "again under 15; a bookshelf lying on its side and slid cuts its footprint hull a "
-			+ "few times, not every frame.",
+			+ "again under 15; a cabinet lying on its side and slid cuts its footprint "
+			+ "hull a few times, not every frame.",
 		"tags": ["furniture", "3d", "tipping", "navigation"],
 		"timeout": 30.0,
 	}
@@ -23,7 +23,11 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 700, 400))
 	s.object(&"chair", "chair", CHAIR_AT)
-	s.object(&"shelf", "bookshelf", SHELF_AT)
+	s.object(
+		&"shelf",
+		"cabinet",
+		SHELF_AT,
+	)  # Not the bookshelf: hollow now (unbake, D21), it yaws when pushed.
 	s.switch(&"nav.rebake", false)
 
 
@@ -51,13 +55,13 @@ func _leaning(degrees: float, at: Vector3) -> Transform3D:
 	return Transform3D(Basis(Vector3.BACK, deg_to_rad(degrees)), at)
 
 
-## A bookshelf laid on its side and slid along the floor.
+## A cabinet laid on its side and slid along the floor.
 func _slide(t: TestContext) -> void:
 	var shelf := t.object(&"shelf")
 	Knockback.push(shelf, Vector2(5000.0, 0.0), Vector2.ZERO, Probe.top(shelf) - 4.0)
 	await t.seconds(0.3)
 	await Probe.settle(t, shelf, 10.0)
-	if not t.require(Probe.lean(shelf) > 60.0, "premise: the bookshelf lies on its side"):
+	if not t.require(Probe.lean(shelf) > 60.0, "premise: the cabinet lies on its side"):
 		return
 	var stamp: int = shelf.footprint_stamp
 	var from: Vector2 = shelf.global_position

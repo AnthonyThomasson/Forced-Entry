@@ -80,8 +80,6 @@ const LOOKS := [
 	["noodle", Vector2(20, 20), { "kind": "stool" }, Vector2.DOWN],
 	["noodle", Vector2(96, 64), { "kind": "booth" }, Vector2.DOWN],
 	["noodle", Vector2(100, 20), { "kind": "menu" }, Vector2.DOWN],
-	["stock", Vector2(46, 46), { "kind": "crates" }, Vector2.DOWN],
-	["stock", Vector2(64, 56), { "kind": "pallet" }, Vector2.DOWN],
 	["stock", Vector2(36, 32), { "kind": "safe" }, Vector2.DOWN],
 	["street_prop", Vector2(40, 34), { "kind": "vending" }, Vector2.DOWN],
 	["street_prop", Vector2(74, 26), { "kind": "bench" }, Vector2.DOWN],

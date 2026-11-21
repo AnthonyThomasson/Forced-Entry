@@ -47,16 +47,22 @@ static func spec_of(definition: Dictionary) -> FurnitureSpec:
 
 ## The highest top (px) of the piece a catalogue row says: its mass, in the canonical frame.
 static func top_of(definition: Dictionary) -> float:
-	return top_of_spec(spec_of(definition))
+	var top := 0.0
+	for part: Dictionary in parts_of(definition):
+		top = maxf(top, part["top"])
+	return top
 
 
 ## The lowest base (px) of the piece a catalogue row says: 0 for a piece on the floor.
 static func base_of(definition: Dictionary) -> float:
-	return base_of_spec(spec_of(definition))
+	var parts_list := parts_of(definition)
+	return parts_list[0]["base"] if not parts_list.is_empty() else 0.0
 
 
 ## The parts of the piece a catalogue row says, lowest first.
 static func parts_of(definition: Dictionary) -> Array[Dictionary]:
+	if PieceCarries.carries(definition) and not definition.has("art"):
+		return [_part(0.0)]  # A bare place for loose items (a crate stack's, a pallet's): no mass.
 	return parts(spec_of(definition))
 
 
@@ -98,6 +104,8 @@ static func parts(spec: FurnitureSpec) -> Array[Dictionary]:
 			out = _room(spec)
 		"tech", "security", "shop", "stock", "street_prop", "podium", "awning", "streetlight":
 			out = _commercial(spec)
+		"shelf":
+			out = ShelfMesh.hollow_parts(spec) if ShelfMesh.is_loose(spec) else _plain(spec)
 		"item":
 			out = [_part(ItemMesh.height_of(spec))]
 		"shell_decor", "decor", "rug", "plant", "lamp", "coat_rack", "hotplate", "car":
@@ -105,6 +113,11 @@ static func parts(spec: FurnitureSpec) -> Array[Dictionary]:
 		_:
 			out = [_part(_height_of(spec))]
 	return out
+
+
+## A piece that is one part: the top the mesh script's own `height_of` says.
+static func _plain(spec: FurnitureSpec) -> Array[Dictionary]:
+	return [_part(_height_of(spec))]
 
 
 ## One part: `base` to `top` over `rect` of the footprint.
@@ -314,10 +327,7 @@ static func _decor(spec: FurnitureSpec) -> Array[Dictionary]:
 		"coat_rack":
 			top = ObjectMeshDecorConfig.coat_rack_height
 		"hotplate":
-			top = (
-				ObjectMeshKitchenConfig.hotplate_crate_height
-				+ ObjectMeshKitchenConfig.hotplate_plate_height
-			)
+			top = ObjectMeshKitchenConfig.hotplate_crate_height
 		"car":
 			top = ObjectMeshCarConfig.roof_top()
 		"decor":

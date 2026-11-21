@@ -40,8 +40,37 @@ static func place(site: RoomSite) -> Array:
 	rng.seed = hash([site.run_seed, site.room["key"], "items"])
 	var out: Array = []
 	for piece: Dictionary in site.pieces:
+		out.append_array(carry(piece["node"], piece["definition"], site.items, site.room["key"]))
 		out.append_array(_on_top(site, piece, rng))
 	out.append_array(_floor_stacks(site, rng))
+	return out
+
+
+## The items an emptied piece carries (`PieceCarries`: a shelf's books, a crate stack's crates, a
+## pallet's wrapped boxes, a hotplate's plate and pan; decision D21) set where it used to draw them:
+## `base` (a furniture node) from its catalogue `definition`, each under `parent`, as
+## `[{ room, key, node, on, carried }]` like `place`'s (`carried` true: an emptied piece's own).
+## Nothing for a piece that carries nothing.
+static func carry(base: Node2D, definition: Dictionary, parent: Node, room: String) -> Array:
+	var out: Array = []
+	if base == null or not PieceCarries.carries(definition):
+		return out
+	var facing: Variant = (base.get(&"look") as Object).get(&"facing")
+	for row: Dictionary in PieceCarries.rows(definition, base):
+		var item := PieceCarries.patched(
+			ObjectDefinitions.get_definition(row["key"]),
+			row["patch"],
+		)
+		var opts := {
+			"rotated": row["rotated"],
+			"facing": facing if facing is Vector2 else Vector2.DOWN,
+			"name": row["key"],
+			"rest_at": row["lift"],
+		}
+		var node := ObjectFactory.spawn_on(
+			item, base, (row["at"] as Vector2) - base.position, parent, opts
+		)
+		out.append({ "room": room, "key": row["key"], "node": node, "on": base, "carried": true })
 	return out
 
 

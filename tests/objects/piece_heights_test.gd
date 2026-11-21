@@ -30,6 +30,8 @@ const REAL := {
 	&"plate": [0.01, 0.05], &"cup": [0.06, 0.14], &"bowl": [0.04, 0.12], &"book": [0.01, 0.08],
 	&"desk_lamp": [0.25, 0.5], &"monitor": [0.25, 0.55], &"box": [0.15, 0.45],
 	&"crate": [0.25, 0.5],
+	&"pallet": [0.08, 0.2], &"wrapped_box": [0.7, 1.1], &"book_stood": [0.2, 0.55],
+	&"shoes": [0.1, 0.2], &"hob": [0.05, 0.12], &"pan": [0.05, 0.13], &"pot": [0.15, 0.3],
 	&"mirror": [1.7, 2.0], &"trash": [0.0, 0.4], &"cables": [0.0, 0.05],
 	&"cable_nest": [0.0, 0.05], &"cardboard": [0.0, 0.15], &"puddle": [0.0, 0.01],
 	&"neon_tube": [0.0, 0.1], &"streetlight": [3.0, 8.0], &"street_sign": [3.0, 8.0],
@@ -37,14 +39,16 @@ const REAL := {
 	&"filing_cabinet": [1.2, 1.4], &"kitchen_counter": [0.88, 1.15], &"stove": [0.85, 1.0],
 	&"fridge": [1.7, 1.9], &"dining_table": [0.72, 0.78], &"table": [0.72, 0.78],
 	&"island": [0.88, 1.15], &"microwave": [0.4, 0.6], &"kitchenette_counter": [0.85, 1.15],
-	&"hotplate": [0.3, 0.55], &"mini_fridge": [0.8, 1.0], &"laundry_sink": [0.85, 1.15],
+	&"hotplate": [0.25, 0.55], &"mini_fridge": [0.8, 1.0], &"laundry_sink": [0.85, 1.15],
 	&"monitor_wall": [1.3, 1.7], &"recliner_rig": [0.65, 1.1], &"server_rack": [1.8, 2.1],
 	&"noodle_counter": [0.9, 1.25], &"bar_stool": [0.6, 0.75], &"noodle_booth": [1.0, 1.3],
 	&"menu_board": [1.7, 2.0], &"surgical_chair": [0.7, 1.1], &"tool_cart": [0.8, 0.95],
 	&"cyberware_shelf": [1.4, 1.8], &"barricade": [0.8, 1.0], &"scanner_post": [1.9, 2.1],
 	&"lockers": [1.7, 1.9], &"shop_counter": [0.9, 1.15], &"shelf_aisle": [1.2, 1.5],
-	&"drinks_fridge": [1.8, 2.0], &"snack_machine": [1.7, 1.9], &"crate_stack": [0.6, 1.0],
-	&"wrapped_pallet": [0.9, 1.3], &"wall_safe": [0.5, 1.0], &"vending_machine": [1.7, 1.95],
+	&"drinks_fridge": [
+		1.8,
+		2.0,
+	], &"snack_machine": [1.7, 1.9], &"wall_safe": [0.5, 1.0], &"vending_machine": [1.7, 1.95],
 	&"street_bench": [0.4, 0.5], &"street_bin": [0.85, 1.05], &"drain_grate": [0.0, 0.03],
 	&"litter": [0.0, 0.1], &"podium": [1.3, 1.7], &"rebar": [0.0, 0.4], &"rubble": [0.1, 0.5],
 	&"scaffold": [0.0, 0.5], &"cement_bags": [0.1, 0.6], &"wall_stain": [1.5, 2.3],
@@ -61,12 +65,12 @@ const BASE := {
 const PROPS := {
 	&"coat_rack": 4.5, &"sink": 2.5, &"trash": 3.0, &"stove": 1.5, &"toilet": 1.5,
 	&"bathtub": 6.5, &"shower": 4.5, &"laundry_sink": 2.5, &"server_rack": 3.5,
-	&"tool_cart": 1.5, &"kitchenette_counter": 2.5, &"hotplate": 4.5,
-	&"shop_counter": 13.0, &"noodle_counter": 11.5, &"crate_stack": 1.5, &"cement_bags": 2.8,
+	&"tool_cart": 1.5, &"kitchenette_counter": 2.5,
+	&"shop_counter": 13.0, &"noodle_counter": 11.5, &"cement_bags": 2.8,
 }
 ## What is built as cover: the pieces a ducked character is meant to hide behind.
 const COVER := [
-	"barricade", "crate_stack", "wrapped_pallet", "lockers", "kitchen_counter", "shop_counter",
+	"barricade", "lockers", "kitchen_counter", "shop_counter",
 	"noodle_counter", "island", "kitchenette_counter", "sofa", "dresser", "cabinet",
 	"shelf_aisle", "wardrobe", "bookshelf", "fridge", "wall_safe", "vending_machine",
 	"drinks_fridge", "snack_machine", "server_rack", "shelving", "tool_chest", "stove",
@@ -138,11 +142,18 @@ func run(t: TestContext) -> void:
 			_mesh_agrees(t, key, rig)
 
 
+## Whether the row is a bare place for loose items (a crate stack's, a pallet's: unbake, D21): no
+## mass and no mesh, `PieceHeights` says 0, and `old_looks_keep_their_items` the items it carries.
+func _is_place(definition: Dictionary) -> bool:
+	return PieceCarries.carries(definition) and not definition.has("art")
+
+
 ## Every catalogue key with a footprint (a piece), in catalogue order.
 func _kinds() -> Array:
 	var out: Array = []
 	for key: String in ObjectDefinitions.keys():
-		if ObjectDefinitions.get_definition(key).has("size"):
+		var definition := ObjectDefinitions.get_definition(key)
+		if definition.has("size") and not _is_place(definition):
 			out.append(key)
 	return out
 

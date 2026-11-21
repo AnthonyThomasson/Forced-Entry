@@ -38,6 +38,7 @@ static func furniture_requests() -> Array:
 			))
 	out.append_array(_podium_requests())
 	out.append_array(_clutter_requests())
+	out.append_array(_carried_requests())
 	return out
 
 
@@ -71,6 +72,38 @@ static func _podium_requests() -> Array:
 		{ "material": definition.get("material", "") }
 	)
 	return FurnitureArt.requests(definition["art"], lengths, [definition["color"]], opts)
+
+
+## The flat art of the items the emptied pieces carry (`PieceCarries`: a loose crate of a stack is
+## 38 px across, a run of books is as wide as its books, a pallet's wrapped boxes): each row of a
+## piece's `carries` and of each loose shelf at both orientations, at its own size and colour.
+static func _carried_requests() -> Array:
+	var out: Array = []
+	for key: String in ObjectDefinitions.keys():
+		var definition := ObjectDefinitions.get_definition(key)
+		if not PieceCarries.carries(definition):
+			continue
+		var size: Vector2 = definition["size"]
+		var rows: Array = []
+		for turned in [size, Vector2(size.y, size.x)]:
+			var spec := PieceHeights.spec_of(definition)
+			spec.size = turned
+			rows.append_array(PieceCarries.canonical(definition, spec))
+		for row: Dictionary in rows:
+			var patch := { "size": row["size"] }
+			if row.has("color"):
+				patch["color"] = row["color"]
+			var item := PieceCarries.patched(ObjectDefinitions.get_definition(row["key"]), patch)
+			var opts: Dictionary = item.get("art_opts", {}).merged(
+				{ "material": item.get("material", "") }
+			)
+			out.append_array(FurnitureArt.requests(
+				item["art"],
+				[item["size"], Vector2(item["size"].y, item["size"].x)],
+				[item["color"]],
+				opts,
+			))
+	return out
 
 
 ## The clutter's flat art: each kind a recipe strews, at every size `RoomDresser` can scale it to

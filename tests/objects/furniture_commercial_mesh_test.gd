@@ -48,12 +48,6 @@ const KINDS := {
 	&"menu_board": {
 		"art": "noodle", "top": 80.0, "base": 46.0, "cover": 0.8, "wall": true, "colour": 0.35,
 	},
-	&"crate_stack": {
-		"art": "stock", "top": 40.9, "base": 0.0, "cover": 0.8, "colour": "stock_wood_color",
-	},
-	&"wrapped_pallet": {
-		"art": "stock", "top": 45.4, "base": 0.0, "cover": 0.8, "colour": "stock_cardboard_color",
-	},
 	&"wall_safe": { "art": "stock", "top": 40.0, "base": 0.0, "cover": 0.8 },
 	&"vending_machine": { "art": "street_prop", "top": 78.0, "base": 0.0, "cover": 0.9 },
 	&"street_bench": { "art": "street_prop", "top": 19.0, "base": 0.0, "cover": 0.8 },

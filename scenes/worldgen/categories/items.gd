@@ -136,11 +136,9 @@ const STACKS_ON_TOPS := ["plate", "book"]
 ## The floor stacks of boxes and crates a room type gets (`RoomItems`): `chance` a room has any,
 ## `count` the stacks (inclusive range), `high` how many items each (inclusive), `base` what the
 ## bottom one is, `top` what goes on it (`[key, weight]` pairs).
+## A stockroom has none: its crate stacks and pallets are places that carry loose crates, a pallet
+## and wrapped boxes (`StockroomCatalog`, decision D21), so its floor is not strewn twice.
 const FLOOR := {
-	"stockroom": {
-		"chance": 1.0, "count": Vector2i(1, 3), "high": Vector2i(2, 3),
-		"base": [["crate", 2.0], ["box", 3.0]], "top": [["box", 3.0], ["crate", 1.0]],
-	},
 	"garage": {
 		"chance": 0.8, "count": Vector2i(1, 2), "high": Vector2i(2, 3),
 		"base": [["crate", 2.0], ["box", 3.0]], "top": [["box", 3.0]],
@@ -162,6 +160,8 @@ const FLOOR := {
 static func options_for(key: String, definition: Dictionary) -> Array:
 	if not definition.get("solid", true) or definition.get("ground", false):
 		return []
+	if PieceCarries.carries(definition):
+		return []  # An emptied piece has its own items (`RoomItems.carry`): no fill at random.
 	if TOPS.has(key):
 		return TOPS[key]
 	var opts: Variant = definition.get("art_opts", {})

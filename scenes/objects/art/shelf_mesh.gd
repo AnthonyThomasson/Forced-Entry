@@ -3,12 +3,13 @@ extends RefCounted
 ## `domain-art/meshes.md`): at the piece's own footprint, a side at each end, a back, and boards in
 ## levels, in the piece's colour, with what the shelf holds standing on each board: book spines,
 ## cardboard boxes or pairs of shoes (`shelf_painter.gd`: `contents`,
-## `ObjectArtStorageConfig.shelf_*` and `ObjectArtDecorConfig.prop_colors`). The contents are picked
-## by a generator seeded from the look, so every shelf of one look is the same mesh. How tall it
-## stands is the piece's own `art_opts.height`, else a rule of its footprint and contents
-## (`height_of`).
+## `ObjectArtStorageConfig.shelf_*` and `ObjectArtDecorConfig.prop_colors`), unless the shelf is
+## `loose` (`art_opts.loose`, decision D21): then it is bare boards, and what it held is loose items
+## standing on them (`shelf_loose.gd`, `PieceCarries`). The contents are picked by a generator
+## seeded from the look, so every shelf of one look is the same mesh. How tall it stands is the
+## piece's own `art_opts.height`, else a rule of its footprint and contents (`height_of`).
 
-const OPTIONS := ["contents", "height"]
+const OPTIONS := ["contents", "height", "loose"]
 
 
 ## The node a shelf `piece` is shown by, in 3D units with its origin at the piece's origin.
@@ -39,6 +40,40 @@ static func height_of(spec: FurnitureSpec) -> float:
 	return ObjectMeshStorageConfig.shelf_height
 
 
+## Whether the shelf is emptied: its contents are loose items, not part of its mesh.
+static func is_loose(spec: FurnitureSpec) -> bool:
+	return bool(spec.opts.get("loose", false))
+
+
+## The shelf's solids as parts of the piece (`PieceHeights`): the two sides and the back at the
+## full height and each board as a slab, so the compartments between the boards are open to what
+## stands in them. Boards and sides as `{ base, top, rect }` with `rect` in the footprint's unit
+## square.
+static func hollow_parts(spec: FurnitureSpec) -> Array[Dictionary]:
+	var h := height_of(spec)
+	var side := ObjectMeshStorageConfig.shelf_side
+	var board := ObjectMeshStorageConfig.shelf_board
+	var size := Vector2(maxf(spec.size.x, 1.0), maxf(spec.size.y, 1.0))
+	var out: Array[Dictionary] = []
+	var areas := [
+		Rect2(0, 0, side, spec.size.y),
+		Rect2(spec.size.x - side, 0, side, spec.size.y),
+		Rect2(side, 0, spec.size.x - 2.0 * side, 1.5),
+	]
+	for area: Rect2 in areas:
+		out.append({ "base": 0.0, "top": h, "rect": Rect2(area.position / size, area.size / size) })
+	var levels := levels_of(h)
+	var gap := (h - board) / (levels - 1)
+	var slab := Rect2(side, 1.5, spec.size.x - 2.0 * side, spec.size.y - 1.5)
+	for k in levels:
+		out.append({
+			"base": gap * k,
+			"top": gap * k + board,
+			"rect": Rect2(slab.position / size, slab.size / size),
+		})
+	return out
+
+
 ## How many boards the shelf has, the floor and the top included.
 static func levels_of(height: float) -> int:
 	return maxi(2, roundi(height / ObjectMeshStorageConfig.shelf_level))
@@ -48,6 +83,7 @@ static func levels_of(height: float) -> int:
 static func _tuning(spec: FurnitureSpec) -> Dictionary:
 	return {
 		"contents": contents_of(spec),
+		"loose": is_loose(spec),
 		"height": height_of(spec),
 		"board": ObjectMeshStorageConfig.shelf_board,
 		"side": ObjectMeshStorageConfig.shelf_side,
@@ -83,7 +119,7 @@ static func _mesh(spec: FurnitureSpec) -> Mesh:
 			MeshKit.tone(spec.color, &"dark"),
 			spec.color,
 		)
-		if k < levels - 1:
+		if k < levels - 1 and not is_loose(spec):
 			_contents(spec, kit, rng, gap * k + board, gap - board)
 	return kit.build()
 
