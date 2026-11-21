@@ -21,15 +21,17 @@ const ON_IT := 3.0
 
 
 ## Turn the player `you` toward the world point `toward`: the pointer is injected on the screen
-## point it is at, again each frame, until the aim has been within 3 px of it and the screen point
-## has held still for `HELD_FRAMES` frames in a row (the camera has settled). Returns that screen
-## point (what `at` places events on); the test fails if the aim never settles there. With the
-## picture shown (3D) the aim is what the cursor's line meets (a standing door's face, a body), a
-## few px off the ground point under it: a test that aims at a thing standing on `toward` passes
-## the `within` that thing's depth allows.
+## point it is at, again each frame, until the aim has been within `within` px of `lands` and the
+## screen point has held still for `HELD_FRAMES` frames in a row (the camera has settled). Returns
+## that screen point (what `at` places events on); the test fails if the aim never settles there.
+## `lands` is where the aim point comes to rest, `toward` itself unless given. With the picture
+## shown (3D) the aim is where the cursor's line first meets a piece or a body (`Pointer.aim_hit`,
+## D8a: the point on it), not the ground point under the cursor: a test that aims at a thing
+## standing on `toward` passes the point on that thing the line meets, worked out from the spec.
 static func aim(
-	t: TestContext, you: Node, toward: Vector2, within := ON_IT
+	t: TestContext, you: Node, toward: Vector2, lands := Vector2.INF, within := ON_IT
 ) -> Vector2:
+	var goal := toward if lands == Vector2.INF else lands
 	var pointer := Vector2.ZERO
 	var held := 0
 	for i in GIVE_UP:
@@ -37,12 +39,12 @@ static func aim(
 		pointer = Pointer.screen_of(you, toward)
 		Pointer.inject(pointer)
 		await t.frames(1)
-		var on_it: bool = you.movement.aim_point.distance_to(toward) < within
+		var on_it: bool = you.movement.aim_point.distance_to(goal) < within
 		var still := i > 0 and pointer.distance_to(was) < STILL
 		held = held + 1 if on_it and still else 0
 		if held >= HELD_FRAMES:
 			return pointer
-	t.check(false, "the player aims at %s (aims at %s)" % [toward, you.movement.aim_point])
+	t.check(false, "the player aims at %s (aims at %s)" % [goal, you.movement.aim_point])
 	return pointer
 
 
