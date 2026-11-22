@@ -38,7 +38,7 @@ const KINDS := {
 	&"rug": { "art": "rug", "top": 0.9, "cover": 0.9 },
 	&"plant": { "art": "plant", "top": 40.0, "tol": 0.3, "cover": 0.5 },
 	&"lamp": { "art": "lamp", "top": 62.0, "base": 0.0, "cover": 0.5 },
-	&"coat_rack": { "art": "coat_rack", "top": 76.0, "cover": 0.3 },
+	&"coat_rack": { "art": "coat_rack", "top": 72.0, "cover": 0.3 },
 	&"recliner_rig": { "art": "recliner", "top": 30.0, "base": 0.0, "cover": 0.8 },
 	&"mirror": { "art": "fixture", "top": 80.0, "base": 46.0, "cover": 0.8, "wall": true },
 	&"hotplate": { "art": "hotplate", "top": 12.0, "base": 0.0, "cover": 0.8 },

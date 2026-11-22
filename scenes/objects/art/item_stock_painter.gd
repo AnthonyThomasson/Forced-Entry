@@ -3,13 +3,25 @@ extends RefCounted
 ## private; `item_painter.gd` hands the kinds named here to it; `docs/stacked-items.md` SI13):
 ##   `pallet`: slats across a deck;   `wrapped_box`: a box under shrink wrap with a label;
 ##   `book_stood`: a book's top (its cover and the page edge);   `shoes`: a pair of soles;
-##   `hob`: a plate with a hot ring (the ring glows: `hotplate_painter.gd`'s old look);
+## `sandbag`: a filled sack with its seam; `hat`: a brim round a crown; `hob`: a plate with a hot
+## ring (the ring glows: `hotplate_painter.gd`'s old look);
 ## `paint_tin`: a can with its label ring; `pan`: a dish with a handle; `pot`: a round pot with two
 ## handles.
 ## Canonical frame: the front toward +y; the catalogue colour is the item's own.
 
 const Kit = preload("res://scenes/objects/art/paint_kit.gd")
-const KINDS := ["pallet", "wrapped_box", "book_stood", "shoes", "paint_tin", "hob", "pan", "pot"]
+const KINDS := [
+	"pallet",
+	"wrapped_box",
+	"book_stood",
+	"shoes",
+	"paint_tin",
+	"hob",
+	"pan",
+	"pot",
+	"sandbag",
+	"hat",
+]
 ## Heights for cast shadows.
 const _LOW := 3
 const _TALL := 10
@@ -50,6 +62,14 @@ static func paint(c: PixelCanvas, base: Color, kind: String) -> void:
 			Kit.disc(c, mid, maxi(1, r - 2), ObjectArtDecorConfig.prop_colors["books"][0], _TALL)
 		"hob":
 			Kit.fill_rect(c, Rect2i(0, 0, c.w, c.h), base, _LOW)
+		"sandbag":
+			Kit.fill_rect(c, Rect2i(0, 0, c.w, c.h), base, _TALL)
+			Kit.fill_rect(c, Rect2i(1, c.h >> 1, maxi(1, c.w - 2), 1), base.darkened(0.25), _TALL)
+		"hat":
+			var r := maxi(2, mini(c.w, c.h) >> 1)
+			var mid := Vector2i(c.w >> 1, c.h >> 1)
+			Kit.disc(c, mid, r, base.darkened(0.2), _LOW + 1)
+			Kit.disc(c, mid, maxi(1, roundi(r * 0.64)), base, _LOW + 1)
 		"pan":
 			var r := maxi(1, c.h >> 1)
 			Kit.disc(c, Vector2i(r, r), r, base, _TALL)

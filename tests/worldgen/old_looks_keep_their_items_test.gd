@@ -68,6 +68,12 @@ const DRAWN_AT := {
 }
 ## How far (px) a home item stands from its drawn point at the start, before it settles.
 const DRAWN := 1.0
+## Where the barricade's old painter drew its sandbags (px from its centre, SI15: two stacks of
+## three side by side, a smaller bag on each middle one: eight in all, the middle two points twice).
+const BAGS := [
+	Vector2(-52.5, -9), Vector2(-49.5, -1), Vector2(-52.5, 7),
+	Vector2(51.5, -9), Vector2(54.5, -1), Vector2(51.5, 7),
+]
 ## The top (px) of a stack's two crates, and how far (px) the third's lift may be off it.
 const CRATE_PAIR_TOP := 40.0
 const LIFT_SLACK := 1.0
@@ -92,7 +98,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var seen := {
 		"Crates": 0, "Crates2": 0, "Crates3": 0, "Pallet": 0, "Hotplate": 0, "Shelves": 0,
-		"Books": 0, "Tins": 0,
+		"Books": 0, "Tins": 0, "Barricade": 0, "Coats": 0,
 	}
 	for home: String in HOME:
 		seen[home] = 0
@@ -152,6 +158,29 @@ func _check(t: TestContext, where: String, placed: Array, seen: Dictionary) -> v
 				)
 				seen["Books"] += int(base.object_name == "Books")
 				seen["Tins"] += keys.count("paint_tin")
+			"Barricade":
+				seen["Barricade"] += 1
+				_check_sandbags(t, where, placed, base)
+			"Coats":
+				seen["Coats"] += 1
+				t.expect_eq(keys, ["hat"], "%s: a coat rack carries a hat and no fill" % where)
+
+
+## The barricade `base`: eight sandbags, one at each drawn point (the middle two a small bag on
+## each).
+func _check_sandbags(t: TestContext, where: String, placed: Array, base: Node2D) -> void:
+	var bags: Array = placed.filter(
+		func(entry: Dictionary) -> bool: return entry["on"] == base and entry["key"] == "sandbag"
+	)
+	t.expect_eq(bags.size(), 8, "%s: a barricade carries eight sandbags" % where)
+	var turns := roundi(Vector2.DOWN.angle_to(base.look.facing) / (PI * 0.5))
+	for point: Vector2 in BAGS:
+		var want: Vector2 = base.global_position + point.rotated(turns * PI * 0.5)
+		var near := bags.filter(
+			func(entry: Dictionary) -> bool:
+				return (entry["node"] as Node2D).global_position.distance_to(want) <= DRAWN
+		)
+		t.check(not near.is_empty(), "%s: a sandbag is where it was drawn (%s)" % [where, point])
 
 
 ## The crate stack `base` with the item `keys` placed on it: two or three loose crates, no solid

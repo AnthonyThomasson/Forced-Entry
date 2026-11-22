@@ -136,6 +136,10 @@ const OBJECTS := {
 		"color": Color(0.45, 0.3, 0.15),
 		"material": "wood",
 		"art": "coat_rack",
+		# The hat on the post (SI15): the coats hang from the hooks and stay drawn.
+		"carries": [
+			{ "key": "hat", "at": Vector2.ZERO, "on_top": true, "color": Color(0.42, 0.24, 0.14) },
+		],
 		"weight": 6,
 		"penetration": 25,
 		"interactions": [{ "id": "examine", "label": "Examine" }],

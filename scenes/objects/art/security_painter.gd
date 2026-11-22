@@ -1,7 +1,8 @@
 extends RefCounted
 ## Top-down pixel-art SECURITY painter (Objects domain, private): the security vestibule's steel,
 ## `kind` in the options.
-##   `barricade`: a heavy slab across the room, hazard-striped, propped with sandbags at both ends;
+##   `barricade`: a heavy slab across the room, hazard-striped (its sandbags are loose items it
+##   carries: `docs/stacked-items.md` SI15);
 ##   `scanner`: one post of the scanner arch, its emitter along the face toward the other post (+y),
 ##   glowing; `lockers`: a row of steel lockers seen from above, each top with a vent slot along its
 ##   front and a number.
@@ -10,8 +11,8 @@ extends RefCounted
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
 const Tech = preload("res://scenes/objects/art/tech_painter.gd")
+const SecurityMesh = preload("res://scenes/objects/art/security_mesh.gd")
 ## Heights for cast shadows.
-const _BAG_HEIGHT := 4
 const _SLAB_HEIGHT := 6
 const _LOCKER_HEIGHT := 9
 const _POST_HEIGHT := 12
@@ -33,26 +34,16 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 	Decay.stickers(c, 1)
 
 
-## The slab between two stacks of sandbags, its back edge striped.
+## The slab, its back edge striped (the sandbags at its ends are items).
 static func _barricade(c: PixelCanvas, base: Color) -> void:
-	var end := int(c.w * 0.14)
-	var slab := Rect2i(int(c.w * 0.12), 2, c.w - int(c.w * 0.24), c.h - 4)
+	var edge := int(c.w * 0.12) + int(SecurityMesh.BAG_OVERLAP)
+	var slab := Rect2i(edge, 2, c.w - edge * 2, c.h - 4)
 	Tech.box(c, slab, base, _SLAB_HEIGHT, 2)
 	var stripe := ObjectArtTechConfig.security_hazard_color
 	var dark := ObjectArtTechConfig.tech_dark_color
 	for x in range(slab.position.x + 2, slab.end.x - 2):
 		for y in range(slab.position.y + 2, mini(slab.end.y - 1, slab.position.y + 5)):
 			c.px(x, y, stripe if int((x + y) / 4.0) % 2 == 0 else dark)
-	for at in [0, c.w - end]:
-		for k in 3:
-			var h := int((c.h - 2) / 3.0)
-			Tech.box(
-				c,
-				Rect2i(at + (k % 2) * 3, 1 + k * h, int(c.w * 0.13), h),
-				ObjectArtTechConfig.security_sandbag_color,
-				_BAG_HEIGHT,
-				3,
-			)
 
 
 ## A scanner post: a tall rounded box, its emitter strip along the front face and a lens on top.

@@ -8,7 +8,18 @@ extends RefCounted
 
 ## How far (px) a pan's handle reaches past its disc.
 const PAN_HANDLE := 5.0
-const KINDS := ["pallet", "wrapped_box", "book_stood", "shoes", "paint_tin", "hob", "pan", "pot"]
+const KINDS := [
+	"pallet",
+	"wrapped_box",
+	"book_stood",
+	"shoes",
+	"paint_tin",
+	"hob",
+	"pan",
+	"pot",
+	"sandbag",
+	"hat",
+]
 ## The options the kinds here read (`item_mesh.gd` adds them to its own).
 const OPTIONS := ["spines"]
 
@@ -24,6 +35,10 @@ static func height_of(kind: String) -> float:
 		"hob": ObjectMeshKitchenConfig.hotplate_plate_height,
 		"pan": ObjectMeshKitchenConfig.hotplate_pan_height,
 		"pot": ObjectMeshStockItemConfig.pot_height,
+		"sandbag": ObjectMeshStockItemConfig.sandbag_height,
+		"hat": (
+			ObjectMeshStockItemConfig.hat_brim_height + ObjectMeshStockItemConfig.hat_crown_height
+		),
 	}
 	return heights[kind]
 
@@ -52,6 +67,10 @@ static func build(
 			kit.box(MeshKit.volume(foot, 0.0, high), colour, colour.lightened(0.1))
 		"pan":
 			_pan(kit, foot, high, colour)
+		"sandbag":
+			_sandbag(kit, foot, high, colour)
+		"hat":
+			_hat(kit, foot, colour)
 		_:
 			_pot(kit, foot, high, colour)
 
@@ -118,6 +137,26 @@ static func _pan(kit: MeshKit, foot: Rect2, high: float, colour: Color) -> void:
 	kit.cylinder(Vector3(mid.x, 0.0, mid.y), radius, high, colour, colour.lightened(0.15))
 	var grip := Rect2(mid + Vector2(radius, -1.0), Vector2(PAN_HANDLE, 2.0))
 	kit.box(MeshKit.volume(grip, high - 1.5, 1.5), colour)
+
+
+## A sandbag: a filled sack, its sides a shade darker than its top (the barricade's old look).
+static func _sandbag(kit: MeshKit, foot: Rect2, high: float, colour: Color) -> void:
+	kit.box(MeshKit.volume(foot, 0.0, high), MeshKit.tone(colour, &"dark"), colour)
+
+
+## A hat: a brim disc a shade darker than its crown, the crown a smaller disc on it (the coat
+## rack's old hat: a brim of the footprint's radius, a crown of 0.64 of it).
+static func _hat(kit: MeshKit, foot: Rect2, colour: Color) -> void:
+	var radius := minf(foot.size.x, foot.size.y) * 0.5
+	var mid := foot.get_center()
+	var brim := ObjectMeshStockItemConfig.hat_brim_height
+	kit.cylinder(Vector3(mid.x, 0.0, mid.y), radius, brim, colour.darkened(0.2))
+	kit.cylinder(
+		Vector3(mid.x, brim, mid.y),
+		maxf(1.0, radius * 0.64),
+		ObjectMeshStockItemConfig.hat_crown_height,
+		colour,
+	)
 
 
 ## A paint tin: a round can with its lid on, a darker band round the middle for the label.

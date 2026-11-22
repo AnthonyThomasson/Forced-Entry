@@ -249,3 +249,19 @@ Tests: `objects/emptied_desk_carries_its_items` (four items, each asleep on the 
 RNG as its tops. A piece that carries (SI13, SI14) takes no top roll, so the draws after it shift and the garage's floor stacks re-roll: the
 stack that stood beside the post at (-662, -718) is gone. That is a correct consequence of the carrying pieces, not a regression of the
 workbench's tools or the vise. A mesh lit on a top is judged against the old prop by `art/home_items_lit_windowed` (windowed).
+
+## SI15. Unbake: sandbags, a hat, and what hangs stays drawn (job `unbake-d`; D21)
+
+- **Sandbags.** The security barricade (`SecurityVestibuleCatalog`) is the bare slab; its sandbags are eight `sandbag` items (`LooseStockCatalog`: 15 by 8
+  px, 10 high, `fabric`, penetration 90: a bag of sand stops a round as the barricade it flanked did) set by its `carries` rows where the painter drew
+  them: two stacks of three side by side at the ends and a smaller bag (11 by 4, 6 high) on each middle one. The slab is 4 px shorter at each end
+  (`SecurityMesh.BAG_OVERLAP`: the old bags overlapped the drawn slab by up to 4 px, and a free body must not start inside another); the mesh, the
+  painter and the part (`PieceHeights`) are all that slab. A bag is 10 high: within a step (SI4), so a walker steps over one and it carves no nav hole.
+- **The coat rack's hat** is a `hat` item (a brim and a crown) resting on the rack's top (`on_top`), over the post. A hat on a rack is a thing standing on a
+  top like a mug on a desk: knock the rack over and it falls off.
+- **Coats and towels stay drawn, with a reason each.** A hanging coat or towel has no rest pose: it hangs from a hook or a rail, so as a free body it would
+  need a pin (a joint) to its hook, and the twin space carries no joints (a body is a rest-on-the-floor-or-a-top piece, interface 29): a free body there would
+  fall to the floor. Cloth also stops no round and blocks no walker, so a drawn coat costs nothing the player reads; the rack's mesh keeps its three
+  coats and the towel rail its towels (`fixture_mesh`, kind `towels`), as the painted ones did. A pin joint is the follow-up if a hanging body is wanted.
+- Tests: `objects/emptied_barricade_and_coat_rack_carry_items` (no sandbag or hat in the meshes, eight bags at the drawn points asleep, the hat on the top, a
+  shove moves one bag alone), `worldgen/old_looks_keep_their_items` (a district's barricades and racks).

@@ -35,7 +35,7 @@ const KINDS := {
 	&"server_rack": { "art": "tech", "top": 83.0, "base": 0.0, "cover": 0.8 },
 	&"tool_cart": { "art": "clinic", "top": 35.3, "base": 0.0, "cover": 0.8 },
 	&"cyberware_shelf": { "art": "clinic", "top": 64.0, "base": 0.0, "cover": 0.8 },
-	&"barricade": { "art": "security", "top": 40.3, "base": 0.0, "cover": 0.8 },
+	&"barricade": { "art": "security", "top": 40.3, "base": 0.0, "cover": 0.65 },
 	&"scanner_post": { "art": "security", "top": 84.4, "base": 0.0, "cover": 0.5 },
 	&"lockers": { "art": "security", "top": 77.0, "base": 0.0, "cover": 0.95 },
 	&"shop_counter": { "art": "shop", "top": 52.8, "base": 0.0, "cover": 0.95 },

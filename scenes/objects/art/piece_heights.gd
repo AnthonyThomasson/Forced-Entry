@@ -296,6 +296,8 @@ static func _commercial(spec: FurnitureSpec) -> Array[Dictionary]:
 				top = TechMesh.rack_height(spec)
 		"security":
 			top = SecurityMesh.height_of(spec)
+			if String(spec.opts.get("kind", "barricade")) == "barricade":
+				return [_part(top, 0.0, _share(spec, SecurityMesh.slab_of(spec)))]
 		"shop":
 			top = ShopMesh.height_of(spec)
 		"stock":
