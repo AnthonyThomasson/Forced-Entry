@@ -38,8 +38,9 @@ const WALL_CLEAR := 8.0
 ## Furnish `site`'s room (its `type`'s recipe) within `interior`, clear of its doorway boxes, under
 ## its furniture node, drawing from `rng` (rects in the house's space). Returns the palette picked
 ## for the room (its `wood` / `fabric` tones and `floor` key), or {} if the type has no recipe. The
-## footprint of every solid piece it spawns is appended to `site.solids` (from the catalogue's
-## sizes).
+## footprint of every solid piece it spawns, and of every place that carries items (a crate stack,
+## a pallet: no solid piece, but its stock stands there), is appended to `site.solids` (from the
+## catalogue's sizes).
 static func furnish(site: RoomSite, interior: Rect2, rng: RandomNumberGenerator) -> Dictionary:
 	var room_type: String = site.room["type"]
 	var recipe := ArrangementDefinitions.get_recipe(room_type)
@@ -442,7 +443,7 @@ static func _spawn_items(
 			"definition": definition,
 			"node": ObjectFactory.spawn(definition, rect.position + mapped, site.furniture, opts),
 		})
-		if definition.get("solid", true):
+		if definition.get("solid", true) or PieceCarries.carries(definition):
 			site.solids.append(_footprint(definition, rect.position + mapped, opts["rotated"]))
 
 

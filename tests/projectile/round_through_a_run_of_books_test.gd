@@ -47,6 +47,14 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
+	# A run's penetration (70) stands in for its thickness (a hand of paper): at the bounce minimum
+	# a round glances off it (`BallisticsRicochetConfig.penetration_bounce_min`), as off a wall.
+	var penetration := float(ObjectDefinitions.get_definition("book_stood")["penetration"])
+	t.check(
+		penetration < BallisticsRicochetConfig.penetration_bounce_min,
+		"a run of books (penetration %.0f) is below the bounce minimum (%.0f): a round goes in"
+		% [penetration, BallisticsRicochetConfig.penetration_bounce_min],
+	)
 	var runs: Dictionary = {}
 	for gun: StringName in ROWS:
 		var shelf: Node2D = t.object(StringName("shelf_%s" % gun))

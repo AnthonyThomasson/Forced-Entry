@@ -2,8 +2,8 @@ class_name LooseStockCatalog
 ## World Generation domain: the items the shelves and the stockroom give up (`docs/stacked-items.md`
 ## SI13, decision D21): a pallet, a shrink-wrapped box, a standing book, a pair of shoes, a paint
 ## tin, the hotplate's plate (`hob`), a pan and a pot. Each is a small free piece (Objects' `item`
-## painter and mesh), like `ItemsCatalog`'s: an emptied piece (`PieceCarries`) sets them where it
-## used to draw them, and `RoomItems` never strews them on a top at random (they are in no `TOPS`
+## painter and mesh), like `ItemsCatalog`'s: an emptied piece (`PieceCarries`) sets them where its
+## `carries` row names, and `RoomItems` never strews them on a top at random (they are in no `TOPS`
 ## row).
 ## The footprints here are a default: a carrying row sets the size, height and colour it needs
 ## (a book is as tall as its board's room, a loose crate of a stack is 38 px across).
@@ -42,6 +42,8 @@ const OBJECTS := {
 		"weight": 0.4,
 		# A run of up to six books side by side (a hand of paper): a pistol round that goes
 		# through it is spent (it loses over half its speed), a rifle round carries on.
+		# 70 stands in for the run's thickness; keep it under `penetration_bounce_min` (80) or a
+		# round glances off the spines (`projectile/round_through_a_run_of_books` asserts it).
 		"penetration": 70,
 	},
 	"shoes": {

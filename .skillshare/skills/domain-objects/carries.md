@@ -1,6 +1,6 @@
 # Emptied pieces: `PieceCarries` (`scenes/objects/art/piece_carries.gd`)
 
-The schema of what a piece carries (D21, `docs/stacked-items.md` SI13). A piece whose look used to build loose things in (shelf books, shelving
+The schema of what a piece carries (D21, `docs/stacked-items.md` SI13). A piece whose look would build loose things in (shelf books, shelving
 boxes, shoes, a crate stack's crates, a pallet's wrapped boxes, a hotplate's plate and pan) builds none of them: they are items (rule 9) set where
 they were drawn. **This file is the schema**; the first user is `RoomItems.carry` (World-Gen), which sets each row with `ObjectFactory.spawn_on(..., { rest_at })`.
 

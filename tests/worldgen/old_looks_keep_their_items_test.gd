@@ -4,7 +4,9 @@ extends GameTest
 ## place: a third stands on the pair for about half of them) and no stack piece,
 ## its pallet a pallet item with four wrapped boxes on it, a kitchenette's hotplate a crate piece
 ## with a hotplate plate and a pan on it, and a bookshelf, shelving, linen shelf or shoe rack
-## carries the books, boxes or shoes it drew. Nothing is strewn on the stockroom floor besides.
+## carries the books, boxes or shoes it drew. The stockroom floor is strewn with stacks of boxes and
+## crates besides, on free floor: never under a place's crates or pallet; a place keeps its
+## `examine`.
 ## The home tops too (#194 unbake-a, SI14): every desk, side table, console table, nightstand,
 ## dresser, kitchen and kitchenette counter, island and workbench paints no props and carries
 ## exactly the items its row says (`HOME`), each set where the drawing had it (the row's `at`, px
@@ -83,9 +85,9 @@ func describe() -> Dictionary:
 	return {
 		"name": "Emptied pieces keep their old look as items",
 		"description": "The home tops carry the items they painted as props; a district's "
-			+ "stockrooms get loose crates and a pallet with boxes (no stack piece, nothing else "
-			+ "on the floor); a kitchenette gets its crate, a hotplate and a pan; shelves carry "
-			+ "their books, boxes and shoes.",
+			+ "stockrooms get loose crates and a pallet with boxes (no stack piece) and floor "
+			+ "stacks clear of them; a kitchenette gets its crate, a hotplate and a pan; shelves "
+			+ "carry their books, boxes and shoes.",
 		"tags": ["worldgen", "stacking", "items", "district", "house", "unbake"],
 		"timeout": 120.0,
 	}
@@ -98,7 +100,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var seen := {
 		"Crates": 0, "Crates2": 0, "Crates3": 0, "Pallet": 0, "Hotplate": 0, "Shelves": 0,
-		"Books": 0, "Tins": 0, "Barricade": 0, "Coats": 0,
+		"Books": 0, "Tins": 0, "Barricade": 0, "Coats": 0, "Strewn": 0,
 	}
 	for home: String in HOME:
 		seen[home] = 0
@@ -115,55 +117,94 @@ func run(t: TestContext) -> void:
 		t.check(seen[kind] > 0, "premise: a sample of %s places (%d)" % [kind, seen[kind]])
 
 
-## The items of `placed` (`RoomItems.placed_in`) grouped by the piece each stands on, checked.
+## The items of `placed` (`RoomItems.placed_in`) grouped by the piece each stands on, checked, and
+## the floor stacks of a stockroom clear of the crates and pallets.
 func _check(t: TestContext, where: String, placed: Array, seen: Dictionary) -> void:
 	var on: Dictionary = {}
+	var strewn: Array[Rect2] = []
 	for entry: Dictionary in placed:
 		if entry["on"] == null:
-			t.check(
-				not "Stockroom" in String(entry["room"]),
-				"%s: nothing strewn on a stockroom floor (%s)" % [where, entry["key"]],
-			)
+			if "stockroom" in String(entry["room"]):
+				seen["Strewn"] += 1
+				strewn.append(_footprint(entry["node"]))
 			continue
 		var base: Node2D = entry["on"]
 		if not on.has(base):
 			on[base] = []
 		(on[base] as Array).append(String(entry["key"]))
+	var places: Array[Rect2] = []
 	for base: Node2D in on:
-		var keys: Array = on[base]
-		match String(base.object_name):
-			"Crates":
-				_check_crates(t, where, placed, base, seen)
-			"Pallet":
-				seen["Pallet"] += 1
-				t.check(not base.solid, "%s: a pallet place is no solid piece" % where)
-				t.check(
-					keys.count("pallet") == 1 and keys.count("wrapped_box") == 4,
-					"%s: a pallet with four wrapped boxes (%s)" % [where, keys],
-				)
-			"Hotplate":
-				seen["Hotplate"] += 1
-				t.check(base.solid, "%s: the hotplate's crate is a piece" % where)
-				t.check(
-					keys == ["hob", "pan"], "%s: a hotplate and a pan on it (%s)" % [where, keys]
-				)
-			"Books", "Shelves", "Linen", "Shoes":
-				seen["Shelves"] += 1
-				var thing: String = {
-					"Books": "book_stood", "Shelves": "box", "Linen": "box", "Shoes": "shoes",
-				}[base.object_name]
-				t.check(
-					_holds(keys, thing),
-					"%s: %s carries %s (%s)" % [where, base.object_name, thing, keys.slice(0, 4)],
-				)
-				seen["Books"] += int(base.object_name == "Books")
-				seen["Tins"] += keys.count("paint_tin")
-			"Barricade":
-				seen["Barricade"] += 1
-				_check_sandbags(t, where, placed, base)
-			"Coats":
-				seen["Coats"] += 1
-				t.expect_eq(keys, ["hat"], "%s: a coat rack carries a hat and no fill" % where)
+		if base.object_name in ["Crates", "Pallet"]:
+			places.append(_footprint(base))
+		_check_base(t, where, placed, base, seen)
+	for stack: Rect2 in strewn:
+		t.check(
+			not places.any(func(place: Rect2) -> bool: return place.intersects(stack)),
+			"%s: a floor stack %s stands clear of the crates and pallets" % [where, stack],
+		)
+
+
+## The piece `base` with what is placed on it in `placed`: what its kind carries.
+func _check_base(
+	t: TestContext, where: String, placed: Array, base: Node2D, seen: Dictionary
+) -> void:
+	var keys: Array = placed.filter(
+		func(entry: Dictionary) -> bool: return entry["on"] == base
+	).map(func(entry: Dictionary) -> String: return entry["key"])
+	match String(base.object_name):
+		"Crates", "Pallet":
+			_check_place(t, where, placed, base, seen)
+		"Hotplate":
+			seen["Hotplate"] += 1
+			t.check(base.solid, "%s: the hotplate's crate is a piece" % where)
+			t.check(keys == ["hob", "pan"], "%s: a hotplate and a pan on it (%s)" % [where, keys])
+		"Books", "Shelves", "Linen", "Shoes":
+			seen["Shelves"] += 1
+			var thing: String = {
+				"Books": "book_stood", "Shelves": "box", "Linen": "box", "Shoes": "shoes",
+			}[base.object_name]
+			t.check(
+				_holds(keys, thing),
+				"%s: %s carries %s (%s)" % [where, base.object_name, thing, keys.slice(0, 4)],
+			)
+			seen["Books"] += int(base.object_name == "Books")
+			seen["Tins"] += keys.count("paint_tin")
+		"Barricade":
+			seen["Barricade"] += 1
+			_check_sandbags(t, where, placed, base)
+		"Coats":
+			seen["Coats"] += 1
+			t.expect_eq(keys, ["hat"], "%s: a coat rack carries a hat and no fill" % where)
+
+
+## The crate stack or pallet place `base`: it keeps its examine and carries its stock.
+func _check_place(
+	t: TestContext, where: String, placed: Array, base: Node2D, seen: Dictionary
+) -> void:
+	t.check(
+		(base.get_interactions() as Array).any(
+			func(spec: Dictionary) -> bool: return spec.get("id") == "examine"
+		),
+		"%s: a %s place keeps its examine" % [where, base.object_name],
+	)
+	if base.object_name == "Crates":
+		_check_crates(t, where, placed, base, seen)
+		return
+	var keys: Array = placed.filter(
+		func(entry: Dictionary) -> bool: return entry["on"] == base
+	).map(func(entry: Dictionary) -> String: return entry["key"])
+	seen["Pallet"] += 1
+	t.check(not base.solid, "%s: a pallet place is no solid piece" % where)
+	t.check(
+		keys.count("pallet") == 1 and keys.count("wrapped_box") == 4,
+		"%s: a pallet with four wrapped boxes (%s)" % [where, keys],
+	)
+
+
+## The footprint of the piece `node` in the world.
+func _footprint(node: Node2D) -> Rect2:
+	var size: Vector2 = node.size
+	return Rect2(node.global_position - size * 0.5, size)
 
 
 ## The barricade `base`: eight sandbags, one at each drawn point (the middle two a small bag on

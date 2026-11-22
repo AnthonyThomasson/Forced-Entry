@@ -1,9 +1,9 @@
 class_name PieceCarries
 extends RefCounted
 ## Objects domain, what an emptied piece carries (`docs/stacked-items.md` SI13, decision D21): a
-## piece whose look used to build loose things in (a shelf's books, a crate stack's crates, a
-## pallet's wrapped boxes, a hotplate's plate and pan) draws and builds none of them now; the
-## things are items (rule 9: free bodies) set where they were drawn. This is the read of those
+## piece whose look would build loose things in (a shelf's books, a crate stack's crates, a
+## pallet's wrapped boxes, a hotplate's plate and pan) draws and builds none of them; the
+## things are items (rule 9: free bodies) set where the piece's row names. This is the read of those
 ## places, as rows `{ key, at, rotated, size, lift, on_top, patch }` a placer sets items by
 ## (`ObjectFactory.spawn_on` with `rest_at`; World-Gen's `RoomItems.carry`): `key` the item's
 ## catalogue key, `at` its centre as a plan point (in the space the piece's `position` is in,

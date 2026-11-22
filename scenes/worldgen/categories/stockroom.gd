@@ -7,7 +7,8 @@ class_name StockroomCatalog
 ## items where the old stack and pallet drew theirs (`carries`: the crates of `ItemsCatalog` and the
 ## pallet and wrapped boxes of `LooseStockCatalog`; `at` from the place's centre, `lift` the height
 ## it stands on, px; `maybe`: there for about half of the places, so a crate stack is two or three
-## crates).
+## crates). A place keeps its `examine`, and its footprint is in `RoomSite.solids` (the room's
+## dressing, wear and floor stacks stay off it) though the place itself is no solid piece.
 
 const OBJECTS := {
 	"crate_stack": {
@@ -17,6 +18,7 @@ const OBJECTS := {
 		"color": Color(0.5, 0.38, 0.24),
 		"solid": false,
 		"material": "wood",
+		"interactions": [{ "id": "examine", "label": "Examine" }],
 		"carries": [
 			{
 				"key": "crate", "at": Vector2(-4, 4), "size": Vector2(38, 38), "lift": 0.0,
@@ -39,6 +41,7 @@ const OBJECTS := {
 		"color": Color(0.5, 0.38, 0.24),
 		"solid": false,
 		"material": "wood",
+		"interactions": [{ "id": "examine", "label": "Examine" }],
 		"carries": [
 			{ "key": "pallet", "at": Vector2(0, 0), "size": Vector2(64, 56), "lift": 0.0 },
 			{ "key": "wrapped_box", "at": Vector2(-16, -15), "size": Vector2(28, 22), "lift": 5.0 },

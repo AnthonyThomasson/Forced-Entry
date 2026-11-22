@@ -149,8 +149,8 @@ and the `match_npc_vision` premise.
 
 ## SI13. Unbake: what a piece built in is loose items (job `unbake-b`, shelves and stock; D21)
 
-A piece whose look or mesh used to build loose things in gives them up as separate items (rule 9), set where the drawn ones
-were, and is drawn without them: its mesh, its painter and its `PieceHeights` leave them out. This part is the shelves and the stock;
+A piece whose look or mesh would build loose things in gives them up as separate items (rule 9), set where its rows name,
+and is drawn without them: its mesh, its painter and its `PieceHeights` leave them out. This part is the shelves and the stock;
 the home tops (`unbake-a`) and the shops and special rooms (`unbake-c`) follow the same rule. **The unbake rule:** an emptied
 piece says what it carries as **data** (`PieceCarries`, Objects: a catalogue row's `carries`, rows of `{ key, at, size, lift, height,
 color, weight, maybe, on_top }`, `at` from the piece's centre in the painter's canonical frame, or, for a shelf, `art_opts.loose` and the generator
@@ -172,8 +172,10 @@ empty.
   looks into an empty compartment (the front is open) and sees its back; the back and the sides stop sight at every height.
 - **Crate stack and pallet** (`StockroomCatalog`): `crate_stack` and `wrapped_pallet` are bare places (non-solid, no art, no mass:
   `PieceHeights.parts_of` says 0). The stack is two or three loose `crate` items (38 px across, 20 high, the second 4 px off; a third, 34 px across, on the pair for about half the places: the row's `maybe`, by where the place stands), the pallet a
-  `pallet` item (a low item a walker steps over, 5 px) with four `wrapped_box` items on it. The stockroom's floor stacks
-  (`ItemsCatalog.FLOOR`) are gone, so a stockroom is not strewn twice.
+  `pallet` item (a low item a walker steps over, 5 px) with four `wrapped_box` items on it. A place keeps its `examine`, and its footprint
+  is in `RoomSite.solids` (`RoomFurnisher`: a place that carries is a solid for the dressing, the wear and the floor stacks, though it is no
+  solid piece), so nothing lies under its crates. The stockroom floor is strewn with stacks of boxes and crates on the free floor around the stock
+  (`ItemsCatalog.FLOOR`'s `stockroom` row, the garage's).
 - **Hotplate** (`KitchenetteCatalog`): the piece is the crate (12 px, still giving the ring's light); the plate (`hob`, with its
   hot ring glowing) and the pan stand on it.
 - New kinds (`LooseStockCatalog`; `item_stock_mesh.gd`, `item_stock_painter.gd`, heights in `ObjectMeshStockItemConfig`): `pallet`,
@@ -245,10 +247,9 @@ Tests: `objects/emptied_desk_carries_its_items` (four items, each asleep on the 
 `lighting/knocked_monitor_takes_its_glow` (the light follows the item down; its mutant 'the light stays' is red), `objects/desk_keeps_its_neon_trim`, `objects/home_items_keep_the_old_look` (size, palette and the glowing edge against `props.gd`), `objects/piece_heights` (the new kinds' tops), `worldgen/items_settle_in_houses`,
 `_in_district_11`, `_in_district_16` and `worldgen/items_fit_what_they_stand_on` (they read every `Items` node, carried ones included).
 
-**Why a floor stack moved in a seeded house (`ambush_posts_capture_house`).** `RoomItems.place` draws a room's floor stacks from the same
-RNG as its tops. A piece that carries (SI13, SI14) takes no top roll, so the draws after it shift and the garage's floor stacks re-roll: the
-stack that stood beside the post at (-662, -718) is gone. That is a correct consequence of the carrying pieces, not a regression of the
-workbench's tools or the vise. A mesh lit on a top is judged against the old prop by `art/home_items_lit_windowed` (windowed).
+**The floor stacks and the items' draws.** `RoomItems.place` draws a room's floor stacks from the same RNG as its tops, and a piece that
+carries (SI13, SI14) takes no top roll: a room's floor stacks are what the draws after its carrying pieces give. A mesh lit on a top is judged
+against the old prop by `art/home_items_lit_windowed` (windowed).
 
 ## SI15. Unbake: sandbags, a hat, and what hangs stays drawn (job `unbake-d`; D21)
 

@@ -1,11 +1,12 @@
 extends RefCounted
 ## Objects domain, what an open shelf holds when it is emptied (`docs/stacked-items.md` SI13,
-## decision D21): the books, the boxes (and the odd paint tin) or the pairs of shoes that
-## `shelf_mesh.gd` and `shelf_painter.gd` used to build into the shelf, as rows for loose items to
-## stand where they stood (`PieceCarries`). The pieces are picked by a generator seeded from the
-## look (the footprint, the contents, the boards), so every shelf of one look carries the same
-## things, and they are the ones the old mesh drew: the same walk along each board, the same sizes
-## and gaps.
+## decision D21): the books, the boxes (and the odd paint tin) or the pairs of shoes a shelf holds,
+## as rows for loose items to stand on its boards (`PieceCarries`). They are picked by a generator
+## seeded from the look (the footprint, the contents, the boards), so every shelf of one look
+## carries the same things: a walk along each board, a thing then a gap, books in runs, a pair of
+## shoes as one item. They are as `shelf_mesh.gd` builds into a shelf whose `art_opts.loose` is
+## off (the old look), at its own seeding, and each is drawn like it: the boxes and tins in size
+## and colour, the books by their spines; the shoes are drawn as a pair.
 ## A row is `{ key, at, size, lift, height, color }`: the item's catalogue key, its centre from the
 ## shelf's centre in the canonical frame (x across, the front toward +y), its footprint, the board's
 ## top it stands on and how tall it is. A run of books (`RUN` at most, side by side on one board) is
