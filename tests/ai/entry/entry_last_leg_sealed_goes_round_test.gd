@@ -7,7 +7,7 @@ extends GameTest
 ## Three teammates (invader puppets that radio their claims on the doorway, as an AI member does)
 ## hold slots 1 to 3 on its west file, so the invader (ENTER the doorway, scripted Von) claims slot
 ## 4, which stands behind slots 1 and 3. Slots 1 and 2 are taken from the start; slot 3's holder
-## waits off it. The invader comes from the kitchen's far corner, from the east, and once it is on
+## waits off it. The invader comes from the east lane beside the island, and once it is on
 ## its way in east of slot 3 the third teammate steps into slot 3 and stands: slots 1 and 3 then
 ## stand closer together than two bodies, and a plant and the chairs close the way under slot 3,
 ## across the invader's way in. The way round by the south of the island stays open. The invader
@@ -27,7 +27,11 @@ const SLOT_2 := Vector2(412, -330)
 const SLOT_3 := Vector2(460, -282)
 const SLOT_4 := Vector2(428, -250)
 const WAIT_3 := Vector2(396, -300)
-const START := Pocket.FAR
+## Where the invader starts: in the east lane of the kitchen, beside the island, 100 px from the gap
+## it comes in by. From the kitchen's far corner (`Pocket.FAR`) the way by the east lane (394 px)
+## and the way round the island's south side (409 px) are within the server's route choice of each
+## other, and it took the south way from the start, with no gap to close.
+const START := Vector2(600, -190)
 ## The invader is on its way in east of slot 3 once it is this near slot 4 (px) with its x past slot
 ## 3's.
 const CLOSE_NEAR := 110.0

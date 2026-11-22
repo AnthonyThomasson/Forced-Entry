@@ -52,6 +52,14 @@ func run(t: TestContext) -> void:
 	})
 	await _check_first_order(t, a, b, c, c_walks)
 	await _check_held(t, a)
+	# The gunfire beside a is heard by b too: both leave their orders for a reaction (cover, the
+	# shots) and come back. Which of them is still mid-reaction when the next order lands depends on
+	# the length of the way to the cover it picked, so the orders are judged once both are back.
+	t.require(
+		await t.until(func(): return OrderBrain.on_order(a) and OrderBrain.on_order(b), 15.0),
+		"set-up: both recipients are back on the first order after the gunfire (acts %s, %s)"
+			% [a.current_act(), b.current_act()],
+	)
 	await _check_replaced(t, a, b, boss)
 	await _check_cancelled(t, a, b, boss)
 

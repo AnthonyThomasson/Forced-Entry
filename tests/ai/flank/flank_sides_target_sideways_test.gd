@@ -22,6 +22,11 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Maps.warehouse(s)
+	# The shortest walk to the target's far side runs through the target itself (the NPC,
+	# the target and that point lie on one line; B2 drops such a route). A low rail in front
+	# of the target (a standing body sees and shoots over it) makes it bend round the rail's
+	# south end, more than 120 px clear of the target.
+	s.object(&"rail", Maps.RAIL, Maps.RAIL_POS)
 	Flank.rules(s)
 	Flank.npc(s, &"npc", NPC_POS, {}, { "look_at": TARGET_POS })
 	Flank.target(s, &"target", TARGET_POS, LOOKING_AT)

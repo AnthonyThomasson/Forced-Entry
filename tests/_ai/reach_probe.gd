@@ -54,8 +54,10 @@ const SLOT_REACH := 6.0
 ## The slack (s) on a member's walking time to its slot.
 const SLACK_S := 8.0
 ## How close (px) to the slot a route that keeps out of the room being entered and the doorway's
-## view must end to reach it.
-const ROUTE_REACH := 20.0
+## view must end to reach it. 24: one 4 px nav cell over the old 20: the avoid-map's carve of the
+## doorway's view is on the cell grid, so a slot 2 px inside its edge is reached to the nearest cell
+## corner, up to 21 px off, where the old mesh's polygons ended 19.9 off.
+const ROUTE_REACH := 24.0
 ## A member's claimed slot may still settle (two claims on the same frame) this long (s) after its
 ## first claim.
 const SETTLE_S := 1.0

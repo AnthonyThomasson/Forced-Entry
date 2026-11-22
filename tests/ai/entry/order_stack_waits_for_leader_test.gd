@@ -31,6 +31,12 @@ const FRONT_IDS := [&"c", &"d"]
 ## The front door's stack: a click outside it, north of the opening along its wall (within the
 ## opening's width of its centre).
 const FRONT_NORTH := Vector2(-30, 360)
+## Where c and d start, north-west of the front door, and where they are put again for the front
+## order. They follow the leader through the back door's 20 s; the shortest way to it from here runs
+## through the house (the nav mesh gives the true shortest path), so by the front order they have
+## wandered inside it, mid their own entries, and the order would reach them there. The order is
+## about a stack outside the door, so they stand outside it as it is given.
+const FRONT_START := [Vector2(-120, 230), Vector2(-170, 200)]
 ## How long (s) the human dawdles out of its slot at the back door, and at the front door, with the
 ## rest ready.
 const DAWDLE_BACK := 20.0
@@ -65,8 +71,8 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"ai.hostile_on_trespass", false)
 	s.actor(&"a", &"invader", Vector2(960, 60), { "max_health": 1_000_000.0 })
 	s.actor(&"b", &"invader", Vector2(1010, 20), { "max_health": 1_000_000.0 })
-	s.actor(&"c", &"invader", Vector2(-120, 230), { "max_health": 1_000_000.0 })
-	s.actor(&"d", &"invader", Vector2(-170, 200), { "max_health": 1_000_000.0 })
+	s.actor(&"c", &"invader", FRONT_START[0], { "max_health": 1_000_000.0 })
+	s.actor(&"d", &"invader", FRONT_START[1], { "max_health": 1_000_000.0 })
 	Stack.human(s, &"me", LOITER_BACK[0])
 	s.squads({ "human": &"me" })
 
@@ -89,6 +95,8 @@ func run(t: TestContext) -> void:
 	var front_id := "door_0_415"
 	# Done with the back door: put it by the front door's stack.
 	t.actor(&"me").global_position = LOITER_FRONT[0]
+	t.actor(&"c").global_position = FRONT_START[0]
+	t.actor(&"d").global_position = FRONT_START[1]
 	await t.seconds(0.5)
 	if not await _front_stack_ready(t, squad, stack, front_id):
 		return

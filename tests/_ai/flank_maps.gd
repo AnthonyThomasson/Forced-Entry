@@ -92,6 +92,36 @@ const PILLAR := {
 	"art": "table",
 	"art_opts": { "height": 96.0 },
 }
+## A long low barrier (a 30 px rail: a standing body sees and shoots over it, gaze-and-fire W2, but
+## cannot walk through it), for a test whose shortest walk to the far side of the target must bend
+## round the target for a real reason. The NPC, the target and its far-side points lie on one line,
+## so with nothing in the way the shortest route runs through the target and B2 drops it
+## (`route_clearance` 120 px); the rail stands in front of the target with its south end well off
+## the line, so the shortest route clears the target.
+const RAIL := {
+	"name": "Rail",
+	"shape": "rect",
+	"size": Vector2(24, 370),
+	"color": Color(0.5, 0.5, 0.52),
+	"weight": 5000,
+	"penetration": 100,
+	"art": "cabinet",
+	"art_opts": { "height": 30.0 },
+}
+## A long fence, the rail's cousin laid across a lane (320 x 24 px, 30 px high): a test whose
+## walkers must take the other way round a house, because the shorter one is shut.
+const FENCE := {
+	"name": "Fence",
+	"shape": "rect",
+	"size": Vector2(320, 24),
+	"color": Color(0.5, 0.5, 0.52),
+	"weight": 5000,
+	"penetration": 100,
+	"art": "cabinet",
+	"art_opts": { "height": 30.0 },
+}
+## Where the rail stands in the warehouse: 80 px west of the target (620, 330), ends at y 130, 500.
+const RAIL_POS := Vector2(540, 315)
 
 
 ## Lay out the terrace house: three rooms, four doorways and furniture in each room. `furnish` false

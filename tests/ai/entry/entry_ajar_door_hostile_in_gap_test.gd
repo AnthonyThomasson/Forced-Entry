@@ -32,6 +32,12 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	DoorPie.configure(s, { "hinge": DoorPie.HINGE_SOUTH, "angle": AJAR })
+	# Once the wait is out and the doorway is shut by the defender, the invader's way to the room
+	# is round the house. The shortest is south, straight down the back wall past this very
+	# doorway (the old mesh's polygon chain took the longer way north); a fence across the lane
+	# south of the door shuts it, so the way round is north, away from the doorway as the test's
+	# premise has it.
+	s.object(&"fence", Maps.FENCE, Vector2(1010, 300))
 	Entry.npc(s, &"inv", Vector2(960, 60), { "tuning:entry:ready_timeout": 8.0 })
 	s.actor(&"mate", &"puppet", Vector2(1010, 140), { "faction": &"invader" })
 	Entry.target(s, &"defender", HIDDEN, Maps.DOOR_BACK)
