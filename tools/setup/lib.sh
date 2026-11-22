@@ -160,7 +160,10 @@ fe_use_python() {
   }
   export PYTHON
   # Windows Python ends every output line with CR LF; pysite/sitecustomize.py makes it write LF only, so what a
-  # script captures from a tool has no stray CR.
+  # script captures from a tool has no stray CR. Know that PYTHONPATH is inherited: every child process of the script
+  # (Python or not, a Von server started from it included) sees it; that a sitecustomize.py found through PYTHONPATH
+  # shadows any other sitecustomize module on the path; and that `python -I` and `python -S` skip it (so a tool run
+  # that way, like `python -I tools/audit_scan.py`, still writes CR LF on Windows).
   if [[ "$(fe_os)" == windows && ";${PYTHONPATH:-};" != *";$(cygpath -w "$FE_SETUP_DIR/pysite");"* ]]; then
     export PYTHONPATH="$(cygpath -w "$FE_SETUP_DIR/pysite")${PYTHONPATH:+;$PYTHONPATH}"
   fi

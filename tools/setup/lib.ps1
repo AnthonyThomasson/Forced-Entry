@@ -1,5 +1,7 @@
 # Dot-sourced, not run: the Windows PowerShell 5.1 side of tools/setup/lib.sh (same lookups, same order; keep them in step).
 #   . "$PSScriptRoot\setup\lib.ps1"
+# A script that dot-sources this file must itself be started with -ExecutionPolicy Bypass (as tools/godot_open.cmd does):
+# under Windows' default (Restricted) policy `powershell -File x.ps1` refuses to run, and so does the dot-source.
 #
 #   Get-FeManifest              tools/setup/versions.env as a hashtable of strings
 #   Get-FeHome                  the per-user root: $env:FORCED_ENTRY_HOME, else %LOCALAPPDATA%\Forced-Entry

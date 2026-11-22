@@ -12,6 +12,8 @@ that bash and Python agree. Import it as `from tools.setup import fe_env` (the r
                        the usual per-OS places (macOS /Applications/Godot*.app, mono or not; Windows
                        %LOCALAPPDATA%\\Programs, winget, Program Files, scoop)
 """
+from __future__ import annotations
+
 import os
 import shutil
 import sys
