@@ -28,21 +28,8 @@ if [[ -z "${PROCTREE_NATIVE_PID:-}" && -r /proc/$pid/winpid ]]; then
   pid=$(cat "/proc/$pid/winpid")
 fi
 
-# TODO(#213 resolvers job): swap this lookup for the shared Python resolver lib when it lands.
-# $PYTHON, then python3 only if it really runs (on Windows it can be the Microsoft Store stub), then `py -3`, then
-# python.
-py=()
-if [[ -n "${PYTHON:-}" ]]; then
-  py=("$PYTHON")
-elif python3 -c 'import sys' >/dev/null 2>&1; then
-  py=(python3)
-elif py -3 -c 'import sys' >/dev/null 2>&1; then
-  py=(py -3)
-elif python -c 'import sys' >/dev/null 2>&1; then
-  py=(python)
-else
-  echo "no Python found (set PYTHON, or install python3, py or python)" >&2
-  exit 1
-fi
+# The Python: tools/setup/lib.sh's lookup ($PYTHON, then python3 only if it really runs, then `py -3`, then python).
+source "$here/setup/lib.sh"
+fe_use_python || exit $?
 
-exec "${py[@]}" -I "$here/proctree.py" stop-matching "$pid"
+exec "$PYTHON" -I "$here/proctree.py" stop-matching "$pid"
