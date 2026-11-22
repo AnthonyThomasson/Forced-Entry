@@ -29,10 +29,10 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
   `NavTiles.baked_total` counts tiles when baked, not landed (the frame report's tile bakes). `tile_due_order` pins the order; a tick lands an open burst before reading what is due.
 - **A bake lands on a fixed frame** (`nav_bake.gd`, `nav_bake_config.gd`; `navigation/rebake_lands_on_its_frame`, `avoid_map_lands_on_its_frame`,
   `rebake_waits_for_a_late_thread`, `landings_one_a_frame`, `perf/nav_rebake_lands_in_a_match`). One lands a frame: a bake due on a frame that took one slips to the next, in start order (a planning bake's ring after it). `NavRebake._bake_async` and `NavBuilder._bake_avoid` start the bake on a
-  `WorkerThreadPool` task (the server's sync bake) through `NavBake.start`, which takes its result in (weld, assign to the
+  `WorkerThreadPool` task (the server's sync bake) through `NavBake.start`, which takes its result in (assign to the
   region, `landed`) on the physics frame the caller's count says after the start, not when the thread finishes (`domain-testing`: the perf
   nondeterminism note). A thread not done by then is waited for, which holds that frame (`NavBake.was_late` of that bake, `late_total` of all; the match
-  guards log `PERF <label> nav bakes late N of M`); one on time costs the frame its weld and assignment only. `NavBake.frames_for(region, avoid, ring)`
+  guards log `PERF <label> nav bakes late N of M`); one on time costs the frame its assignment only. `NavBake.frames_for(region, avoid, ring)`
   picks the count from `NavBakeConfig`: a district's planning bake `district_frames` 14 (the p95 of its thread on the 5v5 guard's 7 ms frame), its avoid
   maps `avoid_frames` 12 (the p90: the AI waits for a chain of them, so each link costs the count; 10, near the median, was late for a quarter of them), the planning ring `ring_frames` 3
   (a 4 to 7 ms bake), a lone house's bakes `house_frames` 3. The measurements, and why the avoid maps' is not the same, are the holder's comments.
