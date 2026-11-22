@@ -144,3 +144,11 @@ static func _vise(kit: MeshKit, spec: FurnitureSpec, foot: Rect2, high: float) -
 	kit.box(MeshKit.volume(jaw, high * 0.6, high * 0.4), metal.lightened(0.15))
 	kit.box(MeshKit.volume(Rect2(o.x - 0.5, o.y + 2.0, 1.0, 3.0), 0.0, high * 0.3), metal)
 	kit.box(MeshKit.volume(Rect2(o.x - 3.0, o.y + 4.5, 6.0, 1.0), 0.0, high * 0.3), metal)
+
+
+## Keys lying in a bowl `high` tall (the plain bowl's, the old prop's): a metal ring and the bar of
+## a key across the well.
+static func keys(kit: MeshKit, high: float) -> void:
+	var metal: Color = ObjectArtDecorConfig.prop_colors["metal"]
+	kit.cylinder(Vector3(-1.0, high, 0.0), 1.0, 0.4, metal)
+	kit.box(MeshKit.volume(Rect2(0.0, 0.0, 3.0, 1.0), high, 0.3), metal.darkened(0.2))

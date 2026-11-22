@@ -64,6 +64,7 @@ func run(t: TestContext) -> void:
 			)
 	_check_glow(t)
 	_check_reused(t)
+	_check_keys(t)
 
 
 ## Every carried book, mug and bowl is as big, as turned and as bright as the prop it replaced.
@@ -101,6 +102,34 @@ func _check_reused(t: TestContext) -> void:
 			)
 	for kind: String in REUSED:
 		t.check(seen.has(kind), "premise: a home top carries a %s" % kind)
+
+
+## The console table's bowl holds the keys its prop did: the plain bowl paints at least as many
+## metal pixels (the key ring and the key's line) as the old prop.
+func _check_keys(t: TestContext) -> void:
+	var def := ObjectDefinitions.get_definition("bowl")
+	var size := Vector2i(def["size"])
+	var old := _ground()
+	Props.draw(old, "bowl", Vector2i(24, 24))
+	var c := PixelCanvas.new(size.x, size.y, 7, ArtCanvasConfig.light_from)
+	var colour: Color = ObjectArtDecorConfig.prop_colors["ceramic"]
+	ItemPainter.paint(c, colour, "", { "kind": "bowl", "plain": true })
+	var want := _metal(old)
+	var got := _metal(c)
+	t.check(want > 0, "premise: the old bowl paints its keys (%d metal px)" % want)
+	t.check(got >= want, "the plain bowl holds its keys (%d metal px against %d)" % [got, want])
+
+
+## How many pixels of `c` are the prop palette's metal (or its darker shade, the key's line).
+func _metal(c: PixelCanvas) -> int:
+	var metal: Color = ObjectArtDecorConfig.prop_colors["metal"]
+	var count := 0
+	for y in c.h:
+		for x in c.w:
+			var p := c.at(x, y)
+			if _off(p, metal) < 0.05 or _off(p, metal.darkened(0.2)) < 0.05:
+				count += 1
+	return count
 
 
 ## How far `colour` is from the nearest colour its prop `kind` is drawn in: the books' palette

@@ -83,10 +83,18 @@ static func _bowl(c: PixelCanvas, base: Color, plain: bool) -> void:
 		Kit.disc(c, at, _round(c), base.darkened(0.35), 4)
 		Kit.disc(c, at, maxi(1, _round(c) - 1), base, 4)
 		Kit.disc(c, at, maxi(1, _round(c) - 2), base.darkened(0.12), 4)
+		_keys(c, at)  # The console table's bowl of keys.
 		return
 	Kit.disc(c, at, _round(c), base.darkened(0.15), 4)
 	Kit.disc(c, at, maxi(1, _round(c) - 1), base, 4)
 	Kit.disc(c, at, maxi(1, _round(c) - 3), base.darkened(0.4), 4)
+
+
+## Keys lying in a bowl centred on `at`: a metal ring and the line of a key (the old prop's).
+static func _keys(c: PixelCanvas, at: Vector2i) -> void:
+	var metal: Color = ObjectArtDecorConfig.prop_colors["metal"]
+	Kit.disc(c, at + Vector2i(-1, 0), 1, metal, 5)
+	c.line(at, at + Vector2i(3, 1), metal.darkened(0.2), 5)
 
 
 ## A book: the cover, a darker spine, the page edge and a title strip.

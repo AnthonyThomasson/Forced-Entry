@@ -95,6 +95,8 @@ static func _mesh(spec: FurnitureSpec) -> Mesh:
 			kit.cylinder(  # The darker well inside the rim.
 				Vector3(0.0, high, 0.0), radius * 0.66, 0.1, spec.color.darkened(0.15)
 			)
+			if spec.opts.get("plain", false):  # The console table's bowl of keys.
+				ItemHomeMesh.keys(kit, high)
 		"book":
 			_book(kit, spec, foot, high)
 		"desk_lamp":
@@ -115,11 +117,13 @@ static func _mesh(spec: FurnitureSpec) -> Mesh:
 
 ## A cup: the body, its coffee and the handle nub on its right.
 static func _cup(kit: MeshKit, spec: FurnitureSpec, radius: float, high: float) -> void:
-	kit.cylinder(Vector3.ZERO, radius - 0.5, high, spec.color)
+	# The painter sets a mug that is not the old prop's 1 px left of the middle, its nub with it.
+	var dx := 0.0 if spec.opts.get("plain", false) else -1.0
+	kit.cylinder(Vector3(dx, 0.0, 0.0), radius - 0.5, high, spec.color)
 	kit.cylinder(
-		Vector3(0.0, high, 0.0), radius - 1.5, 0.1, ObjectArtDecorConfig.prop_colors["coffee"]
+		Vector3(dx, high, 0.0), radius - 1.5, 0.1, ObjectArtDecorConfig.prop_colors["coffee"]
 	)
-	var nub := Rect2(radius - 1.0, -0.5, 1.5, 1.0)
+	var nub := Rect2(dx + radius - 1.0, -0.5, 1.5, 1.0)
 	kit.box(MeshKit.volume(nub, high * 0.3, high * 0.4), spec.color.darkened(0.2))
 
 

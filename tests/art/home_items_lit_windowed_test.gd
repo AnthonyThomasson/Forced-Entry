@@ -6,9 +6,8 @@ extends GameTest
 ## still draw as a small dark blob. A played 3D match (garage_home, seed 2); for each of the fruit
 ## bowl, the bowl, the vase, the mug and the book the OLD prop (`Props.draw` on a flat textured
 ## sheet, as the painted top lit it) and then the NEW item (`PieceCarries.patched` from the row that
-## carries
-## it) stand at the SAME spot under the same camera, so the same light falls on both. What each
-## adds to the bare floor must be as bright (pixels over `BRIGHT`) and as saturated (the fruit,
+## carries it) stand at the SAME spot under the same camera, so the same light falls on both. What
+## each adds to the bare floor must be as bright (pixels over `BRIGHT`) and as saturated (the fruit,
 ## the flowers) as the old, at least `MIN_SHARE` of it. With `HOME_LIT_SHOT_DIR=<dir>` set it saves
 ## a picture of each. Run: `HOME_LIT_SHOT_DIR=<dir> tools/run_tests.sh --windowed
 ## --id=art/home_items_lit_windowed`.
@@ -43,8 +42,14 @@ const BRIGHT := 0.35
 ## A pixel at least this saturated and this bright.
 const SATURATION := 0.45
 const VALUE := 0.3
-## What the new item shows of the old's bright and saturated pixels at the least.
-const MIN_SHARE := 0.6
+## What the new item shows of the old's bright and saturated pixels at the least. The shares
+## measure 0.61 (the fruit bowl), 0.63 (the vase), 0.67 (the mug) and 0.75 (the bowl) because the
+## mesh has the toon outline (a dark ring one art px wide round its silhouette) over the outer
+## edge of its bright rim: round a bowl 6 px across that is about 450 of its 1136 bright screen
+## pixels (the ring's length times `ZOOM`); the fruit's own luminance (a green or an olive is
+## under `BRIGHT`) varies with the colours picked. 0.5 leaves a margin of 0.1 under the lowest
+## share; an item drawn as a dull blob shows next to no bright pixel.
+const MIN_SHARE := 0.5
 
 var _window: SubViewport
 var _camera: Camera2D
