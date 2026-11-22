@@ -20,7 +20,11 @@ const NODE_BAND := [170, 300]
 # sim root is a plain Node2D plan handle), band 1850 to 3850. 2026-11-21, #194 stack-b: 2949 nodes
 # for this seed (424242) with the small items on the tops and floors (each item is one plan handle;
 # a room that gets none has no `<Room> Items` node either): +115 over del2d-c5d's 2834, the band
-# re-centred on it (+-35%): 1920 to 3980. A house reads 225.
+# re-centred on it (+-35%): 1920 to 3980. A house reads 225. #194 unbake-c: the shops and the
+# special rooms hand what they drew to free items (a fridge's bottles, a counter's till, a shelf's
+# cyberware: 1165 bodies a district against 881): 3156 nodes before it, 5214 with it (about seven
+# nodes an item, no time cost: the steady build reads 131 ms), the band re-centred on 5214 (+-35%):
+# 3390 to 7040. A house reads 237.
 # 2026-11-06, #192: the headless cold build runs without the art pre-warm (tests skip it), so the
 # pre-warm does not move this number. Quiet machine, load 2.6 to 2.8, no other Godot, the test
 # alone, twice: cold 1870 and 1873 ms, steady 152 and 153 ms (the whole perf domain: 157 and
@@ -28,7 +32,7 @@ const NODE_BAND := [170, 300]
 # 4.0x the cold build and 600 ms 3.9x the steady one, so neither is set again.
 const DISTRICT_BUDGET_MS := 7500.0
 const DISTRICT_WARM_BUDGET_MS := 600.0
-const DISTRICT_NODE_BAND := [1920, 3980]
+const DISTRICT_NODE_BAND := [3390, 7040]
 
 
 func describe() -> Dictionary:
