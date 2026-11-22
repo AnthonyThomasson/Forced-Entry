@@ -36,6 +36,9 @@ clears any body behind it that stands no higher, and one that does not is stoppe
 usual penetration). A sofa's back is 38 px: a standing body behind it (head top 74, torso up to 64) is struck by a line that
 clears the back, a ducked one (head top 36) by none that does, so a round aimed at its torso meets the sofa. Crouching behind a
 low piece hides you; standing does not.
+The security barricade's cover is its slab, 40 px high and 0.70 of the footprint's width; the sandbag stacks at its ends are loose items 10 px
+high (16 with a small bag on top), under a ducked head, so a ducked fighter at an end of the barricade is not covered there, and a walker steps over a
+bag (`docs/stacked-items.md` SI15; the two small top bags are 16 high and cut a nav hole).
 Tests: `cover_shared_bullet_height`, `sofa_cover_standing_vs_ducked`.
 
 **P1. Postures: crouch is the duck.** A character is standing or crouching (`movement.set_posture`, the player's C toggle). Each is a row of

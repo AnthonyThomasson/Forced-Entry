@@ -5,7 +5,7 @@
     - `PieceHeights.top_of(definition: Dictionary) -> float`, `base_of(definition) -> float`, `parts_of(definition) -> Array[Dictionary]`: for a catalogue row (`WorldGen.object_definition(key)`:
 	  `size`, `art`, `art_opts`), px above the floor, 1 px a 3D unit, 42.3 px a metre (`BodyHeights`, interface 11). A **part** is `{ base, top, rect }`: where it starts and ends and the share
 	  of the footprint it covers (`rect` in the footprint's unit square, the painter's canonical frame: back-left corner (0, 0), x across, the front toward +y). `top_of` is the highest part's
-	  top, the piece's mass (a prop on it, a bowl on a bar or a coat rack's hat, is left out); `base_of` the lowest part's base (a mirror hangs at 46, an awning's valance stands at 80).
+	  top, the piece's mass (a prop on it, a bowl on a bar, is left out; a hat on a coat rack is an item, a body of its own); `base_of` the lowest part's base (a mirror hangs at 46, an awning's valance stands at 80).
 	  The eight small items (`ItemsCatalog`: plate 1.5 to crate 16 px) read `ObjectMeshItemConfig`; a plate, cup, bowl and book lie within a step (10 px, `DoorFallConfig.step_over`), a walk-over body (`docs/stacked-items.md`). Multi-part: a sofa (seat, two arms, back), a chair (seat, back), a bed (mattress, headboard), a counter (top, backsplash), a noodle booth (seats, backs, table).
     - `PieceHeights.top_of_spec(spec) -> float`, `base_of_spec(spec) -> float`, `parts(spec) -> Array[Dictionary]` for a live piece's `FurnitureSpec.of(piece)`, and `spec_of(definition) -> FurnitureSpec`.
     - **Cost.** A lookup builds a small array from the holders and the mesh scripts' own `height_of` rules; no mesh is built. Referencing the class preloads the 13 mesh scripts it asks

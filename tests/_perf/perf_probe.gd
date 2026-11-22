@@ -91,11 +91,12 @@ const SMOOTH_MAX_MS := 33.4
 ## loose crates a stack, a pallet with four wrapped boxes, the hotplate's plate and pan are items;
 ## the crate stacks and pallets are non-solid places, and the stockroom's floor is strewn with
 ## stacks of boxes and crates around them again).
-## Twin bodies at unbake-d (shoes, floor stacks, sandbags, the hat): the district of seed 2 holds
-## 865, seed 13 984, of Jolt's 10240.
-## Twin bodies: the district of seed 2 holds 691 (785 at stack-b: the places carry no body and a
-## run of books is one body), the biggest of seeds 1 to 16 (13) 864 with 124 items, against Jolt's
-## 10240. Absolute standards (`tools/run_tests.sh --domain=perf`, `--base=08f43a10` and the tip,
+## Twin bodies (`TwinSpace.bodies()` of the district `WorldGen.generate_district(seed)` builds,
+## 120 frames after it: the bodies that have a twin; counted at unbake-d, where the figures 865
+## and 984 given earlier for these seeds were not reproduced): the district of seed 2 holds 731
+## and seed 13 holds 895, against Jolt's 10240.
+##
+## Absolute standards (`tools/run_tests.sh --domain=perf`, `--base=08f43a10` and the tip,
 ## the failing ones again alone, one after the other, load 6 to 13 from other workers: a loaded
 ## run fails nearly every guard at either revision): at the tip every guard passes alone but
 ## `perf/match_npc_vision`; the five that failed in the loaded run (`nav_plan_ring_stress`,

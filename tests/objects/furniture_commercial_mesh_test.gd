@@ -35,6 +35,8 @@ const KINDS := {
 	&"server_rack": { "art": "tech", "top": 83.0, "base": 0.0, "cover": 0.8 },
 	&"tool_cart": { "art": "clinic", "top": 35.3, "base": 0.0, "cover": 0.8 },
 	&"cyberware_shelf": { "art": "clinic", "top": 64.0, "base": 0.0, "cover": 0.8 },
+	# The slab is 12 % of its width in from each end plus the 4 px its sandbags' stacks end at
+	# (84 of 120 px, 0.70): its bags are items that stand at its ends, not part of its mesh.
 	&"barricade": { "art": "security", "top": 40.3, "base": 0.0, "cover": 0.65 },
 	&"scanner_post": { "art": "security", "top": 84.4, "base": 0.0, "cover": 0.5 },
 	&"lockers": { "art": "security", "top": 77.0, "base": 0.0, "cover": 0.95 },

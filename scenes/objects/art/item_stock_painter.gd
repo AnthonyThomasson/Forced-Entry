@@ -2,7 +2,8 @@ extends RefCounted
 ## Top-down pixel-art painter of the items the shelves and the stockroom give up (Objects domain,
 ## private; `item_painter.gd` hands the kinds named here to it; `docs/stacked-items.md` SI13):
 ##   `pallet`: slats across a deck;   `wrapped_box`: a box under shrink wrap with a label;
-##   `book_stood`: a book's top (its cover and the page edge);   `shoes`: a pair of soles;
+## `book_stood`: a book's top (its cover and the page edge); `shoes`: a pair of shoes, each a sole
+## with its dark opening at the heel;
 ## `sandbag`: a filled sack with its seam; `hat`: a brim round a crown; `hob`: a plate with a hot
 ## ring (the ring glows: `hotplate_painter.gd`'s old look);
 ## `paint_tin`: a can with its label ring; `pan`: a dish with a handle; `pot`: a round pot with two

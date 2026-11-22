@@ -10,9 +10,9 @@ extends RefCounted
 ## A part is `{ base, top, rect }`: where it starts and ends above the floor and the share of the
 ## footprint it covers, `rect` in the footprint's unit square in the painter's canonical frame
 ## (`FurnitureSpec.area`: back-left corner at (0, 0), x across, the front toward +y). `top_of` is
-## the highest part's top: the height of the piece's mass (a bowl on a bar or a coat rack's hat is
-## a prop, left out); `base_of` the lowest part's base (a mirror or a menu board hangs at 46 or
-## 80; an awning stands over the head).
+## the highest part's top: the height of the piece's mass (a bowl on a bar is a prop, left out; a
+## hat on a coat rack is an item, a body of its own); `base_of` the lowest part's base (a mirror or
+## a menu board hangs at 46 or 80; an awning stands over the head).
 ##
 ## Read through a catalogue row (`definition`: `size`, `art`, `art_opts`) so the AI and the
 ## projectile need no piece, or through a live piece's `FurnitureSpec`.

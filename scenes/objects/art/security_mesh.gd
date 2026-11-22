@@ -9,9 +9,9 @@ extends RefCounted
 ## other one a shade darker, each with vent slots and a number plate on its front.
 
 const OPTIONS := ["kind", "height"]
-## How far (px) in from its end the barricade's slab starts: 12 % of its width (the painter's old
-## slab) and the 4 px the sandbags it carries overlap it (the second bag of a stack is set 3 px in
-## and they are 15 wide where the slab started 14 in), so no bag starts inside the slab's body.
+## How far (px) in from its end the barricade's slab starts: 12 % of its width plus 4 px, where the
+## stacks of sandbags it carries end (the second bag of a stack is set 3 px in and they are 15
+## wide), so no bag starts inside the slab's body.
 const BAG_OVERLAP := 4.0
 ## How far a feature stands proud of the face it is laid on.
 const PROUD := 0.6

@@ -7,6 +7,7 @@ extends GameTest
 ## step and a rack's hat sits on its top.
 
 const Probe := preload("res://tests/_objects/piece_probe.gd")
+const SecurityMesh := preload("res://scenes/objects/art/security_mesh.gd")
 const BARRICADE_AT := Vector2(300, 250)
 const RACK_AT := Vector2(600, 250)
 ## More racks: a rack's hat is a colour of the coat palette picked by where the rack stands.
@@ -50,6 +51,7 @@ func run(t: TestContext) -> void:
 		absf(_mesh_of(rack).get_aabb().end.y - ObjectMeshDecorConfig.coat_rack_height) < 0.5,
 		"the coat rack's mesh stops at its post, no hat on it",
 	)
+	_check_slab_share(t, barricade)
 	var bags := RoomItems.carry(
 		barricade, ObjectDefinitions.get_definition("barricade"), t.world, "test"
 	)
@@ -67,6 +69,18 @@ func run(t: TestContext) -> void:
 	_check_own_colour(t, bags, hats[0]["node"])
 	_check_hat_colours(t)
 	await _shove_one(t, bags, hats[0]["node"])
+
+
+## The slab is what covers: 84 of the barricade's 120 px across (12 % in from each end plus the 4
+## px its sandbag stacks end at, 0.70). `furniture_commercial_mesh` holds the barricade's cover to
+## 0.65 of its width for that reason; the ends are bags, no cover for a ducked head.
+func _check_slab_share(t: TestContext, barricade: Node2D) -> void:
+	var slab := SecurityMesh.slab_of(FurnitureSpec.of(barricade))
+	var share := slab.size.x / float(barricade.size.x)
+	t.check(
+		share >= 0.65 and share <= 0.75, "the slab is 0.65 to 0.75 of the width (%.2f)" % share
+	)
+	t.expect_eq(slab.size.x, 84.0, "the slab is 84 px across")
 
 
 ## Every bag asleep, no higher than a step on the floor, and one stands at each drawn spot.
