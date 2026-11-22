@@ -497,14 +497,40 @@ static func bin(outlines: Array, reaches: Array[Rect2], shift: Vector2) -> Array
 	if cells.is_empty():
 		return _full_scan(outlines, reaches, shift)
 	var span := _span(cells)
+	var table := _table(cells, span)
 	for outline: PackedVector2Array in outlines:
 		var box := _outline_bounds(outline)
 		box.position -= shift
-		for i in _candidates(box, origin, cells, span):
-			intersection_tests += 1
-			if reaches[i].intersects(box):
-				bins[i].append(outline)
+		var reach := _reach_cells(box, origin, span)
+		for y in range(reach.position.y, reach.end.y):
+			for x in range(reach.position.x, reach.end.x):
+				var i := table[(y - span.position.y) * span.size.x + x - span.position.x]
+				if i < 0:
+					continue
+				intersection_tests += 1
+				if reaches[i].intersects(box):
+					bins[i].append(outline)
 	return bins
+
+
+## The cells of `span` that `box`, grown by the border, reaches: neighbouring reaches overlap by
+## twice the border, so the box is looked up on the ungrown tiles' grid; the caller tests the
+## original box against each candidate's actual reach.
+static func _reach_cells(box: Rect2, origin: Vector2, span: Rect2i) -> Rect2i:
+	var grown := box.grow(BORDER)
+	var low := _cell(grown.position, origin).clamp(span.position, span.end - Vector2i.ONE)
+	var high := _cell(grown.end, origin).clamp(span.position, span.end - Vector2i.ONE)
+	return Rect2i(low, high - low + Vector2i.ONE)
+
+
+## `cells` (grid cell -> reach index) as a flat table over `span`, row by row; -1 where no tile is.
+static func _table(cells: Dictionary, span: Rect2i) -> PackedInt32Array:
+	var table := PackedInt32Array()
+	table.resize(span.size.x * span.size.y)
+	table.fill(-1)
+	for cell: Vector2i in cells:
+		table[(cell.y - span.position.y) * span.size.x + cell.x - span.position.x] = cells[cell]
+	return table
 
 
 ## The cells (low corner, and past the high one) the grid's tiles occupy. A box far larger than the
@@ -516,21 +542,6 @@ static func _span(cells: Dictionary) -> Rect2i:
 		low = Vector2i(mini(low.x, cell.x), mini(low.y, cell.y))
 		high = Vector2i(maxi(high.x, cell.x), maxi(high.y, cell.y))
 	return Rect2i(low, high - low + Vector2i.ONE)
-
-
-## The indices of the reaches a box can meet. Neighbouring reaches overlap by twice the border, so
-## the box is grown and looked up on the ungrown tiles' grid; the caller tests the original box
-## against each candidate's actual reach.
-static func _candidates(box: Rect2, origin: Vector2, cells: Dictionary, span: Rect2i) -> Array[int]:
-	var grid_box := box.grow(BORDER)
-	var first := _cell(grid_box.position, origin).clamp(span.position, span.end - Vector2i.ONE)
-	var last := _cell(grid_box.end, origin).clamp(span.position, span.end - Vector2i.ONE)
-	var out: Array[int] = []
-	for y in range(first.y, last.y + 1):
-		for x in range(first.x, last.x + 1):
-			if cells.has(Vector2i(x, y)):
-				out.append(cells[Vector2i(x, y)])
-	return out
 
 
 ## Grid cell -> reach index for a genuine steering-tile grid; empty when the reaches are anything

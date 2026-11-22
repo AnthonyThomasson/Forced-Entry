@@ -24,6 +24,10 @@ const SOURCE_META := "nav_baked_source"
 const ORIGIN_META := "nav_baked_origin"
 ## The baker's contour error (cells): the most a hole's edge is moved by simplifying its outline.
 const EDGE_MAX_ERROR := 0.8
+## How near (px) to a polygon's edge a cell's centre is asked of `Geometry2D.is_point_in_polygon`
+## rather than read from where the polygon crosses the line of centres (`_fill`): the engine's
+## answer for a point on an edge differs from one point of it to the next, and the bake follows it.
+const TIE_DISTANCE := 0.05
 
 
 ## The walls as the source takes them: the `obstruction` outlines (on the map's 1 px grid)
@@ -239,26 +243,22 @@ static func _border_runs(
 	var floor_boxes := _boxes(floors)
 	for side in 4:
 		var band := _strip_across(tile, side).merge(_strip_inside(tile, side))
-		var reaching := _touching(boxes, band)
 		var blocks: Array[PackedVector2Array] = []
-		var spans: Array[Vector2] = []
-		for i in reaching:
+		for i in _touching(boxes, band):
 			blocks.append(obstructions[i])
-			spans.append(_span(boxes[i], side <= 1))
 		var near: Array[PackedVector2Array] = []
 		for i in _touching(floor_boxes, band):
 			near.append(floors[i])
-		out.append_array(_side_squares(blocks, spans, near, tile, side))
+		out.append_array(_side_squares(blocks, near, tile, side))
 	return out
 
 
-## `_border_runs` along the `side` of `tile`, from the polygons `blocks` (`spans`: the range each
-## covers along the border) and `floors` that reach its two columns. When the floor holds the whole
-## band only a cell level with a block can be held, and a band no floor reaches is held whole (the
-## others are asked cell by cell: the same cells as asking each).
+## `_border_runs` along the `side` of `tile`, from the polygons `blocks` and `floors` that reach its
+## two columns. A cell is a byte of `held`, found a line of cell centres at a time (`_fill`), not
+## a point at a time. When the floor holds the whole band only a cell in a block can be held, and a
+## band no floor reaches is held whole.
 static func _side_squares(
 	blocks: Array[PackedVector2Array],
-	spans: Array[Vector2],
 	floors: Array[PackedVector2Array],
 	tile: Rect2,
 	side: int,
@@ -271,41 +271,152 @@ static func _side_squares(
 		out.append(_run_inside(tile, side, first, last))
 		return out
 	var covered := _covers(floors, _strip_across(tile, side).merge(_strip_inside(tile, side)))
-	if covered and spans.is_empty():
+	if covered and blocks.is_empty():
 		return out
+	var held := PackedByteArray()
+	held.resize(int(roundf((last - first) / CELL_SIZE)) + 1)
+	var unfloored: Array[PackedVector2Array] = []
+	for across in [true, false]:
+		var cells := _line_held(blocks, unfloored if covered else floors, tile, side, across)
+		for k in held.size():
+			held[k] = held[k] | cells[k]
+	return _runs_of(held, tile, side)
+
+
+## The cells along the `side` of `tile` (a byte each, from the first centre) that are held on the
+## line of centres across the border (`across`) or inside it: in one of `blocks`, or in none of
+## `floors` (none given: only `blocks` hold).
+static func _line_held(
+	blocks: Array[PackedVector2Array],
+	floors: Array[PackedVector2Array],
+	tile: Rect2,
+	side: int,
+	across: bool,
+) -> PackedByteArray:
+	var along := side <= 1
+	var first := (tile.position.y if along else tile.position.x) + CELL_SIZE * 0.5
+	var last := (tile.end.y if along else tile.end.x) - CELL_SIZE * 0.5
+	var strip := _strip_across(tile, side) if across else _strip_inside(tile, side)
+	var at := strip.get_center().x if along else strip.get_center().y
+	var held := PackedByteArray()
+	held.resize(int(roundf((last - first) / CELL_SIZE)) + 1)
+	_fill(held, blocks, at, along, first)
+	if floors.is_empty():
+		return held
+	var inside := PackedByteArray()
+	inside.resize(held.size())
+	_fill(inside, floors, at, along, first)
+	for k in held.size():
+		held[k] = held[k] | (1 - inside[k])
+	return held
+
+
+## The cells of `held` (a byte each, from the first centre along the `side` of `tile`) that are 1,
+## each stretch of them one rectangle (`_run_inside`).
+static func _runs_of(
+	held: PackedByteArray,
+	tile: Rect2,
+	side: int,
+) -> Array[PackedVector2Array]:
+	var out: Array[PackedVector2Array] = []
+	var first := (tile.position.y if side <= 1 else tile.position.x) + CELL_SIZE * 0.5
 	var run_from := -INF
-	var mid := first
-	while mid <= last:
-		var held := (
-			(not covered or _within(spans, mid))
-			and _cell_held(tile, side, mid, blocks, floors)
-		)
-		if held and run_from == -INF:
+	for k in held.size():
+		var mid := first + CELL_SIZE * k
+		if held[k] == 1 and run_from == -INF:
 			run_from = mid
-		elif not held and run_from != -INF:
+		elif held[k] == 0 and run_from != -INF:
 			out.append(_run_inside(tile, side, run_from, mid - CELL_SIZE))
 			run_from = -INF
-		mid += CELL_SIZE
 	if run_from != -INF:
-		out.append(_run_inside(tile, side, run_from, last))
+		out.append(_run_inside(tile, side, run_from, first + CELL_SIZE * (held.size() - 1)))
 	return out
 
 
-## Whether the cell of `tile`'s outermost column on `side` level with `mid`, or the one across the
-## border from it, is held (`_held`).
-static func _cell_held(
-	tile: Rect2,
-	side: int,
-	mid: float,
-	blocks: Array[PackedVector2Array],
-	floors: Array[PackedVector2Array],
-) -> bool:
-	var along := side <= 1
-	var outer := _strip_across(tile, side).get_center()
-	var inner := _strip_inside(tile, side).get_center()
-	var across := Vector2(outer.x, mid) if along else Vector2(mid, outer.y)
-	var within := Vector2(inner.x, mid) if along else Vector2(mid, inner.y)
-	return _held(across, blocks, floors) or _held(within, blocks, floors)
+## Set to 1 each cell of `cells` (the centres `first` and every `CELL_SIZE` on, along the y axis
+## when `vertical`, else the x axis, on the line `at` across it) that lies in one of `polygons`
+## (what `Geometry2D.is_point_in_polygon` answers): the polygon's crossings with the line, paired in
+## order, are the stretches inside it. A centre on or within `TIE_DISTANCE` of an edge is no
+## stretch's to decide (the engine's answer on an edge is not the same at every point of it): it is
+## asked of the engine, one call each.
+static func _fill(
+	cells: PackedByteArray,
+	polygons: Array[PackedVector2Array],
+	at: float,
+	vertical: bool,
+	first: float,
+) -> void:
+	for polygon in polygons:
+		var crossings := PackedFloat64Array()
+		var windows := PackedFloat64Array()
+		_trace(polygon, at, vertical, crossings, windows)
+		var ties := _cells_in(windows, first, cells.size())
+		var kept := PackedByteArray()
+		for k in ties:
+			kept.append(cells[k])
+		crossings.sort()
+		for i in range(0, crossings.size() - 1, 2):
+			_mark(cells, crossings[i], crossings[i + 1], first)
+		for i in ties.size():
+			var centre := first + CELL_SIZE * ties[i]
+			var point := Vector2(at, centre) if vertical else Vector2(centre, at)
+			var inside := kept[i] == 1 or Geometry2D.is_point_in_polygon(point, polygon)
+			cells[ties[i]] = 1 if inside else 0
+
+
+## Where `polygon` meets the line `at` (across the axis `vertical` names): the points along the line
+## it crosses (`crossings`, a vertex on the line counts as just past it), and as pairs of `windows`
+## the stretches along it within `TIE_DISTANCE` of an edge.
+static func _trace(
+	polygon: PackedVector2Array,
+	at: float,
+	vertical: bool,
+	crossings: PackedFloat64Array,
+	windows: PackedFloat64Array,
+) -> void:
+	var from := polygon[polygon.size() - 1]
+	for to in polygon:
+		var u_from := from.x if vertical else from.y
+		var u_to := to.x if vertical else to.y
+		var v_from := from.y if vertical else from.x
+		var v_to := to.y if vertical else to.x
+		var near := TIE_DISTANCE * 2.0
+		if absf(u_from - at) <= TIE_DISTANCE:
+			windows.append(minf(v_from, v_to if absf(u_to - at) <= TIE_DISTANCE else v_from) - near)
+			windows.append(maxf(v_from, v_to if absf(u_to - at) <= TIE_DISTANCE else v_from) + near)
+		if (u_from > at) != (u_to > at):
+			var run := absf(v_to - v_from)
+			var reach := minf(TIE_DISTANCE * (1.0 + run / absf(u_to - u_from)), run + TIE_DISTANCE)
+			var v := v_from + (at - u_from) * (v_to - v_from) / (u_to - u_from)
+			crossings.append(v)
+			windows.append(v - reach)
+			windows.append(v + reach)
+		from = to
+
+
+## The cells (of `count`, centres `first` and every `CELL_SIZE` on) whose centre is in a stretch of
+## `windows` (pairs: from, to).
+static func _cells_in(windows: PackedFloat64Array, first: float, count: int) -> PackedInt32Array:
+	var out := PackedInt32Array()
+	for i in range(0, windows.size() - 1, 2):
+		for k in range(
+			maxi(ceili((windows[i] - first) / CELL_SIZE), 0),
+			mini(floori((windows[i + 1] - first) / CELL_SIZE), count - 1) + 1,
+		):
+			out.append(k)
+	return out
+
+
+## Set to 1 the cells of `cells` whose centre lies between `low` and `high` (either order).
+static func _mark(cells: PackedByteArray, low: float, high: float, first: float) -> void:
+	if low > high:
+		var swap := low
+		low = high
+		high = swap
+	var from := maxi(ceili((low - first) / CELL_SIZE), 0)
+	var to := mini(floori((high - first) / CELL_SIZE), cells.size() - 1)
+	for k in range(from, to + 1):
+		cells[k] = 1
 
 
 ## The bounds of each of `polygons`.
@@ -338,34 +449,6 @@ static func _covers(floors: Array[PackedVector2Array], band: Rect2) -> bool:
 		Vector2(band.position.x, band.end.y),
 	])
 	return Geometry2D.clip_polygons(corners, floors[0]).is_empty()
-
-
-## The range of `box` along a border's axis, `along` the y axis or the x.
-static func _span(box: Rect2, along: bool) -> Vector2:
-	return Vector2(box.position.y, box.end.y) if along else Vector2(box.position.x, box.end.x)
-
-
-## Whether `at` is in one of `spans`.
-static func _within(spans: Array[Vector2], at: float) -> bool:
-	for span in spans:
-		if at >= span.x and at <= span.y:
-			return true
-	return false
-
-
-## Whether the cell centred at `centre` is held: in one of `walls`, or in none of `floors`.
-static func _held(
-	centre: Vector2,
-	blocks: Array[PackedVector2Array],
-	floors: Array[PackedVector2Array],
-) -> bool:
-	for block in blocks:
-		if Geometry2D.is_point_in_polygon(centre, block):
-			return true
-	for floor_outline in floors:
-		if Geometry2D.is_point_in_polygon(centre, floor_outline):
-			return false
-	return true
 
 
 ## The strip of cells just outside `tile`'s `side` (0 left, 1 right, 2 top, 3 bottom).
