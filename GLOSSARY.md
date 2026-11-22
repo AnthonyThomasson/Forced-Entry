@@ -395,3 +395,16 @@ _Avoid_: overlay canvas, HUD layer
 A project-specific check over the tree that the engine's analyzer cannot make, one module per rule. It reports lines
 and never fixes them, one failing rule fails the lint, and a justified exception is a visible allow entry with a
 reason.
+
+### Setup
+
+**Von home**:
+The per-user folder that holds everything Von needs: its Python environment and its weights. Von is started with it as its
+working directory, because it looks for its weights only there.
+_Avoid_: Von install, Von folder
+
+**Bootstrap**:
+The one command per operating system that installs or upgrades everything the game, Von and the dev tooling need on a
+machine, at the versions pinned in the manifest. It does only what is missing or out of date, so running it again installs
+nothing and carries on from where an earlier run stopped.
+_Avoid_: installer, setup script
