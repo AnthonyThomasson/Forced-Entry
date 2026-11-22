@@ -336,15 +336,19 @@ def von_live(port: int, timeout: float = 5.0) -> bool:
         return False
 
 
+def von_boot_script(copy) -> Path:
+    """The boot script of this OS in the copy: tools/von/boot.ps1 on Windows, else boot.sh."""
+    return Path(copy) / "tools" / "von" / ("boot.ps1" if WINDOWS else "boot.sh")
+
+
 def von_boot_command(copy, port: int) -> list[str]:
     """The command that starts the Von server of the copy's boot script for this OS, start-only (the script installs
     nothing): Windows PowerShell 5.1 with -ExecutionPolicy Bypass on boot.ps1, else boot.sh itself."""
-    boot = Path(copy) / "tools" / "von"
     if WINDOWS:
         shell = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
         return [str(shell) if shell.is_file() else "powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy",
-                "Bypass", "-File", str(boot / "boot.ps1"), "-Port", str(port), "-BindHost", "127.0.0.1", "-Device", "cpu"]
-    return [str(boot / "boot.sh"), "--port", str(port), "--host", "127.0.0.1", "--device", "cpu"]
+                "Bypass", "-File", str(von_boot_script(copy)), "-Port", str(port), "-BindHost", "127.0.0.1", "-Device", "cpu"]
+    return [str(von_boot_script(copy)), "--port", str(port), "--host", "127.0.0.1", "--device", "cpu"]
 
 
 def von_line(log_path) -> str:
@@ -368,6 +372,9 @@ def log_tail(log_path) -> str:
 def ensure_von(copy, port: int = VON_PORT, log_path=None) -> VonServer:
     if von_live(port):
         return VonServer(live=True, note=f"Reusing the Von server already live on port {port}; it is left running.")
+    if not von_boot_script(copy).is_file():
+        return VonServer(live=False, note=f"No Von server on port {port} and no {von_boot_script(copy).name} in the copy: "
+                                          "the NPCs hold steady, so matches run to the time cap.")
     server = VonServer(live=False, started=True)
     try:
         # Started and recorded under signals_held: a server this run started is always one it stops.

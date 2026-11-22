@@ -128,6 +128,13 @@ class VonTests(unittest.TestCase):
         self.assertIn("bootstrap", von.note)
         self.assertIn("hold steady", von.note)
 
+    def test_a_copy_with_no_boot_script_has_no_server_and_says_so(self):
+        with TempDir() as d:
+            von = runner.ensure_von(d, port=free_port())
+        self.assertFalse(von.live)
+        self.assertFalse(von.started)
+        self.assertIn("hold steady", von.note)
+
     def test_a_boot_script_that_stops_for_another_reason_fails_the_run_naming_why(self):
         # Something else holds the port: the stand-in server cannot bind and ends with its own exit code.
         self.health()
