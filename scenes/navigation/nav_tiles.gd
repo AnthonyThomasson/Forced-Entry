@@ -451,16 +451,19 @@ static func _reaches(tiles: Array) -> Array[Rect2]:
 	return out
 
 
-## Whether `tile` was last baked from exactly `holes` (never baked: no).
+## Whether `tile` was last baked from `holes` (never baked: no), to within `NavSettle.TOLERANCE`:
+## a piece that settled by a hair is no change. The tile keeps the holes it was baked from, so a
+## piece creeping on does not escape: it is due once it is a tolerance away from where it was baked.
 static func _holes_unchanged(tile: NavigationRegion2D, holes: Array) -> bool:
-	return tile.has_meta(HOLES_META) and tile.get_meta(HOLES_META) == holes
+	return tile.has_meta(HOLES_META) and NavSettle.same_holes(tile.get_meta(HOLES_META), holes)
 
 
-## Whether `tile` was last baked from exactly `walls` and `holes` (never baked: no).
+## Whether `tile` was last baked from exactly `walls` and `holes` (to `NavSettle.TOLERANCE`; never
+## baked: no).
 static func _baked_from(tile: NavigationRegion2D, walls: Array, holes: Array) -> bool:
 	return (tile.has_meta(WALLS_META)
 			and tile.get_meta(WALLS_META) == walls
-			and tile.get_meta(HOLES_META) == holes)
+			and _holes_unchanged(tile, holes))
 
 
 ## A world point on `tile`'s navmesh (the centre of its first polygon), `Vector2.INF` when the tile
