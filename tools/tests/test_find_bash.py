@@ -20,8 +20,8 @@ class FindBashTests(unittest.TestCase):
     @unittest.skipUnless(sys.platform == "win32" and shutil.which("bash"), "Windows with a bash")
     def test_on_windows_it_is_never_the_wsl_launcher(self):
         lowered = fe_env.find_bash().lower()
-        self.assertNotIn("\system32\\", lowered)
-        self.assertNotIn("\windowsapps\\", lowered)
+        self.assertNotIn("\\system32\\", lowered)
+        self.assertNotIn("\\windowsapps\\", lowered)
 
 
 if __name__ == "__main__":

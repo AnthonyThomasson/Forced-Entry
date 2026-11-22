@@ -88,10 +88,14 @@ class SyncSkillsTests(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(len(self.calls()), 1)
 
-    def test_it_finds_the_skillshare_the_bootstrap_installs_in_the_setups_own_bin(self):
+    def test_the_skillshare_the_bootstrap_installs_in_the_setups_own_bin_wins_over_path(self):
         shutil.copytree(ROOT / "tools" / "setup", self.repo / "tools" / "setup", ignore=shutil.ignore_patterns("__pycache__"))
         fe_home = Path(self.home) / "fe-home"
         self.fake_skillshare(fe_home / "bin")
+        # A decoy on PATH, which must not win over the pinned one (as the bootstrap's own lookup orders them).
+        decoy = self.bin / "skillshare"
+        decoy.write_text("#!/bin/sh" + chr(10) + f'echo DECOY >> "{self.log}"' + chr(10))
+        decoy.chmod(decoy.stat().st_mode | stat.S_IEXEC)
         env = {"PATH": search_path(self.bin), "HOME": str(self.home), "FORCED_ENTRY_HOME": str(fe_home)}
         if WINDOWS:
             env["SYSTEMROOT"] = os.environ["SYSTEMROOT"]
@@ -99,6 +103,7 @@ class SyncSkillsTests(unittest.TestCase):
                            capture_output=True, text=True, timeout=30)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(len(self.calls()), 1)
+        self.assertNotIn("DECOY", self.calls()[0], "the pinned skillshare in <fe home>/bin wins over PATH")
 
     def test_the_copy_mode_copies_every_skill_and_needs_no_skillshare(self):
         skills = self.repo / ".skillshare" / "skills"

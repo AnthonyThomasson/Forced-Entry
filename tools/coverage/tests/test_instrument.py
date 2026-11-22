@@ -191,6 +191,7 @@ class UninstrumentedCopyTests(unittest.TestCase):
         self.assertIn("const COUNT := 0\n", (self.copy / instrument.PROBE_PATH).read_text())
 
 
+@needs_godot
 class EngineTests(InstrumentedFixture):
     def godot(self, *args: str) -> str:
         r = subprocess.run([godot_binary(), "--headless", "--path", str(self.copy), *args], capture_output=True,

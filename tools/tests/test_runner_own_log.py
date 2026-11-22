@@ -140,7 +140,8 @@ class RunnerOwnLogTests(unittest.TestCase):
 
     @unittest.skipIf(sys.platform == "win32", "scenes/testing/log_watch.gd reads the engine's own --log-file off its command line "
                      "(/proc/self/cmdline or `ps`), which the engine consumes and OS.get_cmdline_args() does not return: on "
-                     "Windows the only source is a slow WMI/PowerShell query, so a Windows process has no log of its own there")
+                     "Windows the only source is a slow WMI/PowerShell query, so a Windows process has no log of its own there. "
+                     "Follow-up to be filed: read the log path from GAME_LOG_FILE (tools/editor.sh exports it) in log_watch.gd")
     def test_its_own_error_fails_the_test_though_another_godot_started_meanwhile(self):
         """A start with a log of its own (`--log-file`): the other start rotates and writes the default log, and the
         runner's own error, logged after it, is still its own."""

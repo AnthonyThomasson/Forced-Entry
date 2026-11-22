@@ -82,6 +82,9 @@ ANNOTATE_REFRESH = 10.0
 LOCK_AT = 1 << 20
 # What `stop` sends second: SIGKILL; Windows has none, and os.kill ends a process there whatever the signal.
 SIGKILL = getattr(signal, "SIGKILL", signal.SIGTERM)
+# Windows: how often a probe of a slot tries its lock, and the pause between tries.
+PROBE_TRIES = 4
+PROBE_PAUSE = 0.02
 # The lock file that serialises the takers of a pool (it is not a slot).
 GUARD = "slot-reclaim.lock"
 VERDICT = re.compile(r"^(PASS|FAIL|TIMEOUT|SKIPPED|GAP)\s+\S+\s+\(")
@@ -231,6 +234,18 @@ def take_any():
     return None
 
 
+def probe_free(fd: int) -> bool:
+    """Whether the probe got the lock. Windows has no shared byte-range lock, so a probe takes the exclusive one for a
+    moment, and two probes (or a probe and a taker) can collide on it: it tries a few times, 20 ms apart, before it says a
+    slot is held (a slot a live process holds stays locked through all of them)."""
+    for attempt in range(PROBE_TRIES if WINDOWS else 1):
+        if attempt:
+            time.sleep(PROBE_PAUSE)
+        if lock_try(fd, shared=True):
+            return True
+    return False
+
+
 def held(path: Path) -> bool:
     """Whether a live process holds the slot at `path`. Probes with a shared lock: it takes no slot, writes no pid and
     makes no file."""
@@ -239,7 +254,7 @@ def held(path: Path) -> bool:
     except FileNotFoundError:
         return False
     try:
-        if not lock_try(fd, shared=True):
+        if not probe_free(fd):
             return not orphaned(path)
         unlock(fd)
         return False
@@ -593,11 +608,80 @@ def run_child(argv: list) -> int:
         print("godot_slot.py run: %s: command not found" % argv[0], file=sys.stderr)
         return 127
     child = subprocess.Popen(command_for(program, argv[1:]))
-    while True:
-        try:
-            return child.wait()
-        except KeyboardInterrupt:
-            pass  # Ctrl-C reaches the child as well, on the same console: wait for it to end
+    job = kill_on_close_job(child)
+    try:
+        while True:
+            try:
+                return child.wait()
+            except KeyboardInterrupt:
+                pass  # Ctrl-C reaches the child as well, on the same console: wait for it to end
+    finally:
+        if job is not None:
+            release_job(job)
+
+
+JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000
+JOB_OBJECT_EXTENDED_LIMIT_INFORMATION = 9
+
+
+def job_limits(flags: int):
+    """(the JOBOBJECT_EXTENDED_LIMIT_INFORMATION type's instance with `flags`, its size) for SetInformationJobObject."""
+    import ctypes
+    from ctypes import wintypes
+
+    class Basic(ctypes.Structure):
+        _fields_ = [("PerProcessUserTimeLimit", ctypes.c_int64), ("PerJobUserTimeLimit", ctypes.c_int64),
+                    ("LimitFlags", wintypes.DWORD), ("MinimumWorkingSetSize", ctypes.c_size_t),
+                    ("MaximumWorkingSetSize", ctypes.c_size_t), ("ActiveProcessLimit", wintypes.DWORD),
+                    ("Affinity", ctypes.c_size_t), ("PriorityClass", wintypes.DWORD), ("SchedulingClass", wintypes.DWORD)]
+
+    class Counters(ctypes.Structure):
+        _fields_ = [(name, ctypes.c_uint64) for name in ("ReadOps", "WriteOps", "OtherOps", "ReadBytes", "WriteBytes",
+                                                         "OtherBytes")]
+
+    class Extended(ctypes.Structure):
+        _fields_ = [("Basic", Basic), ("Io", Counters), ("ProcessMemoryLimit", ctypes.c_size_t),
+                    ("JobMemoryLimit", ctypes.c_size_t), ("PeakProcessMemoryUsed", ctypes.c_size_t),
+                    ("PeakJobMemoryUsed", ctypes.c_size_t)]
+
+    info = Extended()
+    info.Basic.LimitFlags = flags
+    return info, ctypes.sizeof(info)
+
+
+def kill_on_close_job(child):
+    """Windows: put `child` in a job object that ends it, and what it started, when this process ends or dies in any way
+    (a killed wrapper would otherwise leave the engine running with its slot free). The handle of the job, None when it
+    could not be made (the child then just runs unguarded)."""
+    import ctypes
+
+    kernel = windows_kernel()
+    try:
+        kernel.CreateJobObjectW.restype = ctypes.c_void_p
+        job = kernel.CreateJobObjectW(None, None)
+        if not job:
+            return None
+        info, length = job_limits(JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE)
+        kernel.SetInformationJobObject.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32]
+        kernel.AssignProcessToJobObject.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+        if (not kernel.SetInformationJobObject(job, JOB_OBJECT_EXTENDED_LIMIT_INFORMATION, ctypes.byref(info), length)
+                or not kernel.AssignProcessToJobObject(job, int(child._handle))):
+            kernel.CloseHandle(job)
+            return None
+        return job
+    except (OSError, AttributeError, ValueError):
+        return None
+
+
+def release_job(job) -> None:
+    """The child ended normally: drop the kill-on-close flag, so what it left running (a Von server) outlives it as on a
+    Mac, and let go of the job."""
+    import ctypes
+
+    kernel = windows_kernel()
+    info, length = job_limits(0)
+    kernel.SetInformationJobObject(job, JOB_OBJECT_EXTENDED_LIMIT_INFORMATION, ctypes.byref(info), length)
+    kernel.CloseHandle(job)
 
 
 def main(argv: list) -> int:

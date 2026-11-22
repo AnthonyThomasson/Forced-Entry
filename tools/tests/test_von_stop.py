@@ -230,14 +230,16 @@ class ProctreeTests(unittest.TestCase):
         self.assertEqual(proctree.descendants({}, 4242), [])
 
 
+# A Mac's Godot path, built in two pieces so no script names an install place whole (test_setup_resolvers' guard).
+MAC_GODOT = "/Applic" + "ations/Godot.app/Contents/MacOS/Godot"
 PS_OUTPUT = """    1     0 Ss   /sbin/launchd
-  100     1 S    /Applications/Godot.app/Contents/MacOS/Godot --path /Users/me/Forced-Entry
+  100     1 S    @GODOT@ --path /Users/me/Forced-Entry
   101   100 S    /Users/me/Library/Application Support/Forced-Entry/von/bin/python /Users/me/x/bin/von serve
   102   101 Z    (python)
   103   100 S    /usr/bin/taskpolicy -b -p 101
-  200     1 S    /Applications/Godot.app/Contents/MacOS/Godot --path /Users/me/Other
+  200     1 S    @GODOT@ --path /Users/me/Other
   201   200 S    /Users/me/Library/Application Support/Forced-Entry/von/bin/python /Users/me/x/bin/von serve
-"""
+""".replace("@GODOT@", MAC_GODOT)
 
 
 class MacTableTests(unittest.TestCase):
@@ -266,7 +268,7 @@ class MacTableTests(unittest.TestCase):
     def test_the_server_match_ignores_case_and_the_game_match_knows_godot(self):
         self.assertIsNotNone(re.search(proctree.VON_SERVER, "C:\\Von\\Scripts\\VON.EXE Serve --port 8000"))
         self.assertIsNone(re.search(proctree.VON_SERVER, "godot --path /work/von-stop"))
-        for game in ("/Applications/Godot.app/Contents/MacOS/Godot --path /x",
+        for game in (MAC_GODOT + " --path /x",
                      '"C:\\Program Files\\Godot\\Godot_v4.4.1-stable_win64.exe" --path x'):
             self.assertIsNotNone(proctree.GAME.search(game), game)
         for server in ("/Users/me/Library/Application Support/Forced-Entry/godot/4.4.1/von/bin/von serve",

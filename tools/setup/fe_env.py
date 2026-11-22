@@ -125,7 +125,7 @@ def find_bash() -> str | None:
     if os_name() != "windows":
         return found
     def wsl(path: str | None) -> bool:
-        return path is None or any(part in path.lower() for part in ("\system32\\", "\windowsapps\\"))
+        return path is None or any(part in path.lower() for part in ("\\system32\\", "\\windowsapps\\"))
     if not wsl(found):
         return found
     candidates = []

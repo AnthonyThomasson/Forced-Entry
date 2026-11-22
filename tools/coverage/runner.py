@@ -241,8 +241,20 @@ def godot_binary() -> str:
     """The Godot binary, found as the scripts find it (tools/setup/fe_env.py)."""
     found = fe_env.find_godot()
     if found:
-        return found
+        return engine_itself(found)
     raise RunFailed("Godot binary not found (set GODOT=/path/to/Godot)")
+
+
+def engine_itself(binary: str) -> str:
+    """Windows: Godot's `..._console.exe` is a redirector that starts the real `Godot_....exe` as its child and waits, so
+    the pid a run holds (and the hit file named by the game's own pid, and a kill of that pid) would be the redirector's.
+    The engine itself takes the same arguments and writes to redirected stdout the same, so a run starts it directly."""
+    path = Path(binary)
+    if sys.platform == "win32" and path.stem.lower().endswith("_console"):
+        direct = path.with_name(path.stem[:-len("_console")] + path.suffix)
+        if direct.is_file():
+            return str(direct)
+    return binary
 
 
 def game_env(copy, **extra: str) -> dict:

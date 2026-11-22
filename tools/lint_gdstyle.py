@@ -38,7 +38,7 @@ def ignored_folders() -> list[str]:
 
 
 def relative(path: str) -> str:
-    path = path.replace("\\", "/")  # gdstyle prints .\scenes\x.gd on Windows
+    path = path.replace(os.sep, "/")  # gdstyle prints .\scenes\x.gd on Windows (a no-op where os.sep is "/")
     return path[2:] if path.startswith("./") else path
 
 

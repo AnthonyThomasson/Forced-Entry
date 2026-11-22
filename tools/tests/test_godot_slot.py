@@ -21,7 +21,11 @@ WINDOWS = sys.platform == "win32"
 posix_only_signals = unittest.skipIf(
     WINDOWS, "POSIX signals: Windows ends a process outright, with no SIGTERM to catch and no -SIGTERM exit status")
 slow_process_table = unittest.skipIf(
-    WINDOWS, "times a process-table read (3 s and under): the Win32 snapshot took 3 to 14 s on a loaded Windows machine")
+    WINDOWS, "the contract: `stop` with nothing left returns within 3 s and `annotate` samples the busy count once, not per "
+             "line. On the Windows dev machine every process listing took 1.5 to 16 s (CreateToolhelp32Snapshot and "
+             "NtQuerySystemInformation alike, so no cheaper read exists; the table is not the code's to shrink), and `stop` "
+             "and `annotate` each read it several times. Follow-up to be filed: measure process-table reads on an idle "
+             "Windows machine and, if still slow, read the table once per `stop` round and per `annotate` run")
 uses_ps = unittest.skipIf(WINDOWS, "fakes the POSIX `ps` command, which Windows has no use for")
 
 # A process holding the lock of a slot file, as a Von server a dead engine started does: the file names `argv[2]`.
@@ -147,6 +151,46 @@ class ReclaimRaceTests(SlotFixture):
             _, err = p.communicate(timeout=30)
             self.assertEqual(p.returncode, 0, err)
         deleter.communicate(timeout=30)
+
+
+@unittest.skipUnless(WINDOWS, "Windows only: `run` is a waiting child there (a Mac execs, so the command is the slot's holder)")
+class WindowsRunTests(SlotFixture):
+    def run_wrapper(self, child_code):
+        env = dict(os.environ, GAME_TEST_SLOT_DIR=str(self.slots))
+        return self.spawn_plain([sys.executable, "-I", str(SLOT_TOOL), "run", "--", sys.executable, "-c", child_code], env)
+
+    def spawn_plain(self, cmd, env):
+        p = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, text=True)
+        self.procs.append(p)
+        return p
+
+    def test_the_commands_exit_status_is_the_wrappers(self):
+        p = self.run_wrapper("import sys; sys.exit(7)")
+        self.assertEqual(p.wait(timeout=30), 7)
+
+    def test_a_wrapper_that_is_killed_alone_takes_its_command_with_it(self):
+        child = "import os, time; print(os.getpid(), flush=True); time.sleep(120)"
+        wrapper = self.run_wrapper(child)
+        pid = int(wrapper.stdout.readline())
+        self.assertTrue(godot_slot.alive(pid))
+        wrapper.kill()
+        wrapper.wait(timeout=30)
+        deadline = time.monotonic() + 15
+        while godot_slot.alive(pid) and time.monotonic() < deadline:
+            time.sleep(0.1)
+        self.assertFalse(godot_slot.alive(pid), "the engine would run on with its slot free")
+
+    def test_a_command_that_ended_normally_leaves_what_it_started_running(self):
+        # As on a Mac, a Von server the engine started outlives it: only an abnormal end of the wrapper kills it.
+        grandchild = "import os, time; print(os.getpid(), flush=True); time.sleep(120)"
+        child = ("import subprocess, sys; p = subprocess.Popen([sys.executable, '-c', %r], stdout=subprocess.PIPE, text=True); "
+                 "print(p.stdout.readline().strip(), flush=True)" % grandchild)
+        wrapper = self.run_wrapper(child)
+        pid = int(wrapper.stdout.readline())
+        self.assertEqual(wrapper.wait(timeout=30), 0)
+        time.sleep(0.5)
+        self.assertTrue(godot_slot.alive(pid), "the leftover was killed with a normal end")
+        os.kill(pid, signal.SIGTERM)  # Windows: ends it
 
 
 class ProbeTests(SlotFixture):

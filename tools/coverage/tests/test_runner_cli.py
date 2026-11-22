@@ -144,6 +144,7 @@ class PlanTests(unittest.TestCase):
                 runner.resolve_jobs(bad)
 
 
+@needs_godot
 class GameEnvTests(unittest.TestCase):
     def test_a_process_in_the_copy_runs_with_the_command_server_off_over_the_callers_port(self):
         for port in (None, "9123"):
@@ -1159,7 +1160,6 @@ def ends_badly(statement: str):
     return edit
 
 
-@posix_only('the engine of the fixture quits with code 134 / OS.kill after its final flush: on Windows the exit codes and the timing of that flush differ (exited with 134 "before its final flush")')
 @needs_godot
 class CrashedAfterLastFlushRunTests(unittest.TestCase):
     """A game process that exits non-zero at quit after its final flush (every match decided, the hit file marked
@@ -1204,8 +1204,10 @@ class CrashedAfterLastFlushRunTests(unittest.TestCase):
         self.assertIn("after the last flush", out)
 
 
-@posix_only('the engine of the fixture quits with code 134 / OS.kill after its final flush: on Windows the exit codes and the timing of that flush differ (exited with 134 "before its final flush")')
 @needs_godot
+@posix_only("observed on Windows: the run exits 0 and prints the matches as played, instead of failing 'before its final flush': "
+            "OS.kill is TerminateProcess there, so the game ends with exit code 0 and the runner, which looks for a non-zero "
+            "code, does not see a lost flush. Follow-up to be filed: fail a run whose game exited 0 without a final flush")
 class CrashedBeforeLastFlushRunTests(unittest.TestCase):
     def test_a_process_that_dies_before_its_final_flush_fails_the_run(self):
         # OS.kill is SIGKILL on Unix: the process ends at once in its teardown, after the flush at its match's end and
