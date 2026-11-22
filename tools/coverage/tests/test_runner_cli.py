@@ -51,7 +51,7 @@ from pathlib import Path
 from tools.coverage import hits, instrument, runner, workspace
 from tools.coverage.tests.support import (
     ROOT, RUN_FILES, class_tempdir, env_with_godot, fixture_repo, git, git_status, godot_binary, needs_godot, newest_run,
-    project_repo, read_json, run_cli, run_folders, slow, tree_digest, wait_for, TempDir,
+    project_repo, read_json, run_cli, run_folders, slow, tree_digest, wait_for, TempDir, needs_symlinks, posix_only,
 )
 
 FOLDER = re.compile(r"^(?P<sha>[0-9a-f]{7,40})-(?P<time>.+)-(?P<kind>matches|tests)$")
@@ -464,6 +464,7 @@ def failing_import(d: Path, hang: bool) -> Path:
     return path
 
 
+@posix_only('shebang fake engine: Windows runs no #! line and the runner starts the engine directly')
 @needs_godot
 class ImportFailureTests(unittest.TestCase):
     """A never-imported copy's import (runner.ensure_imported) that exits non-zero or outlasts IMPORT_TIMEOUT is a
@@ -516,6 +517,7 @@ class ImportFailureTests(unittest.TestCase):
         self.assertEqual(left, [])
 
 
+@posix_only('POSIX signals (SIGTERM, SIGHUP, SIGKILL, kill -9, process groups): Windows has none of them')
 @needs_godot
 class KillTests(unittest.TestCase):
     def test_a_process_killed_with_kill_9_leaves_its_last_flush(self):
@@ -1125,9 +1127,9 @@ class BrokenTestsRunTests(unittest.TestCase):
         def crash(repo: Path) -> None:
             script = repo / "tools" / "run_tests.sh"
             text = script.read_text()
-            anchor = 'cd "$(dirname "$0")/.."\n'
+            anchor = 'TOOLS="$(cd "$(dirname "$0")" && pwd)"'  # the wrapper's first statement that needs its own folder
             assert anchor in text
-            script.write_text(text.replace(anchor, anchor + "echo 'crashed before any test' >&2\nexit 3\n", 1))
+            script.write_text(text.replace(anchor, "echo 'crashed before any test' >&2\nexit 3\n" + anchor, 1), newline="\n")
         with TempDir() as d:
             repo = fixture_repo(d, crash)
             r = run_cli(repo, "run", "--tests")
@@ -1157,6 +1159,7 @@ def ends_badly(statement: str):
     return edit
 
 
+@posix_only('the engine of the fixture quits with code 134 / OS.kill after its final flush: on Windows the exit codes and the timing of that flush differ (exited with 134 "before its final flush")')
 @needs_godot
 class CrashedAfterLastFlushRunTests(unittest.TestCase):
     """A game process that exits non-zero at quit after its final flush (every match decided, the hit file marked
@@ -1201,6 +1204,7 @@ class CrashedAfterLastFlushRunTests(unittest.TestCase):
         self.assertIn("after the last flush", out)
 
 
+@posix_only('the engine of the fixture quits with code 134 / OS.kill after its final flush: on Windows the exit codes and the timing of that flush differ (exited with 134 "before its final flush")')
 @needs_godot
 class CrashedBeforeLastFlushRunTests(unittest.TestCase):
     def test_a_process_that_dies_before_its_final_flush_fails_the_run(self):
@@ -1295,6 +1299,7 @@ class CleanupOnExitTests(unittest.TestCase):
             self.assertIn("match_world", r.stdout + r.stderr, "it failed part-way, in the probe")
             self.assertEqual(scratch_left(repo), [])
 
+    @posix_only('POSIX signals (SIGTERM, SIGHUP, SIGKILL, kill -9, process groups): Windows has none of them, ps')
     def test_a_run_that_raises_part_way_stops_its_games_and_leaves_nothing(self):
         # Seed 8999 ends in a few frames; 9000 is a stalemate, still playing when 8999's progress line comes in.
         class Boom(Exception):
@@ -1316,6 +1321,7 @@ class CleanupOnExitTests(unittest.TestCase):
         self.assertTrue(games, "the stalemate's game was running when the run raised")
         self.assertTrue(all(dead(pid) for pid in games), f"every game the run started is stopped: {games}")
 
+    @needs_symlinks
     def test_a_run_in_a_repo_whose_artifacts_is_a_symlink_cleans_both_folders_and_keeps_its_exit_code(self):
         with TempDir() as d:
             repo = fixture_repo(d)
@@ -1381,15 +1387,19 @@ class CleanupOnExitTests(unittest.TestCase):
             self.assertEqual(scratch_left(repo), [], out)
         self.assertTrue(stopped, f"every game the run started is stopped: {[p for p in games if not dead(p)]}")
 
+    @posix_only('POSIX signals (SIGTERM, SIGHUP, SIGKILL, kill -9, process groups): Windows has none of them, ps')
     def test_sigterm_mid_match_stops_its_games_and_leaves_nothing(self):
         self.interrupted(signal.SIGTERM, ("--matches=1", "--jobs=1", "--seed=9000"))
 
+    @posix_only('POSIX signals (SIGTERM, SIGHUP, SIGKILL, kill -9, process groups): Windows has none of them, ps')
     def test_ctrl_c_mid_match_stops_its_games_and_leaves_nothing(self):
         self.interrupted(signal.SIGINT, ("--matches=1", "--jobs=1", "--seed=9000"))
 
+    @posix_only('POSIX signals (SIGTERM, SIGHUP, SIGKILL, kill -9, process groups): Windows has none of them, ps')
     def test_sigterm_mid_tests_stops_the_runners_games_and_leaves_nothing(self):
         self.interrupted(signal.SIGTERM, ("--tests",), stalls_in_tests)
 
+    @posix_only('POSIX signals (SIGTERM, SIGHUP, SIGKILL, kill -9, process groups): Windows has none of them, ps')
     def test_sighup_mid_match_stops_its_games_and_leaves_nothing(self):
         self.interrupted(signal.SIGHUP, ("--matches=1", "--jobs=1", "--seed=9000"))
 
@@ -1419,6 +1429,7 @@ def end(proc: subprocess.Popen) -> None:
 
 @needs_godot
 class LeftoverTests(unittest.TestCase):
+    @posix_only('POSIX signals (SIGTERM, SIGHUP, SIGKILL, kill -9, process groups): Windows has none of them')
     def test_a_run_sweeps_a_killed_runs_folders_and_never_a_live_ones(self):
         with TempDir() as d:
             repo = fixture_repo(d)
@@ -1523,6 +1534,7 @@ def kill_left(test: unittest.TestCase, pid: int | None, group: bool = True) -> N
         test.addCleanup(os.killpg if group else os.kill, pid, signal.SIGKILL)
 
 
+@posix_only('POSIX signals (SIGTERM, SIGHUP, SIGKILL, kill -9, process groups): Windows has none of them')
 @needs_godot
 class SecondSignalTests(unittest.TestCase):
     """A second stopping signal, sent while the first one's cleanup runs, cuts none of it short."""
@@ -1561,6 +1573,7 @@ class SecondSignalTests(unittest.TestCase):
             self.assertEqual(scratch_left(repo), [], out)
 
 
+@posix_only('POSIX signals (SIGTERM, SIGHUP, SIGKILL, kill -9, process groups): Windows has none of them')
 class SignalPhaseTests(unittest.TestCase):
     """A stopping signal in each phase before play stops what the run started there and leaves nothing (in this
     process: no Godot is reached)."""

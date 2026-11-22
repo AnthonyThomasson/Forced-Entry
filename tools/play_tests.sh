@@ -60,10 +60,19 @@ fe_use_godot || exit $?
 # One test window per worktree: close the one an earlier run opened, only if that pid is still our runner on this
 # checkout (a pid is reused once its process is gone; the editor and the editor's game never run the runner scene).
 scene="res://scenes/testing/test_runner.tscn"
+# Whether process $1 is the test window an earlier run opened here. POSIX: its command line says so (--path, log file
+# and queue). Git Bash's `ps` shows no command line, only the executable, so on Windows a Godot is as much as it can tell
+# (the pid file is this worktree's own, so a pid reused by another Godot is the one risk).
+is_our_window() {
+  if [[ "$(fe_os)" == windows ]]; then
+    ps -p "$1" 2>/dev/null | grep -qi godot
+  else
+    ps -o command= -p "$1" 2>/dev/null | grep -qF -- "--path $root --log-file $dir/godot.log $scene -- --queue="
+  fi
+}
 if [[ -f "$pid_file" ]]; then
   old="$(cat "$pid_file")"
-  if [[ "$old" =~ ^[0-9]+$ ]] \
-      && ps -o command= -p "$old" 2>/dev/null | grep -qF -- "--path $root --log-file $dir/godot.log $scene -- --queue="; then
+  if [[ "$old" =~ ^[0-9]+$ ]] && is_our_window "$old"; then
     kill "$old" 2>/dev/null || true
     for _ in {1..30}; do kill -0 "$old" 2>/dev/null || break; sleep 0.1; done
     kill -0 "$old" 2>/dev/null && kill -9 "$old" 2>/dev/null || true

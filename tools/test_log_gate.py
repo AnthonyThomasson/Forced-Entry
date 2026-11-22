@@ -992,7 +992,7 @@ class SlotPoolTests(unittest.TestCase):
     def env(self, **extra):
         env = {k: v for k, v in os.environ.items() if k not in ("GAME_TEST_JOBS", "GAME_TEST_CHANGED_FILES")}
         return dict(env, GODOT=str(self.fake), TMPDIR=str(self.work), GAME_TEST_SLOT_DIR=str(self.slots),
-                    GAME_TEST_SLOT_POLL="0.05", FAKE_CONC_DIR=str(self.conc), PATH=f"{self.bin}:{os.environ['PATH']}",
+                    GAME_TEST_SLOT_POLL="0.05", FAKE_CONC_DIR=str(self.conc), PATH=f"{self.bin}{os.pathsep}{os.environ['PATH']}",
                     **{"FAKE_SLEEP": "1", **extra})
 
     def wrapper(self, *args, **env):
@@ -1350,7 +1350,7 @@ class QuietGateTests(unittest.TestCase):
     def start(self, *args, **env):
         env = dict({k: v for k, v in os.environ.items() if k != "GAME_TEST_JOBS"}, GODOT=str(self.fake), TMPDIR=str(self.work),
                    FAKE_LOAD=str(self.load), FAKE_OTHERS=str(self.others), FAKE_SELF_PIDS=str(self.work / "self"),
-                   FAKE_LOG=str(self.log), GAME_TEST_SLOT_DIR=str(self.work / "slots"), PATH=f"{self.bin}:{os.environ['PATH']}",
+                   FAKE_LOG=str(self.log), GAME_TEST_SLOT_DIR=str(self.work / "slots"), PATH=f"{self.bin}{os.pathsep}{os.environ['PATH']}",
                    GAME_TEST_QUIET_MINUTE="0.3", GAME_TEST_QUIET_POLL="0.05", GAME_TEST_SLOT_POLL="0.05",
                    GAME_TEST_BUSY_SAMPLE="0.1", **env)
         return subprocess.Popen(["bash", str(RUN), "--no-lint", *args], cwd=ROOT, env=env, stdout=subprocess.PIPE,

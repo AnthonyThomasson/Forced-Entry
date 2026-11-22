@@ -38,15 +38,46 @@ safe="${ticket//[^A-Za-z0-9._-]/_}"
 log="${TMPDIR:-/tmp}/editor_$safe.log"
 engine_log="${TMPDIR:-/tmp}/game_$safe.engine.log"
 
+# Windows has no pgrep, `ps eww` or lsof (Git Bash's ps shows neither a command line nor an environment): an editor this
+# script started is found through the pid file it wrote ("<pid> <command port>"), and a game window through a connect to
+# the port. An editor started any other way is not found there.
+pid_file="${TMPDIR:-/tmp}/editor_$safe.pid"
+windows=""; [[ "$(fe_os)" == windows ]] && windows=1
+
+# Sets `running` (the pid of an editor on this worktree, "" when none) and `recorded_port` (its command port).
+find_editor() {
+  running=""; recorded_port=""
+  if [[ -n "$windows" ]]; then
+    local pid="" cport=""
+    if [[ -f "$pid_file" ]]; then read -r pid cport < "$pid_file" || true; fi
+    if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null && ps -p "$pid" 2>/dev/null | grep -qi godot; then
+      running="$pid"; recorded_port="$cport"
+    fi
+  else
+    running=$(pgrep -f -- "--editor --path $path( |\$)" | head -1 || true)
+    if [[ -n "$running" ]]; then
+      recorded_port="$(ps eww -p "$running" 2>/dev/null | tr ' ' '\n' | sed -n 's/^GODOT_CMD_PORT=//p' | head -1)"
+    fi
+  fi
+}
+
+# Whether something listens on TCP port $1 (the game window of the editor's command port).
+port_listening() {
+  if [[ -n "$windows" ]]; then
+    "$PYTHON" -c 'import socket, sys; socket.create_connection(("127.0.0.1", int(sys.argv[1])), 1).close()' "$1" 2>/dev/null
+  else
+    lsof -nP -iTCP:"$1" -sTCP:LISTEN > /dev/null 2>&1
+  fi
+}
+
 # Already open on this worktree? Report it instead of starting a second editor.
-running=$(pgrep -f -- "--editor --path $path( |\$)" | head -1 || true)
+find_editor
 if [[ -n "$running" ]]; then
-  recorded_port="$(ps eww -p "$running" 2>/dev/null | tr ' ' '\n' | sed -n 's/^GODOT_CMD_PORT=//p' | head -1)"
   recorded_port="${recorded_port:-default (not started by this script)}"
   echo "editor already running | pid $running | name $ticket | command port $recorded_port | log $log"
   # --autorun with no game window open (nothing listening on the editor's command port): open the game on its own, with
   # the editor's name and port, since Play cannot be pressed in an editor that is already up.
-  if [[ -n "$autorun" && "$recorded_port" =~ ^[0-9]+$ ]] && ! lsof -nP -iTCP:"$recorded_port" -sTCP:LISTEN > /dev/null 2>&1; then
+  if [[ -n "$autorun" && "$recorded_port" =~ ^[0-9]+$ ]] && ! port_listening "$recorded_port"; then
     game_log="${TMPDIR:-/tmp}/game_$safe.log"
     GAME_TICKET="$ticket" GODOT_CMD_PORT="$recorded_port" nohup "$GODOT" --path "$path" \
       --log-file "$engine_log" > "$game_log" 2>&1 &
@@ -81,4 +112,5 @@ fi
 export GAME_TICKET="$ticket" GODOT_CMD_PORT="$port" GAME_LOG_FILE="$engine_log"
 [[ -n "$autorun" ]] && export GAME_AUTORUN=1
 nohup "$GODOT" --editor --path "$path" > "$log" 2>&1 &
+if [[ -n "$windows" ]]; then echo "$! $port" > "$pid_file"; fi
 echo "editor pid $! | name $ticket | command port $port | log $log | game engine log $engine_log"

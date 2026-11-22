@@ -38,7 +38,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 SOURCE_DIRS = ("scenes", "tests", "tools", "addons")
-FIXTURES = os.path.join("tools", "coverage", "tests", "fixtures")
+FIXTURES = "tools/coverage/tests/fixtures"
 SOURCE_EXT = (".gd", ".tscn", ".tres", ".py", ".sh", ".json")
 LIFECYCLE = {
     "_ready", "_process", "_physics_process", "_draw", "_init", "_input", "_exit_tree", "_enter_tree",
@@ -92,11 +92,11 @@ def source_files(root: str = ".") -> list:
         if not os.path.isdir(os.path.join(root, r)):
             continue
         for d, dirs, fs in os.walk(os.path.join(root, r)):
-            rel = os.path.relpath(d, root)
-            if rel == FIXTURES or rel.startswith(FIXTURES + os.sep):
+            rel = os.path.relpath(d, root).replace(os.sep, "/")  # forward slashes on every OS (unit_of splits on them)
+            if rel == FIXTURES or rel.startswith(FIXTURES + "/"):
                 dirs[:] = []
                 continue
-            found += [os.path.join(rel, f) for f in fs if f.endswith(SOURCE_EXT)]
+            found += [rel + "/" + f for f in fs if f.endswith(SOURCE_EXT)]
     return found
 
 
@@ -270,7 +270,7 @@ def gated_facts() -> set:
         if p.endswith((".gd", ".tscn")) and p.startswith("scenes"):
             for m in re.finditer(r"entry_rules\b[^=\n]*=\s*\{(.*?)\}", read(p), re.S):
                 gated.update(re.findall(r"&?\"(\w+)\"\s*:", m.group(1)))
-        elif p.startswith(("tests", "tools")) and p != os.path.join("tools", "audit_scan.py"):
+        elif p.startswith(("tests", "tools")) and p != "tools/audit_scan.py":
             for line in read(p).split("\n"):
                 if re.search(r"\bfacts\b|requires|entry_rules", line):
                     gated.update(re.findall(r"&?\"!?([a-z_]+)\"", line))

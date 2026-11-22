@@ -116,3 +116,27 @@ def find_godot() -> str | None:
         if found:
             return found
     return _godot_in([godot_dir()] + _search_folders())
+
+
+def find_bash() -> str | None:
+    """The bash that runs the repo's shell scripts: `bash` on PATH; on Windows Git Bash, never WSL's launcher in System32
+    (or the WindowsApps stub), which cannot run a script by its Windows path."""
+    found = shutil.which("bash")
+    if os_name() != "windows":
+        return found
+    def wsl(path: str | None) -> bool:
+        return path is None or any(part in path.lower() for part in ("\system32\\", "\windowsapps\\"))
+    if not wsl(found):
+        return found
+    candidates = []
+    git = shutil.which("git")
+    if git:
+        root = Path(git).resolve().parent.parent  # <Git>/cmd/git.exe or <Git>/mingw64/bin/git.exe
+        candidates += [root / "bin" / "bash.exe", root / "usr" / "bin" / "bash.exe",
+                       root.parent / "bin" / "bash.exe", root.parent / "usr" / "bin" / "bash.exe"]
+    files = Path(os.environ.get("PROGRAMFILES") or "C:/Program Files")
+    candidates += [files / "Git" / "bin" / "bash.exe", files / "Git" / "usr" / "bin" / "bash.exe"]
+    for candidate in candidates:
+        if candidate.is_file():
+            return str(candidate)
+    return None

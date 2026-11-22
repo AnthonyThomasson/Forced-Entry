@@ -37,6 +37,22 @@ def godot_binary() -> str | None:
     return fe_env.find_godot()
 
 
+def symlinks_work() -> bool:
+    """Whether this user can make a symlink (Windows: only with administrator rights or Developer Mode)."""
+    with tempfile.TemporaryDirectory() as d:
+        try:
+            os.symlink(Path(d), Path(d) / "link", target_is_directory=True)
+        except (OSError, NotImplementedError):
+            return False
+    return True
+
+
+def posix_only(reason: str):
+    """Skip on Windows, naming why the test cannot apply there."""
+    return unittest.skipIf(sys.platform == "win32", reason)
+
+
+needs_symlinks = unittest.skipUnless(symlinks_work(), "this user cannot make symlinks (Windows needs administrator rights or Developer Mode)")
 needs_godot = unittest.skipUnless(godot_binary(), "no Godot binary (set GODOT=/path/to/Godot)")
 slow = unittest.skipUnless(os.environ.get("FE_SLOW_TESTS") == "1", "slow: set FE_SLOW_TESTS=1 to run it")
 
@@ -105,6 +121,8 @@ def copy_setup(tree: Path) -> None:
     """Copy this checkout's tools/setup (the Godot and Python lookup the scripts source) into the tree's tools/."""
     shutil.copytree(ROOT / "tools" / "setup", tree / "tools" / "setup", dirs_exist_ok=True,
                     ignore=shutil.ignore_patterns("__pycache__"))
+    # tools/godot_slot.py (copied beside run_tests.sh by the tests that run it) reads the process table through proctree on Windows
+    shutil.copy2(ROOT / "tools" / "proctree.py", tree / "tools" / "proctree.py")
 
 
 def require_tool() -> None:
@@ -183,7 +201,7 @@ def tree_digest(root: Path, parts=("scenes", "project.godot")) -> str:
         else:
             files = []
         for f in files:
-            h.update(str(f.relative_to(root)).encode() + b"\0" + f.read_bytes() + b"\0")
+            h.update(f.relative_to(root).as_posix().encode() + b"\0" + f.read_bytes() + b"\0")
     return h.hexdigest()
 
 

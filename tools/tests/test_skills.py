@@ -56,6 +56,7 @@ PLACEHOLDER = re.compile(r"[*<>\[]")
 NOT_TRACKED = (
     "sandboxes/showroom",  # a ticket's temporary showroom: it exists from the showroom phase to its removal
     "addons/gdUnit4/GdUnitRunner.cfg",  # written by the editor's GdUnit panel; gitignored
+    ".claude/skills",  # the links tools/sync_skills.sh makes (gitignored): a checkout whose hooks are not installed has none
 )
 
 
@@ -122,15 +123,24 @@ def write_skill(skills: Path, folder: str, name: str | None = None, description:
     return path
 
 
+CRLF, LF = bytes([13, 10]), bytes([10])
+
+
+def lf_size(path: Path) -> int:
+    """The bytes of a file as git stores it, with LF line ends: a Windows checkout has CRLF (core.autocrlf), which the caps
+    are not measured in."""
+    return len(path.read_bytes().replace(CRLF, LF))
+
+
 def check_caps(skills: Path) -> list[str]:
     """Findings on size: a `SKILL.md` over SKILL_MD_MAX bytes, any other `.md` under a skill folder over SIDE_FILE_MAX."""
     found = []
     for folder in skill_folders(skills):
         for path in sorted(folder.rglob("*.md")):
             cap = SKILL_MD_MAX if path == folder / "SKILL.md" else SIDE_FILE_MAX
-            size = path.stat().st_size
+            size = lf_size(path)
             if size > cap:
-                found.append(f"{path.relative_to(skills)}: {size} bytes, over {cap}")
+                found.append(f"{path.relative_to(skills).as_posix()}: {size} bytes, over {cap}")
     return found
 
 
@@ -159,7 +169,7 @@ def check_references(skills: Path, files: list[Path], repo: Path) -> list[str]:
     found = []
     for f in files:
         for n, span in inline_spans(f.read_text()):
-            where = f"{f.relative_to(repo)}:{n}"
+            where = f"{f.relative_to(repo).as_posix()}:{n}"
             words = without_placeholders(span)
             found += [f"{where}: skill {name} does not exist" for name in missing_skills(skills, words)]
             for path in repo_paths(words):
@@ -193,7 +203,7 @@ def check_comment_references(skills: Path, files: list[Path], repo: Path) -> lis
             if line.lstrip().startswith("#"):
                 for m in INLINE_CODE.finditer(line):
                     words = without_placeholders(m[2])
-                    found += [f"{f.relative_to(repo)}:{n}: skill {name} does not exist"
+                    found += [f"{f.relative_to(repo).as_posix()}:{n}: skill {name} does not exist"
                               for name in missing_skills(skills, words)]
     return found
 
@@ -208,7 +218,7 @@ def check_duplicates(files: list[Path], repo: Path) -> list[str]:
     that appears in more than one of the Markdown `files`."""
     homes: dict[str, list[str]] = {}
     for f in files:
-        name = str(f.relative_to(repo))
+        name = f.relative_to(repo).as_posix()
         for paragraph in re.split(r"\n\s*\n", f.read_text()):
             text = " ".join(paragraph.split())
             if len(text) >= PARAGRAPH_MIN and name not in homes.setdefault(text, []):
@@ -302,7 +312,7 @@ class CapTests(unittest.TestCase):
         def build(size: int):
             def make(s: Path):
                 path = write_skill(s, "alpha")
-                path.write_text(path.read_text() + "x" * (size - path.stat().st_size))
+                path.write_text(path.read_text() + "x" * (size - lf_size(path)))
             return make
         self.assertEqual(self.findings(build(12288)), [])
         found = self.findings(build(12289))

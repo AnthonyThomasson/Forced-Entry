@@ -126,6 +126,8 @@ class RealTreeTests(unittest.TestCase):
         cls.new_on_bare = place_script(cls.bare, "audit_scan_new.py", current_script())
         cls.new_on_full = place_script(cls.full, "audit_scan_new.py", current_script())
 
+    @unittest.skipIf(sys.platform == "win32", "compares with the output of an older audit_scan.py that joins and splits paths "
+                                              "with the OS separator, which breaks it on Windows")
     def test_output_is_unchanged_by_the_refactor(self):
         # Passes before the refactor too: it guards the refactor. The facts and events sections are left out: the
         # m-audit-everything audit changed what they count on purpose (gated facts, balanced-bracket posts).

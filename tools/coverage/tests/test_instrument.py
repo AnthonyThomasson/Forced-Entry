@@ -129,7 +129,7 @@ class CopyTests(InstrumentedFixture):
             marked[s["file"]].add(s["line"])
         untouched_lines = {(u["file"], u["line"]) for u in self.expected["uninstrumented"]}
         for src in sorted(PROJECT.glob("scenes/**/*.gd")):
-            rel = str(src.relative_to(PROJECT))
+            rel = src.relative_to(PROJECT).as_posix()
             with self.subTest(file=rel):
                 before = src.read_text().split("\n")
                 after = (self.copy / rel).read_text().split("\n")

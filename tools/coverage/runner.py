@@ -102,7 +102,9 @@ class Interrupted(BaseException):
         self.signum = signum
 
 
-STOPPING = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)
+WINDOWS = sys.platform == "win32"
+# SIGHUP is POSIX's: Windows has none, and its SIGTERM only reaches a process that raises it itself.
+STOPPING = tuple(getattr(signal, name) for name in ("SIGINT", "SIGTERM", "SIGHUP") if hasattr(signal, name))
 
 
 @contextmanager
@@ -135,7 +137,7 @@ def interrupts_raise():
 def signals_held():
     """Ctrl-C, SIGTERM and SIGHUP wait until the block is done (delivered after it), so a cleanup, or a process
     started and recorded, is never cut short. Nests."""
-    if threading.current_thread() is not threading.main_thread():
+    if threading.current_thread() is not threading.main_thread() or WINDOWS:  # Windows has no signal mask to hold with
         yield
         return
     before = signal.pthread_sigmask(signal.SIG_BLOCK, STOPPING)
@@ -151,13 +153,32 @@ def unheld() -> None:
 
 
 def start(*args, **kwargs) -> subprocess.Popen:
-    """subprocess.Popen, for a call made under signals_held: the child does not inherit the held signals."""
+    """subprocess.Popen, for a call made under signals_held: the child does not inherit the held signals. A child started
+    with start_new_session=True gets its own process group on Windows (CREATE_NEW_PROCESS_GROUP: a Ctrl-C of this
+    console does not reach it; stop_group ends it), and `bash` runs a script there (Windows runs no shebang)."""
+    if WINDOWS:
+        if kwargs.pop("start_new_session", False):
+            kwargs["creationflags"] = kwargs.get("creationflags", 0) | subprocess.CREATE_NEW_PROCESS_GROUP
+        return subprocess.Popen(*args, **kwargs)
     return subprocess.Popen(*args, preexec_fn=unheld, **kwargs)
+
+
+def script(path) -> list[str]:
+    """The command that runs the shell script `path`: the script itself, or, on Windows (no shebang), through Git Bash."""
+    if not WINDOWS:
+        return [str(path)]
+    bash = fe_env.find_bash()
+    if bash is None:
+        raise RunFailed(f"cannot run {path}: no Git Bash found (install Git for Windows)")
+    return [bash, str(path)]
 
 
 def stop_group(proc: subprocess.Popen, grace: float = 10.0) -> None:
     """Stop a process started with start_new_session=True and every process of its group (a shell script's
-    children): SIGTERM, then SIGKILL for what is left after `grace` seconds."""
+    children): SIGTERM, then SIGKILL for what is left after `grace` seconds. Windows: the whole tree, at once."""
+    if WINDOWS:
+        kill_tree(proc)
+        return
     for sig in (signal.SIGTERM, signal.SIGKILL):
         try:
             os.killpg(proc.pid, sig)
@@ -174,6 +195,14 @@ def stop_group(proc: subprocess.Popen, grace: float = 10.0) -> None:
             break
     if proc.poll() is None:
         proc.wait()
+
+
+def kill_tree(proc: subprocess.Popen) -> None:
+    """Windows: end `proc` and everything it started (tools/proctree.py: a Win32 snapshot, TerminateProcess, taskkill /T
+    for the rest), and wait for it."""
+    from .. import proctree
+    proctree.kill_tree(proc.pid)
+    proc.wait()
 
 
 def group_alive(pgid: int) -> bool:
@@ -337,6 +366,9 @@ def stop_von(server: VonServer) -> None:
     """Stop the server only if this run started it."""
     if not server.started or server.process is None or server.process.poll() is not None:
         return
+    if WINDOWS:
+        kill_tree(server.process)  # the server is a venv's launcher and the interpreter under it: the whole tree
+        return
     server.process.terminate()
     try:
         server.process.wait(timeout=15)
@@ -445,7 +477,7 @@ def run_tests(copy, args: list[str], hits_dir: Path, say=print) -> dict:
         proc = None
         try:
             with signals_held():
-                proc = start([str(lint), *COPY_LINT, "--quiet"], cwd=copy, env=game_env(copy),
+                proc = start([*script(lint), *COPY_LINT, "--quiet"], cwd=copy, env=game_env(copy),
                              stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                              start_new_session=True)
             out, err = proc.communicate()
@@ -458,8 +490,9 @@ def run_tests(copy, args: list[str], hits_dir: Path, say=print) -> dict:
             raise RunFailed("the instrumented copy fails lint (tools/lint.sh " + " ".join(COPY_LINT) + "):\n"
                             + out + err)
     config = write_config(hits_dir, "run_tests.json", {"source": "tests"})
-    cmd = [str(copy / "tools" / "run_tests.sh"), "--no-lint", *with_perf_skipped(args)]
-    say("Running the game tests in the copy: tools/run_tests.sh " + " ".join(cmd[1:]))
+    runner = script(copy / "tools" / "run_tests.sh")
+    cmd = [*runner, "--no-lint", *with_perf_skipped(args)]
+    say("Running the game tests in the copy: tools/run_tests.sh " + " ".join(cmd[len(runner):]))
     lines = []
     # Its own process group: the Godot processes it starts are stopped with it however the run ends.
     proc = None

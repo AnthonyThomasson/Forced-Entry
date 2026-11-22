@@ -81,7 +81,7 @@ class FakeTree(unittest.TestCase):
         env.update(GODOT=str(self.fake), TMPDIR=str(self.state), FAKE_STARTS=str(self.starts), FAKE_LISTS=str(self.lists),
                    FAKE_SUITE=suite,
                    GAME_TEST_SLOT_DIR=str(self.state / "slots"), GAME_TEST_SLOT_POLL="0.05",
-                   PATH=f"{self.bin}:{os.environ['PATH']}", GAME_TEST_QUIET_MINUTE="0.2", GAME_TEST_QUIET_POLL="0.05", **env_extra)
+                   PATH=f"{self.bin}{os.pathsep}{os.environ['PATH']}", GAME_TEST_QUIET_MINUTE="0.2", GAME_TEST_QUIET_POLL="0.05", **env_extra)
         r = subprocess.run(["bash", str(self.repo / "tools" / "run_tests.sh"), "--no-lint", *args], cwd=self.repo, env=env,
                            capture_output=True, text=True, timeout=120)
         return r.returncode, r.stdout + r.stderr

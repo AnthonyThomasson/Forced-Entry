@@ -18,6 +18,12 @@ dead counts as free, and is replaced by a new file. Takers go one at a time (an 
 directory), so two never reclaim the same orphan; `free`, `status` and the wait notice only look (a shared lock that is let
 go at once): they take no slot, write no pid and replace no file.
 
+On Windows the lock is a byte-range lock (msvcrt) held by the `run` process itself, which cannot exec: it starts COMMAND as
+its child, waits for it and exits with its status, the lock released when it exits (a handle is not inherited, so a Von
+server the command leaves behind holds nothing: there are no orphaned locks there). There is no load average on Windows
+(`uptime` is 0.0 in the lines and the quiet gate: only the busy-Godot count gates), and the process table (`stop`, the
+busy count) comes from tools/proctree.py's Win32 snapshot.
+
 Every engine process tools/run_tests.sh starts holds a slot, the first-run import included; the lint's engine pass,
 editors and played games take none.
 
@@ -36,10 +42,10 @@ $GAME_TEST_STOP_WAIT seconds later (5 by default), and returns as soon as none i
 when it is interrupted, before it cleans up.
 """
 import contextlib
-import fcntl
 import json
 import os
 import re
+import shutil
 import signal
 import subprocess
 import sys
@@ -47,6 +53,20 @@ import threading
 import time
 from pathlib import Path
 from typing import Optional
+
+ROOT = str(Path(__file__).resolve().parents[1])
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)  # `python3 -I tools/godot_slot.py` puts nothing of its own on the path
+_bytecode = sys.dont_write_bytecode
+sys.dont_write_bytecode = True  # a run of this tool leaves no tools/setup/__pycache__ in the checkout it is copied into
+from tools.setup import fe_env, pidalive  # noqa: E402
+sys.dont_write_bytecode = _bytecode
+
+WINDOWS = sys.platform in ("win32", "cygwin", "msys")
+if WINDOWS:
+    import msvcrt
+else:
+    import fcntl
 
 # How long a lock file naming a dead pid is watched before it is called an orphan's.
 RECLAIM_WAIT = 0.1
@@ -57,6 +77,11 @@ BUSY_CPU = 50.0
 BUSY_SAMPLE_S = 2.0
 # How long the PERF annotation's busy count lives before it is sampled again (it is read, not sampled, per PERF line).
 ANNOTATE_REFRESH = 10.0
+# Windows: the lock is a byte-range lock (msvcrt) on this one byte, far past the pid text a slot file holds, so the pid
+# stays readable by every process while the lock is held (a locked range cannot be read by another process).
+LOCK_AT = 1 << 20
+# What `stop` sends second: SIGKILL; Windows has none, and os.kill ends a process there whatever the signal.
+SIGKILL = getattr(signal, "SIGKILL", signal.SIGTERM)
 # The lock file that serialises the takers of a pool (it is not a slot).
 GUARD = "slot-reclaim.lock"
 VERDICT = re.compile(r"^(PASS|FAIL|TIMEOUT|SKIPPED|GAP)\s+\S+\s+\(")
@@ -73,23 +98,61 @@ def slot_dir() -> Path:
 
 
 def alive(pid: int) -> bool:
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
+    return pidalive.alive(pid)
+
+
+def open_flags() -> int:
+    return getattr(os, "O_BINARY", 0)  # Windows: bytes as they are, no CRLF translation
+
+
+def lock_try(fd: int, shared: bool = False) -> bool:
+    """Take the lock of the open file `fd` at once, without waiting: whether it is held now. `shared` (a probe) is only a
+    shared lock on a POSIX system; Windows has no shared byte-range lock here, and the probe takes the exclusive one."""
+    if WINDOWS:
+        os.lseek(fd, LOCK_AT, os.SEEK_SET)
+        try:
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+        except OSError:
+            return False
+        finally:
+            os.lseek(fd, 0, os.SEEK_SET)
         return True
+    try:
+        fcntl.flock(fd, (fcntl.LOCK_SH if shared else fcntl.LOCK_EX) | fcntl.LOCK_NB)
+    except BlockingIOError:
+        return False
     return True
+
+
+def lock_wait(fd: int) -> None:
+    """Take the exclusive lock of the open file `fd`, waiting for it."""
+    if WINDOWS:
+        while not lock_try(fd):
+            time.sleep(0.005)
+    else:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+
+
+def unlock(fd: int) -> None:
+    """Let go of a lock taken by lock_try on Windows (closing the file does it everywhere else)."""
+    if WINDOWS:
+        os.lseek(fd, LOCK_AT, os.SEEK_SET)
+        try:
+            msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+        except OSError:
+            pass
+        finally:
+            os.lseek(fd, 0, os.SEEK_SET)
 
 
 def lock_pid(path: Path):
     """The pid the lock file at `path` names, None when it names none (yet) or the file is gone."""
     try:
-        fd = os.open(path, os.O_RDONLY)
+        fd = os.open(path, os.O_RDONLY | open_flags())
     except FileNotFoundError:
         return None
     try:
-        text = os.pread(fd, 32, 0).decode().strip()
+        text = os.read(fd, 32).decode().strip()
         return int(text) if text else None
     except (OSError, ValueError):
         return None
@@ -108,10 +171,8 @@ def is_at(fd: int, path: Path) -> bool:
 def try_lock(path: Path):
     """The open file descriptor of the slot file at `path` with its lock held, None when another process holds it."""
     while True:
-        fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o644)
-        try:
-            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
+        fd = os.open(path, os.O_RDWR | os.O_CREAT | open_flags(), 0o644)
+        if not lock_try(fd):
             os.close(fd)
             return None
         if is_at(fd, path):
@@ -132,9 +193,9 @@ def orphaned(path: Path) -> bool:
 @contextlib.contextmanager
 def guard(directory: Path):
     """One taker at a time judges, replaces and locks a slot file: two never both reclaim the same orphan."""
-    fd = os.open(directory / GUARD, os.O_RDWR | os.O_CREAT, 0o644)
+    fd = os.open(directory / GUARD, os.O_RDWR | os.O_CREAT | open_flags(), 0o644)
     try:
-        fcntl.flock(fd, fcntl.LOCK_EX)
+        lock_wait(fd)
         yield
     finally:
         os.close(fd)
@@ -148,11 +209,15 @@ def take(path: Path):
         if fd is None and orphaned(path):
             fd = try_lock(path)  # whoever held it for a moment (a probe) may have let go meanwhile
             if fd is None:
-                path.unlink(missing_ok=True)
+                try:
+                    path.unlink(missing_ok=True)
+                except PermissionError:
+                    return None  # Windows: a file that is open somewhere cannot be replaced, and its holder is live
                 fd = try_lock(path)
         if fd is not None:
             os.ftruncate(fd, 0)
-            os.pwrite(fd, str(os.getpid()).encode(), 0)
+            os.lseek(fd, 0, os.SEEK_SET)
+            os.write(fd, str(os.getpid()).encode())
         return fd
 
 
@@ -170,14 +235,13 @@ def held(path: Path) -> bool:
     """Whether a live process holds the slot at `path`. Probes with a shared lock: it takes no slot, writes no pid and
     makes no file."""
     try:
-        fd = os.open(path, os.O_RDONLY)
+        fd = os.open(path, os.O_RDONLY | open_flags())
     except FileNotFoundError:
         return False
     try:
-        try:
-            fcntl.flock(fd, fcntl.LOCK_SH | fcntl.LOCK_NB)
-        except BlockingIOError:
+        if not lock_try(fd, shared=True):
             return not orphaned(path)
+        unlock(fd)
         return False
     finally:
         os.close(fd)
@@ -189,14 +253,57 @@ def taken() -> int:
     return sum(held(directory / f"slot{i}.lock") for i in range(size()))
 
 
+def find_program(name: str) -> Optional[str]:
+    """The file `name` names on PATH, a script with no extension included (shutil.which finds none on Windows)."""
+    if os.sep in name or "/" in name:
+        return name if os.path.isfile(name) else None  # a path: as it is (a bare name is looked up on PATH only)
+    for folder in os.environ.get("PATH", "").split(os.pathsep):
+        for ext in ("", *os.environ.get("PATHEXT", "").split(os.pathsep)) if WINDOWS else ("",):
+            candidate = os.path.join(folder, name + ext)
+            if folder and os.path.isfile(candidate):
+                return candidate
+    return None
+
+
+def command_for(program: str, args: list) -> list:
+    """The command line that runs `program`: itself, or, on Windows (no shebang), through the bash that found it when it is
+    a script (a fake `godot` or `uptime` of a test, a wrapper)."""
+    if WINDOWS:
+        with open(program, "rb") as f:
+            if f.read(2) == b"#!":
+                return [fe_env.find_bash() or "bash", program, *args]
+    return [program, *args]
+
+
 def one_minute_load() -> float:
-    out = subprocess.run(["uptime"], capture_output=True, text=True, env=dict(os.environ, LC_ALL="C")).stdout
+    command = ["uptime"]
+    if WINDOWS:
+        # No load average there, and no uptime in Git Bash: 0.0, so the busy-Godot count alone gates. One on PATH answers.
+        program = find_program("uptime")
+        if program is None:
+            return 0.0
+        command = command_for(program, [])
+    out = subprocess.run(command, capture_output=True, text=True, env=dict(os.environ, LC_ALL="C")).stdout
     m = re.search(r"load averages?: *([0-9.]+)", out)
     return float(m.group(1)) if m else 0.0
 
 
+def windows_table() -> dict:
+    """tools/proctree.py's Win32 process snapshot: pid -> Proc (parent pid, executable name in `cmd`). Git Bash's `ps` does
+    not see Windows processes, and the process-tree code is proctree's alone."""
+    bytecode = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True  # no tools/__pycache__ in a checkout this tool is copied into
+    try:
+        from tools import proctree
+    finally:
+        sys.dont_write_bytecode = bytecode
+    return proctree.snapshot()
+
+
 def processes() -> dict:
     """A snapshot of the process table: pid -> (parent pid, state). The `ps` that reads it is in it."""
+    if WINDOWS:
+        return {pid: (p.ppid, p.state) for pid, p in windows_table().items()}
     out = subprocess.run(["ps", "-A", "-o", "pid=", "-o", "ppid=", "-o", "stat="], capture_output=True, text=True).stdout
     table = {}
     for line in out.splitlines():
@@ -238,9 +345,57 @@ def cpu_seconds(text: str) -> float:
     return seconds + (int(days) * 86400 if days else 0)
 
 
+_KERNEL = None
+
+
+def windows_kernel():
+    """kernel32 with the prototypes this module calls, set up once."""
+    global _KERNEL
+    if _KERNEL is None:
+        import ctypes
+        from ctypes import wintypes
+
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel.OpenProcess.restype = wintypes.HANDLE
+        kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        kernel.GetProcessTimes.argtypes = [wintypes.HANDLE] + [ctypes.POINTER(wintypes.FILETIME)] * 4
+        kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+        _KERNEL = kernel
+    return _KERNEL
+
+
+def windows_cpu_seconds(pid: int) -> Optional[float]:
+    """The cpu seconds (kernel plus user) a Windows process has burned so far, None when it will not tell or is gone."""
+    import ctypes
+    from ctypes import wintypes
+
+    kernel = windows_kernel()
+    handle = kernel.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle:
+        return None
+    try:
+        times = [wintypes.FILETIME() for _ in range(4)]
+        if not kernel.GetProcessTimes(handle, *[ctypes.byref(t) for t in times]):
+            return None
+        return sum(t.dwHighDateTime << 32 | t.dwLowDateTime for t in times[2:]) / 1e7  # kernel + user, 100 ns ticks
+    finally:
+        kernel.CloseHandle(handle)
+
+
 def cpu_table() -> dict:
     """A snapshot of the process table: pid -> (parent pid, cpu seconds burned so far, executable name). The name is the
     process's own (`ucomm` on macOS, where `comm` is a path and a node process may retitle itself: `npm exec godot-mcp`)."""
+    if WINDOWS:
+        table = {}
+        for pid, p in windows_table().items():
+            # Only an engine's cpu time is read (the busy count looks at no other process), one handle each: a process
+            # table has hundreds of rows, and opening them all is what made a read take seconds.
+            cpu = windows_cpu_seconds(pid) if is_engine(p.cmd) else 0.0
+            if cpu is not None:
+                table[pid] = (p.ppid, cpu, p.cmd)
+        if os.getpid() not in table:
+            raise RuntimeError("cannot read the process table (this process is not in it)")
+        return table
     name = "ucomm" if sys.platform == "darwin" else "comm"
     ran = subprocess.run(["ps", "-A", "-o", "pid=", "-o", "ppid=", "-o", "time=", "-o", name + "="], capture_output=True,
                          text=True)
@@ -381,7 +536,7 @@ def stop(argv: list) -> int:
     as nothing of them is left. Best effort: the exit code is 0 whatever survived."""
     ancestor = int(option(argv, "--ancestor", os.getppid()))
     wait = float(os.environ.get("GAME_TEST_STOP_WAIT", "5"))
-    for sig, seconds in ((signal.SIGTERM, wait), (signal.SIGKILL, KILL_WAIT)):
+    for sig, seconds in ((signal.SIGTERM, wait), (SIGKILL, KILL_WAIT)):
         sent, deadline = set(), time.monotonic() + seconds
         while True:
             left = left_of(ancestor)
@@ -417,12 +572,32 @@ def run(argv: list) -> int:
     fd, said = take_any(), False
     while fd is None:
         if not said:
-            os.write(notice_fd, f"waiting for a Godot slot ({taken()} of {size()} taken)\n".encode())
+            notice = f"waiting for a Godot slot ({taken()} of {size()} taken)\n".encode()
+            try:
+                os.write(notice_fd, notice)
+            except OSError:
+                os.write(2, notice)  # Windows: Git Bash's fd 3 does not reach a native program
             said = True
         time.sleep(poll)
         fd = take_any()
+    if WINDOWS:
+        return run_child(argv)  # no exec: this process holds the lock while the command runs, and exits with its status
     os.set_inheritable(fd, True)
     os.execvp(argv[0], argv)
+
+
+def run_child(argv: list) -> int:
+    """Windows: run `argv` as a child, the slot's lock held by this process meanwhile, and return its exit status."""
+    program = find_program(argv[0])
+    if program is None:
+        print("godot_slot.py run: %s: command not found" % argv[0], file=sys.stderr)
+        return 127
+    child = subprocess.Popen(command_for(program, argv[1:]))
+    while True:
+        try:
+            return child.wait()
+        except KeyboardInterrupt:
+            pass  # Ctrl-C reaches the child as well, on the same console: wait for it to end
 
 
 def main(argv: list) -> int:

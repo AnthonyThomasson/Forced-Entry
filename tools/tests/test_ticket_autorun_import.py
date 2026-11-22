@@ -8,6 +8,7 @@ import re
 import shutil
 import signal
 import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -63,6 +64,7 @@ def kill_games(editor_pid: int) -> None:
             pass
 
 
+@unittest.skipIf(sys.platform == "win32", "finds the editor's game processes with POSIX `ps -axo pid=,command=` and ends them with signals")
 @needs_godot
 class TicketAutorunImportTests(unittest.TestCase):
     def setUp(self):

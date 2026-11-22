@@ -127,7 +127,7 @@ def unreachable_side_files(skills: Path, skill: str) -> list[str]:
             if p not in reached and (folder / p).is_file():
                 reached.add(p)
                 todo.append(p)
-    side = {str(p.relative_to(folder)) for p in folder.rglob("*.md")} - {"SKILL.md"}
+    side = {p.relative_to(folder).as_posix() for p in folder.rglob("*.md")} - {"SKILL.md"}
     return sorted(side - reached)
 
 
@@ -226,7 +226,7 @@ class CrossPointerTests(unittest.TestCase):
         missing, found = [], []
         for f in citing_files():
             found += cross_pointers(f.read_text())
-            missing += [f"{f.relative_to(ROOT)}: {s} ({p})" for s, p in missing_cross_pointers(SKILLS, f)]
+            missing += [f"{f.relative_to(ROOT).as_posix()}: {s} ({p})" for s, p in missing_cross_pointers(SKILLS, f)]
         self.assertIn(("domain-ai", "team.md"), found, "premise: the cross pointers are found")
         self.assertEqual(missing, [], "`<skill>` (`<file>.md`) pointers that name no file")
 
@@ -280,7 +280,7 @@ class SkillPointerTests(unittest.TestCase):
                     if PLACEHOLDER.search(rest):
                         continue
                     if not (SKILLS / skill / rest).exists():
-                        missing.append(f"{f.relative_to(ROOT)}:{n}: {skill}/{rest}")
+                        missing.append(f"{f.relative_to(ROOT).as_posix()}:{n}: {skill}/{rest}")
         self.assertEqual(missing, [], "paths into a skill that name no file")
 
     def test_every_relative_path_inside_a_skill_names_a_file(self):
@@ -289,7 +289,7 @@ class SkillPointerTests(unittest.TestCase):
             for f in [SKILLS / skill / "SKILL.md", *side_files(skill)]:
                 for p in sorted(relative_pointers(SKILLS / skill, f.read_text())):
                     if not (SKILLS / skill / p).exists():
-                        missing.append(f"{f.relative_to(ROOT)}: {p}")
+                        missing.append(f"{f.relative_to(ROOT).as_posix()}: {p}")
         self.assertEqual(missing, [], "relative paths that name no file in their skill folder")
 
     def test_the_interface_index_and_the_interface_files_match_one_to_one(self):
@@ -372,7 +372,7 @@ class SkillPointerTests(unittest.TestCase):
         files = [(skill, f) for skill in SKILL_NAMES for f in [SKILLS / skill / "SKILL.md", *side_files(skill)]]
         cites = [c for _, f in files for c in FILE_CITATION.findall(f.read_text())]
         self.assertIn(("in-game-runner.md", "Locking interactions"), cites, "premise: the citations are found")
-        unknown = [f"{f.relative_to(ROOT)}: {u}" for skill, f in files
+        unknown = [f"{f.relative_to(ROOT).as_posix()}: {u}" for skill, f in files
                    for u in unknown_file_sections(SKILLS / skill, f.read_text())]
         self.assertEqual(unknown, [], "sections cited in a file that are no heading or bold label of it")
 

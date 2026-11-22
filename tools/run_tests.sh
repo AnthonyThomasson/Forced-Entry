@@ -823,9 +823,14 @@ if live:
 EOF
 }
 
-# The machine's 1-minute load average (uptime's first figure).
+# The machine's 1-minute load average (uptime's first figure). Windows has no load average and Git Bash no uptime: 0.00,
+# as tools/godot_slot.py reports it there.
 load_1min() {
-  LC_ALL=C uptime | sed -E 's/.*load averages?: *([0-9.]+).*/\1/'
+  if command -v uptime >/dev/null 2>&1; then
+    LC_ALL=C uptime | sed -E 's/.*load averages?: *([0-9.]+).*/\1/'
+  else
+    echo 0.00
+  fi
 }
 
 # The line before a run's first test: the 1-minute load and how many of the pool's Godot slots other runs hold.

@@ -46,6 +46,17 @@ sha256_of() {
   if command -v sha256sum >/dev/null; then sha256sum "$1"; else shasum -a 256 "$1"; fi | cut -d' ' -f1 | tr -d '\\'
 }
 
+# Unpack the zip $1 into the folder $2. Git for Windows may ship no `unzip`: Python's zipfile does it then.
+unzip_to() {
+  if command -v unzip >/dev/null 2>&1; then
+    unzip -q -o "$1" -d "$2"
+  else
+    source "$(dirname "$0")/setup/lib.sh"
+    fe_use_python || return 1
+    "$PYTHON" -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' "$(cygpath -w "$1")" "$(cygpath -w "$2")"
+  fi
+}
+
 if [[ ! -x "$binary" ]]; then
   mkdir -p "$dir" || fail "cannot create the cache $dir"
   tmp=$(mktemp -d "$dir/fetch.XXXXXX") || fail "cannot write to the cache $dir"
@@ -55,7 +66,7 @@ if [[ ! -x "$binary" ]]; then
   got=$(sha256_of "$tmp/$asset")
   [[ "$got" == "$sha" ]] || fail "sha256 mismatch for $asset: expected $sha, got $got; refusing to run it"
   case "$asset" in
-    *.zip) unzip -q -o "$tmp/$asset" -d "$tmp/x" ;;
+    *.zip) unzip_to "$tmp/$asset" "$tmp/x" ;;
     *) mkdir "$tmp/x" && tar -xzf "$tmp/$asset" -C "$tmp/x" ;;
   esac || fail "could not unpack $asset"
   [[ -f "$tmp/x/$exe" ]] || fail "$asset holds no $exe"

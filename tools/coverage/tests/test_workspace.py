@@ -23,14 +23,13 @@ for real: a separate Python process creates the folders, and is then killed with
 (live owner).
 """
 import shutil
-import signal
 import subprocess
 import sys
 import unittest
 from pathlib import Path
 
 from tools.coverage import workspace
-from tools.coverage.tests.support import ROOT, TempDir, clean_env, commit_all, init_repo, tree_digest, git_status
+from tools.coverage.tests.support import ROOT, TempDir, needs_symlinks, clean_env, commit_all, init_repo, tree_digest, git_status
 
 
 def make_source(root: Path) -> None:
@@ -56,7 +55,7 @@ def make_source(root: Path) -> None:
 
 
 def listing(root: Path) -> set[str]:
-    return {str(p.relative_to(root)) for p in root.rglob("*") if p.is_file()}
+    return {p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file()}
 
 
 class CreateTests(unittest.TestCase):
@@ -241,7 +240,7 @@ def made_in_another_process(src: Path, alive: bool) -> tuple[Path, Path, subproc
 
 def stop(proc: subprocess.Popen) -> None:
     if proc.poll() is None:
-        proc.send_signal(signal.SIGKILL)
+        proc.kill()  # SIGKILL on POSIX, TerminateProcess on Windows
         proc.wait(timeout=30)
     proc.stdout.close()
 
@@ -312,6 +311,7 @@ class SweepTests(unittest.TestCase):
             workspace.cleanup(src, copy)
             self.assertTrue((other / "file.txt").is_file())
 
+    @needs_symlinks
     def test_a_symlink_named_for_a_dead_run_to_a_live_runs_copy_leaves_that_copy_intact(self):
         with TempDir() as d:
             src = d / "src"
@@ -333,6 +333,7 @@ class SweepTests(unittest.TestCase):
                 workspace.cleanup(src, live_copy)
                 workspace.cleanup(src, live_hits)
 
+    @needs_symlinks
     def test_a_symlink_named_for_a_dead_run_to_a_folder_outside_breaks_no_later_copy_or_hit_folder(self):
         with TempDir() as d:
             src = d / "src"
@@ -386,6 +387,7 @@ class CleanupTests(unittest.TestCase):
             self.assertFalse((src / "artifacts" / "tmp").exists(), "artifacts/tmp/ goes once it is empty")
             self.assertTrue((src / "artifacts" / "coverage" / "old.json").is_file(), "the run folders stay")
 
+    @needs_symlinks
     def test_cleanup_removes_its_own_folders_when_artifacts_or_artifacts_tmp_is_a_symlink(self):
         for linked in ("artifacts", "artifacts/tmp"):
             with self.subTest(symlink=linked), TempDir() as d:
@@ -411,6 +413,7 @@ class CleanupTests(unittest.TestCase):
                 else:
                     self.assertEqual(list(elsewhere.iterdir()), [], "empty")
 
+    @needs_symlinks
     def test_cleanup_refuses_anything_but_a_folder_it_made_in_this_repos_artifacts_tmp(self):
         with TempDir() as d:
             src = d / "src"

@@ -39,6 +39,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from ..setup import pidalive
+
 TMP = Path("artifacts") / "tmp"
 PREFIX = "fe-coverage-copy."
 HITS_PREFIX = "fe-coverage-hits."
@@ -189,13 +191,7 @@ def owner(folder) -> int | None:
 
 
 def alive(pid: int) -> bool:
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True  # another user's process
-    return True
+    return pidalive.alive(pid)  # not os.kill(pid, 0): on Windows that ends the process
 
 
 def keep(folder) -> None:

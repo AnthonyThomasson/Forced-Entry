@@ -31,7 +31,9 @@ for ref in origin/main main; do
   if git rev-parse --verify -q "$ref^{commit}" >/dev/null; then base="$ref"; break; fi
 done
 head="HEAD"
-ps -o args= -p "$PPID" 2>/dev/null | grep -qE '(^| )--amend( |$)' && head="HEAD^"
+if [[ "$(fe_os)" != windows ]]; then  # Git Bash's ps has no -o args=: there an amend is checked as a plain commit
+  ps -o args= -p "$PPID" 2>/dev/null | grep -qE '(^| )--amend( |$)' && head="HEAD^"
+fi
 # The branch's earlier commits, one record each: its short hash, then its message, NUL-separated. Read by the check
 # as a file (a long branch's log would not fit in an argument).
 history() {

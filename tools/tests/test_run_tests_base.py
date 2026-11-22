@@ -3,6 +3,7 @@ worktree, and the working tree is never written. A throwaway repo holds a copy o
 records what the run it was started in looks like; the refusals and the interrupt are checked on the same repo."""
 import os
 import re
+import shlex
 import shutil
 import signal
 import stat
@@ -17,6 +18,9 @@ from tools.coverage.tests.support import copy_setup
 from tools.tests.test_godot_slot import HOLDER
 
 ROOT = Path(__file__).resolve().parents[2]
+WINDOWS = sys.platform == "win32"
+posix_processes = unittest.skipIf(
+    WINDOWS, "POSIX process groups and signals (SIGINT to a group, SIGTERM's 143, a pid of a bash child): Windows has none of them")
 
 # Stands in for Godot: `--import` does nothing; any other start records where it runs and what that checkout holds
 # (the production file, the tests, the helper folders), writes the report $FAKE_VERDICT says (pass or fail), and with
@@ -98,6 +102,7 @@ class BaseRunTests(unittest.TestCase):
         env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_") and k != "GAME_TEST_CHANGED_FILES"}
         return dict(env, GODOT=str(self.fake), TMPDIR=str(self.state), FAKE_OBSERVED=str(self.observed),
                     FAKE_IMPORTS=str(self.imports), GAME_TEST_SLOT_DIR=str(self.state / "slots"), GAME_TEST_SLOT_POLL="0.05",
+                    PYTHONDONTWRITEBYTECODE="1",
                     **{"FAKE_VERDICT": "pass", **extra})
 
     def run_tests(self, *args, **env):
@@ -175,9 +180,10 @@ class BaseRunTests(unittest.TestCase):
         shim = self.tmp / "shim"
         shim.mkdir(exist_ok=True)
         log = self.tmp / "git_calls.txt"
-        (shim / "git").write_text(f'#!/bin/sh\necho "$@" >> {log}\nexec {shutil.which("git")} "$@"\n')
+        real = shlex.quote(Path(shutil.which("git")).as_posix())  # a Windows path of backslashes and spaces, as bash reads it
+        (shim / "git").write_text(f'#!/bin/sh\necho "$@" >> {shlex.quote(log.as_posix())}\nexec {real} "$@"\n', newline="\n")
         (shim / "git").chmod(0o755)
-        return log, f"{shim}:{os.environ['PATH']}"
+        return log, f"{shim}{os.pathsep}{os.environ['PATH']}"
 
     def test_a_bad_flag_is_refused_before_a_worktree_is_made_or_an_import_run(self):
         log, path = self.git_shim()
@@ -257,6 +263,7 @@ class BaseRunTests(unittest.TestCase):
                 self.assertEqual(code, 0, out)
                 self.assertEqual(self.observed.read_text().count("pwd:"), 1, "one engine process\n" + out)
 
+    @posix_processes
     def test_an_interrupted_run_still_removes_its_worktree(self):
         before = self.tree()
         proc, _ = self.start_hanging()
@@ -265,6 +272,7 @@ class BaseRunTests(unittest.TestCase):
         self.assertTrue(self.wait_for(lambda: proc.poll() is not None), "the run ended\n" + self.wrapper_said())
         self.assertTrue(self.wait_for(lambda: self.tree() == before), "its worktree is gone\n" + self.wrapper_said())
 
+    @posix_processes
     def test_a_terminated_wrapper_stops_its_engine_and_removes_the_worktree(self):
         # The signal reaches the wrapper's pid alone, not its process group (a kill from another terminal, a parent).
         before = self.tree()
@@ -307,7 +315,8 @@ class BaseRunTests(unittest.TestCase):
         out = proc.communicate(timeout=120)[0]
         self.assertEqual(proc.returncode, 0, out)
         self.assertEqual(self.imports.read_text().split(), ["import"], "imported once, after the slot freed")
-        self.assertIn("waiting for a Godot slot", out)
+        if not WINDOWS:  # the notice goes to bash's fd 3, which a native Windows process does not inherit (stderr there, and the import's is dropped)
+            self.assertIn("waiting for a Godot slot", out)
 
 if __name__ == "__main__":
     unittest.main()

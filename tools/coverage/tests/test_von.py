@@ -20,7 +20,7 @@ import unittest
 from pathlib import Path
 
 from tools.coverage import runner
-from tools.coverage.tests.support import TempDir
+from tools.coverage.tests.support import TempDir, posix_only
 
 STAND_IN = '''import http.server, sys
 port = int(sys.argv[sys.argv.index("--port") + 1])
@@ -76,6 +76,7 @@ class VonTests(unittest.TestCase):
         self.assertTrue(runner.von_live(port), "the reused server is still live after the run")
         self.assertTrue(thread.is_alive())
 
+    @posix_only('the stand-in server is a shebang script, which the runner starts directly: Windows runs no #! line')
     def test_a_server_the_run_started_is_stopped(self):
         port = free_port()
         with TempDir() as d:

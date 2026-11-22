@@ -17,11 +17,20 @@ SLOT_TOOL = ROOT / "tools" / "godot_slot.py"
 sys.path.insert(0, str(ROOT / "tools"))
 import godot_slot  # noqa: E402  (the tool's own functions, for the tests that need no process of their own)
 
+WINDOWS = sys.platform == "win32"
+posix_only_signals = unittest.skipIf(
+    WINDOWS, "POSIX signals: Windows ends a process outright, with no SIGTERM to catch and no -SIGTERM exit status")
+slow_process_table = unittest.skipIf(
+    WINDOWS, "times a process-table read (3 s and under): the Win32 snapshot took 3 to 14 s on a loaded Windows machine")
+uses_ps = unittest.skipIf(WINDOWS, "fakes the POSIX `ps` command, which Windows has no use for")
+
 # A process holding the lock of a slot file, as a Von server a dead engine started does: the file names `argv[2]`.
 HOLDER = (
-    "import fcntl, os, sys, time\n"
-    "fd = os.open(sys.argv[1], os.O_RDWR | os.O_CREAT, 0o644)\n"
-    "fcntl.flock(fd, fcntl.LOCK_EX)\n"
+    "import os, sys, time\n"
+    f"sys.path.insert(0, {str(ROOT / 'tools')!r})\n"
+    "import godot_slot\n"
+    "fd = os.open(sys.argv[1], os.O_RDWR | os.O_CREAT | godot_slot.open_flags(), 0o644)\n"
+    "godot_slot.lock_wait(fd)\n"
     "os.write(fd, sys.argv[2].encode())\n"
     "print('held', flush=True)\n"
     "time.sleep(300)\n"
@@ -67,7 +76,7 @@ DELETER = (
 
 def dead_pid() -> int:
     """The pid of a process that has ended."""
-    p = subprocess.Popen(["true"])
+    p = subprocess.Popen([sys.executable, "-c", "pass"])
     p.wait()
     return p.pid
 
@@ -107,6 +116,8 @@ class ReclaimRaceTests(SlotFixture):
     ROUNDS = 12
     TAKERS = 6
 
+    @unittest.skipIf(WINDOWS, "an orphaned lock (a survivor of the engine holding it) cannot arise on Windows: a handle is "
+                              "not inherited, and a file that is open cannot be replaced")
     def test_two_reclaimers_of_one_orphaned_slot_never_both_hold_it(self):
         # The orphan outlived its engine (a Von server): its lock is held, its file names a dead pid. Six processes find
         # it at once; exactly one may end up holding the slot, however they interleave.
@@ -206,18 +217,21 @@ class StopTests(SlotFixture):
         self.assertEqual(p.returncode, 0, err)
         return json.loads(out)
 
+    @slow_process_table
     def test_a_stop_with_nothing_left_of_the_run_returns_at_once(self):
         # Its own ps and the stop process itself are under the run, and are not what it started.
         r = self.interrupted("", 30)
         self.assertEqual(r["code"], 0)
         self.assertLess(r["took"], 3, "nothing is left to end: the stop does not wait out its 30 s window")
 
+    @posix_only_signals
     def test_a_child_that_ends_on_sigterm_is_ended_and_the_stop_returns_at_once(self):
         r = self.interrupted(SLEEPER, 30)
         self.assertEqual(r["code"], 0)
         self.assertEqual(r["child"], -signal.SIGTERM, "the child got SIGTERM")
         self.assertLess(r["took"], 3, "it ended on SIGTERM: the stop does not wait out the window")
 
+    @posix_only_signals
     def test_a_child_that_ignores_sigterm_is_killed_when_the_window_has_passed(self):
         r = self.interrupted(DEAF_CHILD, 1)
         self.assertEqual(r["code"], 0)
@@ -322,6 +336,7 @@ class BusyGodotTests(unittest.TestCase):
         self.assertEqual(godot_slot.busy_options([]), (50.0, 2.0), "the conf's values when none is given")
 
 
+@uses_ps
 class UnreadableMachineTests(unittest.TestCase):
     """A `ps` that fails or lists nothing is not a quiet machine: the count is an error, never 0."""
 
@@ -384,6 +399,7 @@ class BusyWatchTests(unittest.TestCase):
         self.assertIsNone(value)
         self.assertIn("ps failed", str(error))
 
+    @slow_process_table
     def test_annotate_does_not_sample_per_line(self):
         # Five PERF lines under the real 2 s sample: one wait at the start, none per line.
         text = "".join("PERF perf/p%d frame 3.20 (budget 8.00)\n" % i for i in range(5))
@@ -396,6 +412,7 @@ class BusyWatchTests(unittest.TestCase):
         self.assertRegex(r.stdout.splitlines()[0], r"\(load [\d.]+, \d+ busy Godot\)$")
         self.assertLess(took, 3.8, "five lines took %.1f s: it sampled for each" % took)
 
+    @uses_ps
     def test_annotate_marks_the_count_unknown_and_says_so_when_ps_fails(self):
         shim = self.enterContext(tempfile.TemporaryDirectory())
         Path(shim, "ps").write_text("#!/bin/sh\nexit 1\n")
