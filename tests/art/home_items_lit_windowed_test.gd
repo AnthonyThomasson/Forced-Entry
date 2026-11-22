@@ -8,7 +8,9 @@ extends GameTest
 ## sheet, as the painted top lit it) and then the NEW item (`PieceCarries.patched` from the row that
 ## carries it) stand at the SAME spot under the same camera, so the same light falls on both. What
 ## each adds to the bare floor must be as bright (pixels over `BRIGHT`) and as saturated (the fruit,
-## the flowers) as the old, at least `MIN_SHARE` of it. With `HOME_LIT_SHOT_DIR=<dir>` set it saves
+## the flowers) as the old, at least `MIN_SHARE` of it. The barricade's sandbag and the coat rack's
+## hat (#194 unbake-d, SI15) are tan and brown, so they are held to the old one's luminance
+## (`MIN_LUMA`) against the old painters' drawing. With `HOME_LIT_SHOT_DIR=<dir>` set it saves
 ## a picture of each. Run: `HOME_LIT_SHOT_DIR=<dir> tools/run_tests.sh --windowed
 ## --id=art/home_items_lit_windowed`.
 
@@ -16,6 +18,7 @@ const MainProbe := preload("res://tests/_main/main_probe.gd")
 const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const CameraScript := preload("res://scenes/general/camera_controller.gd")
 const Props := preload("res://scenes/objects/art/props.gd")
+const Tech := preload("res://scenes/objects/art/tech_painter.gd")
 const SCRATCH := "user://settings_home_items_lit_windowed_test.json"
 const SIZE := Vector2i(1152, 648)
 const SPEC := {
@@ -31,7 +34,15 @@ const KINDS := [
 	["vase", "vase", ["console_table", "nightstand"]],
 	["cup", "mug", ["side_table", "desk", "nightstand", "dresser"]],
 	["book", "book", ["desk", "side_table", "nightstand", "console_table"]],
+	# The barricade's sandbag and the coat rack's hat (SI15) have no `Props` prop: the old painters'
+	# own drawing; they are plain tan and brown, so they are held to the old mean luminance.
+	["sandbag", "sandbag", ["barricade"], true],
+	["hat", "hat", ["coat_rack"], true],
 ]
+## The luminance (`_mean_luma`) the new sandbag and hat show over the old one's at the least. They
+## measure 1.00 (the bag) and 0.93 (the hat: its brim's outline is darker than the old sheet's);
+## drawn in the run-down grade, as they were, they measure 0.39 and 0.64.
+const MIN_LUMA := 0.85
 const ZOOM := 4.0
 ## The patch of floor each item is looked at over, in px across.
 const BOX := 24.0
@@ -42,13 +53,15 @@ const BRIGHT := 0.35
 ## A pixel at least this saturated and this bright.
 const SATURATION := 0.45
 const VALUE := 0.3
-## What the new item shows of the old's bright and saturated pixels at the least. The shares
-## measure 0.61 (the fruit bowl), 0.63 (the vase), 0.67 (the mug) and 0.75 (the bowl) because the
-## mesh has the toon outline (a dark ring one art px wide round its silhouette) over the outer
-## edge of its bright rim: round a bowl 6 px across that is about 450 of its 1136 bright screen
-## pixels (the ring's length times `ZOOM`); the fruit's own luminance (a green or an olive is
-## under `BRIGHT`) varies with the colours picked. 0.5 leaves a margin of 0.1 under the lowest
-## share; an item drawn as a dull blob shows next to no bright pixel.
+## What the new item shows of the old's bright pixels (`BRIGHT`) and saturated ones (`SATURATION`:
+## the fruit's and the flowers' colours) at the least. The shares measure 0.61 (the fruit bowl),
+## 0.63 (the vase), 0.67 (the mug) and 0.75 (the bowl). The cause is the mesh's toon outline: a dark
+## ring one art px wide round its silhouette lies over the outer edge of its bright rim, and the
+## ring's area in screen px is its length in art px times `ZOOM` squared (an art px is `ZOOM` screen
+## px each way); round a bowl 6 px across that is about 450 of the old's 1136 bright screen pixels.
+## The fruit's own luminance (a green or an olive is under `BRIGHT`) varies with the colours picked.
+## 0.5 leaves a margin of 0.1 under the lowest share; an item drawn as a dull blob shows next to
+## no bright pixel.
 const MIN_SHARE := 0.5
 
 var _window: SubViewport
@@ -60,10 +73,10 @@ var _world: Node
 func describe() -> Dictionary:
 	return {
 		"name": "A home item reads as bright as the prop it replaced (windowed)",
-		"description": "A 3D match in a window, each of the fruit bowl, bowl, vase, mug and "
-			+ "book twice at one spot (the old prop as a flat textured sheet, the new item): the "
-			+ "item's bright and saturated pixels are at least three fifths of the old prop's. "
-			+ "Windowed.",
+		"description": "A 3D match in a window, each of the fruit bowl, bowl, vase, mug, book, "
+			+ "sandbag and hat twice at one spot (the old prop as a flat textured sheet, the new "
+			+ "item): the item's bright and saturated pixels are at least half of the old prop's, "
+			+ "a sandbag's and a hat's luminance at least 0.85 of it. Windowed.",
 		"tags": ["render", "3d", "windowed", "items", "unbake"],
 		"timeout": 240.0,
 	}
@@ -93,27 +106,45 @@ func run(t: TestContext) -> void:
 	await t.frames(60)
 	var bare := await _picture(t, "bare")
 	for kind: Array in KINDS:
-		var key: String = kind[0]
-		var row := _row(key, kind[2])
-		if not t.require(not row.is_empty(), "premise: a home top carries a %s" % key):
+		var row := _row(kind[0], kind[2])
+		if not t.require(not row.is_empty(), "premise: a home top carries a %s" % kind[0]):
 			continue
-		var sheet := _old(kind[1], spot)
-		var old := _measure(await _picture(t, key + "_old"), bare)
-		sheet.queue_free()
-		var item := ObjectFactory.spawn(_item(key, row), spot, _world, {})
-		var new := _measure(await _picture(t, key + "_new"), bare)
-		item.queue_free()
-		t.require(old.x > 0, "%s's old prop shows over the floor (%d px)" % [key, old.x])
-		t.check(
-			new.y >= int(old.y * MIN_SHARE),
-			"the new %s is as bright as its prop (%d bright px against %d)" % [key, new.y, old.y],
-		)
-		t.check(
-			new.z >= int(old.z * MIN_SHARE),
-			"the new %s is as colourful as its prop (%d against %d saturated px)"
-			% [key, new.z, old.z],
-		)
+		await _compare(t, kind, row, spot, bare)
 	await MainProbe.close(t, _window)
+
+
+## The item `kind` (a `KINDS` row) at `spot` next to its old prop, both over `bare`: what each
+## shows (`row` the carrying row of the item).
+func _compare(t: TestContext, kind: Array, row: Dictionary, spot: Vector2, bare: Image) -> void:
+	var key: String = kind[0]
+	var definition := _item(key, row)
+	var sheet := _old(kind[1], spot, definition["color"])
+	var old_picture := await _picture(t, key + "_old")
+	sheet.queue_free()
+	var item := ObjectFactory.spawn(definition, spot, _world, {})
+	var new_picture := await _picture(t, key + "_new")
+	item.queue_free()
+	if kind.size() > 3:
+		var old_luma := _mean_luma(old_picture, bare)
+		var new_luma := _mean_luma(new_picture, bare)
+		t.check(
+			new_luma >= old_luma * MIN_LUMA,
+			"the new %s is as light as its prop (mean luminance %.3f against %.3f)"
+			% [key, new_luma, old_luma],
+		)
+		return
+	var old := _measure(old_picture, bare)
+	var new := _measure(new_picture, bare)
+	t.require(old.x > 0, "%s's old prop shows over the floor (%d px)" % [key, old.x])
+	t.check(
+		new.y >= int(old.y * MIN_SHARE),
+		"the new %s is as bright as its prop (%d bright px against %d)" % [key, new.y, old.y],
+	)
+	t.check(
+		new.z >= int(old.z * MIN_SHARE),
+		"the new %s is as colourful as its prop (%d against %d saturated px)"
+		% [key, new.z, old.z],
+	)
 
 
 ## Main whole in the window with a played 3D match started and the camera on it: the match built
@@ -161,9 +192,17 @@ func _item(key: String, row: Dictionary) -> Dictionary:
 
 
 ## The old prop `name` as a flat textured sheet on the floor at `spot`, as the painted top had it.
-func _old(name_: String, spot: Vector2) -> MeshInstance3D:
+func _old(name_: String, spot: Vector2, colour: Color) -> MeshInstance3D:
 	var c := PixelCanvas.new(48, 48, 7, Vector2.ZERO)  # the flat paint: no light of its own
-	Props.draw(c, name_, Vector2i(24, 24))
+	if name_ == "sandbag":  # The barricade painter's bag: a rounded box of the bag colour.
+		Tech.box(c, Rect2i(16, 20, 15, 8), colour, 4, 3)
+	elif name_ == "hat":  # The coat rack painter's hat: a darker brim round a crown.
+		var brim := PixelShape.disc(Vector2i(24, 24), 4)
+		c.fill(brim, colour.darkened(0.2), 4)
+		c.outline(brim, colour.darkened(0.5))
+		c.fill(PixelShape.disc(Vector2i(24, 24), 3), colour, 4)
+	else:
+		Props.draw(c, name_, Vector2i(24, 24))
 	var image := Image.create(48, 48, false, Image.FORMAT_RGBA8)
 	for y in 48:
 		for x in 48:
@@ -209,6 +248,27 @@ func _measure(image: Image, bare: Image) -> Vector3i:
 			bright += 1 if p.get_luminance() >= BRIGHT else 0
 			saturated += 1 if p.s >= SATURATION and p.v >= VALUE else 0
 	return Vector3i(changed, bright, saturated)
+
+
+## The mean luminance of the brighter half of what `image` shows over `bare` in the middle box: the
+## colour of the item's own faces, not the toon's dark outline ring and a seam (the old prop's flat
+## sheet has none).
+func _mean_luma(image: Image, bare: Image) -> float:
+	var centre := Vector2i(Vector2(image.get_size()) * 0.5)
+	var half := int(BOX * ZOOM * 0.5)
+	var lumas: Array[float] = []
+	for y in range(centre.y - half, centre.y + half):
+		for x in range(centre.x - half, centre.x + half):
+			var p := image.get_pixel(x, y)
+			var q := bare.get_pixel(x, y)
+			if maxf(absf(p.r - q.r), maxf(absf(p.g - q.g), absf(p.b - q.b))) >= CHANGED:
+				lumas.append(p.get_luminance())
+	lumas.sort()
+	var from := int(lumas.size() * 0.5)
+	var sum := 0.0
+	for i in range(from, lumas.size()):
+		sum += lumas[i]
+	return sum / float(maxi(lumas.size() - from, 1))
 
 
 ## The emptiest spot of the house's largest floor: the grid point furthest from every body, where

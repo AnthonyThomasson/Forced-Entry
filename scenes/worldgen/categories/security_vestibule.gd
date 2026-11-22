@@ -17,19 +17,19 @@ const OBJECTS := {
 		# a smaller bag on each middle one; `at` from the piece's centre where the painter drew
 		# them.
 		"carries": [
-			{ "key": "sandbag", "at": Vector2(-52.5, -9), "lift": 0.0 },
-			{ "key": "sandbag", "at": Vector2(-49.5, -1), "lift": 0.0 },
-			{ "key": "sandbag", "at": Vector2(-52.5, 7), "lift": 0.0 },
-			{ "key": "sandbag", "at": Vector2(51.5, -9), "lift": 0.0 },
-			{ "key": "sandbag", "at": Vector2(54.5, -1), "lift": 0.0 },
-			{ "key": "sandbag", "at": Vector2(51.5, 7), "lift": 0.0 },
+			{ "key": "sandbag", "at": Vector2(-52.5, -9), "lift": 0.0, "plain": true },
+			{ "key": "sandbag", "at": Vector2(-49.5, -1), "lift": 0.0, "plain": true },
+			{ "key": "sandbag", "at": Vector2(-52.5, 7), "lift": 0.0, "plain": true },
+			{ "key": "sandbag", "at": Vector2(51.5, -9), "lift": 0.0, "plain": true },
+			{ "key": "sandbag", "at": Vector2(54.5, -1), "lift": 0.0, "plain": true },
+			{ "key": "sandbag", "at": Vector2(51.5, 7), "lift": 0.0, "plain": true },
 			{
 				"key": "sandbag", "at": Vector2(-49.5, -1), "lift": 10.0,
-				"size": Vector2(11, 4), "height": 6.0,
+				"plain": true, "size": Vector2(11, 4), "height": 6.0,
 			},
 			{
 				"key": "sandbag", "at": Vector2(54.5, -1), "lift": 10.0,
-				"size": Vector2(11, 4), "height": 6.0,
+				"plain": true, "size": Vector2(11, 4), "height": 6.0,
 			},
 		],
 		"weight": 160,

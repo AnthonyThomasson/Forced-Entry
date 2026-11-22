@@ -76,7 +76,8 @@ static func _podium_requests() -> Array:
 
 ## The flat art of the items the emptied pieces carry (`PieceCarries`: a loose crate of a stack is
 ## 38 px across, a run of books is as wide as its books, a pallet's wrapped boxes): each row of a
-## piece's `carries` and of each loose shelf at both orientations, at its own size and colour.
+## piece's `carries` and of each loose shelf at both orientations, at its own size and colour (a
+## row with a `palette`: every colour of it, the one its piece's place picks).
 static func _carried_requests() -> Array:
 	var out: Array = []
 	for key: String in ObjectDefinitions.keys():
@@ -96,10 +97,13 @@ static func _carried_requests() -> Array:
 			var opts: Dictionary = item.get("art_opts", {}).merged(
 				{ "material": item.get("material", "") }
 			)
+			var colours: Array = [item["color"]]
+			if row.has("palette"):
+				colours = ObjectArtDecorConfig.prop_colors[row["palette"]]
 			out.append_array(FurnitureArt.requests(
 				item["art"],
 				[item["size"], Vector2(item["size"].y, item["size"].x)],
-				[item["color"]],
+				colours,
 				opts,
 			))
 	return out

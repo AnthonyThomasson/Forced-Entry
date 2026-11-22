@@ -9,6 +9,8 @@ extends GameTest
 const Probe := preload("res://tests/_objects/piece_probe.gd")
 const BARRICADE_AT := Vector2(300, 250)
 const RACK_AT := Vector2(600, 250)
+## More racks: a rack's hat is a colour of the coat palette picked by where the rack stands.
+const MORE_RACKS := [Vector2(660, 250), Vector2(720, 250), Vector2(780, 250), Vector2(840, 250)]
 ## Where the old painter put each bag: px from the barricade's centre, the front toward +y (the
 ## bags' rect centres: `security_painter.gd`: `at + (k % 2) * 3`, `1 + k * 8`, 15 by 8).
 const BAGS := [
@@ -32,6 +34,8 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 900, 500))
 	s.object(&"barricade", "barricade", BARRICADE_AT)
 	s.object(&"coat_rack", "coat_rack", RACK_AT)
+	for i in MORE_RACKS.size():
+		s.object(StringName("rack_%d" % i), "coat_rack", MORE_RACKS[i])
 	s.switch(&"nav.rebake", false)
 
 
@@ -59,6 +63,9 @@ func run(t: TestContext) -> void:
 	await t.seconds(2.5)
 	_check_bags(t, bags)
 	_check_hat(t, hats[0]["node"])
+	_check_top_bags(t, bags)
+	_check_own_colour(t, bags, hats[0]["node"])
+	_check_hat_colours(t)
 	await _shove_one(t, bags, hats[0]["node"])
 
 
@@ -77,6 +84,54 @@ func _check_bags(t: TestContext, bags: Array) -> void:
 			var at := (c["node"] as Node2D).global_position - BARRICADE_AT
 			found = found or at.distance_to(want) < 1.5
 		t.check(found, "a sandbag stands where the painter drew one (%s)" % want)
+
+
+## The two small bags on the middle bags: 10 px up, 11 by 4 and 6 high, one over each stack.
+func _check_top_bags(t: TestContext, bags: Array) -> void:
+	var tops: Array = bags.filter(
+		func(c: Dictionary) -> bool: return (c["node"].rest as PieceRest).lift > 5.0
+	)
+	t.expect_eq(tops.size(), 2, "two small bags sit on the stacks' middle bags")
+	for c: Dictionary in tops:
+		var bag: Node2D = c["node"]
+		t.check(
+			absf((bag.rest as PieceRest).lift - 10.0) < 1.0,
+			"a small bag rests 10 px up, on a bag (%.1f)" % (bag.rest as PieceRest).lift,
+		)
+		var size := Vector2(bag.size)
+		t.check(size.is_equal_approx(Vector2(11, 4)), "a small bag is 11 by 4 px (%s)" % size)
+		t.check(
+			is_equal_approx(float(bag.look.art_opts.get("height", 0.0)), 6.0),
+			"a small bag is 6 px high",
+		)
+
+
+## A sandbag and the hat are drawn in their own colour, as the barricade's bags and the rack's hat
+## were, not in the run-down grade a catalogue colour gets (`plain`, `ObjectArt._color`): a
+## graded bag was drawn about a third darker than the old one.
+func _check_own_colour(t: TestContext, bags: Array, hat: Node2D) -> void:
+	for c: Dictionary in bags:
+		var plain := bool(c["node"].look.art_opts.get("plain", false))
+		t.check(plain, "a sandbag is drawn in its own colour")
+	t.check(bool(hat.look.art_opts.get("plain", false)), "the hat is drawn in its own colour")
+
+
+## A hat is a colour of the coat palette as the old hat was, picked by where its rack stands: the
+## racks side by side do not all wear one.
+func _check_hat_colours(t: TestContext) -> void:
+	var palette: Array = ObjectArtDecorConfig.prop_colors["coats"]
+	var seen := {}
+	var racks: Array[Node2D] = [t.object(&"coat_rack")]
+	for i in MORE_RACKS.size():
+		racks.append(t.object(StringName("rack_%d" % i)))
+	for rack in racks:
+		var placed := RoomItems.carry(
+			rack, ObjectDefinitions.get_definition("coat_rack"), t.world, "test"
+		)
+		var colour: Color = placed[0]["node"].color
+		t.check(palette.has(colour), "a rack's hat is a coat colour (%s)" % colour.to_html(false))
+		seen[colour] = true
+	t.check(seen.size() >= 2, "racks wear hats of more than one colour (%d)" % seen.size())
 
 
 ## The hat asleep on the post's top, over its centre.

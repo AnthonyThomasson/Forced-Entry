@@ -10,9 +10,8 @@ class_name ObjectArtTechConfig
 static var tech_dark_color: Color = Color(0.14, 0.12, 0.09)
 static var tech_ledge_color: Color = Color(0.36, 0.26, 0.16)
 static var tech_led_colors: Array[Color] = [Color(0.85, 0.22, 0.14), Color(0.3, 0.95, 0.4)]
-## The vestibule's steel (security_painter.gd): the barricade's hazard stripe and sandbags, the
+## The vestibule's steel (security_painter.gd): the barricade's hazard stripe, the
 ## scanner's beam (glowing), the lockers' numbers.
 static var security_hazard_color: Color = Color(0.88, 0.68, 0.16)
-static var security_sandbag_color: Color = Color(0.55, 0.47, 0.32)
 static var security_beam_color: Color = Color(1.0, 0.22, 0.18)
 static var security_number_color: Color = Color(0.86, 0.84, 0.76)

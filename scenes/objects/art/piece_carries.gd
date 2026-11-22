@@ -11,8 +11,10 @@ extends RefCounted
 ## height (px above the floor) it stands on and `patch` what differs from the catalogue row (size,
 ## height, colour, weight, spines).
 ## A piece says what it carries in its catalogue row's `carries` (`[{ key, at, size, lift, height,
-## color, weight, maybe, on_top }]`): `at` from the piece's centre in the canonical frame, x across
-## and the front toward +y; `lift` from the floor; a `maybe` row is there for about half the
+## color, palette, weight, maybe, on_top, plain }]`): `at` from the piece's centre in the canonical
+## frame, x across and the front toward +y; `lift` from the floor; `plain` draws the item in its own
+## colour, not the run-down grade; `palette` (a list of `ObjectArtDecorConfig.prop_colors`) picks
+## its colour by where the piece stands; a `maybe` row is there for about half the
 ## pieces, by where the piece stands, so a seed's layout says which (a crate stack's third crate);
 ## an `on_top` row has no `lift`: the item rests on the piece's top under it (a counter's slab, not
 ## its backsplash) on what is already there, as a home top's desk and counter carry theirs, and
@@ -49,6 +51,9 @@ static func rows(definition: Dictionary, base: Node2D) -> Array[Dictionary]:
 	for row: Dictionary in canonical(definition, spec):
 		if row.get("maybe", false) and hash([base.position, row["key"], row["lift"]]) % 2 != 0:
 			continue
+		var patch := patch_of(row)
+		if row.has("palette"):  # A colour of a prop palette, picked by where the piece stands.
+			patch["color"] = _palette_pick(row["palette"], hash([base.position, row["key"]]))
 		out.append({
 			"key": row["key"],
 			"at": base.position + (row["at"] as Vector2).rotated(spec.turns * PI * 0.5),
@@ -56,20 +61,27 @@ static func rows(definition: Dictionary, base: Node2D) -> Array[Dictionary]:
 			"size": row.get("size", Vector2.ZERO),
 			"lift": float(row.get("lift", 0.0)),
 			"on_top": bool(row.get("on_top", false)),
-			"patch": patch_of(row),
+			"patch": patch,
 		})
 	return out
 
 
+## The colour of `ObjectArtDecorConfig.prop_colors[list]` that `roll` picks.
+static func _palette_pick(list: String, roll: int) -> Color:
+	var colours: Array = ObjectArtDecorConfig.prop_colors[list]
+	return colours[absi(roll) % colours.size()]
+
+
 ## What a carrying `row` changes in its item's catalogue row (`patched`): its footprint, colour,
-## weight, height and spines, and `plain` for a home top's item: it keeps the old prop's own
-## colour, not the run-down grade a catalogue colour is drawn in.
+## weight, height and spines, and `plain` for a home top's item and for a row that says `plain`
+## (a sandbag, the hat): it keeps the old prop's own colour, not the run-down grade a catalogue
+## colour is drawn in.
 static func patch_of(row: Dictionary) -> Dictionary:
 	var patch := {}
 	for field: String in ["size", "color", "weight", "height", "spines"]:
 		if row.has(field):
 			patch[field] = row[field]
-	if row.get("on_top", false):
+	if row.get("on_top", false) or row.get("plain", false):
 		patch["plain"] = true
 	return patch
 

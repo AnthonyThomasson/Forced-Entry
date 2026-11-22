@@ -65,6 +65,8 @@ func run(t: TestContext) -> void:
 	_check_glow(t)
 	_check_reused(t)
 	_check_keys(t)
+	_check_keys_mesh(t)
+	_check_mug_mesh(t)
 
 
 ## Every carried book, mug and bowl is as big, as turned and as bright as the prop it replaced.
@@ -118,6 +120,66 @@ func _check_keys(t: TestContext) -> void:
 	var got := _metal(c)
 	t.check(want > 0, "premise: the old bowl paints its keys (%d metal px)" % want)
 	t.check(got >= want, "the plain bowl holds its keys (%d metal px against %d)" % [got, want])
+
+
+## The plain bowl's mesh holds the keys too (its painter does): it stands a key ring and a key's
+## bar over the rim, the bowl of a plain mesh with none ending at the rim.
+func _check_keys_mesh(t: TestContext) -> void:
+	var rim := _bowl_top(t, true)
+	var bare := _bowl_top(t, false)
+	t.check(
+		rim >= bare + 0.2, "the plain bowl's mesh has its keys over the rim (%.2f over %.2f)" % [
+			rim,
+			bare,
+		]
+	)
+
+
+## The top (px) of the mesh of a bowl, `plain` as the console table's or not.
+func _bowl_top(t: TestContext, plain: bool) -> float:
+	var item := ObjectDefinitions.get_definition("bowl").duplicate(true)
+	item["art_opts"]["plain"] = plain
+	var piece := ObjectFactory.spawn(item, Vector2(100, 100), t.world, {})
+	var top := _mesh_of(piece).get_aabb().end.y
+	piece.queue_free()
+	return top
+
+
+## The plain mug's mesh is centred where its painter puts the mug: the body of the cylinder is
+## within half an art pixel of the painted disc (the mesh once sat a pixel to its left).
+func _check_mug_mesh(t: TestContext) -> void:
+	var item := PieceCarries.patched(
+		ObjectDefinitions.get_definition("cup"), { "plain": true, "color": Color(0.94, 0.93, 0.9) }
+	)
+	var size := Vector2i(item["size"])
+	var c := PixelCanvas.new(size.x, size.y, 7, ArtCanvasConfig.light_from)
+	ItemPainter.paint(c, item["color"], "", { "kind": "cup", "plain": true })
+	var left := size.x
+	for y in c.h:
+		for x in c.w:
+			if c.covered(x, y):
+				left = mini(left, x)
+	var round_ := maxi(1, mini(c.w, c.h) >> 1)  # the painter's disc radius
+	var painted := float(left) + round_ + 0.5 - c.w * 0.5  # its centre from the canvas's
+	var piece := ObjectFactory.spawn(item, Vector2(100, 100), t.world, {})
+	var radius := minf(size.x, size.y) * 0.5
+	var drawn := _mesh_of(piece).get_aabb().position.x + (radius - 0.5)  # the cylinder's centre
+	piece.queue_free()
+	t.check(
+		absf(drawn - painted) <= 0.5,
+		"the plain mug's mesh is where its painter puts it (%.2f against %.2f px)" % [
+			drawn,
+			painted,
+		],
+	)
+
+
+## The mesh the piece's rig builds, unshown: the body mesh.
+func _mesh_of(piece: Node2D) -> ArrayMesh:
+	var rig: FurnitureRig = ObjectMeshes.BUILDERS[piece.look.art].build(piece)
+	var mesh := rig.body.mesh as ArrayMesh
+	rig.free()
+	return mesh
 
 
 ## How many pixels of `c` are the prop palette's metal (or its darker shade, the key's line).
