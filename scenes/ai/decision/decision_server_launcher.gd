@@ -25,6 +25,9 @@ extends Node
 ## must reach `_resolve()`: one that silently never resolved would hang the setup window forever.
 signal resolved(live: bool)
 
+## Seconds a TCP connect to `port` may take before nothing is taken to be bound there
+## (`_port_open`).
+const CONNECT_WAIT_S := 3.0
 ## Where the server output is appended.
 const LOG_PATH := "user://von_server.log"
 ## The readiness probe (`_probe`).
@@ -136,9 +139,21 @@ func _resolve(live: bool) -> void:
 ## listening, and a server that cannot load its weights answers that happily (200 in milliseconds)
 ## while refusing every actual decision. Asking it to decide is the only check that means "the brain
 ## works" — and it doubles as a warm-up, so the first in-match decision isn't the one paying for
-## model load.
+## model load. Nothing bound on `port` is told apart first, by a TCP connect (`_port_open`): the
+## HTTP request would take its whole timeout to give up on a closed port on Windows.
 func _probe_once() -> void:
 	_probe.attempts_left -= 1
+	if not await _port_open():
+		if _probe.request != null:
+			_on_probe_completed(
+				HTTPRequest.RESULT_CANT_CONNECT,
+				0,
+				PackedStringArray(),
+				PackedByteArray(),
+			)
+		return
+	if _probe.request == null:
+		return  # The node left the tree while the connect was tried.
 	var payload := {
 		"model": NpcDecisionTuning.MODEL,
 		"state": "Readiness check.",
@@ -215,17 +230,45 @@ func _on_probe_completed(
 ## The server's own explanation for a non-200: `DecisionClient.error_detail`, capped at 300
 ## characters to keep the warning readable (an empty `detail` reads as an empty body too).
 func _detail(body: PackedByteArray) -> String:
+	if body.is_empty():
+		return "(empty response body)"  # Not parsed: an empty text is a JSON error in the log.
 	var text := DecisionClient.error_detail(body)
 	if text == "":
 		return "(empty response body)"
 	return text if text.length() <= 300 else text.substr(0, 300) + "…"
 
 
+## Whether something accepts a TCP connection on `port`: a server (ours, another's) is bound. A
+## refused or unanswered connect within `CONNECT_WAIT_S` says nothing is, without the HTTP request's
+## own timeout (a closed port can take that whole 15 s to give up on Windows).
+func _port_open() -> bool:
+	var peer := StreamPeerTCP.new()
+	if peer.connect_to_host(NpcDecisionTuning.SERVER_HOST, port) != OK:
+		return false
+	var deadline := Time.get_ticks_msec() + int(CONNECT_WAIT_S * 1000.0)
+	while Time.get_ticks_msec() < deadline:
+		peer.poll()
+		match peer.get_status():
+			StreamPeerTCP.STATUS_CONNECTED:
+				peer.disconnect_from_host()
+				return true
+			StreamPeerTCP.STATUS_ERROR, StreamPeerTCP.STATUS_NONE:
+				return false
+		if not is_inside_tree():
+			return false
+		await get_tree().process_frame
+	peer.disconnect_from_host()
+	return false
+
+
 ## Wait out `probe_interval` and probe again, bailing if the node left the tree mid-wait (the game
-## quit while we were polling).
+## quit while we were polling). A boot script that ended meanwhile is reported at once.
 func _wait_then_probe() -> void:
 	await get_tree().create_timer(probe_interval).timeout
 	if _probe.request == null:
+		return
+	if _probe.waiting_ready and _server_exited():
+		await _report_exit()
 		return
 	_probe_once()
 

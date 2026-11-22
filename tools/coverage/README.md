@@ -89,8 +89,10 @@ Run `run` with the Bash sandbox disabled: it starts Godot (found as `tools/run_t
    developer's `settings.json` or Von log), and writes the statement map. `scanner.py` finds the statements from
    indentation and brackets; what it is not sure of is left untouched and listed as **uninstrumented**.
 3. The Von decision server: one already answering on port 8000 is reused and left running; otherwise the run starts
-   the copy's `application/von/server_path` and stops it afterwards. With neither, the NPCs hold steady and every
-   match runs to the cap (the run says so).
+   the copy's boot script (`tools/von/boot.sh`, `boot.ps1` on Windows: it starts Von from the per-user Von home and
+   installs nothing) and stops it afterwards, the whole tree on Windows. A machine with no Von setup (the boot script's
+   exit 3; the run says why and names the bootstrap command) has no server: the NPCs hold steady and every match runs
+   to the cap (the run says so).
 4. Each game process gets `FE_COVERAGE`, the path of its run config. The probe then:
    - **matches**: starts the match by emitting the setup window's `start_requested(config)`, as a click would (so the
      start still waits for Von), ends the match's unit at the MatchHUD's `match_ended(verdict)`, and caps a match

@@ -1464,14 +1464,14 @@ def slow_to_stop_in_tests(log: Path):
     return edit
 
 
-def von_server_path(path: Path):
-    """An `edit` for fixture_repo: the project's `application/von/server_path` is `path`."""
+def von_boot_script(path: Path):
+    """An `edit` for fixture_repo: the repo's tools/von/boot.sh (the script the run starts Von with) hands over to the
+    stand-in server `path`, with the boot script's own arguments."""
     def edit(repo: Path) -> None:
-        project = repo / "project.godot"
-        text = project.read_text()
-        anchor = "[application]\n\n"
-        assert anchor in text
-        project.write_text(text.replace(anchor, f'{anchor}von/server_path="{path}"\n', 1))
+        boot = repo / "tools" / "von" / "boot.sh"
+        boot.parent.mkdir(parents=True, exist_ok=True)
+        boot.write_text(f'#!/bin/sh\nexec "{path}" "$@"\n')
+        boot.chmod(0o755)
     return edit
 
 
@@ -1593,7 +1593,7 @@ class SignalPhaseTests(unittest.TestCase):
         with TempDir() as d:
             von = fake_von(d, stubborn=True)
             pid_file = Path(f"{von}.pid")
-            repo = fixture_repo(d, von_server_path(von))
+            repo = fixture_repo(d, von_boot_script(von))
             with mock.patch.object(runner, "von_live", return_value=False):
                 sender = signal_main_when([(lambda: read_pid(pid_file), signal.SIGTERM),
                                            (lambda: logged_term(Path(f"{von}.log")), signal.SIGTERM)])
@@ -1610,7 +1610,7 @@ class SignalPhaseTests(unittest.TestCase):
         with TempDir() as d:
             von = fake_von(d, stubborn=False)
             pid_file = Path(f"{von}.pid")
-            repo = fixture_repo(d, von_server_path(von))
+            repo = fixture_repo(d, von_boot_script(von))
             with mock.patch.object(runner, "von_live", return_value=False):
                 sender = signal_main_when([(lambda: read_pid(pid_file), signal.SIGTERM)])
                 try:

@@ -9,8 +9,10 @@ tests, the merge of the shards and the run folder (tools/coverage/README.md).
       one game process of an instrumented copy for one plan entry, its probe flushing coverage_hits_<pid>.json
       into `hits_dir` every 5 s
   ensure_von(copy, port) -> VonServer / stop_von(server)
-      a decision server that answers is reused and left running; otherwise the copy's `application/von/server_path`
-      is started, and only a server started here is stopped
+      a decision server that answers is reused and left running; otherwise the copy's boot script
+      (tools/von/boot.sh, boot.ps1 on Windows) starts one from the per-user Von home, and only a server started here is
+      stopped (the whole tree: tools/proctree.py on Windows). A machine with no Von setup (the boot script's exit 3) has
+      no server: not live, the note says why and the bootstrap command that fixes it
   run(root, source, ...) -> (exit code, run folder)
       the whole run: copy and hit folder (workspace.py: in artifacts/tmp/), instrument, play (matches, `jobs`
       processes at a time: 2 by default, what one shared Von server answers) or run the copy's tools/run_tests.sh
@@ -60,6 +62,7 @@ VON_PORT = 8000
 VON_HEALTH = "/v1/systemone"
 VON_MODEL = "von-1.2.0"
 VON_READY_SECONDS = 90.0
+BOOT_SETUP_MISSING = 3         # the exit code of the boot script when the Von setup is missing or broken
 # The flags that run Von tests against the live server (--record-von too: it writes into the copy only).
 VON_TESTS_FLAGS = ("--include-von", "--require-von", "--record-von")
 # How the copy is linted before its tests: what instrumenting breaks on purpose left out (the isolation rule, and
@@ -333,31 +336,47 @@ def von_live(port: int, timeout: float = 5.0) -> bool:
         return False
 
 
-def von_path(copy) -> str:
-    """The copy's `application/von/server_path` project setting ("" when it has none)."""
-    text = (Path(copy) / "project.godot").read_text(encoding="utf-8")
-    section = re.search(r"^\[application\]\s*$(.*?)(?=^\[|\Z)", text, re.M | re.S)
-    found = re.search(r'^von/server_path\s*=\s*"([^"]*)"', section.group(1), re.M) if section else None
-    return found.group(1) if found else ""
+def von_boot_command(copy, port: int) -> list[str]:
+    """The command that starts the Von server of the copy's boot script for this OS, start-only (the script installs
+    nothing): Windows PowerShell 5.1 with -ExecutionPolicy Bypass on boot.ps1, else boot.sh itself."""
+    boot = Path(copy) / "tools" / "von"
+    if WINDOWS:
+        shell = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
+        return [str(shell) if shell.is_file() else "powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy",
+                "Bypass", "-File", str(boot / "boot.ps1"), "-Port", str(port), "-BindHost", "127.0.0.1", "-Device", "cpu"]
+    return [str(boot / "boot.sh"), "--port", str(port), "--host", "127.0.0.1", "--device", "cpu"]
+
+
+def von_line(log_path) -> str:
+    """The `von: <cause>. Fix: <command>` line the boot script printed into the log ("" when none)."""
+    try:
+        lines = Path(log_path).read_text(encoding="utf-8", errors="replace").splitlines()
+    except (OSError, TypeError):
+        return ""
+    return next((line.strip() for line in lines if line.startswith("von: ")), "")
+
+
+def log_tail(log_path) -> str:
+    """The end of the log, its last lines on one line."""
+    try:
+        lines = [line.strip() for line in Path(log_path).read_text(encoding="utf-8", errors="replace").splitlines()]
+    except (OSError, TypeError):
+        return ""
+    return " | ".join(line for line in lines if line)[-600:]
 
 
 def ensure_von(copy, port: int = VON_PORT, log_path=None) -> VonServer:
     if von_live(port):
         return VonServer(live=True, note=f"Reusing the Von server already live on port {port}; it is left running.")
-    path = von_path(copy)
-    if not path:
-        return VonServer(live=False, note=f"No Von server on port {port} and no application/von/server_path: the "
-                                          "NPCs hold steady, so matches run to the time cap.")
     server = VonServer(live=False, started=True)
     try:
         # Started and recorded under signals_held: a server this run started is always one it stops.
         with signals_held(), (open(log_path, "a") if log_path else nullcontext(subprocess.DEVNULL)) as log:
             try:
-                server.process = start([path, "serve", "--host", "127.0.0.1", "--port", str(port), "--device", "cpu"],
-                                       stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
-                                       start_new_session=True)
+                server.process = start(von_boot_command(copy, port), cwd=copy, stdin=subprocess.DEVNULL, stdout=log,
+                                       stderr=subprocess.STDOUT, start_new_session=True)
             except OSError as err:
-                raise RunFailed(f"cannot start the Von server {path}: {err}") from err
+                raise RunFailed(f"cannot start the Von boot script of {copy}: {err}") from err
         deadline = time.monotonic() + VON_READY_SECONDS
         while time.monotonic() < deadline and server.process.poll() is None:
             if von_live(port):
@@ -366,7 +385,17 @@ def ensure_von(copy, port: int = VON_PORT, log_path=None) -> VonServer:
                                "after the run.")
                 return server
             time.sleep(0.5)
-        raise RunFailed(f"the Von server {path} did not answer on port {port} within {VON_READY_SECONDS:.0f} s"
+        if server.process.poll() is not None:
+            code = server.process.returncode
+            if code == BOOT_SETUP_MISSING:
+                # No Von on this machine (or a half-finished setup): the matches still run, the NPCs hold steady.
+                server.started = False
+                server.note = (f"No Von server on port {port} and no Von setup ({von_line(log_path) or 'von boot exit 3'}): "
+                               "the NPCs hold steady, so matches run to the time cap.")
+                return server
+            raise RunFailed(f"the Von boot script stopped with exit {code} before a server answered on port {port}"
+                            + (f": {von_line(log_path) or log_tail(log_path)} (see {log_path})" if log_path else ""))
+        raise RunFailed(f"the Von server did not answer on port {port} within {VON_READY_SECONDS:.0f} s"
                         + (f" (see {log_path})" if log_path else ""))
     except BaseException:
         with signals_held():

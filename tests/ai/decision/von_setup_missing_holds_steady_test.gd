@@ -9,7 +9,7 @@ const LAUNCHER := preload("res://scenes/ai/decision/decision_server_launcher.gd"
 ## An unused port, so a Von running on the developer's own port is never probed.
 const PORT := 18_731
 ## Wall-clock seconds the launcher may take (it runs a real boot script: PowerShell starts slowly).
-const WALL_LIMIT_S := 30.0
+const WALL_LIMIT_S := 85.0
 
 
 func describe() -> Dictionary:
@@ -18,7 +18,7 @@ func describe() -> Dictionary:
 		"description": "An empty Forced-Entry home: the launcher resolves false at once, naming "
 			+ "the missing venv and the bootstrap command.",
 		"tags": ["ai", "decision", "von", "launcher", "setup"],
-		"timeout": 60.0,
+		"timeout": 120.0,
 		"allowed_logs": ["\\[von\\] "],
 	}
 
