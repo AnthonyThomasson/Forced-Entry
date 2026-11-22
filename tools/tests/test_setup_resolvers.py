@@ -371,7 +371,8 @@ class GodotOpenTests(Scratch):
 class NoCopiesTests(unittest.TestCase):
     """The lookups live in tools/setup/ only."""
 
-    SKIP = {"lib.sh", "fe_env.py", "lib.ps1", "test_setup_resolvers.py"}
+    # test_von_stop.py: its fake `ps` tables are a Mac's (`/Applications/Godot.app/...` command lines), not a lookup of Godot.
+    SKIP = {"lib.sh", "fe_env.py", "lib.ps1", "test_setup_resolvers.py", "test_von_stop.py"}
 
     def files(self, *patterns: str):
         for pattern in patterns:
