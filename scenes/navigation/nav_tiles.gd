@@ -22,6 +22,9 @@ const NAME_PREFIX := "NavSteering_"
 const RECT_META := "nav_tile_rect"
 const WALLS_META := "nav_tile_walls"
 const HOLES_META := "nav_tile_holes"
+## The holes a tick brought that are the baked ones within `NavSettle.TOLERANCE`
+## (`_holes_unchanged`).
+const SEEN_META := "nav_tile_holes_seen"
 ## The meta on the planning region that keeps each tower's parsed walls (`walls_reaching`).
 const WALL_CACHE_META := "nav_wall_cache"
 ## How many outline bounds are remembered; a full cache starts afresh rather than growing forever.
@@ -322,6 +325,7 @@ static func _assign(
 	tile.navigation_polygon = poly
 	tile.set_meta(WALLS_META, walls["obstruction"])
 	tile.set_meta(HOLES_META, holes)
+	tile.set_meta(SEEN_META, holes)
 
 
 ## The wall outlines (the house's local frame, on the map's 1 px grid) of the towers whose walls
@@ -452,10 +456,20 @@ static func _reaches(tiles: Array) -> Array[Rect2]:
 
 
 ## Whether `tile` was last baked from `holes` (never baked: no), to within `NavSettle.TOLERANCE`:
-## a piece that settled by a hair is no change. The tile keeps the holes it was baked from, so a
-## piece creeping on does not escape: it is due once it is a tolerance away from where it was baked.
+## a piece that settled by a hair is no change. The comparison is always against the holes the tile
+## was baked from, so a piece creeping on is due once it adds up to the tolerance; the holes found
+## within it are remembered (`SEEN_META`), so the next tick's identical ones are one equality test
+## and the shape comparison is made only when a footprint moves.
 static func _holes_unchanged(tile: NavigationRegion2D, holes: Array) -> bool:
-	return tile.has_meta(HOLES_META) and NavSettle.same_holes(tile.get_meta(HOLES_META), holes)
+	if not tile.has_meta(HOLES_META):
+		return false
+	if tile.get_meta(SEEN_META, null) == holes:
+		return true
+	var baked: Array = tile.get_meta(HOLES_META)
+	if not NavSettle.same_holes(baked, holes):
+		return false
+	tile.set_meta(SEEN_META, holes)
+	return true
 
 
 ## Whether `tile` was last baked from exactly `walls` and `holes` (to `NavSettle.TOLERANCE`; never

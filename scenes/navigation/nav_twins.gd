@@ -11,6 +11,12 @@ class_name NavTwins extends RefCounted
 ## How high (px) a shape's underside may be above the floor and still stand on it. A lintel's is a
 ## door's height, 84 px or more.
 const FLOOR_SLACK := 1.0
+## How far (radians) a shape's up axis may lean from true and still stand upright: a resting piece
+## settles by up to about 0.01 rad after the build, and read as tipped its footprint would be the
+## hull of its leaning corners, not the rectangle (or the 10-gon of a cylinder) it stood as: a hole
+## 1 px off and a tile re-baked for it. 0.005 rad is 0.25 px of lean over a 50 px half height; a
+## piece that tips over (D14) leans through whole radians.
+const UPRIGHT_SLACK := 0.005
 
 
 ## The walls under `house`, in tree order (the order a walk of its descendants finds them). A wall
@@ -50,10 +56,15 @@ static func footprints(body: Node, grounded := false) -> Array:
 	return out
 
 
+## Whether `pose` stands upright, to within `UPRIGHT_SLACK`.
+static func upright(pose: Transform3D) -> bool:
+	return pose.basis.y.normalized().dot(Vector3.UP) >= cos(UPRIGHT_SLACK)
+
+
 ## The plan polygon `shape` stands on at `pose` (`TwinShapes.footprint_of`; an upright box, the
 ## most of a district's shapes, is its four corners without the hull).
 static func footprint(shape: Shape3D, pose: Transform3D) -> PackedVector2Array:
-	if shape is BoxShape3D and pose.basis.y.is_equal_approx(Vector3.UP):
+	if shape is BoxShape3D and upright(pose):
 		var half := (shape as BoxShape3D).size * 0.5
 		return PackedVector2Array([
 			PlanSpace.plan_of(pose * Vector3(-half.x, 0.0, -half.z)),

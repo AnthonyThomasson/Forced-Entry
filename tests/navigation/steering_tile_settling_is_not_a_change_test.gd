@@ -3,13 +3,13 @@ extends GameTest
 ## was 4 vertices is outlined with 6) and that is not a change: the steering tiles it reaches are
 ## not due (#194 nav3d-a). Compared exactly, the first re-bake after a build re-baked 40 of a seed's
 ## 49 tiles for nothing, and the game's burst did the same once a match started. A tile's holes are
-## unchanged when every hole outline matches within `NavSettle.TOLERANCE` (0.01 px), compared as
+## unchanged when every hole outline matches within `NavSettle.TOLERANCE` (0.1 px), compared as
 ## shapes: a re-outline of the same footprint is the same hole. A piece moved half a pixel and a
 ## piece tipped over (D14) are changes.
 
 const SEED := 7
 ## A piece's outline moved by this far (px) is settling; 0.5 px is a real move.
-const SETTLE := 0.005
+const SETTLE := 0.05
 const MOVED := 0.5
 
 var _district: Node2D
@@ -22,7 +22,7 @@ func describe() -> Dictionary:
 	return {
 		"name": "A piece settling by a hair does not make a steering tile due",
 		"description": "In a district, once the steering tiles are baked, a piece settled by "
-			+ "0.005 px or outlined with more vertices leaves every tile un-due; a piece moved "
+			+ "0.05 px or outlined with more vertices leaves every tile un-due; a piece moved "
 			+ "0.5 px, or tipped over, makes the tiles it reaches due.",
 		"tags": ["navigation", "district", "steering", "furniture"],
 		"timeout": 30.0,
@@ -70,9 +70,28 @@ func run(t: TestContext) -> void:
 		_due(_with(furniture, piece, _tipped(outline)), characters) >= 1,
 		"a piece tipped over, its footprint now a long strip, makes its tiles due",
 	)
+	_leaning(t)
 	var shrunk := furniture.duplicate()
 	shrunk.remove_at(piece)
 	t.check(_due(shrunk, characters) >= 1, "a piece gone makes its tiles due")
+
+
+## A box that settled a hair off true is still the rectangle it stood as; a tipped one is not
+## upright.
+func _leaning(t: TestContext) -> void:
+	var box := BoxShape3D.new()
+	box.size = Vector3(40, 40, 40)
+	var leaning := Transform3D(Basis(Vector3.RIGHT, 0.003), Vector3(100, 20, 100))
+	t.expect_eq(
+		NavTwins.footprint(box, leaning).size(),
+		4,
+		"a box leaning 0.003 rad (a resting piece's settle) is still the rectangle it stood as",
+	)
+	var tipped := Transform3D(Basis(Vector3.RIGHT, 0.3), Vector3(100, 20, 100))
+	t.check(
+		not NavTwins.upright(tipped) and NavTwins.upright(leaning),
+		"a box tipped 0.3 rad is no longer upright",
+	)
 
 
 ## How many tiles `furniture` and `characters` leave due.

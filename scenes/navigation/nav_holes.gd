@@ -78,7 +78,7 @@ static func cut(body: Node2D) -> PackedVector2Array:
 ## (corners mitred, a rectangle stays a rectangle).
 static func _footprint(shape: Shape3D, pose: Transform3D) -> PackedVector2Array:
 	var margin := NavBuilder.OBSTACLE_MARGIN
-	if shape is CylinderShape3D and pose.basis.y.is_equal_approx(Vector3.UP):
+	if shape is CylinderShape3D and NavTwins.upright(pose):
 		var plan := PlanSpace.plan_transform(pose)
 		var radius := (shape as CylinderShape3D).radius / RenderConfig.unit + margin
 		var ring := PackedVector2Array()
