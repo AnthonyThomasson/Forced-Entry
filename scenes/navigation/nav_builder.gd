@@ -322,8 +322,7 @@ static func rebake_async(region: NavigationRegion2D, house: Node2D, rooms: Array
 ## planning bake). Returns null if there are no rooms. In the house's LOCAL frame — the region
 ## offsets it into world space. `build` bakes its steering region's first polygon with it. It
 ## gathers through `NavSource.job`, as the planning and steering bakes do, so all carve furniture
-## holes identically, and bakes through `NavSource.bake`, which welds the result to the 1 px grid:
-## every hole that meets a wall, a character's and a piece of furniture's, needs it.
+## holes identically, and bakes through `NavSource.bake` (the grid baker, interface 9).
 static func _bake_polygon(site: NavSite, characters: Array = []) -> NavigationPolygon:
 	var job := NavSource.job(site, furniture_holes(site.house), characters)
 	if job.is_empty():

@@ -2,8 +2,9 @@ extends GameTest
 ## A turned chair beside a wall cuts the planning navmesh with its hole, and the cut can leave
 ## vertices a fraction of a pixel apart: the NavigationServer merges edges by 1 px cell, rejects an
 ## edge whose ends share one and logs "navigation map synchronization error" (any logged engine
-## error fails a test). Every bake (planning, re-bake, steering) welds the vertices that share a
-## cell, so these spots bake clean. They are chair spots where an unwelded planning bake goes wrong
+## error fails a test). The grid baker's vertices stand on whole cells, so these spots bake clean
+## (the 2D baker's mesh needed a weld, `NavWeld`, now gone: it changed none of 1042 bakes of a full
+## run). They are chair spots where an unwelded 2D planning bake went wrong
 ## (found by a random search of 600 placements), baked both ways (in place and on the server's
 ## worker thread).
 

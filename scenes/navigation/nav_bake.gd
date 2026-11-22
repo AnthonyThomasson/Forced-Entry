@@ -1,17 +1,17 @@
 class_name NavBake extends RefCounted
 ## Navigation domain: one re-bake's thread and its landing. The bake runs on a thread of the
-## `WorkerThreadPool`, started now, and its result is taken in (welded, assigned to its region,
+## `WorkerThreadPool`, started now, and its result is taken in (assigned to its region,
 ## `landed` called) on the game frame `NavBakeConfig.district_frames` after the start, not when
 ## the thread happens to finish: the same frame every run. A thread that is not done by then is
 ## waited for, which holds that frame (`was_late` says so of each bake, `late_total` counts them). A
 ## bake in flight is kept in `_flying` until it lands, so nothing frees it first. Never two land on
-## one frame: each landing welds a polygon and makes its map synchronise, and a late one holds the
+## one frame: each landing assigns a polygon and makes its map synchronise, and a late one holds the
 ## frame for the rest of its thread, so a bake due on a frame that already took one in lands on the
 ## next, in the order the bakes were started (`navigation/landings_one_a_frame`). A late bake is one
 ## whose thread is not done on its landing frame: the frame waits for it (the threads run side by
 ## side on the pool, so waits in one frame cost about the longest, not the sum, unless more are
 ## running than the pool has workers); with one landing a frame its wait does not stack with
-## another's weld.
+## another's assignment.
 ##
 ## A "frame" is counted on `GameClock.frame()`, the AI's own frame (`WorldRng.frame_of`, every
 ## timer), not `Engine.get_physics_frames()`: that one runs through a pause and the clock stands
@@ -48,7 +48,6 @@ var _due := -1
 ## How many frames the bake lands after its start (`start`'s `frames`).
 var _frames := 0
 var _poly: NavigationPolygon
-var _origin := Vector2.ZERO
 var _region_ref: WeakRef
 var _landed: Callable
 var _tree: SceneTree
@@ -69,7 +68,7 @@ static func frames_for(region: NavigationRegion2D, avoid := false, ring := false
 
 
 ## Start baking `job` (`NavSource.job`) on a worker thread; on the game frame `frames` on (see
-## `frames_for`), weld it (`origin` is the region's offset), assign it to `region` and call
+## `frames_for`), bake it (`origin` is the region's offset), assign it to `region` and call
 ## `landed`. Held weakly: a region freed meanwhile is left alone (a lambda that captures a
 ## node freed before it runs logs an engine error: a world torn down mid-bake), and `landed` is
 ## still called. Returns the bake, to read `was_late` once it has landed.
@@ -83,7 +82,6 @@ static func start(
 	var bake := NavBake.new()
 	started_total += 1
 	bake._poly = job["poly"]
-	bake._origin = origin
 	bake._region_ref = weakref(region)
 	bake._landed = landed
 	bake._tree = Engine.get_main_loop() as SceneTree
@@ -133,6 +131,5 @@ func _land() -> void:
 	landed_total += 1
 	var target := _region_ref.get_ref() as NavigationRegion2D
 	if target != null:
-		NavWeld.finish(_poly, _origin)
 		target.navigation_polygon = _poly
 	_landed.call()

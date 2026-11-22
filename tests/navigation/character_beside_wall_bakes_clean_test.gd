@@ -1,10 +1,11 @@
 extends GameTest
 ## A character standing near a wall cuts the baked navmesh with its round hole, and the cut can
-## leave vertices a fraction of a pixel apart: the NavigationServer merges edges by 1 px cell,
-## rejects an edge whose ends share one and logs "navigation map synchronization error" (any logged
-## engine error fails a test). The bake welds the vertices that share a cell, so every spot below
-## bakes clean. They are spots next to the terrace house's walls and furniture that an unwelded
-## bake gets wrong.
+## leave vertices a fraction of a pixel apart: the NavigationServer merges edges by cell, rejects
+## an edge whose ends share one and logs "navigation map synchronization error" (any logged engine
+## error fails a test). The grid baker's vertices stand on whole cells, so every spot below bakes
+## clean. They are spots next to the terrace house's walls and furniture where the 2D baker's mesh,
+## unwelded, went wrong (the bake once welded them: no weld is left, `NavWeld` was dead on the
+## grid).
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Bake := preload("res://tests/_navigation/bake_probe.gd")

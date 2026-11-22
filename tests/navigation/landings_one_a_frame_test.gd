@@ -1,6 +1,6 @@
 extends GameTest
 ## Planning, ring and avoid bakes never land more than one on a `GameClock` frame (#195). Every
-## landing welds a polygon, assigns it and so makes its map synchronise on the next step, and a
+## landing assigns a polygon and so makes its map synchronise on the next step, and a
 ## frame that held six of them (a planning bake, the ring and four avoid maps started in the same
 ## few frames) cost 37 to 40 ms in the 5v5 guard, with the bakes whose thread was late waiting for
 ## it in the same frame. A landing that comes due on a frame that already holds one slips to the

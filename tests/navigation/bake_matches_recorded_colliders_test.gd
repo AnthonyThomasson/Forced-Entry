@@ -52,8 +52,8 @@ const SCENERY_WALLS := "Partition"
 ## The pieces hung on a wall, whose twin is about half as deep as their 2D collider: the only ones
 ## whose hole is not the recorded one's (a name starts with one of these).
 const HUNG: Array[String] = ["Menu Board", "Mirror", "Towel"]
-## How far (px) under the agent's radius a navmesh vertex may be from a wall: the 1 px grid, and the
-## weld that moves a vertex onto its neighbour.
+## How far (px) under the agent's radius a navmesh vertex may be from a wall: the baker's
+## 4 px cells.
 const CLEARANCE_SLACK := 2.0
 ## How far (px) from a wall the navmesh's vertices are looked at: the bake's radius and margin.
 const REACH := RADIUS + NavBuilder.WALL_MARGIN + CLEARANCE_SLACK
