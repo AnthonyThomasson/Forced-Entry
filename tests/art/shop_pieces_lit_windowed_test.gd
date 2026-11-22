@@ -55,7 +55,7 @@ const MIN_PX := 12
 const BARS := {
 	"shop_counter": { "bright": 0.9, "sat": 0.9, "lum": 0.01, "colour": 0.03 },
 	"noodle_counter": { "bright": 0.7, "sat": 0.8, "lum": 0.01, "colour": 0.03 },
-	"noodle_booth": { "bright": 0.8, "sat": 0.75, "lum": 0.01, "colour": 0.02 },
+	"noodle_booth": { "bright": 0.6, "sat": 0.75, "lum": 0.01, "colour": 0.02 },
 	"tool_cart": { "bright": 0.9, "sat": 0.45, "lum": 0.01, "colour": 0.02 },
 	"monitor_wall": { "bright": 0.9, "sat": 0.9, "lum": 0.01, "colour": 0.02 },
 	"drinks_fridge": { "bright": 0.9, "sat": 0.9, "lum": 0.02, "colour": 0.03 },

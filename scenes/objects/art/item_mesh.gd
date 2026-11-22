@@ -103,8 +103,11 @@ static func _mesh(spec: FurnitureSpec) -> Mesh:
 		"cup":
 			_cup(kit, spec, radius, high)
 		"bowl":
-			kit.cylinder(Vector3.ZERO, radius * 0.6, high * 0.4, spec.color)
-			kit.cylinder(Vector3(0.0, high * 0.4, 0.0), radius, high * 0.6 - WELL, spec.color)
+			if spec.opts.has("well"):  # A noodle bowl: the old plain cylinder.
+				kit.cylinder(Vector3.ZERO, radius, high - WELL, spec.color)
+			else:
+				kit.cylinder(Vector3.ZERO, radius * 0.6, high * 0.4, spec.color)
+				kit.cylinder(Vector3(0.0, high * 0.4, 0.0), radius, high * 0.6 - WELL, spec.color)
 			kit.cylinder(  # What fills it inside the rim: darker ceramic, or a broth.
 				Vector3(0.0, high - WELL, 0.0), radius * 0.66, WELL,
 				spec.opts.get("well", spec.color.darkened(0.15))

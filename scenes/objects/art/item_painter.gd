@@ -27,7 +27,13 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 		"cup":
 			_cup(c, base, opts.get("plain", false))
 		"bowl":
-			_bowl(c, base, opts.get("plain", false), opts.get("well", base.darkened(0.12)))
+			_bowl(
+				c,
+				base,
+				opts.get("plain", false),
+				opts.get("well", base.darkened(0.12)),
+				opts.has("well"),
+			)
 		"book":
 			_book(c, base)
 		"desk_lamp":
@@ -78,9 +84,15 @@ static func _cup(c: PixelCanvas, base: Color, plain: bool) -> void:
 	Kit.disc(c, at, maxi(1, radius - 1), base.darkened(0.55), 5)
 
 
-## A bowl: the rim and a dark well.
-static func _bowl(c: PixelCanvas, base: Color, plain: bool, well: Color) -> void:
+## A bowl: the rim and a dark well. A bowl a row gives a `well` (`given`: a noodle bowl's broth) is
+## the old noodle painter's: a rim of its own colour out to the footprint's edge and the well two
+## pixels in, no outline ring (the rim read a pixel smaller each side).
+static func _bowl(c: PixelCanvas, base: Color, plain: bool, well: Color, given: bool) -> void:
 	var at := _middle(c)
+	if given:
+		Kit.disc(c, at, _round(c), base, 4)
+		Kit.disc(c, at, maxi(1, _round(c) - 2), well, 4)
+		return
 	if plain:  # The old bowl: a ceramic round, its outline darker, a slightly darker inside.
 		Kit.disc(c, at, _round(c), base.darkened(0.35), 4)
 		Kit.disc(c, at, maxi(1, _round(c) - 1), base, 4)

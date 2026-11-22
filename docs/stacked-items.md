@@ -332,6 +332,15 @@ item must show two fifths of the drawing's bright and saturated pixels (the bar'
 lost its broth (a bowl's `well` colour: a row sets it, the flat art and the mesh draw it), a chip whose pins sank in its body and an
 eye that read dark (a ball: now a disc with a raised pupil). The bottles and snacks are lit by the glow of the fridge or machine
 they stand in, so one alone is no pair.
+A noodle bowl is a row's item, so `plain`, and paints as the old noodle painter's: a rim of its own colour to the footprint's
+edge and the broth two pixels in, no outline ring (`objects/noodle_bowl_is_the_old_size`: the outline ring read a bowl a pixel smaller
+each side), its mesh the old plain cylinder.
+**The old pieces, whole.** `tests/_art/old_shop_pieces.gd` builds a shop piece as 08f43a10 did (the old `shop_mesh`, `noodle_mesh`,
+`clinic_mesh`, `tech_mesh` and painters, kept as `tests/_art/old_*.gd`) and `art/shop_pieces_lit_windowed` (windowed) puts it and the
+new piece with its free items at one spot in turn, nine pieces, a bar each (bright and saturated shares, mean luminance and colour; the
+causes are in the test). **Open (reported by that test, red):** the drinks fridge's mean luminance is .254 against .312 (its old front
+was one lit pale-blue pane; the new bay's glow shows between the bottles only), and the cyberware shelf keeps 135 of 702 bright
+pixels (18 items against about 38). A booth's bowl keeps 64% of the old's bright pixels.
 Tests: `worldgen/old_looks_keep_their_items`
 (`COMMERCIAL`: each piece carries exactly its row and paints none of it), `objects/furniture_commercial_mesh`,
 `objects/piece_heights`, `objects/stocked_fridge_keeps_its_stock`, `objects/shop_stock_paints_its_packs`, `objects/emptied_shelves_keep_their_things`,
