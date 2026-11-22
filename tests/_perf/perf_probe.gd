@@ -89,7 +89,10 @@ const SMOOTH_MAX_MS := 33.4
 ## Accepted drift (#194 unbake-b, 2026-11-21): the shelves and the stock give up what they built
 ## in (`docs/stacked-items.md` SI13: books in runs of up to six, shelf boxes, shoes, two or three
 ## loose crates a stack, a pallet with four wrapped boxes, the hotplate's plate and pan are items;
-## the crate stacks and pallets are non-solid places; the stockroom's floor is not strewn twice).
+## the crate stacks and pallets are non-solid places, and the stockroom's floor is strewn with
+## stacks of boxes and crates around them again).
+## Twin bodies at unbake-d (shoes, floor stacks, sandbags, the hat): the district of seed 2 holds
+## 865, seed 13 984, of Jolt's 10240.
 ## Twin bodies: the district of seed 2 holds 691 (785 at stack-b: the places carry no body and a
 ## run of books is one body), the biggest of seeds 1 to 16 (13) 864 with 124 items, against Jolt's
 ## 10240. Absolute standards (`tools/run_tests.sh --domain=perf`, `--base=08f43a10` and the tip,
