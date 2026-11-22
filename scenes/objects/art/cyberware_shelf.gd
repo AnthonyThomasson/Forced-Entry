@@ -19,8 +19,12 @@ const LIFT := 2.0
 ## The art options its seeded layout reads (so a retuned look is another layout).
 const OPTIONS := ["kind", "neon", "height"]
 const ARM_WIDTH := 3.0
-## The small things stacked across a column, and what they are.
+## The small things stacked across a column, how far apart they stand along the depth, and what they
+## are; and how far one step along a column goes past an arm and past a stack (px).
 const SMALL := 3
+const SMALL_STRIDE := 9.0
+const ARM_STEP := 4.0
+const SMALL_STEP := 6.0
 const SMALL_KINDS := ["cyber_eye", "cyber_chip", "cyber_jar"]
 
 
@@ -79,9 +83,10 @@ static func rows(spec: FurnitureSpec) -> Array[Dictionary]:
 			else:
 				for k in SMALL:
 					var key: String = SMALL_KINDS[rng.randi_range(0, 2)]
-					var y := well.position.y + 1.0 + float(k) * 9.0 + rng.randf_range(0.0, 1.0)
+					var y := well.position.y + 1.0 + float(k) * SMALL_STRIDE
+					y += rng.randf_range(0.0, 1.0)
 					out.append(_row(spec, well, key, Vector2(x, top), y))
-			x += 5.0 if arm else 8.0
+			x += ARM_STEP if arm else SMALL_STEP
 		column += 1
 	return out
 

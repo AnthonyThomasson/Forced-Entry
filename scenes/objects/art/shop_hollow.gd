@@ -14,12 +14,13 @@ extends RefCounted
 const ShopMesh = preload("res://scenes/objects/art/shop_mesh.gd")
 const KINDS := ["fridge", "snack", "aisle"]
 ## Thickness of a side and the back, as bodies (thicker than drawn: `ShelfMesh.HULL`'s reason), of
-## the glass front, and of a board; the fridge's kick plate; the snack machine's window band and
-## its keypad column.
+## the glass front, and of a board; the fridge's kick plate and the lintel above its glass; the
+## snack machine's window band and its keypad column.
 const WALL := 4.0
 const GLASS := 3.0
 const BOARD := 2.0
 const KICK := 6.0
+const FRAME := 8.0
 const SNACK_SILL := 8.0
 const SNACK_WINDOW := 34.0
 const KEYPAD := 12.0
@@ -46,8 +47,8 @@ static func parts(spec: FurnitureSpec) -> Array[Dictionary]:
 			_add(spec, out, Rect2(w - WALL, 0, WALL, d), KICK, h - 3.0)
 			_add(spec, out, Rect2(WALL, 0, w - 2.0 * WALL, WALL), KICK, h - 3.0)
 			_add(spec, out, Rect2(0, 0, w, d), h - 3.0, h)
-			_add(spec, out, Rect2(WALL, d - GLASS, w - 2.0 * WALL, GLASS), h - 8.0, h - 3.0)
-			_add_glass(spec, out, Rect2(WALL, d - GLASS, w - 2.0 * WALL, GLASS), KICK, h - 8.0)
+			_add(spec, out, Rect2(WALL, d - GLASS, w - 2.0 * WALL, GLASS), h - FRAME, h - 3.0)
+			_add_glass(spec, out, Rect2(WALL, d - GLASS, w - 2.0 * WALL, GLASS), KICK, h - FRAME)
 		"snack":
 			var top := SNACK_SILL + SNACK_WINDOW
 			_add(spec, out, Rect2(0, 0, w, d), 0.0, SNACK_SILL)

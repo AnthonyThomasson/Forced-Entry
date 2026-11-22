@@ -304,11 +304,13 @@ snack packs (`snacks`, cardboard) on the machine's two and on each side of an ai
 the mesh draws. The fridge's and the machine's front is a **glass part** (3 px, a collider; the pane is not drawn: a clear pane has no
 mesh) that holds the stock in when the piece lurches or turns; a piece laid on its side spills it. A round meets the glass as glass
 (`penetration` 6, material `glass`: `Piece.get_surface_at_point`, which the Projectile reads where it has the point struck; the steel
-elsewhere), goes on through it to the bottles, and meets each by its own material. The stock is lit by a glow node on the bay's back
-wall. **Not done:** breaking the glass (a shot leaves the front whole, so the stock never falls out of an upright piece), the
+elsewhere), goes on through it to the bottles, and meets each by its own material. The machine's stock is lit by a glow node on the bay's back
+wall; the fridge's front is one lit pale-blue pane (a glow node, no collider) standing just behind the glass over its whole width, as
+the old front was (a pane at the back of the bay sat in the shade of its own roof and read a fifth darker, whatever its strength),
+so the bottles on their shelves are behind it and are not seen from the front. **Not done:** breaking the glass (a shot leaves the front whole, so the stock never falls out of an upright piece), the
 monitor wall's screens (part of the wall: a screen is a lit pane of its band, not a loose thing).
 
-**The cyberware shelf.** The ripperdoc's shelf is hollow too (`CyberwareShelf`) and steps up in three columns, a board on four posts each, the left lowest and the right as tall as the shelf, moving as the solid box of its extent. No board is over another's cyberware: the game camera looks down on the shelf, so tiers one over another (as it was built first: 26 of 38 items under a full board) would hide the lower ones, and every item shows from above. What it held is free items on the boards, laid left to right along each column by a generator seeded from the look: chrome arms (`cyber_arm`: a bar with its joint, lying the depth of the column) and stacks of three small things across it, eyes (`cyber_eye`, a ball with its pupil), chips (`cyber_chip`, a body with its pins) and jars (`cyber_jar`), each in its own colour (`plain`); a shelf is 18 of them (9 arms, 1 eye, 3 chips, 5 jars). Tests: `objects/cyberware_shelf_carries_its_cyberware` (no part over any item) and the shelf in `objects/emptied_shelves_keep_their_things`.
+**The cyberware shelf.** The ripperdoc's shelf is hollow too (`CyberwareShelf`) and steps up in three columns, a board on four posts each, the left lowest and the right as tall as the shelf, moving as the solid box of its extent. No board is over another's cyberware: the game camera looks down on the shelf, so tiers one over another (as it was built first: 26 of 38 items under a full board) would hide the lower ones, and every item shows from above. What it held is free items on the boards, laid left to right along each column by a generator seeded from the look: chrome arms (`cyber_arm`: a bar with its joint, lying the depth of the column) and stacks of three small things across it, eyes (`cyber_eye`, a ball with its pupil), chips (`cyber_chip`, a body with its pins) and jars (`cyber_jar`), each in its own colour (`plain`); a shelf is 26 of them (a step of `ARM_STEP` 4 px along a column after an arm, of `SMALL_STEP` 6 after a stack of `SMALL` 3 across the depth at a `SMALL_STRIDE` of 9; a stack of 4 at 6.5 held more but read the shelf lighter than the colour bar of `art/shop_pieces_lit_windowed` allows). Tests: `objects/cyberware_shelf_carries_its_cyberware` (no part over any item) and the shelf in `objects/emptied_shelves_keep_their_things`.
 
 **Sight and the glass.** The glass front of the fridge and the snack machine is a plain collider, not transparent: `get_surface()` (read per body by `SightRay`) says opaque for the whole piece, so AI and player sight stop at the glass exactly as at the solid fridge it replaced, though the stock behind it is drawn. A round meets the glass as glass (`EnvironmentObject.get_surface_at_point`, `ShopHollow.surface_at`). Nothing in the AI changed.
 
@@ -319,11 +321,11 @@ painted pack by pack (`spines` reach the flat art: one graded colour for a run r
 pixels); the cyberware's lid is a rim; the tool cart's diagnostic screen is its own item, `screen` (a dark body with a lit pane in the
 piece's neon: the reused `monitor` showed only its thin lit edge from above).
 
-**Bodies, and the rule for grouping.** Counted one way, `TwinSpace.bodies()` 120 frames after `s.district(Perf.MATCH_SEED, "garage_home")` is built, the plan named with each count: seed 2 holds 1149 bodies (881 at unbake-d, eaf06c4f), seed 13 1370 (1031). Counted another way (after 2 s, doors off, the earlier counts of this job): seed 2 1130 (742 at 08f43a10; 457 items against 56), seed 13 1423 (854), seed 1 1361 (786), seed 8, the most ripperdocs (6 shelves, 228 cyberware), 1263 (775); the busiest of 11 seeds is 1423, a seventh of Jolt's 10240. Over 600 physics frames of a quiet district
+**Bodies, and the rule for grouping.** Counted one way, `TwinSpace.bodies()` 120 frames after `s.district(Perf.MATCH_SEED, "garage_home")` is built, the plan named with each count: seed 2 holds 1165 bodies (881 at unbake-d, eaf06c4f), seed 13 1410 (1031). Counted another way (after 2 s, doors off, the earlier counts of this job): seed 2 1130 (742 at 08f43a10; 457 items against 56), seed 13 1423 (854), seed 1 1361 (786), seed 8, the most ripperdocs (6 shelves, 228 cyberware), 1263 (775); the busiest of 11 seeds is 1423, a seventh of Jolt's 10240. Over 600 physics frames of a quiet district
 the step costs 0.51 to 0.55 ms against 0.42 to 0.43 (08f43a10), about a tenth of a millisecond for 390 bodies (headless, load 60
 to 120, three alternated runs): no fight frame shows it, and nothing is grouped beyond **a run is one body** (up to four like bottles or
 packs, `ShopStock.RUN`, as a `book_stood` run is). The rule: where a room's free bodies would make a fight frame cost show, group
-like items into runs of one body per row (a row is what stands in a line on one board); a shelf of cyberware (18 bodies) is not one.
+like items into runs of one body per row (a row is what stands in a line on one board); a shelf of cyberware (26 bodies) is not one.
 Not measured: the perf guards (the machine's load was over 30).
 
 **The old look.** `tests/_art/old_shop_look.gd` holds what the shop, noodle, clinic and tech painters drew of each thing (as of
@@ -338,9 +340,7 @@ each side), its mesh the old plain cylinder.
 **The old pieces, whole.** `tests/_art/old_shop_pieces.gd` builds a shop piece as 08f43a10 did (the old `shop_mesh`, `noodle_mesh`,
 `clinic_mesh`, `tech_mesh` and painters, kept as `tests/_art/old_*.gd`) and `art/shop_pieces_lit_windowed` (windowed) puts it and the
 new piece with its free items at one spot in turn, nine pieces, a bar each (bright and saturated shares, mean luminance and colour; the
-causes are in the test). **Open (reported by that test, red):** the drinks fridge's mean luminance is .254 against .312 (its old front
-was one lit pale-blue pane; the new bay's glow shows between the bottles only), and the cyberware shelf keeps 135 of 702 bright
-pixels (18 items against about 38). A booth's bowl keeps 64% of the old's bright pixels.
+causes are in the test). The test is green: the fridge's lit front pane reads as the old front (mean luminance .323 against .312), and the cyberware shelf keeps 612 of the old 702 bright pixels with its 26 items. A booth's bowl keeps 64% of the old's bright pixels.
 Tests: `worldgen/old_looks_keep_their_items`
 (`COMMERCIAL`: each piece carries exactly its row and paints none of it), `objects/furniture_commercial_mesh`,
 `objects/piece_heights`, `objects/stocked_fridge_keeps_its_stock`, `objects/shop_stock_paints_its_packs`, `objects/emptied_shelves_keep_their_things`,

@@ -7,6 +7,10 @@ extends GameTest
 ## would hide it (the tiers step up along the shelf, each its own column, none over another).
 
 const CYBER := ["cyber_arm", "cyber_eye", "cyber_chip", "cyber_jar"]
+## The shelf drawn before held about 38 things on three tiers one over another; the stepped one
+## holds about two thirds of that, 26 (the lit picture's bars hold it:
+## `art/shop_pieces_lit_windowed`).
+const MIN_ITEMS := 24
 ## A thing is inside a part when it is this far (px) into its height.
 const INSIDE := 0.3
 
@@ -39,6 +43,13 @@ func run(t: TestContext) -> void:
 	)
 	var rows := PieceCarries.canonical(definition, spec)
 	t.require(rows.size() >= 6, "premise: the shelf carries its cyberware (%d rows)" % rows.size())
+	t.check(
+		rows.size() >= MIN_ITEMS,
+		"the shelf is as full as the one it replaced (%d items, at least %d)" % [
+			rows.size(),
+			MIN_ITEMS,
+		],
+	)
 	var lifts := {}
 	var kinds := {}
 	for row: Dictionary in rows:

@@ -6,8 +6,8 @@ extends RefCounted
 ## boards in tiers, a steel lip along each outer edge; `fridge` is a tall drinks fridge and `snack`
 ## a snack machine with a keypad, both with a bay behind a glass front: the three are hollow
 ## (`ShopHollow`: a box per part, the glass a collider and not drawn) and their stock is free items
-## on the boards (`ShopStock`). What is lit (a fridge's and a machine's back wall) is a glow node of
-## the piece's rig, no real light (the Lighting domain's).
+## on the boards (`ShopStock`). What is lit (a fridge's front pane, a machine's back wall) is a glow
+## node of the piece's rig, no real light (the Lighting domain's).
 
 const OPTIONS := ["kind", "top_color", "accent_color", "glass_color", "fridge_glow", "height"]
 ## How far a feature stands proud of the face it is laid on.
@@ -104,20 +104,32 @@ static func _counter(spec: FurnitureSpec, kit: MeshKit) -> void:
 	)
 
 
-## The lit back of a fridge or a snack machine's bay: a thin panel on the bay's back wall, so the
-## stock stands against a glow (the glass front is a collider, not drawn).
+## What glows: a fridge's lit pale-blue pane, a thin panel standing just behind the glass front
+## (the old front pane: a lit surface facing the room reads bright where one at the back of the bay
+## sits in the shade of its own roof; the stock stands behind it), and a snack machine's bay's back
+## wall, so its stock stands against a glow (the glass front is a collider, not drawn).
 static func _glass(spec: FurnitureSpec) -> Mesh:
 	var kit := spec.kit()
 	var bay: Dictionary = ShopHollow.bays(spec)[0]
 	var area: Rect2 = bay["area"]
 	var tops: Array[float] = bay["tops"]
-	var top := ShopHollow.WALL
+	if kind_of(spec) == "fridge":
+		var low := ShopHollow.KICK
+		kit.box(
+			MeshKit.volume(
+				spec.area(area.position.x, area.end.y - PROUD, area.size.x, PROUD),
+				low,
+				height_of(spec) - ShopHollow.FRAME - low,
+			),
+			_colour(spec, "fridge_glow"),
+		)
+		return kit.build()
 	var high: float = tops[-1] + float(bay["room"]) - tops[0]
 	kit.box(
 		MeshKit.volume(
-			spec.area(area.position.x, top, area.size.x, PROUD), tops[0], high
+			spec.area(area.position.x, ShopHollow.WALL, area.size.x, PROUD), tops[0], high
 		),
-		_colour(spec, "fridge_glow" if kind_of(spec) == "fridge" else "glass_color"),
+		_colour(spec, "glass_color"),
 	)
 	return kit.build()
 
@@ -180,5 +192,5 @@ static func _trim(spec: FurnitureSpec, kit: MeshKit) -> void:
 	for k in range(6, int(w) - 6, 4):
 		kit.box(MeshKit.volume(spec.area(k, 5, 2, 5), h, 0.4), spec.color.darkened(0.35))
 	var front := spec.area(ShopHollow.WALL, spec.size.y - PROUD, w - 8.0, PROUD)
-	for z: float in [ShopHollow.KICK, h - 8.0 - 0.8]:
+	for z: float in [ShopHollow.KICK, h - ShopHollow.FRAME - 0.8]:
 		kit.box(MeshKit.volume(front, z, 0.8), spec.color.darkened(0.55))

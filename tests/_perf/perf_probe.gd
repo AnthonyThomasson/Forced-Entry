@@ -94,7 +94,7 @@ const SMOOTH_MAX_MS := 33.4
 ## Twin bodies, counted one way: `TwinSpace.bodies()` 120 frames after `s.district(MATCH_SEED,
 ## "garage_home")` is built (the bodies that have a twin; the plan is named with every count, since
 ## another plan is another count): seed 2 holds 881 and seed 13 1031 at unbake-d (eaf06c4f), and
-## 1149 and 1370 with the shops' items at unbake-c (the shop, noodle, clinic and ripperdoc pieces
+## 1165 and 1410 with the shops' items at unbake-c (the shop, noodle, clinic and ripperdoc pieces
 ## carry what they drew, `docs/stacked-items.md` SI16), against Jolt's 10240. The figures given
 ## earlier (865 and 984, then 731 and 895) were counted another way or not reproduced.
 ##
