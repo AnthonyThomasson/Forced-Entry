@@ -71,7 +71,11 @@
 #   tools/run_tests.sh --include-von ai   run the Von tests LIVE against the decision server (real-time pace, shard 0), not
 #                                         from their recordings; the live-only ones run too, skipped when no server is live
 #   tools/run_tests.sh --require-von ai   the same, and a Von test FAILs instead of skipping when no server is live. A
-#                                         live run never reads or writes a recording
+#                                         live run never reads or writes a recording. Before any engine starts (--record-von
+#                                         too) a preflight (tools/von/boot.sh --check) stops the run, exit 1 and no test run,
+#                                         when the Von setup is missing or broken (no venv, its base Python gone, von-sdk or
+#                                         the weights missing, `von --version` failing): it names which and prints the
+#                                         bootstrap command for this OS. Not with GAME_TEST_VON_PORT (no server is started then)
 #   tools/run_tests.sh --record-von --id=ai/foo_bar
 #                                         run the selected Von tests live and write each one's recording beside its test
 #                                         (<name>_test.von.json, whole: unused entries drop) when it passes; FAILs when no
@@ -165,6 +169,22 @@ if [[ -n "${GAME_TEST_FINGERPRINT_DIR:-}" ]]; then
   mkdir -p "$GAME_TEST_FINGERPRINT_DIR"
 fi
 fe_use_godot || exit $?
+# --require-von and --record-von fail when no Von server is live, so a machine whose Von cannot start is told so before any
+# engine starts: the boot script's own check names what is missing (no venv, its base Python gone, von-sdk or the weights
+# missing, `von --version` failing) and the bootstrap command that fixes it for this OS (Windows: bootstrap.ps1, though this
+# runs in Git Bash). With GAME_TEST_VON_PORT the launcher only probes that port and never starts a server: nothing to check.
+if [[ -z "${GAME_TEST_VON_PORT:-}" ]]; then
+  for a in "$@"; do
+    case "$a" in --require-von|--record-von)
+      von_cause=$(bash "$TOOLS/von/boot.sh" --check 2>&1 >/dev/null) || {
+        echo "${a}: no test ran, the Von decision server cannot start on this machine." >&2
+        echo "$von_cause" >&2
+        exit 1
+      }
+      break ;;
+    esac
+  done
+fi
 
 # One cleanup for every way out (an exit, ^C, a kill: the signal first ends the processes this run started): this run's
 # note file and, for --base, its temporary worktree.

@@ -52,7 +52,7 @@ const ServerOutput := preload("res://scenes/ai/decision/server_output.gd")
 ## not starve the game. It is applied AFTER the first answer, not at launch, so the boot and the
 ## readiness probe keep their full speed. The cost: Von answers slower for the rest of the run.
 ## Other platforms ignore it. Off for the test runner's gate, whose asks are capped at 10 s
-## (`TestVonGate`). The measurements: `decision-von.md`.
+## (`TestVonGate`). The measurements: `decision-von-server.md`.
 @export var background_qos: bool = true
 ## Also print each server log line to the Output panel.
 @export var echo_to_output: bool = true

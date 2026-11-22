@@ -44,7 +44,7 @@ The header lists every flag; this file holds the rules and the reasons behind th
     and record runs are paced in real time, in shard 0.
   - **Live-only** (`"live_only": true`, with `requires_von`): tests of the transport or the gate
     (`ai/decision/von_request_across_pause`, `_harness/von_probe`) and one a replay cannot reproduce,
-    `ai/investigate/defenders_stay_in_house_quiet_von` (a 40 s generated-house fight a replay moves by a hair; it has no recording at all, so only a live run covers it).
+    `ai/investigate/defenders_stay_in_house_quiet_von` (a 40 s generated-house fight a replay moves by a hair; it has no recording).
     They never replay and are skipped without a server (FAIL under `--require-von`).
   - **Own process** (`"own_process": true`; a last resort and a debt: needs a follow-up ticket): the wrapper leaves
     the test out of the shards (`--skip-own-process`; ids go to `<out>/own_process.txt`) and runs it after them in an
