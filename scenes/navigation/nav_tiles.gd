@@ -176,11 +176,8 @@ static func prepare(site: NavSite, entry: Dictionary, parsed: Dictionary) -> Dic
 	var held := _gathered_if_changed(tile, site, parsed, walls, entry["holes"])
 	if held.is_empty():
 		return {}
-	var poly: NavigationPolygon = held["poly"]
-	var source: NavigationMeshSourceGeometryData2D = held["source"]
-	var origin: Vector2 = held["origin"]
-	held["task"] = WorkerThreadPool.add_task(func() -> void:
-		NavSource.bake_polygon(poly, source, origin), false, "nav tile bake")
+	held["task"] = WorkerThreadPool.add_task(
+		func() -> void: _bake_held(held), true, "nav tile bake")
 	threaded_total += 1
 	baked_total += 1
 	return held
@@ -253,15 +250,17 @@ static func _nearer(a: Dictionary, b: Dictionary) -> bool:
 	return a["i"] < b["i"]
 
 
-## The source of a bake of `tile` from `walls` (a parse's shape) and `holes`, gathered and ready
-## to run: `{ tile, poly, walls, holes, source, origin }`; `{}` when the site has nothing to bake.
+## The source of a bake of `tile` from `walls` (a parse's shape) and `holes`, gathered as far as the
+## main thread must (the walls and the footprint; the holes are fused and added by the bake itself,
+## `_bake_held`, which reads nothing of the tree): `{ tile, poly, walls, holes, source, origin }`;
+## `{}` when the site has nothing to bake.
 static func _gathered(
 	tile: NavigationRegion2D,
 	site: NavSite,
 	walls: Dictionary,
 	holes: Array,
 ) -> Dictionary:
-	var job := NavSource.job(site, holes, [], walls)
+	var job := NavSource.base(site, walls)
 	if job.is_empty():
 		return {}
 	var nav_poly: NavigationPolygon = job["poly"]
@@ -292,17 +291,23 @@ static func _gathered_if_changed(
 	return _gathered(tile, site, reached, holes)
 
 
+## Add the holes of `held` (`_gathered`) to its source and bake its polygon: the work of a worker
+## thread, which reads nothing but `held`.
+static func _bake_held(held: Dictionary) -> void:
+	NavSource.add_holes(held["source"], held["origin"], held["holes"])
+	NavSource.bake_polygon(held["poly"], held["source"], held["origin"])
+
+
 ## Run the bakes of `gathered` (`_gathered`) in parallel, as one group on the worker pool, and wait
 ## for them all: a lone one is baked where it stands.
 static func _bake_together(gathered: Array[Dictionary]) -> void:
 	if gathered.size() < 2:
 		for held: Dictionary in gathered:
-			NavSource.bake_polygon(held["poly"], held["source"], held["origin"])
+			_bake_held(held)
 		return
 	var group := WorkerThreadPool.add_group_task(func(i: int) -> void:
-		var held := gathered[i]
-		NavSource.bake_polygon(held["poly"], held["source"], held["origin"]),
-		gathered.size(), -1, false, "nav tile bakes")
+		_bake_held(gathered[i]),
+		gathered.size(), -1, true, "nav tile bakes")
 	WorkerThreadPool.wait_for_group_task_completion(group)
 
 
@@ -571,8 +576,9 @@ static func _cell(point: Vector2, origin: Vector2) -> Vector2i:
 ## An outline's bounds, remembered while its points stand still. Hashing the outline also makes two
 ## identical pieces share the answer; any moved point makes a different key, never a stale bound.
 static func _outline_bounds(outline: PackedVector2Array) -> Rect2:
-	if _bounds.has(outline):
-		return _bounds[outline]
+	var kept: Variant = _bounds.get(outline)
+	if kept != null:
+		return kept
 	if _bounds.size() >= BOUNDS_KEPT:
 		_bounds.clear()
 	bounds_measures += 1

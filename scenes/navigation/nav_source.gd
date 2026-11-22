@@ -179,15 +179,17 @@ static func bake_polygon(
 			shrunk.append(inner)
 			geometry.add_faces(_floor_faces(inner), Transform3D.IDENTITY)
 	var obstructions: Array[PackedVector2Array] = []
+	var boxes: Array[Rect2] = []
 	for outline: PackedVector2Array in source.get_obstruction_outlines():
 		for grown: PackedVector2Array in Geometry2D.offset_polygon(
 			outline, radius, Geometry2D.JOIN_ROUND,
 		):
 			obstructions.append(grown)
+			boxes.append(outline_bounds(outline).grow(radius))
 			geometry.add_projected_obstruction(_ring(grown), 0.0, OBSTRUCTION_HEIGHT, true)
 	if poly.baking_rect.has_area():
 		var tile := _tile_rect(poly.baking_rect, poly.border_size, origin)
-		for square in _border_squares(obstructions, shrunk, tile):
+		for square in _border_runs(obstructions, boxes, shrunk, tile):
 			geometry.add_projected_obstruction(_ring(square), 0.0, OBSTRUCTION_HEIGHT, true)
 	for square in closed:
 		geometry.add_projected_obstruction(_ring(square), 0.0, OBSTRUCTION_HEIGHT, true)
@@ -220,64 +222,135 @@ static func _tile_rect(reach: Rect2, border: float, origin: Vector2) -> Rect2:
 	return Rect2(low, high - low)
 
 
-## The cells of the tile's own outermost column (a square each) that are held, or whose neighbour's
+## The cells of the tile's own outermost column that are held, or whose neighbour's
 ## cell across the border is held: by an obstruction, or by lying outside the floor (a cell is held
 ## by where its centre lies). The voxel baker takes a cell as held by where its centre lies, so a
 ## wall's tip or a floor's edge that ends between the two columns of a border leaves one tile's
 ## column open and its neighbour's shut, and the two tiles' walkable stretches along the border then
-## differ; with the column shut on both sides they agree.
-static func _border_squares(
+## differ; with the column shut on both sides they agree. Neighbouring held cells are one rectangle
+## (the baker rasterises the same cells, with a fraction of the polygons).
+static func _border_runs(
 	obstructions: Array[PackedVector2Array],
+	boxes: Array[Rect2],
 	floors: Array[PackedVector2Array],
 	tile: Rect2,
 ) -> Array[PackedVector2Array]:
 	var out: Array[PackedVector2Array] = []
+	var floor_boxes := _boxes(floors)
 	for side in 4:
 		var band := _strip_across(tile, side).merge(_strip_inside(tile, side))
-		out.append_array(
-			_side_squares(
-				_touching(obstructions, band), _touching(floors, band), tile, side,
-			),
-		)
+		var reaching := _touching(boxes, band)
+		var blocks: Array[PackedVector2Array] = []
+		var spans: Array[Vector2] = []
+		for i in reaching:
+			blocks.append(obstructions[i])
+			spans.append(_span(boxes[i], side <= 1))
+		var near: Array[PackedVector2Array] = []
+		for i in _touching(floor_boxes, band):
+			near.append(floors[i])
+		out.append_array(_side_squares(blocks, spans, near, tile, side))
 	return out
 
 
-## `_border_squares` along the `side` of `tile`, from the polygons `blocks` and `floors` that reach
-## its two columns.
+## `_border_runs` along the `side` of `tile`, from the polygons `blocks` (`spans`: the range each
+## covers along the border) and `floors` that reach its two columns. When the floor holds the whole
+## band only a cell level with a block can be held, and a band no floor reaches is held whole (the
+## others are asked cell by cell: the same cells as asking each).
 static func _side_squares(
 	blocks: Array[PackedVector2Array],
+	spans: Array[Vector2],
 	floors: Array[PackedVector2Array],
 	tile: Rect2,
 	side: int,
 ) -> Array[PackedVector2Array]:
 	var out: Array[PackedVector2Array] = []
-	var outer := _strip_across(tile, side).get_center()
-	var inner := _strip_inside(tile, side).get_center()
 	var along := side <= 1
-	var mid := (tile.position.y if along else tile.position.x) + CELL_SIZE * 0.5
-	var high := tile.end.y if along else tile.end.x
-	while mid < high:
-		var across := Vector2(outer.x, mid) if along else Vector2(mid, outer.y)
-		var within := Vector2(inner.x, mid) if along else Vector2(mid, inner.y)
-		if _held(across, blocks, floors) or _held(within, blocks, floors):
-			out.append(_square_inside(tile, side, mid))
+	var first := (tile.position.y if along else tile.position.x) + CELL_SIZE * 0.5
+	var last := (tile.end.y if along else tile.end.x) - CELL_SIZE * 0.5
+	if floors.is_empty():
+		out.append(_run_inside(tile, side, first, last))
+		return out
+	var covered := _covers(floors, _strip_across(tile, side).merge(_strip_inside(tile, side)))
+	if covered and spans.is_empty():
+		return out
+	var run_from := -INF
+	var mid := first
+	while mid <= last:
+		var held := (
+			(not covered or _within(spans, mid))
+			and _cell_held(tile, side, mid, blocks, floors)
+		)
+		if held and run_from == -INF:
+			run_from = mid
+		elif not held and run_from != -INF:
+			out.append(_run_inside(tile, side, run_from, mid - CELL_SIZE))
+			run_from = -INF
 		mid += CELL_SIZE
+	if run_from != -INF:
+		out.append(_run_inside(tile, side, run_from, last))
 	return out
 
 
-## The polygons of `polygons` whose bounds reach `band`.
-static func _touching(
-	polygons: Array[PackedVector2Array],
-	band: Rect2,
-) -> Array[PackedVector2Array]:
-	var out: Array[PackedVector2Array] = []
+## Whether the cell of `tile`'s outermost column on `side` level with `mid`, or the one across the
+## border from it, is held (`_held`).
+static func _cell_held(
+	tile: Rect2,
+	side: int,
+	mid: float,
+	blocks: Array[PackedVector2Array],
+	floors: Array[PackedVector2Array],
+) -> bool:
+	var along := side <= 1
+	var outer := _strip_across(tile, side).get_center()
+	var inner := _strip_inside(tile, side).get_center()
+	var across := Vector2(outer.x, mid) if along else Vector2(mid, outer.y)
+	var within := Vector2(inner.x, mid) if along else Vector2(mid, inner.y)
+	return _held(across, blocks, floors) or _held(within, blocks, floors)
+
+
+## The bounds of each of `polygons`.
+static func _boxes(polygons: Array[PackedVector2Array]) -> Array[Rect2]:
+	var out: Array[Rect2] = []
 	for polygon in polygons:
 		var box := Rect2(polygon[0], Vector2.ZERO)
 		for p in polygon:
 			box = box.expand(p)
-		if box.intersects(band):
-			out.append(polygon)
+		out.append(box)
 	return out
+
+
+## The indices of `boxes` that reach `band`.
+static func _touching(boxes: Array[Rect2], band: Rect2) -> Array[int]:
+	var out: Array[int] = []
+	for i in boxes.size():
+		if boxes[i].intersects(band):
+			out.append(i)
+	return out
+
+
+## Whether the one floor polygon of `floors` holds the whole of `band` (nothing of the band is
+## outside it); false for none or several, which are asked cell by cell.
+static func _covers(floors: Array[PackedVector2Array], band: Rect2) -> bool:
+	if floors.size() != 1:
+		return false
+	var corners := PackedVector2Array([
+		band.position, Vector2(band.end.x, band.position.y), band.end,
+		Vector2(band.position.x, band.end.y),
+	])
+	return Geometry2D.clip_polygons(corners, floors[0]).is_empty()
+
+
+## The range of `box` along a border's axis, `along` the y axis or the x.
+static func _span(box: Rect2, along: bool) -> Vector2:
+	return Vector2(box.position.y, box.end.y) if along else Vector2(box.position.x, box.end.x)
+
+
+## Whether `at` is in one of `spans`.
+static func _within(spans: Array[Vector2], at: float) -> bool:
+	for span in spans:
+		if at >= span.x and at <= span.y:
+			return true
+	return false
 
 
 ## Whether the cell centred at `centre` is held: in one of `walls`, or in none of `floors`.
@@ -319,23 +392,26 @@ static func _strip_inside(tile: Rect2, side: int) -> Rect2:
 	return Rect2(tile.position.x, tile.end.y - CELL_SIZE, tile.size.x, CELL_SIZE)
 
 
-## The cell of `tile`'s outermost column on `side` level with `mid` (along the border).
-static func _square_inside(tile: Rect2, side: int, mid: float) -> PackedVector2Array:
+## The cells of `tile`'s outermost column on `side` from the one level with `from` to the one level
+## with `to` (along the border), as one rectangle.
+static func _run_inside(tile: Rect2, side: int, from: float, to: float) -> PackedVector2Array:
 	var half := CELL_SIZE * 0.5
-	var centre: Vector2
+	var low: Vector2
+	var high: Vector2
 	match side:
 		0:
-			centre = Vector2(tile.position.x + half, mid)
+			low = Vector2(tile.position.x, from - half)
+			high = Vector2(tile.position.x + CELL_SIZE, to + half)
 		1:
-			centre = Vector2(tile.end.x - half, mid)
+			low = Vector2(tile.end.x - CELL_SIZE, from - half)
+			high = Vector2(tile.end.x, to + half)
 		2:
-			centre = Vector2(mid, tile.position.y + half)
+			low = Vector2(from - half, tile.position.y)
+			high = Vector2(to + half, tile.position.y + CELL_SIZE)
 		_:
-			centre = Vector2(mid, tile.end.y - half)
-	return PackedVector2Array([
-		centre + Vector2(-half, -half), centre + Vector2(half, -half),
-		centre + Vector2(half, half), centre + Vector2(-half, half),
-	])
+			low = Vector2(from - half, tile.end.y - CELL_SIZE)
+			high = Vector2(to + half, tile.end.y)
+	return PackedVector2Array([low, Vector2(high.x, low.y), high, Vector2(low.x, high.y)])
 
 
 ## The box a bake is made in: `rect` less its `border` (a tile's reach less what it sees past its
