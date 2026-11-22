@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Claude Code PreToolUse hook (matcher Bash|PowerShell): refuse killing processes by name (pkill, killall, taskkill /IM,
-# Stop-Process -Name), so one worktree's agent never takes another's Von server down. The rules are in
-# block_kill_by_name.py (exit 2 and the reason on stderr refuses the command); this shim only finds a Python for it, with
-# no jq: $PYTHON, then python3 only if it really runs (on Windows it can be the Microsoft Store stub), then `py -3`, then
-# python. Wired in .claude/settings.json (and .skillshare/config.yaml). Without any Python it still refuses a command
-# that so much as names one of the forms.
+# Claude Code PreToolUse hook (matcher Bash|PowerShell): refuse killing processes by name (pkill, killall, taskkill
+# /IM, Stop-Process -Name), so one worktree's agent never takes another's Von server down. The rules are in
+# block_kill_by_name.py (exit 2 and the reason on stderr refuses the command); this shim only finds a Python for it,
+# with no jq: $PYTHON, then python3 only if it really runs (on Windows it can be the Microsoft Store stub), then
+# `py -3`, then python. Wired in .claude/settings.json (and .skillshare/config.yaml). Without any Python the fallback
+# at the bottom is COARSE and may over-refuse: it refuses any command that so much as names one of the forms, quoted
+# or not (a `grep pkill` too), and knows none of the finer rules.
 set -uo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 

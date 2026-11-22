@@ -2,7 +2,8 @@
 """Process trees on macOS (ps) and Windows: find the descendants of a pid and stop a whole tree. Git Bash's own `ps`
 does not see Windows processes, so on Windows the table comes from the Win32 API (`ctypes`: a Toolhelp32 snapshot, the
 command lines of the processes asked about from NtQueryInformationProcess; no PowerShell to start, which can take many
-seconds on a loaded machine) and, should that fail, from `Get-CimInstance Win32_Process` through Windows PowerShell 5.1 (`PROCTREE_CIM=1` forces it). A tree is stopped by ending each process of the table's tree
+seconds on a loaded machine) and, should that fail, from `Get-CimInstance Win32_Process` through Windows PowerShell
+5.1 (`PROCTREE_CIM=1` forces it). A tree is stopped by ending each process of the table's tree
 (TerminateProcess), then `taskkill /T /F /PID` for whatever still runs: taskkill's own tree walk goes through WMI,
 which can take minutes on a loaded machine.
 
@@ -14,8 +15,10 @@ which can take minutes on a loaded machine.
   python3 tools/proctree.py stop-matching PID [--match REGEX]
       stop only the branches of PID's descendants that hold a process whose command line matches REGEX (default
       VON_SERVER, a `von serve`): each branch from PID's direct child on down, so the shell or boot script that started
-      the server goes with it. PID itself and its other children stay. Exit 0 when something stopped, 1 when no
-      descendant matches (the message says so) or one would not stop, 2 for bad usage. tools/von_stop.sh runs it.
+      the server goes with it. PID itself and its other children stay: PID must be the Godot process's own pid, not
+      a wrapper's, and a branch whose own command line is Godot (GAME) is refused, not stopped. Exit 0 when something
+      stopped, 1 when no descendant matches (the message says so) or one would not stop, 2 for bad usage.
+      tools/von_stop.sh runs it.
 
 Importable too (`from proctree import snapshot, descendants, kill_tree`): tools/godot_slot.py may reuse it.
 
@@ -36,7 +39,9 @@ from typing import Dict, List, Optional
 
 WINDOWS = sys.platform in ("win32", "cygwin", "msys")
 # A `von serve` command line: `von` and `serve` as whole words (`von serve`, `von.exe serve`, `-m von serve`).
-VON_SERVER = r"(?<![A-Za-z0-9])von(?![A-Za-z0-9]).*(?<![A-Za-z0-9])serve(?![A-Za-z0-9])"
+VON_SERVER = r"(?i)(?<![A-Za-z0-9])von(?![A-Za-z0-9]).*(?<![A-Za-z0-9])serve(?![A-Za-z0-9])"
+# A command line that runs Godot: the program (`Godot`, `Godot_v4.4.1-stable_win64.exe`, `godot.py` ...) is no server.
+GAME = re.compile(r"(?i)(?:^|[\\/\"'])godot[^\\/\s\"']*(?=[\s\"']|$)")
 # Seconds a stopped process gets to go (POSIX: SIGTERM first, SIGKILL after) before the stop is reported as failed.
 GRACE = 5.0
 
@@ -285,14 +290,15 @@ def kill_tree(pid: int, procs: Optional[Dict[int, Proc]] = None) -> bool:
     """Stop `pid` and everything under it; whether all of it is gone."""
     procs = procs if procs is not None else snapshot()
     tree = [pid] + [p.pid for p in descendants(procs, pid)]
-    deadline = time.monotonic() + GRACE
     taskkill_pending = WINDOWS  # taskkill /T /F is Windows's second try, for what TerminateProcess did not end.
     if WINDOWS:
         try:
             win32().terminate(tree)
         except (OSError, AttributeError):
             pass
+        deadline = time.monotonic() + GRACE
     else:
+        deadline = time.monotonic() + GRACE
         send(tree, signal.SIGTERM)
         while time.monotonic() < deadline and not gone(tree):
             time.sleep(0.1)
@@ -301,11 +307,14 @@ def kill_tree(pid: int, procs: Optional[Dict[int, Proc]] = None) -> bool:
         deadline = time.monotonic() + GRACE
     while not gone(tree):
         if time.monotonic() > deadline:
-            return False
+            return gone(tree)  # a last look: on a loaded machine one snapshot can outlast the grace
         if taskkill_pending:
             taskkill_pending = False
-            subprocess.run(["taskkill", "/T", "/F", "/PID", str(pid)], capture_output=True, timeout=300,
-                           stdin=subprocess.DEVNULL)
+            try:
+                subprocess.run(["taskkill", "/T", "/F", "/PID", str(pid)], capture_output=True, timeout=300,
+                               stdin=subprocess.DEVNULL)
+            except (subprocess.TimeoutExpired, OSError):
+                pass  # the loop's own checks say whether it is gone
         time.sleep(0.1)
     return True
 
@@ -344,6 +353,12 @@ def stop_matching(game: int, pattern: str) -> int:
         return 1
     failed = 0
     for root in roots:
+        if GAME.search(root.cmd):
+            failed += 1
+            print(f"refusing to stop pid {root.pid}, which is the game itself ({root.cmd[:120]}): pid {game} is a "
+                  f"wrapper around it. Pass the Godot process's own pid ({root.pid}), not a wrapper's.",
+                  file=sys.stderr)
+            continue
         count = len(descendants(procs, root.pid)) + 1
         if kill_tree(root.pid, procs):
             print(f"stopped pid {root.pid} and {count - 1} below it: {root.cmd[:120]}")

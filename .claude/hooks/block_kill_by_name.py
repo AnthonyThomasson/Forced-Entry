@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 """Claude Code PreToolUse hook (Bash and PowerShell): refuse a command that kills processes BY NAME. Every worktree
 runs its own Von decision server, and a name matches every worktree's (and another agent's) process, so
-`pkill -f "von serve"` takes the others' servers down with it. Reads the hook's JSON on stdin; exit 2 with the reason on stderr refuses the
-command, exit 0 lets it through. Wired in .claude/settings.json through block_kill_by_name.sh.
+`pkill -f "von serve"` takes the others' servers down with it. Reads the hook's JSON on stdin; exit 2 with the
+reason on stderr refuses the command, exit 0 lets it through. Wired in .claude/settings.json through
+block_kill_by_name.sh.
 
 Refused (as the command of any statement of the line, also inside `bash -c "..."`, `eval`, `powershell -Command "..."`,
-`cmd /c ...`, behind `sudo`, `env`, `xargs` ...):
+`cmd /c ...`, `powershell "..."` (the command as the first argument), behind `sudo`, `env`, `xargs` ...):
   pkill (with or without -f), killall,
   taskkill with /IM (or -IM) or an /FI filter on IMAGENAME,
-  Stop-Process with -Name / -ProcessName (any abbreviation PowerShell takes), or fed by `Get-Process <name>`.
+  Stop-Process with -Name / -ProcessName (any abbreviation PowerShell takes), or fed by `Get-Process <name>` (piped,
+  or from a `% { Stop-Process -Id $_.Id }` block),
+  a kill fed by a lookup by name: `kill $(pgrep x)`, kill `pgrep x`, `pgrep x | xargs kill`.
 Allowed: `kill <pid>`, `taskkill /PID <pid>`, `Stop-Process -Id <pid>`, and the word `pkill` anywhere that is not a
 command (a `grep pkill`, a commit message).
 The refusal names the way out: `kill <pid>`, or `tools/von_stop.sh <game pid>` for a Von server.
@@ -35,8 +38,20 @@ STATEMENT_END = r"&&|\|\||[;&\n(){}`]"
 PIPE = r"\|"
 STOP_NAME = re.compile(r"^-(n|na|nam|name|pr|pro|proc|proce|proces|process|processn|processna|processnam|processname)"
                        r"(:.*)?$", re.I)
-GET_PROCESS = {"get-process", "gps"}
 STOP_PROCESS = {"stop-process", "spps"}
+# Statements, but a `{ }` block or `( )` group stays in its statement (`Get-Process x | % { Stop-Process -Id $_.Id }`).
+WHOLE_STATEMENT_END = r"&&|\|\||[;&\n`]"
+GET_BY_NAME = re.compile(r"\b(?:get-process|gps)\s+(?:-n\w*[:\s]+)?[A-Za-z*]", re.I)
+STOPS_PROCESSES = re.compile(r"\b(?:stop-process|spps)\b|\.kill\(|\{[^}]*\bkill\b", re.I)
+QUOTED = re.compile(r"\"(?:\\.|[^\"\\])*\"|'[^']*'")
+SINGLE_QUOTED = re.compile(r"'[^']*'")
+# A kill fed by a lookup by name (the shell expands what a double quote holds, not a single quote).
+PGREP_KILL = re.compile(
+    r"\bkill\b[^;&|\n]*(?:\$\(|`)\s*(?:pgrep|pidof)\b"  # kill $(pgrep x), kill `pgrep x`
+    r"|\b(?:pgrep|pidof)\b[^;&\n]*\|\s*xargs\b[^;&|\n]*\bkill\b")  # pgrep x | xargs kill
+SIGNAL = re.compile(r"^(?:\d+|(?:SIG)?(?:HUP|INT|QUIT|ILL|TRAP|ABRT|BUS|FPE|KILL|USR1|SEGV|USR2|PIPE|ALRM|TERM|CHLD"
+                    r"|CONT"
+                    r"|STOP|TSTP|TTIN|TTOU|URG|XCPU|XFSZ|VTALRM|PROF|WINCH|IO|PWR|SYS))$", re.I)
 HEREDOC = re.compile(r"(?<!<)<<(?!<)-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
 WINDOWS_PATH_BACKSLASH = re.compile(r"\\(?=[A-Za-z0-9_.])")
 
@@ -113,19 +128,19 @@ def refusal(command: str, depth: int = 0) -> Optional[str]:
             found = command_refusal(args, depth)
             if found:
                 return found
-        names = [i for i, args in enumerate(pipeline) if args and base(args[0]) in GET_PROCESS and by_name(args)]
-        stops = [i for i, args in enumerate(pipeline) if args and base(args[0]) in STOP_PROCESS]
-        if names and stops and names[0] < stops[-1]:
-            return "`Get-Process <name> | Stop-Process`"
+    return lookup_refusal(command)
+
+
+def lookup_refusal(command: str) -> Optional[str]:
+    """The kills fed by a lookup by name: `Get-Process <name>` into a Stop-Process, `pgrep` into a kill."""
+    body = without_heredocs(command)
+    for statement in split(body, WHOLE_STATEMENT_END):
+        text = QUOTED.sub('""', statement)
+        if GET_BY_NAME.search(text) and STOPS_PROCESSES.search(text):
+            return "`Get-Process <name>` into a Stop-Process"
+    if PGREP_KILL.search(SINGLE_QUOTED.sub("''", body)):
+        return "`kill` fed by `pgrep` / `pidof`"
     return None
-
-
-def by_name(args: List[str]) -> bool:
-    """Whether a `Get-Process` call picks processes by name: a positional name or -Name, not -Id / -InputObject."""
-    rest = args[1:]
-    if any(re.match(r"^-(i|id|inputobject)(:.*)?$", a, re.I) for a in rest):
-        return False
-    return bool(rest)
 
 
 ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
@@ -135,7 +150,7 @@ OPERAND = re.compile(r"^\d+[smhd]?$")
 def kill_by_name(rest: List[str]) -> bool:
     """PowerShell's `kill` is Stop-Process: -Name / -ProcessName (and abbreviations), not a POSIX `kill -n 9 <pid>`."""
     for i, arg in enumerate(rest):
-        if STOP_NAME.match(arg) and not (arg.lower() == "-n" and i + 1 < len(rest) and OPERAND.match(rest[i + 1])):
+        if STOP_NAME.match(arg) and not (arg.lower() == "-n" and i + 1 < len(rest) and SIGNAL.match(rest[i + 1])):
             return True
     return False
 
@@ -192,12 +207,29 @@ def program_refusal(args: List[str], depth: int) -> Optional[str]:
     elif program == "eval":
         inner = " ".join(rest)
     elif program in POWERSHELLS:
-        i = next((i for i, a in enumerate(rest) if re.match(r"^-c(o(m(m(a(n(d)?)?)?)?)?)?$", a, re.I)), None)
-        inner = " ".join(rest[i + 1:]) if i is not None else None
+        inner = powershell_command(rest)
     elif program == "cmd":
         i = next((i for i, a in enumerate(rest) if a.lower() in ("/c", "/k")), None)
         inner = " ".join(rest[i + 1:]) if i is not None else None
     return refusal(inner, depth + 1) if inner else None
+
+
+def powershell_command(rest: List[str]) -> Optional[str]:
+    """The command line a `powershell` / `pwsh` call runs: what follows -Command, else the first argument that is no
+    switch (`powershell -NoProfile "Stop-Process -Name x"`); None for -File and -EncodedCommand."""
+    i = 0
+    while i < len(rest):
+        arg = rest[i]
+        if re.match(r"^-c(o(m(m(a(n(d)?)?)?)?)?)?$", arg, re.I):
+            return " ".join(rest[i + 1:])
+        if re.match(r"^-(f|fi|fil|file|e|ec|en|enc|encodedcommand)$", arg, re.I):
+            return None
+        if arg.startswith("-"):
+            i += 2 if re.match(r"^-(ep|executionpolicy|w|windowstyle|if|inputformat|of|outputformat|version|v"
+                               r"|workingdirectory|wd|configurationname|config)$", arg, re.I) else 1
+        else:
+            return " ".join(rest[i:])
+    return None
 
 
 def main() -> int:
