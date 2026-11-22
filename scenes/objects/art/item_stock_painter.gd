@@ -28,8 +28,9 @@ const _LOW := 3
 const _TALL := 10
 
 
-## Paint the item `kind` onto `c` in `base`.
-static func paint(c: PixelCanvas, base: Color, kind: String) -> void:
+## Paint the item `kind` onto `c` in `base` (`opts.well`: the colour of what fills a pot, the noodle
+## bar's broth).
+static func paint(c: PixelCanvas, base: Color, kind: String, opts: Dictionary = {}) -> void:
 	match kind:
 		"pallet":
 			for y in range(0, c.h, 12):
@@ -76,6 +77,18 @@ static func paint(c: PixelCanvas, base: Color, kind: String) -> void:
 			Kit.disc(c, Vector2i(r, r), r, base, _TALL)
 			Kit.fill_rect(c, Rect2i(2 * r, r - 1, 5, 2), base.darkened(0.2), _TALL)
 		_:
-			var r := maxi(1, mini(c.w, c.h) >> 1)
-			Kit.disc(c, Vector2i(c.w >> 1, c.h >> 1), r, base, _TALL)
-			Kit.disc(c, Vector2i(c.w >> 1, c.h >> 1), maxi(1, r - 2), base.darkened(0.45), _TALL)
+			_pot(c, base, opts.get("well"))
+
+
+## A pot: its steel disc with a dark middle, or, for one with a `well`, the noodle bar's old pot: a
+## dark rim, a ring of its steel and the broth inside.
+static func _pot(c: PixelCanvas, base: Color, well: Variant) -> void:
+	var r := maxi(1, mini(c.w, c.h) >> 1)
+	var mid := Vector2i(c.w >> 1, c.h >> 1)
+	if well is Color:
+		Kit.disc(c, mid, r, base.darkened(0.4), _TALL + 2)
+		Kit.disc(c, mid, maxi(1, r - 2), base, _TALL + 3)
+		Kit.disc(c, mid, maxi(1, r - 4), (well as Color).darkened(0.2), _TALL + 3)
+		return
+	Kit.disc(c, mid, r, base, _TALL)
+	Kit.disc(c, mid, maxi(1, r - 2), base.darkened(0.45), _TALL)

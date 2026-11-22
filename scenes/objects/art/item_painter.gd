@@ -38,7 +38,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 			_crate(c, base)
 		var other:
 			if other in ItemStockPainter.KINDS:
-				ItemStockPainter.paint(c, base, other)
+				ItemStockPainter.paint(c, base, other, opts)
 			elif not ItemHomePainter.paint(c, base, other) \
 					and not ItemShopPainter.paint(c, base, other, opts):
 				_box(c, base)

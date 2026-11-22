@@ -47,7 +47,8 @@ const VALUE := 0.3
 const MIN_PX := 12
 ## What the new item shows of the old drawing, per kind, as measured in `SHOP_LIT_RECORD` mode
 ## (old `a`, new `b`): `colour` the most the mean colour of what it adds may be from the old's (the
-## largest channel), `cover` the least share of the pixels it changes, `bright` and `sat` the
+## largest channel), `cover` the least share of the pixels it changes, `middle` (when it is there)
+## the most the pixel in the middle may be from the old's (a pot's broth), `bright` and `sat` the
 ## least share of the old's bright and saturated pixels (0: the old has under `MIN_PX` of them, so
 ## the kind is not judged by it, and the test says so). The causes of the gaps: the lit 3D picture
 ## darkens a flat colour a shade (a mean about 0.02 to 0.05 under the flat's) and an item of
@@ -61,7 +62,8 @@ const BARS := {
 	},  # a glowing pane, flat keys
 	"jar": { "colour": 0.04, "cover": 0.6, "bright": 0.4, "sat": 0.0 },
 	"pack": { "colour": 0.2, "cover": 0.6, "bright": 0.0, "sat": 0.4 },  # red 0.47 against 0.29
-	"pot": { "colour": 0.05, "cover": 0.6, "bright": 0.0, "sat": 0.0 },  # the broth: see below
+	# the pot: a dark outline ring, two handles and a shadow the flat drawing has not (0.081 darker)
+	"pot": { "colour": 0.1, "cover": 0.6, "bright": 0.0, "sat": 0.0, "middle": 0.05 },
 	"bowl": { "colour": 0.11, "cover": 0.6, "bright": 0.4, "sat": 0.4 },  # the rim ring: 480 of 960
 	"instruments": { "colour": 0.04, "cover": 0.6, "bright": 0.0, "sat": 0.0 },
 	"syringe": { "colour": 0.03, "cover": 0.6, "bright": 0.4, "sat": 0.4 },
@@ -215,7 +217,13 @@ func _picture(t: TestContext, name_: String) -> Image:
 func _measure(image: Image, bare: Image) -> Dictionary:
 	var centre := Vector2i(Vector2(image.get_size()) * 0.5)
 	var half := int(BOX * ZOOM * 0.5)
-	var out := { "changed": 0, "bright": 0, "sat": 0, "colour": Color(0, 0, 0) }
+	var out := {
+		"changed": 0, "bright": 0, "sat": 0, "colour": Color(
+			0,
+			0,
+			0,
+		), "middle": image.get_pixelv(centre),
+	}
 	var sum := Vector3.ZERO
 	for y in range(centre.y - half, centre.y + half):
 		for x in range(centre.x - half, centre.x + half):
@@ -262,6 +270,12 @@ func _judge(t: TestContext, key: String, old: Dictionary, new: Dictionary) -> vo
 			old["changed"],
 		],
 	)
+	if bar.has("middle"):  # a thing with something in its middle (the pot's broth) shows it
+		t.check(
+			_gap(old["middle"], new["middle"]) <= float(bar["middle"]),
+			"the new %s's middle is its prop's (%s against %s)"
+			% [key, new["middle"], old["middle"]],
+		)
 	for measure: String in ["bright", "sat"]:
 		if bar[measure] > 0.0:
 			t.require(
