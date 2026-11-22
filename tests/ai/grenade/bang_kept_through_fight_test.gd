@@ -56,10 +56,11 @@ const LEAD := 0.7
 ## The stun's wind-up in this test (s; the row's is 0.3): see the premises.
 const WINDUP := 1.0
 ## Once the stun has left its hand, the thrower fights within this many seconds: the sighting it
-## held off is decided (Von answers in about 1 s). 2.5: the thrower evades the burst for 1.6 s
+## held off is decided (Von answers in about 1 s). 2.2: the thrower evades the burst for 1.6 s
 ## first, so its COMBAT order comes 1.97 s after the release on the old nav mesh and 2.03 s on the
-## 4 px one (the walk out is a few frames longer), against the 2.0 s the bar was set at.
-const FIGHT := 2.5
+## 4 px one (the walk out is a few frames longer), against the 2.0 s the bar was set at; 2.2 is
+## that need plus about 0.15 s of noise.
+const FIGHT := 2.2
 ## The thrower's view cone (the NPC's `fov_degrees`, 110) as a half-angle.
 const HALF_FOV := deg_to_rad(55.0)
 
