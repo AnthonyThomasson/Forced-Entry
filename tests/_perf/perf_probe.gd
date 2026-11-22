@@ -91,10 +91,12 @@ const SMOOTH_MAX_MS := 33.4
 ## loose crates a stack, a pallet with four wrapped boxes, the hotplate's plate and pan are items;
 ## the crate stacks and pallets are non-solid places, and the stockroom's floor is strewn with
 ## stacks of boxes and crates around them again).
-## Twin bodies (`TwinSpace.bodies()` of the district `WorldGen.generate_district(seed)` builds,
-## 120 frames after it: the bodies that have a twin; counted at unbake-d, where the figures 865
-## and 984 given earlier for these seeds were not reproduced): the district of seed 2 holds 731
-## and seed 13 holds 895, against Jolt's 10240.
+## Twin bodies, counted one way: `TwinSpace.bodies()` 120 frames after `s.district(MATCH_SEED,
+## "garage_home")` is built (the bodies that have a twin; the plan is named with every count, since
+## another plan is another count): seed 2 holds 881 and seed 13 1031 at unbake-d (eaf06c4f), and
+## 1149 and 1370 with the shops' items at unbake-c (the shop, noodle, clinic and ripperdoc pieces
+## carry what they drew, `docs/stacked-items.md` SI16), against Jolt's 10240. The figures given
+## earlier (865 and 984, then 731 and 895) were counted another way or not reproduced.
 ##
 ## Absolute standards (`tools/run_tests.sh --domain=perf`, `--base=08f43a10` and the tip,
 ## the failing ones again alone, one after the other, load 6 to 13 from other workers: a loaded

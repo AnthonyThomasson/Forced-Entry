@@ -167,9 +167,9 @@ static func _monitor(kit: MeshKit, spec: FurnitureSpec, foot: Rect2, high: float
 	kit.box(MeshKit.volume(screen, 3.0, high - 3.0), spec.color, spec.color.lightened(0.2))
 
 
-## The monitor's lit edge (the old prop's glowing bar: 2 px, 1 lit + 1 shaded): a strip along the
-## top of the screen's front and a panel proud of its front face, emissive so the room's light does
-## not swamp them.
+## The monitor's lit edge (the old prop's glowing bar: a 1 px lit line on the screen's front edge):
+## a strip along the top of the screen's front and a panel proud of its front face, emissive so the
+## room's light does not swamp them.
 static func _monitor_glow(spec: FurnitureSpec, foot: Rect2, high: float) -> Mesh:
 	var kit := spec.kit()
 	var lit := Decay.screen_color(spec.opts)

@@ -79,9 +79,9 @@ static func _palette_pick(list: String, roll: int) -> Color:
 
 
 ## What a carrying `row` changes in its item's catalogue row (`patched`): its footprint, colour,
-## weight, height, spines and `well` (the colour of what fills a bowl), and `plain` for a home top's
-## item and for a row that says `plain` (a sandbag, the hat): it keeps the old prop's own colour,
-## not the run-down grade a catalogue colour is drawn in.
+## weight, height, spines and `well` (the colour of what fills a bowl), and `plain` for an `on_top`
+## row's item (a home top's, the hat) and for a row that says `plain` (a sandbag): it keeps the old
+## prop's own colour, not the run-down grade a catalogue colour is drawn in.
 static func patch_of(row: Dictionary) -> Dictionary:
 	var patch := {}
 	for field: String in ["size", "color", "weight", "height", "spines", "well"]:

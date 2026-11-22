@@ -223,7 +223,7 @@ They place only on the piece's footprint, so a sampled house has them asleep wit
 **The old look is kept**: a home item paints in the prop palette (`ObjectArtDecorConfig.prop_colors`) at the prop's size, not in the catalogue
 colour's run-down grade (a carrying `on_top` row sets `art_opts.plain`: the mesh and the flat art, and the district's warm of it, use the item's own colour; the bowl and the mug paint as the props did, a fruit bowl and a vase stand a flat-topped fruit and flower on each spot the painter draws one, so the lit top reads as the painted one: `art/home_items_lit_windowed`), and the monitor's lit
 front edge is drawn `glowing` in `Decay.screen_color` (the screen's green, or the neon) and is an emissive glow node of its mesh (`ItemMesh._monitor_glow`:
-a strip on the screen's top and a panel on its front, the old prop's bar being 2 px, 1 lit + 1 shaded, in the room's light too: a painted edge went dull under it; `objects/monitor_edge_glows_in_a_lit_room_windowed`).
+a strip on the screen's top and a panel on its front, the old prop's bar being a 1 px lit line along the screen's front edge, in the room's light too: a painted edge went dull under it; `objects/monitor_edge_glows_in_a_lit_room_windowed`).
 The reused kinds take the prop's size, orientation and palette colour from the `carries` row that sets them (a book 12 x 9 lying landscape in a
 book colour, a mug and a bowl ceramic, the bowl 12 round; `objects/home_items_keep_the_old_look`), a mug has its coffee and a bowl its well, and the
 tools and the vise are slim and small as drawn (a hammer, a wrench and a screwdriver apart; a stand with its jaw and screw).
@@ -269,7 +269,7 @@ against the old prop by `art/home_items_lit_windowed` (windowed).
   to 16): under a ducked head (35.9), so a ducked fighter at an end of the barricade is not covered there (the slab covers), and a walker steps over a bag on
   the floor (10 is within a step; no nav hole). The two small top bags rest 10 px up and are 16 high, past a step: each cuts a nav hole, 11 by 4 px, over the
   bag under it (`objects/emptied_barricade_and_coat_rack_carry_items` pins the two top bags: lift 10, 11 by 4, 6 high).
-- **Their own colour.** A bag and the hat are `plain` (their carrying rows say it, `PieceCarries`): the sandbags' tan and the hat's coat-palette colour are not
+- **Their own colour.** The bags are `plain` by their rows (`PieceCarries`) and the hat is plain through `on_top`: the sandbags' tan and the hat's coat-palette colour are not
   graded to the run-down look (graded, a bag was lit at 0.39 of the old bag's luminance: `art/home_items_lit_windowed`, bar 0.85). The hat's colour is a
   `palette` row: a colour of `ObjectArtDecorConfig.prop_colors["coats"]` picked by where its rack stands, as the old hat's was; the district's warm
   paints every colour of the palette.
@@ -319,9 +319,7 @@ painted pack by pack (`spines` reach the flat art: one graded colour for a run r
 pixels); the cyberware's lid is a rim; the tool cart's diagnostic screen is its own item, `screen` (a dark body with a lit pane in the
 piece's neon: the reused `monitor` showed only its thin lit edge from above).
 
-**Bodies, and the rule for grouping.** A district's `TwinSpace.bodies()` after 2 s of the district (plan `garage_home`, doors off):
-seed 2 1130 (08f43a10: 742; 457 items against 56), seed 13 1423 (854), seed 1 1361 (786), seed 8, the most ripperdocs (6 shelves,
-228 cyberware), 1263 (775); the busiest of 11 seeds is 1423, a seventh of Jolt's 10240. Over 600 physics frames of a quiet district
+**Bodies, and the rule for grouping.** Counted one way, `TwinSpace.bodies()` 120 frames after `s.district(Perf.MATCH_SEED, "garage_home")` is built, the plan named with each count: seed 2 holds 1149 bodies (881 at unbake-d, eaf06c4f), seed 13 1370 (1031). Counted another way (after 2 s, doors off, the earlier counts of this job): seed 2 1130 (742 at 08f43a10; 457 items against 56), seed 13 1423 (854), seed 1 1361 (786), seed 8, the most ripperdocs (6 shelves, 228 cyberware), 1263 (775); the busiest of 11 seeds is 1423, a seventh of Jolt's 10240. Over 600 physics frames of a quiet district
 the step costs 0.51 to 0.55 ms against 0.42 to 0.43 (08f43a10), about a tenth of a millisecond for 390 bodies (headless, load 60
 to 120, three alternated runs): no fight frame shows it, and nothing is grouped beyond **a run is one body** (up to four like bottles or
 packs, `ShopStock.RUN`, as a `book_stood` run is). The rule: where a room's free bodies would make a fight frame cost show, group
