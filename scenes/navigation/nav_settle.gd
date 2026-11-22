@@ -1,16 +1,15 @@
 class_name NavSettle extends RefCounted
 ## Navigation domain: whether two lists of hole outlines are the same holes. After a district is
 ## built its pieces come to rest: they settle by up to about 0.15 px (measured over a seed's pieces)
-## and a footprint that was a plain rectangle is outlined with 6 vertices. Compared exactly, a
-## steering tile's holes then differ and the first re-bake (and the game's burst after a match
-## starts) re-baked 40 of a seed's 49 tiles for nothing. Outlines are compared as shapes, within
-## `TOLERANCE`.
+## and a plain rectangle may be outlined with 6 vertices. That is no change to a steering tile's
+## holes: outlines are compared as shapes, within `TOLERANCE`, not exactly.
 
 ## How far (px) a hole's boundary may lie from the one it is compared with and still be the same
 ## hole: 0.1 px, above the 0.15 px settling's bulk (a hole is compared by its distance to the
 ## other's boundary, which reads a settle a little under its corner shift) and a fifth of the 0.5 px
 ## at which a shoved piece is a move (a tipped piece's footprint differs by tens of px). The bake's
-## cells are 4 px, so a drift this small cannot change a polygon the baker would draw.
+## cells are 4 px, so a drift this small rarely changes a polygon the baker draws (a cell centre
+## within it of a hole edge can flip, and the tile stays baked from slightly stale holes).
 const TOLERANCE := 0.1
 
 

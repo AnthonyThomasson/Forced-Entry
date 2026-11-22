@@ -168,7 +168,7 @@ static func parse_for(
 ## holes it was due with: the source is gathered here, on the main thread, and the bake runs on a
 ## worker thread (`task`), so a frame pays for the gathering only. Nothing on the tile changes until
 ## `land`. Returns the held bake `{ tile, poly, walls, holes, source, origin, task }`, `{}` when
-## nothing was started (the tile was freed meanwhile, was baked from exactly these already, or the
+## nothing was started (the tile was freed meanwhile, was baked from these holes already, or the
 ## site has nothing to bake).
 static func prepare(site: NavSite, entry: Dictionary, parsed: Dictionary) -> Dictionary:
 	var tile := entry["tile"] as NavigationRegion2D
@@ -280,7 +280,7 @@ static func _gathered(
 
 
 ## `_gathered` for `tile` from the `walls` that reach it (of the parse `parsed`) and its `holes`,
-## `{}` when it was baked from exactly these already.
+## `{}` when it was baked from these walls and holes already (the holes to within `NavSettle`).
 static func _gathered_if_changed(
 	tile: NavigationRegion2D,
 	site: NavSite,

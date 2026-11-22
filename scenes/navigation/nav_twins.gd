@@ -12,10 +12,11 @@ class_name NavTwins extends RefCounted
 ## door's height, 84 px or more.
 const FLOOR_SLACK := 1.0
 ## How far (radians) a shape's up axis may lean from true and still stand upright: a resting piece
-## settles by up to about 0.01 rad after the build, and read as tipped its footprint would be the
+## leans by a few thousandths (a few settle at up to 0.01), and read as tipped its footprint is the
 ## hull of its leaning corners, not the rectangle (or the 10-gon of a cylinder) it stood as: a hole
-## 1 px off and a tile re-baked for it. 0.005 rad is 0.25 px of lean over a 50 px half height; a
-## piece that tips over (D14) leans through whole radians.
+## about 1 px off. 0.005 rad shifts a footprint 0.25 px per 50 px of half height, so a tall piece
+## can differ from its rectangle by more than `NavSettle.TOLERANCE`; one leaning past it is read as
+## tipped and its hole is the hull, as it is for a piece that tips over (D14, whole radians).
 const UPRIGHT_SLACK := 0.005
 
 
