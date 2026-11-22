@@ -12,7 +12,13 @@ class_name NavBakeConfig
 ## match (`Perf.configure_match`; the 5v5 frame about 7 ms, the 10v10's 15 ms): the thread took 4 to
 ## 18 frames of the 5v5 frame (p50 10, p75 11, p95 14), 3 to 7 of the 10v10's; it is rare (the
 ## updater's tick) and nothing waits on it, so the count is the p95: 14.
-static var district_frames := 14
+##
+## Since the 3D baker (D16) the thread is about 2.2 times as long (a planning bake 118 ms against 53
+## at eaf06c4f, `perf/bake_and_path_stress`): the counts were set from the 2D baker's p95 (14 and
+## 12) and the landing frame blocked on the thread. Set to 24 and 20, the old counts times 2.2 less
+## the frames the pool's parallel work gives back (not a fresh p95 over the guard matches: that
+## measurement is still to be made).
+static var district_frames := 24
 ## A district's avoid map (`NavBuilder.avoid_map`): the same source and a few holes, so the same
 ## thread (568 bakes in those runs: 1 to 14 frames of the 5v5 frame, p50 9, p75 11, p95 13), but
 ## the AI asks for one at the start of every decision's walk and of an entry's slot, and a new set
@@ -26,7 +32,7 @@ static var district_frames := 14
 ## (`navigation/map_syncs_without_a_thread`) the 5v5 guard's contact came at 10.5 to 12.3 s, the
 ## same every run of a count, at 14, 12, 10 and 8 alike. (With the server's async map sync it came
 ## at 12 s, 30 s or not at all from run to run at any count, and was taken for the count.)
-static var avoid_frames := 12
+static var avoid_frames := 20
 ## The planning ring (`NavRing`): a small map of the match building, a bake of 4 to 7 ms that is
 ## done in a frame (211 bakes: 1 frame, at most 4); read by every snap and route in the building,
 ## so it lands as soon as it safely can: 3.
