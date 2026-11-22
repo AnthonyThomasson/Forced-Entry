@@ -10,9 +10,6 @@ class_name NavLeaves extends RefCounted
 ## any further shut, its free end stands across the way past it through the doorway (a 48 px
 ## doorway, the narrowest: an interior one between its jambs, measured open at 78).
 const OPEN_SLACK := 10.0
-## Half the thickness (px) of the strip a carved leaf leaves in the map (`hole`): a sliver, so the
-## 1 px grid keeps it.
-const HALF := 1.0
 ## The least width (px) the map's way past a carved leaf keeps through its doorway, between the
 ## bake's clearance off the leaf's strip and off the latch jamb: a doorway narrower than that past
 ## the open leaf (a 52 px one) is left uncarved, as a door short of its stop is, since the carve
@@ -51,22 +48,26 @@ static func append_holes(out: Array, house: Node2D) -> void:
 ## short of its open stop by more than `OPEN_SLACK` leaves none either: shut or ajar, it stands in
 ## or across the mouth of its doorway, and carving it would seal the doorway, so the path goes
 ## through as if open and the walker opens it (`docs/doors.md` DR14). A leaf at its open stop is
-## carved as the strip along its middle line, `HALF` each side, not as its footprint grown by
-## `NavBuilder.OBSTACLE_MARGIN`: the bake's clearance off that strip is within a few px of what a
-## body needs off the leaf's faces, where the grown footprint's would close the way past the leaf
-## through a narrow doorway (the leaf's clearance meeting the other jamb's). A doorway whose way
-## past the open leaf would keep less than `MIN_PASS` on the map is left uncarved too (`_passes`).
+## carved as the leaf itself, its own thickness, not as its footprint grown by
+## `NavBuilder.OBSTACLE_MARGIN`: the bake's clearance off it is within a few px of what a body
+## needs off the leaf's faces (the 4 px cells put a mesh edge up to 3 px nearer than it, so a
+## thinner strip left a walker pressed against the leaf), where the grown footprint's would close
+## the way past the leaf through a narrow doorway (the leaf's clearance meeting the other jamb's).
+## A doorway whose way past the open leaf would keep less than `MIN_PASS` on the map is left
+## uncarved too (`_passes`).
 static func hole(door: Node) -> PackedVector2Array:
 	if (not door.has_method("leaf_pose") or door.call("is_down")
 			or float(door.call("angle")) < float(door.get("open_angle")) - OPEN_SLACK):
 		return PackedVector2Array()
-	var half_length := (door.call("leaf_size") as Vector2).x * 0.5
+	var leaf := door.call("leaf_size") as Vector2
+	var half_length := leaf.x * 0.5
+	var half := leaf.y * 0.5
 	var pose: Transform2D = door.call("leaf_pose", float(door.call("angle")))
-	if not _passes(door, pose, half_length):
+	if not _passes(door, pose, half_length, half):
 		return PackedVector2Array()
 	return PackedVector2Array([
-		pose * Vector2(-half_length, -HALF), pose * Vector2(half_length, -HALF),
-		pose * Vector2(half_length, HALF), pose * Vector2(-half_length, HALF),
+		pose * Vector2(-half_length, -half), pose * Vector2(half_length, -half),
+		pose * Vector2(half_length, half), pose * Vector2(-half_length, half),
 	])
 
 
@@ -83,11 +84,12 @@ static func fallen_hole(door: Node) -> PackedVector2Array:
 
 
 ## Whether the map keeps a way `MIN_PASS` wide past door `door`'s leaf standing at `pose` (its
-## middle, `half_length` to each end) through the doorway: the latch jamb (where the shut leaf's
-## free end meets it) stands off the leaf's middle line by more than the strip's half, the bake's
-## clearance off each side (`NavBuilder.AGENT_RADIUS` + `NavBuilder.WALL_MARGIN`) and `MIN_PASS`.
-static func _passes(door: Node, pose: Transform2D, half_length: float) -> bool:
+## middle, `half_length` to each end and `half` its thickness to each side) through the doorway:
+## the latch jamb (where the shut leaf's free end meets it) stands off the leaf's middle line by
+## more than the leaf's half, the bake's clearance off each side (`NavBuilder.AGENT_RADIUS` +
+## `NavBuilder.WALL_MARGIN`) and `MIN_PASS`.
+static func _passes(door: Node, pose: Transform2D, half_length: float, half: float) -> bool:
 	var latch: Vector2 = (door.call("leaf_pose", 0.0) as Transform2D) * Vector2(half_length, 0.0)
 	var across := pose.y.normalized()
 	var clearance := NavBuilder.AGENT_RADIUS + NavBuilder.WALL_MARGIN
-	return absf((latch - pose.origin).dot(across)) - HALF >= 2.0 * clearance + MIN_PASS
+	return absf((latch - pose.origin).dot(across)) - half >= 2.0 * clearance + MIN_PASS
