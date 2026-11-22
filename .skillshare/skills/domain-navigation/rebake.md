@@ -33,8 +33,8 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
   region, `landed`) on the physics frame the caller's count says after the start, not when the thread finishes (`domain-testing`: the perf
   nondeterminism note). A thread not done by then is waited for, which holds that frame (`NavBake.was_late` of that bake, `late_total` of all; the match
   guards log `PERF <label> nav bakes late N of M`); one on time costs the frame its assignment only. `NavBake.frames_for(region, avoid, ring)`
-  picks the count from `NavBakeConfig`: a district's planning bake `district_frames` 14 (the p95 of its thread on the 5v5 guard's 7 ms frame), its avoid
-  maps `avoid_frames` 12 (the p90: the AI waits for a chain of them, so each link costs the count; 10, near the median, was late for a quarter of them), the planning ring `ring_frames` 3
+  picks the count from `NavBakeConfig`: a district's planning bake `district_frames` 32 (a 104 to 113 ms thread: 23 frames of the ambush guard's 4.7 ms frame), its avoid
+  maps `avoid_frames` 20 (16 frames at most; 12, the p90, in 2D: the AI waits for a chain of them, so each link costs the count; 10, near the median, was late for a quarter of them), the planning ring `ring_frames` 4
   (a 4 to 7 ms bake), a lone house's bakes `house_frames` 3. The measurements, and why the avoid maps' is not the same, are the holder's comments.
   Remeasure when a bake or a frame changes (log the frames from `NavBake.start` to the thread's completion). A region freed meanwhile is left
   alone and `landed` still called; a game closing finishes every bake in flight (`NavBake._finish_all`).
