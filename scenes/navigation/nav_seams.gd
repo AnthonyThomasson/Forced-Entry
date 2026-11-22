@@ -4,7 +4,7 @@ class_name NavSeams extends RefCounted
 ## need not have the same vertices: a wall's tip or a hole's edge that touches the line stops one
 ## side's polygon edge where the other side's runs on, so the tile's edge spans a stretch the
 ## neighbour's is cut into. The NavigationServer joins two polygons by an edge both have (the same
-## two 1 px cells), and joins anything else only in its edge-connection pass, which costs the whole
+## two cells), and joins anything else only in its edge-connection pass, which costs the whole
 ## steering map's links rebuilt each time a tile changes (~10 ms in a district). So a tile's border
 ## edges are split at the vertices its neighbour has there: both sides then hold the same edges, and
 ## the map needs no pass. The tile keeps the polygon it was baked with (`RAW_META`) and is given a
@@ -19,6 +19,15 @@ const POINTS_META := "nav_tile_seam_points"
 ## What the polygon the tile holds is split at: per side, the coordinates (`POINTS_META`'s kind)
 ## added to its border edges.
 const SPLIT_META := "nav_tile_split"
+## The tile's polygon as the baker first made it (before any border cell was closed), and what its
+## border's walkable stretches are: per side a sorted array of `Vector2(from, to)` along that
+## border (the house's local frame).
+const BASE_META := "nav_tile_base"
+const EDGES_META := "nav_tile_seam_edges"
+## What its border's walkable stretches are in the polygon it holds now (`EDGES_META`'s kind).
+const NOW_META := "nav_tile_seam_now"
+## The stretches of its border the tile's polygon was baked closed over (`EDGES_META`'s kind).
+const CLOSED_META := "nav_tile_closed"
 ## The tile's neighbours: `{ tile, side }`, `side` the tile's own side the neighbour lies across.
 const NEIGHBOURS_META := "nav_tile_neighbours"
 ## A tile's sides. A left or right border runs along y, a top or bottom one along x.
@@ -30,7 +39,13 @@ const BOTTOM := 3
 const ON_LINE := 0.01
 ## The most (px squared) the cross product of two edges may be for them to be in one line.
 const IN_LINE := 0.01
+## The least (px) a stretch of border that is walkable on one side only is to be closed.
+const MIN_STRETCH := 0.5
+## The most rounds `weld` goes on agreeing borders (a closed corner cell opens a stretch across).
+const MAX_ROUNDS := 4
 
+## How many tiles were baked again with border cells closed (`_agree`).
+static var closing_total := 0
 ## How many edges `_emit` found cut but in one line with the corners round it, so left as they are
 ## (unwelded): a real bake has none (`steering_seams_welded` checks it).
 static var unsplit_total := 0
@@ -41,6 +56,10 @@ static var unsplit_total := 0
 static func take(tile: NavigationRegion2D, poly: NavigationPolygon) -> void:
 	var rect: Rect2 = tile.get_meta(NavTiles.RECT_META)
 	_snap_to_borders(poly, rect)
+	tile.set_meta(BASE_META, poly)
+	tile.set_meta(EDGES_META, _border_edges(poly, rect))
+	tile.set_meta(NOW_META, tile.get_meta(EDGES_META))
+	tile.set_meta(CLOSED_META, _no_stretches())
 	tile.set_meta(RAW_META, poly)
 	tile.set_meta(POINTS_META, _border_points(poly, rect))
 	tile.set_meta(SPLIT_META, _none())
@@ -50,19 +69,182 @@ static func take(tile: NavigationRegion2D, poly: NavigationPolygon) -> void:
 ## neighbours': each of them and each neighbour of theirs is split at the vertices the other side
 ## of the border has and it has not, and a tile whose split changed is given the new polygon. The
 ## tiles of one landing are welded together, so the map takes them in with one synchronisation.
+##
+## First the two sides of each border are made to agree (`_agree`): the voxel baker decides a cell
+## on a tile's edge by where its centre lies, so a wall's tip or a hole's edge near a border can
+## leave a cell open to one tile and shut to the other, and the walkable stretches of the border
+## differ. A tile's border stretches that its neighbour's border does not hold are baked closed
+## (the cells of its outermost column), so both sides hold the same stretches, whichever tile was
+## baked last.
 static func weld(changed: Array) -> void:
-	var fit := {}
+	var agree := {}
 	for item: Variant in changed:
 		if not _live(item):
 			continue
+		var tile := item as NavigationRegion2D
+		agree[tile] = true
+		for entry: Dictionary in neighbours(tile):
+			if _live(entry["tile"]):
+				agree[entry["tile"]] = true
+	var fit := {}
+	for item: Variant in agree:
 		var tile := item as NavigationRegion2D
 		fit[tile] = true
 		for entry: Dictionary in neighbours(tile):
 			if _live(entry["tile"]):
 				fit[entry["tile"]] = true
+	# Closing a cell at a tile's corner opens a stretch on the border across: go on until none do.
+	for _round in MAX_ROUNDS:
+		var again := false
+		for item: Variant in agree:
+			again = _agree(item as NavigationRegion2D) or again
+		if not again:
+			break
 	for item: Variant in fit:
 		if _live(item):
 			_fit(item as NavigationRegion2D)
+
+
+## Bake `tile` again, from what it was first baked from, with the stretches of its borders its
+## neighbours' borders do not hold closed, when those are not the stretches it was last baked
+## closed over. Whether it was.
+static func _agree(tile: NavigationRegion2D) -> bool:
+	if not tile.has_meta(EDGES_META):
+		return false
+	var base: NavigationPolygon = tile.get_meta(BASE_META)
+	if not base.has_meta(NavSource.SOURCE_META):
+		return false
+	var closed := _stretches_to_close(tile)
+	if closed == tile.get_meta(CLOSED_META):
+		return false
+	var rect: Rect2 = tile.get_meta(NavTiles.RECT_META)
+	var poly := base
+	if closed != _no_stretches():
+		poly = base.duplicate() as NavigationPolygon
+		NavSource.bake_polygon(
+			poly,
+			base.get_meta(NavSource.SOURCE_META),
+			base.get_meta(NavSource.ORIGIN_META),
+			_cells(closed, rect),
+		)
+		_snap_to_borders(poly, rect)
+		closing_total += 1
+	tile.set_meta(CLOSED_META, closed)
+	tile.set_meta(RAW_META, poly)
+	tile.set_meta(NOW_META, _border_edges(poly, rect))
+	tile.set_meta(POINTS_META, _border_points(poly, rect))
+	tile.set_meta(SPLIT_META, _none())
+	tile.navigation_polygon = poly
+	return true
+
+
+## Per side, the stretches of `tile`'s border that it holds walkable (as it was first baked) where
+## the neighbour across holds none (as it holds them now).
+static func _stretches_to_close(tile: NavigationRegion2D) -> Array:
+	var out := _no_stretches()
+	var mine: Array = tile.get_meta(EDGES_META)
+	var rect: Rect2 = tile.get_meta(NavTiles.RECT_META)
+	for entry: Dictionary in neighbours(tile):
+		if not _live(entry["tile"]) or not entry["tile"].has_meta(NOW_META):
+			continue
+		var side: int = entry["side"]
+		var other: NavigationRegion2D = entry["tile"]
+		var their_rect: Rect2 = other.get_meta(NavTiles.RECT_META)
+		var reach := Vector2(
+			maxf(_from(rect, side), _from(their_rect, side)),
+			minf(_to(rect, side), _to(their_rect, side)),
+		)
+		var theirs: Array = (other.get_meta(NOW_META) as Array)[side ^ 1]
+		for stretch: Vector2 in mine[side]:
+			var within := Vector2(maxf(stretch.x, reach.x), minf(stretch.y, reach.y))
+			if within.y - within.x > MIN_STRETCH:
+				out[side].append_array(_without(within, theirs))
+	return out
+
+
+## The parts of the stretch `within` that none of the sorted `held` stretches covers.
+static func _without(within: Vector2, held: Array) -> Array:
+	var out := []
+	var at := within.x
+	for stretch: Vector2 in held:
+		if stretch.y <= at:
+			continue
+		if stretch.x >= within.y:
+			break
+		if stretch.x - at > MIN_STRETCH:
+			out.append(Vector2(at, stretch.x))
+		at = maxf(at, stretch.y)
+	if within.y - at > MIN_STRETCH:
+		out.append(Vector2(at, within.y))
+	return out
+
+
+## The cells (a rect each, plan frame) of the outermost column on each side that lie along the
+## `closed` stretches.
+static func _cells(closed: Array, rect: Rect2) -> Array[PackedVector2Array]:
+	var out: Array[PackedVector2Array] = []
+	var depth := NavSource.CELL_SIZE
+	for side in 4:
+		for stretch: Vector2 in closed[side]:
+			var box: Rect2
+			match side:
+				LEFT:
+					box = Rect2(rect.position.x, stretch.x, depth, stretch.y - stretch.x)
+				RIGHT:
+					box = Rect2(rect.end.x - depth, stretch.x, depth, stretch.y - stretch.x)
+				TOP:
+					box = Rect2(stretch.x, rect.position.y, stretch.y - stretch.x, depth)
+				_:
+					box = Rect2(stretch.x, rect.end.y - depth, stretch.y - stretch.x, depth)
+			out.append(
+				PackedVector2Array([
+					box.position, Vector2(box.end.x, box.position.y),
+					box.end, Vector2(box.position.x, box.end.y),
+				]),
+			)
+	return out
+
+
+## The stretches of `poly`'s edges that lie along each border of `rect`, as `EDGES_META` keeps them:
+## sorted, and those that meet joined.
+static func _border_edges(poly: NavigationPolygon, rect: Rect2) -> Array:
+	var verts := poly.get_vertices()
+	var out := _no_stretches()
+	for i in poly.get_polygon_count():
+		var ring := poly.get_polygon(i)
+		for k in ring.size():
+			var p := verts[ring[k]]
+			var q := verts[ring[(k + 1) % ring.size()]]
+			var side := _border_of(p, q, rect)
+			if side >= 0:
+				var along := [p.y, q.y] if side <= RIGHT else [p.x, q.x]
+				out[side].append(Vector2(minf(along[0], along[1]), maxf(along[0], along[1])))
+	for side in 4:
+		var stretches: Array = out[side]
+		stretches.sort_custom(func(a: Vector2, b: Vector2) -> bool: return a.x < b.x)
+		var joined := []
+		for stretch: Vector2 in stretches:
+			if not joined.is_empty() and stretch.x <= joined[-1].y + ON_LINE:
+				joined[-1] = Vector2(joined[-1].x, maxf(joined[-1].y, stretch.y))
+			else:
+				joined.append(stretch)
+		out[side] = joined
+	return out
+
+
+## The coordinate along its border where `rect` starts, on `side`.
+static func _from(rect: Rect2, side: int) -> float:
+	return rect.position.y if side <= RIGHT else rect.position.x
+
+
+## The coordinate along its border where `rect` ends, on `side`.
+static func _to(rect: Rect2, side: int) -> float:
+	return rect.end.y if side <= RIGHT else rect.end.x
+
+
+## No stretches on any side.
+static func _no_stretches() -> Array:
+	return [[], [], [], []]
 
 
 ## Whether `tile` is a tile still in the tree (one freed, or taken out, meanwhile is left as it is).
@@ -105,7 +287,7 @@ static func _fit(tile: NavigationRegion2D) -> void:
 
 
 ## Per side, the coordinates of the border vertices the neighbours have and `tile` has not (in a
-## cell of its own: two vertices in one 1 px cell are one to the server).
+## cell of its own: two vertices in one cell are one to the server).
 static func _missing_points(tile: NavigationRegion2D) -> Array:
 	var out := _none()
 	var mine: Array = tile.get_meta(POINTS_META)
@@ -128,6 +310,11 @@ static func _missing_points(tile: NavigationRegion2D) -> Array:
 	return out
 
 
+## The bake's cell (`NavSource.CELL_SIZE` px, on the world's grid) the coordinate `c` lies in.
+static func _cell(c: float) -> int:
+	return floori(c / NavSource.CELL_SIZE)
+
+
 ## The coordinates of `theirs` none of `mine` shares a cell with (`shift` the frame's offset along
 ## the border), one for each cell.
 static func _apart(
@@ -137,10 +324,10 @@ static func _apart(
 ) -> PackedFloat64Array:
 	var taken := {}
 	for c in mine:
-		taken[floori(c + shift)] = true
+		taken[_cell(c + shift)] = true
 	var out := PackedFloat64Array()
 	for c in theirs:
-		var cell := floori(c + shift)
+		var cell := _cell(c + shift)
 		if not taken.has(cell):
 			taken[cell] = true
 			out.append(c)
@@ -241,12 +428,12 @@ static func _between(cut: Dictionary, side: int, from: Vector2, to: Vector2) -> 
 	var start := from.y if vertical else from.x
 	var end := to.y if vertical else to.x
 	var offset: float = cut["shift"].y if vertical else cut["shift"].x
-	var cells := [floori(start + offset), floori(end + offset)]
+	var cells := [_cell(start + offset), _cell(end + offset)]
 	var coords: Array = Array(cut["missing"][side]).filter(
 		func(c: float) -> bool:
 			return (
 				c > minf(start, end) and c < maxf(start, end)
-				and not cells.has(floori(c + offset))
+				and not cells.has(_cell(c + offset))
 			),
 	)
 	if start > end:

@@ -6,7 +6,7 @@ class_name NavTiles extends RefCounted
 ## bake, so a character stopping re-bakes the one tile it stands in (two or four on a seam). The
 ## tiles are regions on the steering map, children of the planning region, baked to meet at their
 ## edges (`BORDER`: the baker sees past the tile's edge so the agent's erosion does not shrink it;
-## the grid lies on whole pixels, `whole_pixels`, and `NavSeams` splits each border edge at the
+## the grid lies on the bake's cells, `whole_pixels`, and `NavSeams` splits each border edge at the
 ## vertices its neighbour has there, so the server joins them by the edge they share and the map
 ## needs no edge-connection pass).
 ## `NavBuilder` builds the tiles and hands each tick's footprints to `rebake`.
@@ -39,13 +39,14 @@ static var intersection_tests := 0
 static var baked_total := 0
 
 
-## `footprint` (the house's local frame) grown to whole pixels: the rect the tiles are laid over.
-## The baker rounds a bake's rect to whole pixels (toward zero, a corner and a side apart), so tiles
-## whose edges fall between pixels would be baked to edges a pixel apart; on whole pixels every
-## tile's edge is the edge of its neighbour, which `NavSeams` welds.
-static func whole_pixels(footprint: Rect2) -> Rect2:
-	var from := footprint.position.floor()
-	return Rect2(from, footprint.end.ceil() - from)
+## `footprint` (the house's local frame) grown to whole cells of the bake's grid, which lies on the
+## world's (`origin`, the house's position): the rect the tiles are laid over. The baker takes a
+## bake's rect to the nearest cell line, so tiles whose edges fall between lines would be baked to
+## edges apart; on the lines every tile's edge is the edge of its neighbour, which `NavSeams` welds.
+static func whole_pixels(footprint: Rect2, origin: Vector2) -> Rect2:
+	var from := ((footprint.position + origin) / NavSource.CELL_SIZE).floor() * NavSource.CELL_SIZE
+	var to := ((footprint.end + origin) / NavSource.CELL_SIZE).ceil() * NavSource.CELL_SIZE
+	return Rect2(from - origin, to - from)
 
 
 ## The tiles that cover `footprint` (`whole_pixels`), row by row; the last of a row or a column is

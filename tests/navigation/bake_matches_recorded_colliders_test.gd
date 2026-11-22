@@ -13,7 +13,8 @@ extends GameTest
 ## wall (a menu board, a mirror, a towel rail: its twin has about half its 2D collider's depth), the
 ## same area to a pixel (`_check_holes`), so the area is within `AREA_SHARE`; the navmesh has the
 ## recorded area to `MESH_SHARE` and a polygon more or fewer; and every one of the recorded 90
-## routes the old map found, the new one finds, within `ROUTE_SHARE` of its length.
+## routes the old map found, the new one finds, within `ROUTE_LONGER` and `ROUTE_SHORTER` of its
+## length.
 ##
 ## What the record does not need (`_check_wall_truth`, from the walls' own outlines): each outline
 ## a `Wall` holds, in the house's frame, is one the bake has, and the bake has no other; the navmesh
@@ -27,14 +28,22 @@ const RADIUS := NavBuilder.AGENT_RADIUS
 ## How far (px) a wall's corner may be from the record's or the wall's own: the twin's float
 ## rounding and the 1 px grid.
 const WALL_GRID := 1.0
-## The most the holes' area may differ (share of the recorded one's), the most a route may differ in
-## length (share of the recorded one's), and the most the navmesh's area may differ (share; measured
-## +0.1%, the house +0.06%).
+## The most the holes' area may differ (share of the recorded one's) and the most the navmesh's
+## area may differ (share). The mesh is baked on a 4 px grid (#194 nav3d-a, D16): a cell is held or
+## walkable by where its centre lies and the contours are simplified to 0.8 cells, so its edges
+## stand up to a cell off the 1 px record's: measured +0.7% (district), +1.9% (house).
 const AREA_SHARE := 0.02
-const ROUTE_SHARE := 0.03
-const MESH_SHARE := 0.005
-## How many polygons the navmesh may differ from the recorded one by (measured one fewer).
-const POLYGON_SLACK := 2
+const MESH_SHARE := 0.025
+## How much longer and how much shorter than the recorded length a route may be (share). The record
+## is of paths over the 2D baker's few large convex polygons, which the map's search takes through
+## their edges' midpoints; the voxel baker's watershed regions give smaller polygons, a search that
+## follows the floor more closely: measured longest +1.7%, shortest -7.3% (district), and no route
+## is lost.
+const ROUTE_LONGER := 0.03
+const ROUTE_SHORTER := 0.08
+## How many times the recorded polygon count the navmesh may hold (at least as many): the baker
+## cuts the floor into regions and triangulates them (measured x2.9 district, x3.4 house).
+const POLYGON_RATIO := 3.5
 ## What a pixel of area is: the summed areas of the same outlines agree to this.
 const AREA_EPSILON := 1.0
 ## The walls of a district's shells (a tower's outside: scenery with no walkable inside), whose
@@ -441,7 +450,8 @@ func _signed(ring: PackedVector2Array) -> float:
 	return sum * 0.5
 
 
-## The navmesh: its area within `MESH_SHARE` of the record's, and a polygon more or fewer.
+## The navmesh: its area within `MESH_SHARE` of the record's, and up to `POLYGON_RATIO` times its
+## polygons.
 func _check_mesh(t: TestContext, poly: NavigationPolygon, recorded: Dictionary) -> void:
 	var before: float = recorded["area"]
 	var after := _mesh_area(poly)
@@ -451,9 +461,12 @@ func _check_mesh(t: TestContext, poly: NavigationPolygon, recorded: Dictionary) 
 			% [MESH_SHARE * 100.0, before, after],
 	)
 	t.check(
-		absi(poly.get_polygon_count() - int(recorded["polygons"])) <= POLYGON_SLACK,
-		"the navmesh has the recorded polygons to %d (%d recorded, %d now)"
-			% [POLYGON_SLACK, recorded["polygons"], poly.get_polygon_count()],
+		(
+			poly.get_polygon_count() >= int(recorded["polygons"])
+			and poly.get_polygon_count() <= float(recorded["polygons"]) * POLYGON_RATIO
+		),
+		"the navmesh has from 1 to %.1f times the recorded polygons (%d recorded, %d now)"
+			% [POLYGON_RATIO, recorded["polygons"], poly.get_polygon_count()],
 	)
 
 
@@ -469,11 +482,10 @@ func _mesh_area(poly: NavigationPolygon) -> float:
 
 
 ## The recorded routes (`[from.x, from.y, to.x, to.y, length]`, on the old map) on the new map:
-## each is found, within `ROUTE_SHARE` of its recorded length.
+## each is found, within `ROUTE_LONGER` / `ROUTE_SHORTER` of its recorded length.
 func _check_routes(t: TestContext, map: RID, routes: Array) -> void:
 	NavigationServer2D.map_force_update(map)
 	var missing := 0
-	var worst := 0.0
 	var longest := -INF
 	var shortest := INF
 	for route: Array in routes:
@@ -484,16 +496,15 @@ func _check_routes(t: TestContext, map: RID, routes: Array) -> void:
 			missing += 1
 			continue
 		var share: float = (after - float(route[4])) / float(route[4])
-		worst = maxf(worst, absf(share))
 		longest = maxf(longest, share)
 		shortest = minf(shortest, share)
 	t.require(routes.size() >= 40, "premise: routes are recorded (%d)" % routes.size())
 	t.check(
-		missing == 0 and worst <= ROUTE_SHARE,
-		("every recorded route is found, within %d%% of its length (%d routes: %d missing, "
-			+ "longest %+.1f%%, shortest %+.1f%%)") % [
-				int(ROUTE_SHARE * 100.0), routes.size(), missing, longest * 100.0,
-				shortest * 100.0,
+		missing == 0 and longest <= ROUTE_LONGER and shortest >= -ROUTE_SHORTER,
+		("every recorded route is found, no more than %d%% longer and %d%% shorter (%d routes: "
+			+ "%d missing, longest %+.1f%%, shortest %+.1f%%)") % [
+				int(ROUTE_LONGER * 100.0), int(ROUTE_SHORTER * 100.0), routes.size(), missing,
+				longest * 100.0, shortest * 100.0,
 			],
 	)
 

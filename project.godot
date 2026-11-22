@@ -46,6 +46,7 @@ ui/toolbar/run_overall=true
 
 [navigation]
 
+2d/default_cell_size=4.0
 world/map_use_async_iterations=false
 
 [physics]

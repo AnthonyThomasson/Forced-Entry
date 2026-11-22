@@ -10,6 +10,20 @@ class_name NavSource extends RefCounted
 ## The box round an outline is this much (px) larger than the polygon, so outlines that merely touch
 ## still count as overlapping.
 const BOUNDS_EPSILON := 0.5
+## The bake's voxel grid (px): D16 measured a district's bake at 113 ms at 4 px against 2.0 s at 1.
+const CELL_SIZE := 4.0
+## The grid's height (px), the agent's and what a body stands over: only the floor's plane is baked,
+## so these only need a few cells.
+const CELL_HEIGHT := 2.0
+const AGENT_HEIGHT := 8.0
+## How tall (px) a carved obstruction stands: over the agent, a wall or a body alike.
+const OBSTRUCTION_HEIGHT := 100.0
+## What `bake_polygon` keeps on the polygon it bakes: its source and origin, so a tile can be baked
+## again with cells closed (`NavSeams`).
+const SOURCE_META := "nav_baked_source"
+const ORIGIN_META := "nav_baked_origin"
+## The baker's contour error (cells): the most a hole's edge is moved by simplifying its outline.
+const EDGE_MAX_ERROR := 0.8
 
 
 ## The walls as the source takes them: the `obstruction` outlines (on the map's 1 px grid)
@@ -116,13 +130,256 @@ static func finish_holes(source: NavigationMeshSourceGeometryData2D, fused: Arra
 		source.add_obstruction_outline(simplified(outline))
 
 
-## Bake a gathered job (`job`) at once, welded and without slivers (`NavWeld.finish`); `origin` is
-## the region's offset.
+## Bake a gathered job (`job`) at once; `origin` is the region's offset (the bake's grid is laid on
+## the world's: `bake_polygon`).
 static func bake(baked: Dictionary, origin: Vector2) -> NavigationPolygon:
 	var nav_poly: NavigationPolygon = baked["poly"]
-	NavigationServer2D.bake_from_source_geometry_data(nav_poly, baked["source"])
-	NavWeld.finish(nav_poly, origin)
+	bake_polygon(nav_poly, baked["source"], origin)
 	return nav_poly
+
+
+## Bake `source` (the outlines of a job) into `poly` with the NavigationServer3D baker (D16): the
+## walkable outlines are the floor of a plan-space world (x, 0, z), each obstruction outline a
+## projected obstruction standing on it, so no piece, wall or body has a walkable top and no
+## height of a lintel or a door can close a doorway. The agent's radius (`poly.agent_radius`) is
+## taken off in the plan, as the 2D baker did (obstructions grown by it with round joins, the
+## floor shrunk by it): the voxel baker's own erosion measures in whole cells and leaves a wall's
+## end a third nearer than its radius. The mesh is voxelised on a `CELL_SIZE` px grid laid on the
+## WORLD's (`origin`: the region's offset), so every region's vertices fall on the cells the map
+## merges by; its polygons and vertices are set on `poly` in the plan's (x, y). Runs on the main
+## thread or a worker's (`NavBake`): it reads nothing but its arguments. `closed` are cells (plan
+## rects, not grown by the radius) to hold as well: a tile's border cells its neighbour holds
+## (`NavSeams`).
+static func bake_polygon(
+	poly: NavigationPolygon,
+	source: NavigationMeshSourceGeometryData2D,
+	origin: Vector2,
+	closed: Array[PackedVector2Array] = [],
+) -> void:
+	var floors := source.get_traversable_outlines()
+	var radius := poly.agent_radius
+	var shrunk: Array[PackedVector2Array] = []
+	var mesh := NavigationMesh.new()
+	mesh.cell_size = CELL_SIZE
+	mesh.cell_height = CELL_HEIGHT
+	mesh.agent_height = AGENT_HEIGHT
+	mesh.agent_max_climb = CELL_HEIGHT
+	mesh.agent_radius = 0.0
+	mesh.region_min_size = 0.0
+	mesh.region_merge_size = 0.0
+	mesh.edge_max_error = EDGE_MAX_ERROR
+	mesh.sample_partition_type = NavigationMesh.SAMPLE_PARTITION_WATERSHED
+	mesh.border_size = poly.border_size if poly.baking_rect.has_area() else 0.0
+	mesh.filter_baking_aabb = _bake_box(floors, poly.baking_rect, origin)
+	var geometry := NavigationMeshSourceGeometryData3D.new()
+	for outline: PackedVector2Array in floors:
+		for inner: PackedVector2Array in Geometry2D.offset_polygon(
+			outline, -radius, Geometry2D.JOIN_MITER,
+		):
+			shrunk.append(inner)
+			geometry.add_faces(_floor_faces(inner), Transform3D.IDENTITY)
+	var obstructions: Array[PackedVector2Array] = []
+	for outline: PackedVector2Array in source.get_obstruction_outlines():
+		for grown: PackedVector2Array in Geometry2D.offset_polygon(
+			outline, radius, Geometry2D.JOIN_ROUND,
+		):
+			obstructions.append(grown)
+			geometry.add_projected_obstruction(_ring(grown), 0.0, OBSTRUCTION_HEIGHT, true)
+	if poly.baking_rect.has_area():
+		var tile := _tile_rect(poly.baking_rect, poly.border_size, origin)
+		for square in _border_squares(obstructions, shrunk, tile):
+			geometry.add_projected_obstruction(_ring(square), 0.0, OBSTRUCTION_HEIGHT, true)
+	for square in closed:
+		geometry.add_projected_obstruction(_ring(square), 0.0, OBSTRUCTION_HEIGHT, true)
+	NavigationServer3D.bake_from_source_geometry_data(mesh, geometry)
+	poly.clear()
+	poly.cell_size = CELL_SIZE
+	var vertices := PackedVector2Array()
+	for v in mesh.get_vertices():
+		vertices.append(Vector2(v.x, v.z))
+	poly.vertices = vertices
+	for i in mesh.get_polygon_count():
+		poly.add_polygon(mesh.get_polygon(i))
+	poly.set_meta(SOURCE_META, source)
+	poly.set_meta(ORIGIN_META, origin)
+
+
+## `outline` as a ring of the plan-space world (x, 0, z).
+static func _ring(outline: PackedVector2Array) -> PackedVector3Array:
+	var ring := PackedVector3Array()
+	for p in outline:
+		ring.append(Vector3(p.x, 0.0, p.y))
+	return ring
+
+
+## A tile's own rect (the baking rect less its border) on whole cells of the world's grid.
+static func _tile_rect(reach: Rect2, border: float, origin: Vector2) -> Rect2:
+	var inner := reach.grow(-border)
+	var low := ((inner.position + origin) / CELL_SIZE).round() * CELL_SIZE - origin
+	var high := ((inner.end + origin) / CELL_SIZE).round() * CELL_SIZE - origin
+	return Rect2(low, high - low)
+
+
+## The cells of the tile's own outermost column (a square each) that are held, or whose neighbour's
+## cell across the border is held: by an obstruction, or by lying outside the floor (a cell is held
+## by where its centre lies). The voxel baker takes a cell as held by where its centre lies, so a
+## wall's tip or a floor's edge that ends between the two columns of a border leaves one tile's
+## column open and its neighbour's shut, and the two tiles' walkable stretches along the border then
+## differ; with the column shut on both sides they agree.
+static func _border_squares(
+	obstructions: Array[PackedVector2Array],
+	floors: Array[PackedVector2Array],
+	tile: Rect2,
+) -> Array[PackedVector2Array]:
+	var out: Array[PackedVector2Array] = []
+	for side in 4:
+		var band := _strip_across(tile, side).merge(_strip_inside(tile, side))
+		out.append_array(
+			_side_squares(
+				_touching(obstructions, band), _touching(floors, band), tile, side,
+			),
+		)
+	return out
+
+
+## `_border_squares` along the `side` of `tile`, from the polygons `blocks` and `floors` that reach
+## its two columns.
+static func _side_squares(
+	blocks: Array[PackedVector2Array],
+	floors: Array[PackedVector2Array],
+	tile: Rect2,
+	side: int,
+) -> Array[PackedVector2Array]:
+	var out: Array[PackedVector2Array] = []
+	var outer := _strip_across(tile, side).get_center()
+	var inner := _strip_inside(tile, side).get_center()
+	var along := side <= 1
+	var mid := (tile.position.y if along else tile.position.x) + CELL_SIZE * 0.5
+	var high := tile.end.y if along else tile.end.x
+	while mid < high:
+		var across := Vector2(outer.x, mid) if along else Vector2(mid, outer.y)
+		var within := Vector2(inner.x, mid) if along else Vector2(mid, inner.y)
+		if _held(across, blocks, floors) or _held(within, blocks, floors):
+			out.append(_square_inside(tile, side, mid))
+		mid += CELL_SIZE
+	return out
+
+
+## The polygons of `polygons` whose bounds reach `band`.
+static func _touching(
+	polygons: Array[PackedVector2Array],
+	band: Rect2,
+) -> Array[PackedVector2Array]:
+	var out: Array[PackedVector2Array] = []
+	for polygon in polygons:
+		var box := Rect2(polygon[0], Vector2.ZERO)
+		for p in polygon:
+			box = box.expand(p)
+		if box.intersects(band):
+			out.append(polygon)
+	return out
+
+
+## Whether the cell centred at `centre` is held: in one of `walls`, or in none of `floors`.
+static func _held(
+	centre: Vector2,
+	blocks: Array[PackedVector2Array],
+	floors: Array[PackedVector2Array],
+) -> bool:
+	for block in blocks:
+		if Geometry2D.is_point_in_polygon(centre, block):
+			return true
+	for floor_outline in floors:
+		if Geometry2D.is_point_in_polygon(centre, floor_outline):
+			return false
+	return true
+
+
+## The strip of cells just outside `tile`'s `side` (0 left, 1 right, 2 top, 3 bottom).
+static func _strip_across(tile: Rect2, side: int) -> Rect2:
+	match side:
+		0:
+			return Rect2(tile.position.x - CELL_SIZE, tile.position.y, CELL_SIZE, tile.size.y)
+		1:
+			return Rect2(tile.end.x, tile.position.y, CELL_SIZE, tile.size.y)
+		2:
+			return Rect2(tile.position.x, tile.position.y - CELL_SIZE, tile.size.x, CELL_SIZE)
+	return Rect2(tile.position.x, tile.end.y, tile.size.x, CELL_SIZE)
+
+
+## The strip of `tile`'s own outermost column on `side`.
+static func _strip_inside(tile: Rect2, side: int) -> Rect2:
+	match side:
+		0:
+			return Rect2(tile.position.x, tile.position.y, CELL_SIZE, tile.size.y)
+		1:
+			return Rect2(tile.end.x - CELL_SIZE, tile.position.y, CELL_SIZE, tile.size.y)
+		2:
+			return Rect2(tile.position.x, tile.position.y, tile.size.x, CELL_SIZE)
+	return Rect2(tile.position.x, tile.end.y - CELL_SIZE, tile.size.x, CELL_SIZE)
+
+
+## The cell of `tile`'s outermost column on `side` level with `mid` (along the border).
+static func _square_inside(tile: Rect2, side: int, mid: float) -> PackedVector2Array:
+	var half := CELL_SIZE * 0.5
+	var centre: Vector2
+	match side:
+		0:
+			centre = Vector2(tile.position.x + half, mid)
+		1:
+			centre = Vector2(tile.end.x - half, mid)
+		2:
+			centre = Vector2(mid, tile.position.y + half)
+		_:
+			centre = Vector2(mid, tile.end.y - half)
+	return PackedVector2Array([
+		centre + Vector2(-half, -half), centre + Vector2(half, -half),
+		centre + Vector2(half, half), centre + Vector2(-half, half),
+	])
+
+
+## The box a bake is made in: `rect` less its `border` (a tile's reach less what it sees past its
+## edge) or else the floor outlines' bounds, on whole cells of the world's grid (`origin` is the
+## region's offset). A tile's edges are rounded to the nearest cell line, so neighbours meet on the
+## same one; the floor's are widened. Its height holds the floor and the obstructions.
+static func _bake_box(floors: Array, rect: Rect2, origin: Vector2) -> AABB:
+	var low: Vector2
+	var high: Vector2
+	if rect.has_area():
+		low = ((rect.position + origin) / CELL_SIZE).round() * CELL_SIZE - origin
+		high = ((rect.end + origin) / CELL_SIZE).round() * CELL_SIZE - origin
+	else:
+		var first := true
+		for outline: PackedVector2Array in floors:
+			var box := Rect2(outline[0], Vector2.ZERO)
+			for p in outline:
+				box = box.expand(p)
+			rect = box if first else rect.merge(box)
+			first = false
+		low = ((rect.position + origin) / CELL_SIZE).floor() * CELL_SIZE - origin
+		high = ((rect.end + origin) / CELL_SIZE).ceil() * CELL_SIZE - origin
+	return AABB(
+		Vector3(low.x, -CELL_HEIGHT * 2.0, low.y),
+		Vector3(high.x - low.x, OBSTRUCTION_HEIGHT + CELL_HEIGHT * 4.0, high.y - low.y),
+	)
+
+
+## The two or more triangles of the floor `outline` (plan points), facing up.
+static func _floor_faces(outline: PackedVector2Array) -> PackedVector3Array:
+	var faces := PackedVector3Array()
+	var corners := Geometry2D.triangulate_polygon(outline)
+	for i in range(0, corners.size(), 3):
+		var a := outline[corners[i]]
+		var b := outline[corners[i + 1]]
+		var c := outline[corners[i + 2]]
+		if (b - a).cross(c - a) < 0.0:
+			var swap := b
+			b = c
+			c = swap
+		faces.append(Vector3(a.x, 0.0, a.y))
+		faces.append(Vector3(b.x, 0.0, b.y))
+		faces.append(Vector3(c.x, 0.0, c.y))
+	return faces
 
 
 ## Keep what the planning bake was made from (its walkable outline, its obstructions and the agent

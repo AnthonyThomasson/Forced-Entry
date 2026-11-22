@@ -1,7 +1,7 @@
 extends RefCounted
 ## Shared helper for the navigation tests of a district's steering tiles (not a test itself):
 ## `const Seams := preload("res://tests/_navigation/seam_probe.gd")`. It reads the seams between
-## neighbouring tiles as the NavigationServer would (an edge is its ends' 1 px cells, whatever the
+## neighbouring tiles as the NavigationServer would (an edge is its ends' cells, whatever the
 ## exact points) and the routes a map answers, for the tests that the tiles are welded and that the
 ## map needs no edge-connection pass.
 
@@ -43,7 +43,7 @@ static func _neighbours(a: NavigationRegion2D, b: NavigationRegion2D) -> Diction
 
 
 ## The polygon edges of `tile` that lie on the line of `pair`: `{ lo, hi, key }`, the span along the
-## line (world px) and the edge as the server keys it (the 1 px cells of its ends, in order).
+## line (world px) and the edge as the server keys it (the cells of its ends, in order).
 static func seam_edges(tile: NavigationRegion2D, pair: Dictionary) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var poly := tile.navigation_polygon
@@ -70,12 +70,13 @@ static func _across(point: Vector2, pair: Dictionary) -> bool:
 static func _edge(p: Vector2, q: Vector2, vertical: bool) -> Dictionary:
 	var along_p := p.y if vertical else p.x
 	var along_q := q.y if vertical else q.x
-	var cells := [Vector2i(p.floor()), Vector2i(q.floor())]
+	var cell := NavSource.CELL_SIZE
+	var cells := [Vector2i((p / cell).floor()), Vector2i((q / cell).floor())]
 	cells.sort_custom(func(u: Vector2i, w: Vector2i) -> bool: return u < w)
 	return {
 		"lo": minf(along_p, along_q),
 		"hi": maxf(along_p, along_q),
-		"cells": [floorf(minf(along_p, along_q)), floorf(maxf(along_p, along_q))],
+		"cells": [floorf(minf(along_p, along_q) / cell), floorf(maxf(along_p, along_q) / cell)],
 		"key": cells,
 	}
 
@@ -94,8 +95,8 @@ static func unwelded(tiles: Array) -> Array[String]:
 	return out
 
 
-## How far (px) the spans of the edges `e` and `f` overlap, as the server sees them: from the 1 px
-## cells their ends are in, so two ends in one cell are one.
+## How far (px) the spans of the edges `e` and `f` overlap, as the server sees them: from the cells
+## (`NavSource.CELL_SIZE`) their ends are in, so two ends in one cell are one.
 static func _overlap(e: Dictionary, f: Dictionary) -> float:
 	return minf(e["cells"][1], f["cells"][1]) - maxf(e["cells"][0], f["cells"][0])
 

@@ -90,7 +90,7 @@ static func start(
 	var source: NavigationMeshSourceGeometryData2D = job["source"]
 	var poly := bake._poly
 	bake._task = WorkerThreadPool.add_task(func() -> void:
-		NavigationServer2D.bake_from_source_geometry_data(poly, source), false, "nav bake")
+		NavSource.bake_polygon(poly, source, origin), false, "nav bake")
 	if bake._tree == null:
 		bake._land()
 		return bake
