@@ -52,18 +52,26 @@ const RUN_WIDTH := 4
 const RUN_DEPTH := 0.25
 ## What the new piece keeps of the old one, per piece: `bright` and `sat` the least share of the
 ## old's bright and saturated pixels, `lum` the most its mean luminance may be under the old's,
-## `colour` the most its mean colour may be from the old's (the largest channel), and on a fridge
-## and a snack machine `runs` (`_front_runs`) the stock a scan line of its front shows. Each bar is
+## `colour` the most its mean colour may be from the old's (the largest channel), on a fridge `runs`
+## (`_front_runs`) the bottles a scan line of its front shows dark against the glow, and on a snack
+## machine `packs` (`_pack_runs`) the least packs a scan line of its front shows in a lit colour
+## (the old front's packs were dark ticks on its pane, so it has none to compare: the machine's
+## stock must show in its own colours, the user's decision). Each bar is
 ## what the piece measures in a window (the picture is the same every run:
 ## `SHOP_PIECE_RECORD=<file>` writes old and new) with a little under it for the GPU; a bar that
 ## sits at its result has a cause: the booth's bowls are painted the old size but are a cylinder
 ## with a dark ring and a shadow the flat drawing had not (bright .64); the cart's chrome tools
 ## lying on a tray are thinner, less saturated bars than the flat line (sat .53); the fridge's lit
 ## front has a window cut for each bottle, so the bottles show dark against it, not the pane the old
-## drew over them (lum .023
-## under, blue .033 under); the snack machine's pane is dim and its packs stand behind its windows
-## (lum .017 under); the aisle's boards and packs are real and lit from the side (sat .89, colour
-## .025); the cyberware shelf holds 26 of the old 38 items (bright .87).
+## drew over them (lum .023 under, blue .033 under), and the pane is the glass's own width
+## (`ShopHollow.WALL` in from each side, 1 px a side narrower than the old front's 3) and sits just
+## inside the glass, so a thin dark frame shows round it; the snack machine's pane is flush with its
+## face and as wide as its bay, each pack's face a tile of its own colour in its window (the packs
+## stand in the roof's shade): its measures are over the old's (bright 1.6, sat 1.4, lum .007 over,
+## colour .010 apart) and its bar `packs` is 3 of the 4 packs the front shows, a pack of margin
+## (the old front, and the front before this, show none); the aisle's boards and packs are real and
+## lit from the side (sat .89, colour .025); the cyberware shelf holds 26 of the old 38 items
+## (bright .87).
 const BARS := {
 	"shop_counter": { "bright": 1.3, "sat": 0.9, "lum": 0.005, "colour": 0.015 },
 	"noodle_counter": { "bright": 1.0, "sat": 0.95, "lum": 0.005, "colour": 0.015 },
@@ -201,6 +209,7 @@ func _measure(image: Image, bare: Image, size: Vector2) -> Dictionary:
 	var out := {
 		"changed": 0, "bright": 0, "sat": 0, "lum": 0.0, "colour": Color(0, 0, 0),
 		"runs": _front_runs(image, size),
+		"packs": _pack_runs(image, size),
 	}
 	var sum := Vector3.ZERO
 	var light := 0.0
@@ -261,6 +270,12 @@ func _judge(t: TestContext, key: String, old: Dictionary, new: Dictionary) -> vo
 	)
 	if bar.has("runs"):
 		_judge_runs(t, key, old["runs"], new["runs"], bar["runs"])
+	if bar.has("packs"):
+		t.check(
+			new["packs"] >= int(bar["packs"]),
+			"the new %s shows its packs in colour (%d lit runs on a scan line, at least %d)"
+			% [key, new["packs"], bar["packs"]],
+		)
 	var gap := _gap(old["colour"], new["colour"])
 	t.check(
 		gap <= float(bar["colour"]),
@@ -308,9 +323,33 @@ func _front_runs(image: Image, size: Vector2) -> int:
 	return most
 
 
+## The most runs of a lit colour a scan line of the front face (`FRONT_ROWS`) crosses: pixels
+## `SATURATION` saturated and `VALUE` bright, a run at least `RUN_WIDTH` px wide one pack (a front
+## whose packs are dark gaps in a pale pane has none).
+func _pack_runs(image: Image, size: Vector2) -> int:
+	var centre := Vector2(image.get_size()) * 0.5
+	var front := centre.y + size.y * 0.5 * ZOOM
+	var cols := Vector2i(
+		int(centre.x - (size.x * 0.5 - 6.0) * ZOOM), int(centre.x + (size.x * 0.5 - 6.0) * ZOOM)
+	)
+	var most := 0
+	for y in range(int(front - FRONT_ROWS.x * ZOOM), int(front - FRONT_ROWS.y * ZOOM)):
+		var runs := 0
+		var width := 0
+		for x in range(cols.x, cols.y + 1):
+			var p := image.get_pixel(x, y)
+			if x < cols.y and p.s >= SATURATION and p.v >= VALUE:
+				width += 1
+				continue
+			runs += 1 if width >= RUN_WIDTH else 0
+			width = 0
+		most = maxi(most, runs)
+	return most
+
+
 func _line(m: Dictionary) -> String:
 	var c: Color = m["colour"]
-	return "%d %d %d %.3f %.3f %.3f %.3f runs %d" % [
+	return "%d %d %d %.3f %.3f %.3f %.3f runs %d packs %d" % [
 		m["changed"],
 		m["bright"],
 		m["sat"],
@@ -319,6 +358,7 @@ func _line(m: Dictionary) -> String:
 		c.g,
 		c.b,
 		m["runs"],
+		m["packs"],
 	]
 
 

@@ -18,6 +18,10 @@ const MIN_STOCK := 2
 const SLID := 15.0
 ## How far (px) a thing must have been carried to count as spilled.
 const MOVED := 6.0
+## How far (px) an item of a shoved piece may lie from where it stood against the piece's glass:
+## the lit front's windows are cut where the stock was built (`ShopStock.windows`, 3 px a window,
+## a pack 5), so an item further out than this no longer stands behind its own window.
+const REGISTERED := 1.5
 
 
 func describe() -> Dictionary:
@@ -72,6 +76,9 @@ func run(t: TestContext) -> void:
 ## carried on toward the front, is held in by the glass.
 func _lurch(t: TestContext, piece: Node2D, stock: Dictionary) -> void:
 	var from := Probe.middle(piece)
+	var stood := {}
+	for entry: Dictionary in stock[piece]:
+		stood[entry["node"]] = Probe.middle(entry["node"]) - from
 	Knockback.push(piece, Vector2(0.0, -LURCH), Vector2.ZERO, 20.0)
 	await t.seconds(0.6)
 	await Probe.settle(t, piece, 6.0)
@@ -82,6 +89,14 @@ func _lurch(t: TestContext, piece: Node2D, stock: Dictionary) -> void:
 		t.check(
 			_inside(piece, entry["node"]),
 			"%s is still in %s after the shove" % [entry["node"].name, piece.name],
+		)
+		var drift: float = (
+			(Probe.middle(entry["node"]) - Probe.middle(piece)) - stood[entry["node"]]
+		).length()
+		t.check(
+			drift <= REGISTERED,
+			"%s is still behind its window in %s (%.2f px from it, at most %.1f)"
+			% [entry["node"].name, piece.name, drift, REGISTERED],
 		)
 
 

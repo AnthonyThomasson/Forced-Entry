@@ -74,13 +74,21 @@ static func _board(
 ## floor), `WINDOW` px wide at the middle of its item, so the stock shows against the glow round it.
 static func windows(spec: FurnitureSpec) -> Array[Rect2]:
 	var out: Array[Rect2] = []
+	for face: Dictionary in faces(spec):
+		out.append(face["window"])
+	return out
+
+
+## The windows of `spec`'s lit front with the colour of the item behind each: `{ window, color }`.
+static func faces(spec: FurnitureSpec) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
 	for row: Dictionary in rows(spec):
 		if not _fronted(spec, row):
 			continue
 		var left: float = row["at"].x + spec.size.x * 0.5 - row["size"].x * 0.5
 		for spine: Array in row["spines"]:
 			var x: float = left + spine[0] + (spine[1] - WINDOW) * 0.5
-			out.append(Rect2(x, row["lift"], WINDOW, spine[2]))
+			out.append({ "window": Rect2(x, row["lift"], WINDOW, spine[2]), "color": spine[3] })
 	return out
 
 

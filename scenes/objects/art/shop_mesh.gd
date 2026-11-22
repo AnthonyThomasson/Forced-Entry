@@ -27,6 +27,13 @@ static func build(piece: Node2D) -> Node3D:
 			"shop", spec, tuning, func() -> Mesh: return _glass(spec)
 		)
 		rig.add_glow(glow, _glow_colour(spec), ObjectMeshStateConfig.window_strength)
+	if kind_of(spec) == "snack":
+		for colour in _pack_colours(spec):
+			var faces := FurnitureMesh.fetch_glow(
+				"shop_pack_%s" % colour.to_html(), spec, tuning,
+				func() -> Mesh: return _pack_faces(spec, colour)
+			)
+			rig.add_glow(faces, colour, ObjectMeshStateConfig.window_strength)
 	return rig
 
 
@@ -112,14 +119,13 @@ static func _counter(spec: FurnitureSpec, kit: MeshKit) -> void:
 ## stood against its pane. Nothing is drawn where the glass is: a clear pane has no mesh.
 static func _glass(spec: FurnitureSpec) -> Mesh:
 	var kit := spec.kit()
-	var bay: Dictionary = ShopHollow.bays(spec)[0]
-	var area: Rect2 = bay["area"]
+	var area: Rect2 = ShopHollow.bays(spec)[0]["area"]
 	var low := ShopHollow.KICK
 	var high := height_of(spec) - ShopHollow.FRAME
 	if kind_of(spec) == "snack":
 		low = ShopHollow.SNACK_SILL
 		high = low + ShopHollow.SNACK_WINDOW
-	var colour := _glow_colour(spec)
+	var front := _pane_y(spec, area)
 	var windows := ShopStock.windows(spec)
 	var xs: Array[float] = [area.position.x, area.end.x]
 	for window in windows:
@@ -133,11 +139,48 @@ static func _glass(spec: FurnitureSpec) -> Mesh:
 		for span in _free_spans(windows, from, to, low, high):
 			kit.box(
 				MeshKit.volume(
-					spec.area(from, area.end.y - PROUD, to - from, PROUD), span.x, span.y - span.x
+					spec.area(from, front, to - from, PROUD), span.x, span.y - span.x
+				),
+				_glow_colour(spec),
+			)
+	return kit.build()
+
+
+## The colours of the packs a snack machine holds, each once.
+static func _pack_colours(spec: FurnitureSpec) -> Array[Color]:
+	var out: Array[Color] = []
+	for face: Dictionary in ShopStock.faces(spec):
+		if not out.has(face["color"]):
+			out.append(face["color"])
+	return out
+
+
+## The packs of one `colour` as they show in the machine's lit window: each pack's face a glow tile
+## of its own colour in its window (the packs themselves stand dark in the shade of the roof, so
+## without it the window would show them black against the pane).
+static func _pack_faces(spec: FurnitureSpec, colour: Color) -> Mesh:
+	var kit := spec.kit()
+	var y := _pane_y(spec, ShopHollow.bays(spec)[0]["area"])
+	for face: Dictionary in ShopStock.faces(spec):
+		if face["color"] == colour:
+			var window: Rect2 = face["window"]
+			kit.box(
+				MeshKit.volume(
+					spec.area(window.position.x, y, window.size.x, PROUD), window.position.y,
+					window.size.y
 				),
 				colour,
 			)
 	return kit.build()
+
+
+## Where the lit pane of `spec` stands (px from the back, in the bay `area`'s frame): a fridge's
+## just inside its glass, a snack machine's flush with its face, in the light of the room as the old
+## strip was, not in the shade of the band above.
+static func _pane_y(spec: FurnitureSpec, area: Rect2) -> float:
+	if kind_of(spec) == "snack":
+		return area.end.y + ShopHollow.GLASS - PROUD
+	return area.end.y - PROUD
 
 
 ## The heights, `Vector2(from, to)`, between `low` and `high` that no window covers across the
