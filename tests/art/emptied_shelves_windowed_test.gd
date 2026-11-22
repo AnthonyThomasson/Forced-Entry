@@ -6,7 +6,12 @@ extends GameTest
 ## mesh) and the EMPTIED one with the same things loose on its boards (`RoomItems.carry`), the
 ## camera over each in turn: what the shelf holds must read as bright and as filled as the old
 ## picture (the mean luminance of the shelf's contents in the picture, the emptied one at least
-## `MIN_SHARE` of the old). With `EMPTIED_SHOT_DIR=<dir>` set it saves a picture of each. Run:
+## `MIN_SHARE` of the old) and, for the shoe rack, as shaped (a shoe's toe is wider than its heel:
+## the lit pixels of the toe rows over those of the heel rows, at least `MIN_TOE`: shoes
+## measure 1.46, a pair drawn as two plain boxes with an opening 1.23). The two shelves of a pair
+## stand at the same spot in
+## turn, so the same light falls on both. With
+## `EMPTIED_SHOT_DIR=<dir>` set it saves a picture of each. Run:
 ## `EMPTIED_SHOT_DIR=<dir> tools/run_tests.sh --windowed --id=art/emptied_shelves_windowed`.
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
@@ -22,10 +27,18 @@ const SPEC := {
 }
 const KEYS := ["bookshelf", "shelving", "linen_shelf", "shoe_rack"]
 const ZOOM := 3.0
-## How far the emptied shelf stands from the old one, in px.
-const SIDE := 105.0
+## How far apart the shelves of two keys stand, in px (a pair of one key stands at the same spot).
+const ROW := 120.0
 ## The emptied shelf's contents must be at least this share of the old one's brightness.
 const MIN_SHARE := 0.8
+## A pixel that is part of a shoe is at least this bright (the rack's back and outlines are not).
+const SHOE_LIGHT := 0.09
+## The heel rows and the toe rows of the shoes in the picture, in px from its middle (the shoes
+## lie within the middle 56 px across), and how much wider the toe rows must be than the heel rows
+## (the mutant of two plain boxes: 1.23; the shoes: 1.46).
+const HEEL_ROWS := Vector2(-8.0, -2.0)
+const TOE_ROWS := Vector2(-2.0, 4.5)
+const MIN_TOE := 1.35
 
 var _window: SubViewport
 var _camera: Camera2D
@@ -62,19 +75,30 @@ func run(t: TestContext) -> void:
 	var built := await _start(t)
 	if not t.require(not built.is_empty(), "a match started in 3D"):
 		return
-	var pairs := _gallery(t)
 	await t.frames(60)
-	for pair: Array in pairs:
-		var key: String = pair[0]
-		var image := await _picture(t, pair[1], pair[2], key)
-		var old_light := _contents_light(image, -SIDE * 0.5)
-		var new_light := _contents_light(image, SIDE * 0.5)
-		t.check(
-			new_light >= old_light * MIN_SHARE,
-			"the emptied %s reads as bright as the old (%.3f against %.3f)"
-			% [key, new_light, old_light],
-		)
+	var origin := _widest_floor() + Vector2(-450.0, 0.0)
+	for i in KEYS.size():
+		await _compare(t, KEYS[i], origin + Vector2(0.0, i * ROW))
 	await MainProbe.close(t, _window)
+
+
+## The shelf `key` at `at` old, then emptied at the same spot: as bright and as shaped.
+func _compare(t: TestContext, key: String, at: Vector2) -> void:
+	var old := _shelf(key, at, false)
+	var old_image := await _picture(t, old, key + "_old")
+	old.queue_free()
+	await t.frames(5)
+	var new_image := await _picture(t, _shelf(key, at, true), key + "_emptied")
+	var old_light := _contents_light(old_image)
+	var new_light := _contents_light(new_image)
+	t.check(
+		new_light >= old_light * MIN_SHARE,
+		"the emptied %s reads as bright as the old (%.3f against %.3f)"
+		% [key, new_light, old_light],
+	)
+	if key == "shoe_rack":
+		var toe := _toe_over_heel(new_image)
+		t.check(toe >= MIN_TOE, "the emptied shoes have a toe wider than the heel (%.2f)" % toe)
 
 
 ## Main whole in the window with a played 3D match started and the camera on it: the match built
@@ -104,29 +128,24 @@ func _start(t: TestContext) -> Dictionary:
 	return built
 
 
-## Each shelf of `KEYS` twice in a row, old and emptied with its things: `[[key, old, emptied]]`.
-func _gallery(_t: TestContext) -> Array:
-	var origin := _widest_floor() + Vector2(-450.0, 0.0)
-	var pairs: Array = []
-	for i in KEYS.size():
-		var key: String = KEYS[i]
-		var old := WorldGen.object_definition(key).duplicate(true)
-		var opts: Dictionary = old.get("art_opts", {})
+## The shelf `key` at `at`: the old look (`loose` off, its things built into one mesh) or the
+## emptied one with its things loose on its boards.
+func _shelf(key: String, at: Vector2, emptied: bool) -> Node2D:
+	var definition := WorldGen.object_definition(key).duplicate(true)
+	if not emptied:
+		var opts: Dictionary = definition.get("art_opts", {})
 		opts["loose"] = false
-		old["art_opts"] = opts
-		var at := origin + Vector2(0.0, i * 120.0)
-		var built_old := ObjectFactory.spawn(old, at, _world, {})
-		var definition := WorldGen.object_definition(key)
-		var emptied := ObjectFactory.spawn(definition, at + Vector2(SIDE, 0.0), _world, {})
-		RoomItems.carry(emptied, definition, _world, "gallery")
-		pairs.append([key, built_old, emptied])
-	return pairs
+		definition["art_opts"] = opts
+	var piece := ObjectFactory.spawn(definition, at, _world, {})
+	if emptied:
+		RoomItems.carry(piece, definition, _world, "gallery")
+	return piece
 
 
-## The window's picture with the camera between `old` and `emptied` (saved when asked to).
-func _picture(t: TestContext, old: Node2D, emptied: Node2D, name_: String) -> Image:
+## The window's picture with the camera over `piece` (saved when asked to).
+func _picture(t: TestContext, piece: Node2D, name_: String) -> Image:
 	_camera.zoom = Vector2(ZOOM, ZOOM)
-	_camera.global_position = (old.global_position + emptied.global_position) * 0.5
+	_camera.global_position = piece.global_position
 	await t.frames(20)
 	RenderingServer.force_draw(false)  # on demand: a covered window never draws
 	var image := _window.get_texture().get_image()
@@ -136,17 +155,40 @@ func _picture(t: TestContext, old: Node2D, emptied: Node2D, name_: String) -> Im
 	return image
 
 
-## The mean luminance of the middle of the shelf `across` px to the side of the picture's centre.
-func _contents_light(image: Image, across: float) -> float:
-	var centre := Vector2(image.get_size()) * 0.5 + Vector2(across * ZOOM, 0.0)
-	var area := Rect2(centre - Vector2(30.0, 12.0) * ZOOM, Vector2(60.0, 24.0) * ZOOM)
+## The picture's middle, where the shelf's contents are.
+func _contents_area(image: Image) -> Rect2i:
+	var centre := Vector2(image.get_size()) * 0.5
+	return Rect2i(centre - Vector2(30.0, 12.0) * ZOOM, Vector2(60.0, 24.0) * ZOOM)
+
+
+## The mean luminance of the middle of the picture, where the shelf's contents are.
+func _contents_light(image: Image) -> float:
+	var area := _contents_area(image)
 	var sum := 0.0
 	var count := 0
-	for y in range(int(area.position.y), int(area.end.y), 2):
-		for x in range(int(area.position.x), int(area.end.x), 2):
+	for y in range(area.position.y, area.end.y, 2):
+		for x in range(area.position.x, area.end.x, 2):
 			sum += image.get_pixel(x, y).get_luminance()
 			count += 1
 	return sum / float(maxi(count, 1))
+
+
+## The lit pixels of the shoes' toe rows over those of their heel rows (a flat box gives 1.0).
+func _toe_over_heel(image: Image) -> float:
+	var centre := Vector2(image.get_size()) * 0.5
+	var heel := _lit_in(image, centre, HEEL_ROWS)
+	var toe := _lit_in(image, centre, TOE_ROWS)
+	return float(toe) / float(maxi(heel, 1))
+
+
+## The pixels of the shoe rows `rows` (px from `centre`, across ±28 px) at least `SHOE_LIGHT`.
+func _lit_in(image: Image, centre: Vector2, rows: Vector2) -> int:
+	var count := 0
+	for y in range(int(centre.y + rows.x * ZOOM), int(centre.y + rows.y * ZOOM)):
+		for x in range(int(centre.x - 28.0 * ZOOM), int(centre.x + 28.0 * ZOOM)):
+			if image.get_pixel(x, y).get_luminance() >= SHOE_LIGHT:
+				count += 1
+	return count
 
 
 ## The middle of the largest floor of the house, where the dusk lights it.

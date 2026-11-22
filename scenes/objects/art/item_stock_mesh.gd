@@ -120,14 +120,27 @@ static func _wrapped_box(kit: MeshKit, foot: Rect2, high: float, colour: Color) 
 	kit.box(MeshKit.volume(label, high, 0.4), Color(0.92, 0.9, 0.84))
 
 
-## A pair of soles, toes toward the front, a dark opening near each heel.
+## A pair of shoes, toes toward the front: each a narrow heel with its dark opening, a vamp the
+## sole's width and a rounded toe, so the toe reads wider than the heel (the painter's shoes).
 static func _shoes(kit: MeshKit, foot: Rect2, high: float, colour: Color) -> void:
 	var sole := (foot.size.x - 1.0) * 0.5
+	var heel_depth := foot.size.y * 0.42
+	var radius := minf(sole * 0.5, foot.size.y * 0.25)
 	for i in 2:
-		var at := Rect2(foot.position + Vector2(i * (sole + 1.0), 0.0), Vector2(sole, foot.size.y))
-		kit.box(MeshKit.volume(at, 0.0, high), colour, colour.lightened(0.08))
-		var mouth := Rect2(at.position + Vector2(1.0, 1.0), Vector2(maxf(1.0, sole - 2.0), 2.5))
+		var at := foot.position + Vector2(i * (sole + 1.0), 0.0)
+		var heel := Rect2(at + Vector2(sole * 0.15, 0.0), Vector2(sole * 0.7, heel_depth))
+		kit.box(MeshKit.volume(heel, 0.0, high), colour, colour.lightened(0.08))
+		var mouth := Rect2(heel.position + Vector2(0.6, 0.6), heel.size - Vector2(1.2, 1.2))
 		kit.box(MeshKit.volume(mouth, high, 0.2), colour.darkened(0.55))
+		var vamp := Rect2(
+			at + Vector2(0.0, heel_depth * 0.9),
+			Vector2(sole, foot.size.y - heel_depth * 0.9 - radius),
+		)
+		kit.box(MeshKit.volume(vamp, 0.0, high * 0.8), colour, colour.lightened(0.14))
+		var toe := at + Vector2(sole * 0.5, foot.size.y - radius)
+		kit.cylinder(
+			Vector3(toe.x, 0.0, toe.y), radius, high * 0.8, colour, colour.lightened(0.14)
+		)
 
 
 ## A pan: a round dish and its handle reaching out to the right, both inside the footprint.
