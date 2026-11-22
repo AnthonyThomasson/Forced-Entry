@@ -5,7 +5,9 @@ extends GameTest
 ## 12 ms whatever the count. So the tick bakes the first due tile and the updater's physics step
 ## one more a frame, the tiles holding a moving walker first, nearest first, then the grid's order
 ## (`NavTiles.due_tiles`), the polygons held until the last is baked and landed in that frame
-## (`NavTiles.prepare`, `land`): one synchronisation a tick, and the baking spread.
+## (`NavTiles.prepare`, `land`): one synchronisation a tick, and the baking spread. Each tile's
+## bake runs on a worker thread and the burst lands on a fixed frame, `NavBakeConfig.tile_frames`
+## after the last tile was started (the tick found the main thread paying ~4 ms a tile).
 ## Three puppets stop in three tiles of a row and a fourth, that stood in a tile of its own, walks
 ## off: five to seven tiles go due in one tick.
 
@@ -96,6 +98,7 @@ func _judge(t: TestContext, frames: Array) -> void:
 	var baked := 0
 	var worst := 0
 	var first_baked := -1
+	var last_baked := -1
 	var landing_frames := []
 	var landed := 0
 	for i in frames.size():
@@ -104,6 +107,8 @@ func _judge(t: TestContext, frames: Array) -> void:
 		worst = maxi(worst, entry["prepared"])
 		if entry["prepared"] > 0 and first_baked < 0:
 			first_baked = i
+		if entry["prepared"] > 0:
+			last_baked = i
 		if not (entry["landed"] as Array).is_empty():
 			landing_frames.append(i)
 			landed += (entry["landed"] as Array).size()
@@ -117,9 +122,16 @@ func _judge(t: TestContext, frames: Array) -> void:
 	)
 	t.expect_eq(landed, baked, "every tile baked landed")
 	t.check(
-		landing_frames.size() == 1 and landing_frames[0] - first_baked <= baked - 1,
+		landing_frames.size() == 1
+		and landing_frames[0] - first_baked <= baked - 1 + NavBakeConfig.tile_frames,
 		"the burst of %d tiles landed within %d frames of its first bake (first %d, landed %s)"
-			% [baked, baked, first_baked, str(landing_frames)],
+			% [baked, baked - 1 + NavBakeConfig.tile_frames, first_baked, str(landing_frames)],
+	)
+	t.check(
+		landing_frames.size() == 1
+		and landing_frames[0] - last_baked == NavBakeConfig.tile_frames,
+		"the burst landed %d frames after its last tile was started, on a fixed frame (last %d,"
+			% [NavBakeConfig.tile_frames, last_baked] + " landed %s)" % str(landing_frames),
 	)
 
 

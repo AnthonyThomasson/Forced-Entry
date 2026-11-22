@@ -11,8 +11,11 @@ var tiles: Array[Dictionary] = []
 var _held: Array[Dictionary] = []
 ## The walls the burst's tiles are baked from, parsed with the first.
 var _walls: Dictionary = {}
-## The `GameClock` frame the last tile was baked on, so no frame bakes two.
+## The `GameClock` frame the last tile was started on, so no frame starts two.
 var _frame := -1
+## The `GameClock` frame the held tiles land on (`NavBakeConfig.tile_frames` after the last tile
+## was started); -1 while tiles are still to start.
+var _land_at := -1
 
 
 ## Start over with `due` (`NavTiles.due_tiles`), read after `land`: the held tiles took their
@@ -21,9 +24,9 @@ func begin(due: Array[Dictionary]) -> void:
 	tiles = due
 
 
-## Whether a tile is still to bake.
+## Whether a tile is still to bake, or baked and waiting for its landing frame.
 func pending() -> bool:
-	return not tiles.is_empty()
+	return not tiles.is_empty() or not _held.is_empty()
 
 
 ## The tiles whose polygon is still to be assigned this burst: those still to bake and those baked
@@ -36,18 +39,22 @@ func tiles_in_play() -> Array[NavigationRegion2D]:
 	return out
 
 
-## Bake the first of the tiles still to bake and hold it, on a `GameClock` frame none was baked on
-## yet; the last one lands the burst. A single tile lands in the call that bakes it.
+## Start the first of the tiles still to bake (on a worker thread) and hold it, on a `GameClock`
+## frame none was started on yet; the frame `NavBakeConfig.tile_frames` after the last one was
+## started lands the burst. Nothing to land (every tile was up to date): the burst ends at once.
 func step(region: NavigationRegion2D, site: NavSite) -> void:
-	if tiles.is_empty() or GameClock.frame() == _frame:
+	if GameClock.frame() == _frame:
 		return
 	_frame = GameClock.frame()
-	if _walls.is_empty():
-		_walls = NavTiles.parse_for(region, site, tiles)
-	var held := NavTiles.prepare(site, tiles.pop_front(), _walls)
-	if not held.is_empty():
-		_held.append(held)
-	if tiles.is_empty():
+	if not tiles.is_empty():
+		if _walls.is_empty():
+			_walls = NavTiles.parse_for(region, site, tiles)
+		var held := NavTiles.prepare(site, tiles.pop_front(), _walls)
+		if not held.is_empty():
+			_held.append(held)
+		if tiles.is_empty():
+			_land_at = _frame + NavBakeConfig.tile_frames
+	if tiles.is_empty() and (_held.is_empty() or _frame >= _land_at):
 		land()
 
 
@@ -56,10 +63,13 @@ func land() -> void:
 	NavTiles.land(_held)
 	_held.clear()
 	_walls = {}
+	_land_at = -1
 
 
 ## Drop everything: the match is gone.
 func clear() -> void:
+	NavTiles.abandon(_held)
 	tiles.clear()
 	_held.clear()
 	_walls = {}
+	_land_at = -1

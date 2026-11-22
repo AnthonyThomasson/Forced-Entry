@@ -36,3 +36,9 @@ static var ring_frames := 3
 ## waits for it). Measured 2026-11-09 over 517 bakes of the ai and navigation tests' houses (the
 ## frame 1 to 3 ms): 1 to 2 frames, p50 1, p95 2; 3, a little above the p95.
 static var house_frames := 3
+## A district's steering tiles (`NavTileBurst`): each tile of a tick's burst is baked on a worker
+## thread (`NavTiles.prepare`) and the burst lands, all its tiles at once, this many frames after
+## the last tile was started. A tile's bake is a few ms of thread (the server's voxel bake), so the
+## tiles started a frame apart are all done by then unless the pool is busy with a planning bake
+## (`NavTiles.late_total` counts the ones that were not).
+static var tile_frames := 3

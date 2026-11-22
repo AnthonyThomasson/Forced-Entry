@@ -49,7 +49,7 @@ func run(t: TestContext) -> void:
 	var front := WorldGen.district_bounds(district).position + Vector2(CORNER_IN, CORNER_IN)
 	var puppet := t.actor(&"p")
 	puppet.global_position = front
-	await t.seconds(1.0)  # the tick that takes it in, and the planning bake after it
+	await t.seconds(2.0)  # the ticks that take it in and land them, and the planning bake after it
 	puppet.global_position = front + Vector2(MOVE, 0)
 	await _lands_together(t, tiles, "the puppet moved")
 	await _shoved_piece(t, region as NavigationRegion2D, tiles)
@@ -91,9 +91,9 @@ func _lands_together(
 		"the tiles landed on one frame (%s)" % str(landing_frames),
 	)
 	t.check(
-		landing_frames[0] - first <= landed - 1,
+		landing_frames[0] - first <= landed - 1 + NavBakeConfig.tile_frames,
 		"%d tile(s) landed within %d frame(s) of the first bake (first %d, landed %s)"
-			% [landed, landed, first, str(landing_frames)],
+			% [landed, landed - 1 + NavBakeConfig.tile_frames, first, str(landing_frames)],
 	)
 
 

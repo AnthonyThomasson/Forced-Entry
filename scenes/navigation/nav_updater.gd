@@ -52,6 +52,11 @@ func _ready() -> void:
 	set_physics_process(false)
 
 
+## A world torn down with a burst under way: its threads are waited for, none is left running.
+func _exit_tree() -> void:
+	_burst.clear()
+
+
 ## One physics frame of the updater's work: the next due steering tile is baked (never a second on
 ## a frame the tick already baked one on), and one step of the district's planning gather runs; the
 ## finished gather is swapped in, whole, and baked. A match torn down meanwhile leaves the tiles and
