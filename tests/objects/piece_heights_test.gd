@@ -38,7 +38,20 @@ const REAL := {
 	&"sandbag": [0.2, 0.3], &"hat": [0.08, 0.12],
 	&"keyboard": [0.01, 0.08], &"papers": [0.0, 0.05], &"clock": [0.04, 0.14],
 	&"vase": [0.15, 0.35], &"fruit_bowl": [0.08, 0.2], &"cutting_board": [0.01, 0.08],
-	&"tools": [0.01, 0.1], &"vise": [0.1, 0.3],
+	&"tools": [
+		0.01,
+		0.1,
+	], &"vise": [0.1, 0.3], &"till": [0.2, 0.35],
+	&"screen": [0.0, 0.1], &"jar": [0.15, 0.3],
+	&"pack": [
+		0.15,
+		0.3,
+	], &"bottles": [
+		0.3,
+		0.5,
+	], &"snacks": [0.15, 0.3], &"instruments": [0.0, 0.05], &"syringe": [0.0, 0.05],
+	&"cyber_arm": [0.05, 0.15], &"cyber_eye": [0.1, 0.2], &"cyber_chip": [0.0, 0.05],
+	&"cyber_jar": [0.1, 0.2],
 	&"mirror": [1.7, 2.0], &"trash": [0.0, 0.4], &"cables": [0.0, 0.05],
 	&"cable_nest": [0.0, 0.05], &"cardboard": [0.0, 0.15], &"puddle": [0.0, 0.01],
 	&"neon_tube": [0.0, 0.1], &"streetlight": [3.0, 8.0], &"street_sign": [3.0, 8.0],

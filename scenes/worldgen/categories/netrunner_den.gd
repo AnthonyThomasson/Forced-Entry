@@ -13,6 +13,14 @@ const OBJECTS := {
 		"material": "electronics",
 		"art": "tech",
 		"art_opts": { "kind": "monitor_wall" },
+		"carries": [
+			{ "key": "keyboard", "at": Vector2(0, 7), "on_top": true },
+			{
+				"key": "cup", "at": Vector2(61, 7), "on_top": true,
+				"color": Color(0.94, 0.93, 0.9),
+			},
+			{ "key": "papers", "at": Vector2(-61, 7), "on_top": true },
+		],
 		"weight": 40,
 		"penetration": 40,
 		"interactions": [

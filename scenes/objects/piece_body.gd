@@ -128,13 +128,13 @@ func _centre_on_origin() -> void:
 		_as_solid()
 
 
-## Whether the piece is built of thin parts round empty compartments (an emptied shelf:
-## `PieceHeights.hollow`), not a mass.
+## Whether the piece is built of thin parts round empty compartments (an emptied shelf, a shop's
+## fridge, the cyberware shelf: `PieceHeights.hollow`), not a mass.
 func _is_hollow() -> bool:
 	var look: Variant = _piece.get(&"look") if _piece != null else null
 	return (
 		look is Object
-		and (look as Object).get(&"art") == "shelf"
+		and (look as Object).get(&"art") in ["shelf", "shop", "clinic"]
 		and PieceHeights.hollow(FurnitureSpec.of(_piece))
 	)
 

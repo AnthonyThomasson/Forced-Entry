@@ -8,8 +8,11 @@ extends RefCounted
 
 const ItemStockMesh = preload("res://scenes/objects/art/item_stock_mesh.gd")
 const ItemHomeMesh = preload("res://scenes/objects/art/item_home_mesh.gd")
+const ItemShopMesh = preload("res://scenes/objects/art/item_shop_mesh.gd")
 const Decay = preload("res://scenes/objects/art/decay.gd")
-const OPTIONS := ["kind", "height", "neon", "plain"]
+const OPTIONS := ["kind", "height", "neon", "plain", "well"]
+## How thick what fills a bowl is (px): thick enough to read apart from the rim.
+const WELL := 0.4
 
 
 ## The node an item `piece` is shown by, in 3D units with its origin at the piece's origin.
@@ -33,6 +36,14 @@ static func build(piece: Node2D) -> Node3D:
 			FurnitureMesh.fetch_glow("item", spec, _tuning(spec), func() -> Mesh:
 				return _monitor_glow(spec, foot, height_of(spec))),
 			Decay.screen_color(spec.opts),
+			ObjectMeshStateConfig.screen_strength,
+		)
+	if ItemShopMesh.glows(_kind(spec)):  # A till's screen.
+		var foot := spec.within(Rect2(Vector2.ZERO, spec.size))
+		rig.add_glow(
+			FurnitureMesh.fetch_glow("item", spec, _tuning(spec), func() -> Mesh:
+				return ItemShopMesh.glow(spec, foot, height_of(spec))),
+			ItemShopMesh.glow_colour(spec),
 			ObjectMeshStateConfig.screen_strength,
 		)
 	return rig
@@ -61,6 +72,8 @@ static func height_of(spec: FurnitureSpec) -> float:
 	}
 	if ItemHomeMesh.has(_kind(spec)):
 		return ItemHomeMesh.height_of(_kind(spec))
+	if _kind(spec) in ItemShopMesh.KINDS:
+		return ItemShopMesh.height_of(_kind(spec))
 	return kinds.get(_kind(spec), ObjectMeshItemConfig.box_height)
 
 
@@ -91,9 +104,10 @@ static func _mesh(spec: FurnitureSpec) -> Mesh:
 			_cup(kit, spec, radius, high)
 		"bowl":
 			kit.cylinder(Vector3.ZERO, radius * 0.6, high * 0.4, spec.color)
-			kit.cylinder(Vector3(0.0, high * 0.4, 0.0), radius, high * 0.6, spec.color)
-			kit.cylinder(  # The darker well inside the rim.
-				Vector3(0.0, high, 0.0), radius * 0.66, 0.1, spec.color.darkened(0.15)
+			kit.cylinder(Vector3(0.0, high * 0.4, 0.0), radius, high * 0.6 - WELL, spec.color)
+			kit.cylinder(  # What fills it inside the rim: darker ceramic, or a broth.
+				Vector3(0.0, high - WELL, 0.0), radius * 0.66, WELL,
+				spec.opts.get("well", spec.color.darkened(0.15))
 			)
 			if spec.opts.get("plain", false):  # The console table's bowl of keys.
 				ItemHomeMesh.keys(kit, high)
@@ -110,6 +124,8 @@ static func _mesh(spec: FurnitureSpec) -> Mesh:
 				ItemStockMesh.build(kit, spec, _kind(spec), foot, high)
 			elif ItemHomeMesh.has(_kind(spec)):
 				ItemHomeMesh.shape(kit, spec, _kind(spec), foot, high)
+			elif _kind(spec) in ItemShopMesh.KINDS:
+				ItemShopMesh.shape(kit, spec, _kind(spec), foot, high)
 			else:
 				_box(kit, spec, foot, high)
 	return kit.build()

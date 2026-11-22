@@ -242,6 +242,9 @@ static func _art_opts(art: String, opts: Dictionary) -> Dictionary:
 		rest = { "kind": opts.get("kind", "box") }
 		if opts.get("plain", false):
 			rest["plain"] = true
+		for field: String in ["well", "spines"]:  # What fills a bowl; a run's packs' colours.
+			if opts.has(field):
+				rest[field] = opts[field]
 	elif opts.has("material"):
 		rest = opts.duplicate()
 		rest.erase("material")

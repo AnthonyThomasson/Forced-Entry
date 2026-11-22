@@ -15,6 +15,7 @@ extends RefCounted
 const Kit = preload("res://scenes/objects/art/paint_kit.gd")
 const ItemStockPainter = preload("res://scenes/objects/art/item_stock_painter.gd")
 const ItemHomePainter = preload("res://scenes/objects/art/item_home_painter.gd")
+const ItemShopPainter = preload("res://scenes/objects/art/item_shop_painter.gd")
 const Decay = preload("res://scenes/objects/art/decay.gd")
 
 
@@ -26,7 +27,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 		"cup":
 			_cup(c, base, opts.get("plain", false))
 		"bowl":
-			_bowl(c, base, opts.get("plain", false))
+			_bowl(c, base, opts.get("plain", false), opts.get("well", base.darkened(0.12)))
 		"book":
 			_book(c, base)
 		"desk_lamp":
@@ -38,7 +39,8 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 		var other:
 			if other in ItemStockPainter.KINDS:
 				ItemStockPainter.paint(c, base, other)
-			elif not ItemHomePainter.paint(c, base, other):
+			elif not ItemHomePainter.paint(c, base, other) \
+					and not ItemShopPainter.paint(c, base, other, opts):
 				_box(c, base)
 	c.cast_shadows()
 
@@ -77,12 +79,12 @@ static func _cup(c: PixelCanvas, base: Color, plain: bool) -> void:
 
 
 ## A bowl: the rim and a dark well.
-static func _bowl(c: PixelCanvas, base: Color, plain: bool) -> void:
+static func _bowl(c: PixelCanvas, base: Color, plain: bool, well: Color) -> void:
 	var at := _middle(c)
 	if plain:  # The old bowl: a ceramic round, its outline darker, a slightly darker inside.
 		Kit.disc(c, at, _round(c), base.darkened(0.35), 4)
 		Kit.disc(c, at, maxi(1, _round(c) - 1), base, 4)
-		Kit.disc(c, at, maxi(1, _round(c) - 2), base.darkened(0.12), 4)
+		Kit.disc(c, at, maxi(1, _round(c) - 2), well, 4)
 		_keys(c, at)  # The console table's bowl of keys.
 		return
 	Kit.disc(c, at, _round(c), base.darkened(0.15), 4)

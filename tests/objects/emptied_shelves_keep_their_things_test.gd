@@ -8,7 +8,8 @@ const Probe := preload("res://tests/_objects/piece_probe.gd")
 const SHELVES := [
 	["bookshelf", "bookshelf"], ["shelving", "shelving"], ["linen", "linen_shelf"],
 	["shoes", "shoe_rack"], ["stack", "crate_stack"], ["pallet", "wrapped_pallet"],
-	["hotplate", "hotplate"],
+	["hotplate", "hotplate"], ["aisle", "shelf_aisle"], ["fridge", "drinks_fridge"],
+	["snack", "snack_machine"], ["cyber", "cyberware_shelf"],
 ]
 const FIRST := 120.0
 const COLUMN := 150.0
@@ -20,16 +21,16 @@ const SLACK := 3.0
 func describe() -> Dictionary:
 	return {
 		"name": "Emptied shelves and stock keep their things",
-		"description": "The four shelves, a crate stack, a pallet and a hotplate, each carrying "
-			+ "its things, in two turns: every carried thing is asleep over its piece, none "
-			+ "thrown out onto the floor.",
+		"description": "The four shelves, a crate stack, a pallet, a hotplate, a shop aisle, a "
+			+ "fridge, a snack machine and a cyberware shelf, each carrying its things, in two "
+			+ "turns: every carried thing is asleep over its piece, none thrown to the floor.",
 		"tags": ["furniture", "3d", "items", "stacking", "unbake"],
 		"timeout": 60.0,
 	}
 
 
 func configure(s: TestSetup) -> void:
-	s.arena(Rect2(0, 0, 1200, 500))
+	s.arena(Rect2(0, 0, 1900, 500))
 	for i in SHELVES.size():
 		for turn in 2:
 			s.object(

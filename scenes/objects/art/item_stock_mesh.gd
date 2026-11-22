@@ -8,6 +8,8 @@ extends RefCounted
 
 ## How far (px) a pan's handle reaches past its disc.
 const PAN_HANDLE := 5.0
+## How thick each step of a brimming pot's top is (px): its rim, its ring, its broth.
+const POT_STEP := 0.7
 const KINDS := [
 	"pallet",
 	"wrapped_box",
@@ -72,7 +74,7 @@ static func build(
 		"hat":
 			_hat(kit, foot, colour)
 		_:
-			_pot(kit, foot, high, colour)
+			_pot(kit, foot, high, colour, spec.opts.get("well"))
 
 
 ## The hot ring of the `hob`: a glowing disc on the left of its plate (the hotplate's old look).
@@ -182,11 +184,28 @@ static func _tin(kit: MeshKit, foot: Rect2, high: float, colour: Color) -> void:
 	)
 
 
-## A pot: a tall round body and two handles.
-static func _pot(kit: MeshKit, foot: Rect2, high: float, colour: Color) -> void:
+## A pot: a tall round body and two handles; one with a `well` (the noodle bar's) shows what it
+## holds as it was drawn: a dark rim, a ring of its steel and the broth inside.
+static func _pot(
+	kit: MeshKit,
+	foot: Rect2,
+	high: float,
+	colour: Color,
+	well: Variant = null,
+) -> void:
 	var radius := minf(foot.size.x, foot.size.y) * 0.5
 	var mid := foot.get_center()
-	kit.cylinder(Vector3(mid.x, 0.0, mid.y), radius, high, colour, colour.lightened(0.12))
+	if well is Color:
+		var step := POT_STEP
+		kit.cylinder(Vector3(mid.x, 0.0, mid.y), radius, high - 3.0 * step, colour)
+		var at := Vector3(mid.x, high - 3.0 * step, mid.y)
+		kit.cylinder(at, radius, step, colour.darkened(0.4))
+		kit.cylinder(at + Vector3(0.0, step, 0.0), radius * 0.75, step, colour.lightened(0.12))
+		kit.cylinder(
+			at + Vector3(0.0, 2.0 * step, 0.0), radius * 0.5, step, (well as Color).darkened(0.2),
+		)
+	else:
+		kit.cylinder(Vector3(mid.x, 0.0, mid.y), radius, high, colour, colour.lightened(0.12))
 	for side: float in [-1.0, 1.0]:
 		var grip := Rect2(mid + Vector2(side * radius - 0.8, -1.0), Vector2(1.6, 2.0))
 		kit.box(MeshKit.volume(grip, high * 0.7, 1.5), colour.darkened(0.2))

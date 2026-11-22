@@ -66,7 +66,7 @@ static func carry(base: Node2D, definition: Dictionary, parent: Node, room: Stri
 		}
 		if not row["on_top"]:
 			opts["rest_at"] = row["lift"]
-		if row["key"] == "monitor":  # Its screen is its desk's neon, as the desk's prop was.
+		if row["key"] in ["monitor", "screen"]:  # Its screen is its piece's neon.
 			var neon: String = (base.look.art_opts as Dictionary).get("neon", "")
 			if neon != "":
 				opts["neon"] = neon

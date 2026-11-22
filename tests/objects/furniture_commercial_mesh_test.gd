@@ -28,23 +28,23 @@ const MATCH := {
 ## painter colours by
 ## chance or from a palette of its own; `deep`: the least share of the depth it covers, for a thin
 ## one; `hangs`: its parts start at no set height, as streaks down a wall do). Heights are the
-## spec's class heights; the few that rise past the class number are the part on top (a till's
-## screen, a rack's LEDs, a scanner's emitter, a bin's lid).
+## spec's class heights; the few that rise past the class number are the part on top (a
+## rack's LEDs, a scanner's emitter, a bin's lid).
 const KINDS := {
 	&"monitor_wall": { "art": "tech", "top": 62.0, "base": 0.0, "cover": 0.8, "colour": false },
 	&"server_rack": { "art": "tech", "top": 83.0, "base": 0.0, "cover": 0.8 },
-	&"tool_cart": { "art": "clinic", "top": 35.3, "base": 0.0, "cover": 0.8 },
+	&"tool_cart": { "art": "clinic", "top": 34.0, "base": 0.0, "cover": 0.8 },
 	&"cyberware_shelf": { "art": "clinic", "top": 64.0, "base": 0.0, "cover": 0.8 },
 	# The slab is 12 % of its width in from each end plus the 4 px its sandbags' stacks end at
 	# (84 of 120 px, 0.70): its bags are items that stand at its ends, not part of its mesh.
 	&"barricade": { "art": "security", "top": 40.3, "base": 0.0, "cover": 0.65 },
 	&"scanner_post": { "art": "security", "top": 84.4, "base": 0.0, "cover": 0.5 },
 	&"lockers": { "art": "security", "top": 77.0, "base": 0.0, "cover": 0.95 },
-	&"shop_counter": { "art": "shop", "top": 52.8, "base": 0.0, "cover": 0.95 },
-	&"shelf_aisle": { "art": "shop", "top": 58.4, "base": 0.0, "cover": 0.9 },
+	&"shop_counter": { "art": "shop", "top": 41.0, "base": 0.0, "cover": 0.95 },
+	&"shelf_aisle": { "art": "shop", "top": 58.0, "base": 0.0, "cover": 0.9 },
 	&"drinks_fridge": { "art": "shop", "top": 80.4, "base": 0.0, "cover": 0.9 },
 	&"snack_machine": { "art": "shop", "top": 76.0, "base": 0.0, "cover": 0.9 },
-	&"noodle_counter": { "art": "noodle", "top": 51.2, "base": 0.0, "cover": 0.9 },
+	&"noodle_counter": { "art": "noodle", "top": 41.0, "base": 0.0, "cover": 0.9 },
 	&"bar_stool": { "art": "noodle", "top": 27.3, "base": 0.0, "cover": 0.5, "colour": 0.3 },
 	&"noodle_booth": { "art": "noodle", "top": 46.0, "base": 0.0, "cover": 0.8 },
 	&"menu_board": {
@@ -87,7 +87,6 @@ const GLOWS := {
 	&"monitor_wall": { "min": 2, "of": [0.6] },
 	&"server_rack": { "min": 3, "of": [0.8] },
 	&"scanner_post": { "min": 1, "of": [0.8] },
-	&"shop_counter": { "min": 1, "of": [0.6] },
 	&"drinks_fridge": { "min": 1, "of": [0.5] },
 	&"snack_machine": { "min": 1, "of": [0.5] },
 	&"menu_board": { "min": 2, "of": [1.0] },

@@ -18,13 +18,15 @@ extends RefCounted
 ## pieces, by where the piece stands, so a seed's layout says which (a crate stack's third crate);
 ## an `on_top` row has no `lift`: the item rests on the piece's top under it (a counter's slab, not
 ## its backsplash) on what is already there, as a home top's desk and counter carry theirs, and
-## takes the catalogue item's own `size`. A shelf with `art_opts.loose` says it by `ShelfLoose`.
+## takes the catalogue item's own `size`. A shelf with `art_opts.loose` says it by `ShelfLoose`, a
+## shop's fridge, snack machine or aisle by `ShopStock`, a cyberware shelf by `CyberwareShelf`.
 
 const ShelfLoose = preload("res://scenes/objects/art/shelf_loose.gd")
 
 
 ## Whether the piece a catalogue `definition` says carries things (its mesh and art leave them
-## out): it has `carries`, or it is a shelf with `art_opts.loose`.
+## out): it has `carries`, or its `art_opts.loose` says so (a shelf, a shop's aisle, fridge or snack
+## machine, the cyberware shelf: `loose` is that gate only; that a piece is hollow is by its kind).
 static func carries(definition: Dictionary) -> bool:
 	if definition.has("carries"):
 		return true
@@ -38,6 +40,10 @@ static func canonical(definition: Dictionary, spec: FurnitureSpec) -> Array:
 	var own: Array = definition.get("carries", [])
 	if own.is_empty() and spec.art == "shelf":
 		return ShelfLoose.rows(spec)
+	if own.is_empty() and spec.art == "shop":
+		return ShopStock.rows(spec)
+	if own.is_empty() and spec.art == "clinic":
+		return CyberwareShelf.rows(spec)
 	return own
 
 
@@ -73,12 +79,12 @@ static func _palette_pick(list: String, roll: int) -> Color:
 
 
 ## What a carrying `row` changes in its item's catalogue row (`patched`): its footprint, colour,
-## weight, height and spines, and `plain` for a home top's item and for a row that says `plain`
-## (a sandbag, the hat): it keeps the old prop's own colour, not the run-down grade a catalogue
-## colour is drawn in.
+## weight, height, spines and `well` (the colour of what fills a bowl), and `plain` for a home top's
+## item and for a row that says `plain` (a sandbag, the hat): it keeps the old prop's own colour,
+## not the run-down grade a catalogue colour is drawn in.
 static func patch_of(row: Dictionary) -> Dictionary:
 	var patch := {}
-	for field: String in ["size", "color", "weight", "height", "spines"]:
+	for field: String in ["size", "color", "weight", "height", "spines", "well"]:
 		if row.has(field):
 			patch[field] = row[field]
 	if row.get("on_top", false) or row.get("plain", false):
@@ -94,7 +100,7 @@ static func patched(item: Dictionary, patch: Dictionary) -> Dictionary:
 		if patch.has(field):
 			out[field] = patch[field]
 	var opts: Dictionary = out.get("art_opts", {})
-	for field: String in ["height", "spines", "plain"]:
+	for field: String in ["height", "spines", "plain", "well"]:
 		if patch.has(field):
 			opts[field] = patch[field]
 	out["art_opts"] = opts

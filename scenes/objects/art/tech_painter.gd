@@ -2,8 +2,8 @@ extends RefCounted
 ## Top-down pixel-art TECH painter (Objects domain, private): the netrunner den's hardware, `kind`
 ## in the options.
 ##   `monitor_wall`: a rail along the wall carrying a row of screens, the outer ones angled in,
-##     their faces glowing to the room, cables off the back, and a keyboard ledge in front (a
-##     keyboard, a mug, papers);
+##     their faces glowing to the room, cables off the back, and a ledge in front (its keyboard,
+##     mug and papers are items: `docs/stacked-items.md` SI16);
 ##   `server_rack`: a steel top with rows of vents, a cable bundle off the back and a row of LEDs
 ##   along the front edge.
 ## Canonical frame: the front toward +y, the back against the wall. Run down (decay.gd): grime,
@@ -12,7 +12,6 @@ extends RefCounted
 ## ObjectArtTechConfig.tech_*.
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
-const Props = preload("res://scenes/objects/art/props.gd")
 ## Heights for cast shadows.
 const _RAIL_HEIGHT := 6
 const _SCREEN_HEIGHT := 8
@@ -50,7 +49,7 @@ static func box(
 	return s
 
 
-## The rail, the screens (every third a dimmer one), the cables off the back and the keyboard ledge.
+## The rail, the screens (every third a dimmer one), the cables off the back and the bare ledge.
 static func _monitor_wall(c: PixelCanvas, base: Color, screen: Color) -> void:
 	var dark := ObjectArtTechConfig.tech_dark_color
 	box(c, Rect2i(0, 0, c.w, 4), dark, _RAIL_HEIGHT, 1)
@@ -73,10 +72,6 @@ static func _monitor_wall(c: PixelCanvas, base: Color, screen: Color) -> void:
 		)
 	var ledge := Rect2i(2, 8 + depth, c.w - 4, maxi(4, c.h - 10 - depth))
 	box(c, ledge, ObjectArtTechConfig.tech_ledge_color, _LEDGE_HEIGHT, 1)
-	var mid_y := ledge.position.y + int(ledge.size.y / 2.0)
-	Props.draw(c, "keyboard", Vector2i(int(c.w / 2.0), mid_y))
-	Props.draw(c, "mug", Vector2i(c.w - 14, mid_y))
-	Props.draw(c, "papers", Vector2i(14, mid_y))
 
 
 ## The rack's top: vent rows, the LEDs along the front edge (most lit, glowing) and the cable bundle

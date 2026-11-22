@@ -68,6 +68,24 @@ const DRAWN_AT := {
 		"vise": Vector2(36.4, -1.9),
 	},
 }
+## The shops' and special rooms' pieces that were emptied (#194 unbake-c, SI16), by the piece's
+## name, and the items each carries: the premise, written out here. A fridge's bottles, a machine's
+## and an aisle's packs are runs (SI16).
+const COMMERCIAL := {
+	"Shop counter": ["jar", "pack", "pack", "pack", "pack", "pack", "till"],
+	"Noodle bar": ["bowl", "bowl", "bowl", "pot", "pot", "pot"],
+	"Booth": ["bowl", "bowl"],
+	"Cart": ["instruments", "screen", "syringe"],
+	"Monitors": ["cup", "keyboard", "papers"],
+	"Cyberware": ["cyber_arm", "cyber_arm", "cyber_arm", "cyber_arm", "cyber_arm", "cyber_arm",
+		"cyber_arm", "cyber_arm", "cyber_arm", "cyber_chip", "cyber_chip", "cyber_chip",
+		"cyber_eye", "cyber_jar", "cyber_jar", "cyber_jar", "cyber_jar", "cyber_jar"],
+	"Drinks fridge": ["bottles", "bottles", "bottles", "bottles", "bottles", "bottles"],
+	"Snack machine": ["snacks", "snacks"],
+	"Shelf aisle": ["snacks", "snacks", "snacks", "snacks", "snacks", "snacks", "snacks", "snacks",
+		"snacks", "snacks", "snacks", "snacks", "snacks", "snacks", "snacks", "snacks", "snacks",
+		"snacks", "snacks", "snacks", "snacks", "snacks", "snacks", "snacks"],
+}
 ## How far (px) a home item stands from its drawn point at the start, before it settles.
 const DRAWN := 1.0
 ## Where the barricade's old painter drew its sandbags (px from its centre, SI15: two stacks of
@@ -102,6 +120,8 @@ func run(t: TestContext) -> void:
 		"Crates": 0, "Crates2": 0, "Crates3": 0, "Pallet": 0, "Hotplate": 0, "Shelves": 0,
 		"Books": 0, "Tins": 0, "Barricade": 0, "Coats": 0, "Strewn": 0,
 	}
+	for name: String in COMMERCIAL:
+		seen[name] = 0
 	for home: String in HOME:
 		seen[home] = 0
 	for tower: Dictionary in DistrictReads.get_towers(t.world.district):
@@ -158,6 +178,10 @@ func _check_base(
 			seen["Hotplate"] += 1
 			t.check(base.solid, "%s: the hotplate's crate is a piece" % where)
 			t.check(keys == ["hob", "pan"], "%s: a hotplate and a pan on it (%s)" % [where, keys])
+		"Shop counter", "Noodle bar", "Booth", "Cart", "Monitors", "Drinks fridge", \
+		"Snack machine", "Shelf aisle", "Cyberware":
+			seen[String(base.object_name)] += 1
+			_check_commercial(t, where, base, keys)
 		"Books", "Shelves", "Linen", "Shoes":
 			seen["Shelves"] += 1
 			var thing: String = {
@@ -222,6 +246,18 @@ func _check_sandbags(t: TestContext, where: String, placed: Array, base: Node2D)
 				return (entry["node"] as Node2D).global_position.distance_to(want) <= DRAWN
 		)
 		t.check(not near.is_empty(), "%s: a sandbag is where it was drawn (%s)" % [where, point])
+
+
+## The emptied shop or special-room piece `base` carries the items `keys` its row says, no more.
+func _check_commercial(t: TestContext, where: String, base: Node2D, keys: Array) -> void:
+	var name := String(base.object_name)
+	var sorted := keys.duplicate()
+	sorted.sort()
+	t.expect_eq(sorted, COMMERCIAL[name], "%s: %s carries its items" % [where, name])
+	t.check(
+		not (base.look.art_opts as Dictionary).has("props"),
+		"%s: %s paints none of them" % [where, name],
+	)
 
 
 ## The crate stack `base` with the item `keys` placed on it: two or three loose crates, no solid

@@ -104,6 +104,20 @@ func get_surface() -> Dictionary:
 		"color": ObjectArt.drawn_color(color) if look.art != "" else color }
 
 
+## The surface a round meets at the plan point `point`, `height` px up: the piece's, but a glass
+## front (a stocked fridge's: `ShopHollow`) is glass wherever it is struck. Read by the Projectile
+## System through `get_surface_at_point`.
+func get_surface_at_point(height: float, point: Vector2) -> Dictionary:
+	if look.art == "shop" and not is_tipped():
+		var spec := FurnitureSpec.of(self)
+		var local := global_transform.affine_inverse() * point
+		var canonical := local.rotated(-spec.turns * PI * 0.5) + spec.size * 0.5
+		var glass := ShopHollow.surface_at(spec, height, canonical)
+		if not glass.is_empty():
+			return glass
+	return get_surface()
+
+
 ## The hit marks on this object (dicts with `pos`, `depth`, `blood`, …), oldest first.
 func hit_marks() -> Array:
 	return physics.deformable.impacts

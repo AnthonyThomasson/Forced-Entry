@@ -115,10 +115,15 @@ static func parts(spec: FurnitureSpec) -> Array[Dictionary]:
 	return out
 
 
-## Whether the piece is thin parts round empty compartments (an emptied shelf), so its body moves
-## as the solid box of its extent (`PieceBody`).
+## Whether the piece is thin parts round empty compartments (an emptied shelf, a shop's fridge,
+## snack machine, aisle or the cyberware shelf), so its body moves as the solid box of its extent
+## (`PieceBody`).
 static func hollow(spec: FurnitureSpec) -> bool:
-	return spec.art == "shelf" and ShelfMesh.is_loose(spec)
+	return (
+		(spec.art == "shelf" and ShelfMesh.is_loose(spec))
+		or ShopHollow.has(spec)
+		or CyberwareShelf.has(spec)
+	)
 
 
 ## A piece that is one part: the top the mesh script's own `height_of` says.
@@ -279,6 +284,8 @@ static func _room(spec: FurnitureSpec) -> Array[Dictionary]:
 		"office_chair":
 			top = ObjectMeshChairConfig.office_back_height
 		"clinic":
+			if CyberwareShelf.has(spec):
+				return CyberwareShelf.parts(spec)
 			top = ClinicMesh.height_of(spec)
 		_:
 			if kind == "surgical":
@@ -286,19 +293,36 @@ static func _room(spec: FurnitureSpec) -> Array[Dictionary]:
 	return [_part(top)]
 
 
+## The netrunner's monitor wall: the desk along the wall (its ledge, where the keyboard, mug and
+## papers stand), the screens' band on it and the rail at the back.
+static func _monitor_wall(spec: FurnitureSpec) -> Array[Dictionary]:
+	var desk := ObjectMeshTechConfig.desk_height
+	var band := TechMesh.screen_band(spec)
+	return [
+		_part(desk),
+		_part(desk + ObjectMeshTechConfig.screen_height, desk, _share(spec, band)),
+		_part(
+			ObjectMeshTechConfig.rail_height, 0.0,
+			_share(spec, Rect2(0.0, 0.0, spec.size.x, 4.0)),
+		),
+	]
+
+
 ## The commercial and street kinds with a `height_of` of their own: one top each.
 static func _commercial(spec: FurnitureSpec) -> Array[Dictionary]:
 	var top := ObjectMeshOverheadConfig.post_height
 	match spec.art:
 		"tech":
-			top = ObjectMeshTechConfig.rail_height
-			if String(spec.opts.get("kind", "monitor_wall")) == "server_rack":
-				top = TechMesh.rack_height(spec)
+			if String(spec.opts.get("kind", "monitor_wall")) != "server_rack":
+				return _monitor_wall(spec)
+			top = TechMesh.rack_height(spec)
 		"security":
 			top = SecurityMesh.height_of(spec)
 			if String(spec.opts.get("kind", "barricade")) == "barricade":
 				return [_part(top, 0.0, _share(spec, SecurityMesh.slab_of(spec)))]
 		"shop":
+			if ShopHollow.has(spec):
+				return ShopHollow.parts(spec)
 			top = ShopMesh.height_of(spec)
 		"stock":
 			top = StockMesh.height_of(spec)

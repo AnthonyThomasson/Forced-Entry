@@ -187,7 +187,9 @@ func _resolve(result: Dictionary) -> void:
 	# Captured before the ricochet branch reassigns `direction`; the shove follows the shot in.
 	var incoming := direction
 	var travel := _travel()
-	var surface := _surface_for(body, incoming, PlanSpace.height_of(result.position))
+	var surface := _surface_for(
+			body, incoming, PlanSpace.height_of(result.position), PlanSpace.plan_of(result.position)
+	)
 	var info := _hit_info(result, incoming)
 	# Squareness: |travel · normal|, 1 = head-on. A degenerate normal counts as square. A body's
 	# wall is straight up, so a character is met on the plan heading alone: pitch does not glance
@@ -299,9 +301,12 @@ func _deflect(side: float, lift: float) -> void:
 
 
 ## The struck object's surface: where the round meets it (`get_surface_at(height, direction)`, a
-## character's armour, `at` px up) when it can say, else via get_surface(), or the wall-rating
-## fallback for a body that exposes none.
-func _surface_for(body: Node, travel: Vector2, at: float) -> Dictionary:
+## character's armour, `at` px up; `get_surface_at_point(height, point)`, a piece's glass, `point`
+## the plan point struck) when it can say, else via get_surface(), or the wall-rating fallback for a
+## body that exposes none.
+func _surface_for(body: Node, travel: Vector2, at: float, point: Vector2) -> Dictionary:
+	if body.has_method("get_surface_at_point"):
+		return body.get_surface_at_point(at, point)
 	if body.has_method("get_surface_at"):
 		return body.get_surface_at(at, travel)
 	if body.has_method("get_surface"):

@@ -13,7 +13,7 @@ they were drawn. **This file is the schema**; the first user is `RoomItems.carry
 
 `{ key, at: Vector2, size: Vector2, lift, height, color, weight, maybe, on_top }`
 
-- `key`: the item's catalogue key (`ItemsCatalog` / `LooseStockCatalog`: `crate`, `pallet`, `wrapped_box`, `book_stood`, `shoes`, `hob`, `pan`, `pot`).
+- `key`: the item's catalogue key (`ItemsCatalog` / `LooseStockCatalog` / `HomeItemsCatalog` / `ShopItemsCatalog`: `crate`, `pallet`, `book_stood`, `pot`, `till`, `pack`, …).
 - `at`: the item's centre in px from the piece's centre, x across, the front toward +y, before the piece's turns.
 - `size`: footprint in px in that frame (turned with the piece).
 - `lift`: px above the floor the item rests at (its `rest_at`); `height`, `color`, `weight`, `spines` (a run of books): what differs from the item's catalogue row.
@@ -29,6 +29,10 @@ number of turns, `size` the footprint (canonical), `lift` px above the floor, `p
 ## Rules
 
 - A carrying piece's `PieceHeights` leaves its contents out; a place with `carries` and no art (`crate_stack`, `wrapped_pallet`) has mass 0.
+- A shop's fridge, snack machine and aisle are hollow too (`ShopHollow`, stock rows `ShopStock`, a glass front part the round meets as glass: `docs/stacked-items.md` SI16).
+- The ripperdoc's cyberware shelf is hollow too (`CyberwareShelf`: posts and a board per tier; rows `cyber_arm`, `cyber_eye`, `cyber_chip`, `cyber_jar`, `plain` colour; SI16).
 - A shelf is hollow (`ShelfMesh.hollow_parts`: boards, top, sides 4 px, back) and moves as the solid box of its extent (`PieceBody._as_solid`).
 - Items taller than `step_over` that a place carries carve a nav hole like a floor stack (`navigation/house_items_carve_like_pieces`).
 - New carrying row: add it to the piece's catalogue row and a test in `tests/objects/` (`emptied_*`), the `old_looks` test sets it beside the old look.
+
+**Shop pieces (SI16).** A fridge's, snack machine's or aisle's `ShopHollow` and the cyberware shelf's `CyberwareShelf` answer `EnvironmentObject.get_surface_at_point(height, point)` (a round meets the glass front as glass, else `get_surface()`: interface 3); glass is not transparent, sight stops at it as at the old solid piece. The cyberware shelf steps up in three columns so every item shows from above. Their `art_opts.loose: true` is only the gate `PieceCarries.carries` reads (a piece with it carries); that they are hollow is by kind (`ShopHollow.has`, `CyberwareShelf.has`), so there is no solid variant.

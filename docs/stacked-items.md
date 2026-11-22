@@ -276,3 +276,65 @@ against the old prop by `art/home_items_lit_windowed` (windowed).
 - A pistol round does not pass a sandbag (`projectile/round_stopped_by_a_sandbag`: penetration 90; the mutant 20 lets it through).
 - Tests: `objects/emptied_barricade_and_coat_rack_carry_items` (no sandbag or hat in the meshes, eight bags at the drawn points asleep, the hat on the top, a
   shove moves one bag alone), `worldgen/old_looks_keep_their_items` (a district's barricades and racks).
+
+## SI16. Unbake: the shops and special rooms carry what they drew as items (job `unbake-c`; D21)
+
+The unbake rule of SI13 and the `on_top` rows of SI14 hold for the commercial and special pieces: what their painter and mesh drew
+loose is a free item set where it was drawn, and the piece is drawn bare (`PieceCarries`, one `RoomItems.carry`). `ShopItemsCatalog`
+has the new kinds (art id `item`: `item_shop_painter.gd`, `item_shop_mesh.gd`, heights in `ObjectMeshShopItemConfig`); the rest are
+kinds that exist (`pot`, `bowl`, `monitor`, `keyboard`, `cup`, `papers`).
+
+| piece | carries |
+|---|---|
+| `shop_counter` | till (its screen is a glow node), jar, five packs |
+| `noodle_counter` | three pots (16 px round, 11 high), three bowls |
+| `noodle_booth` | two bowls on the table |
+| `tool_cart` | instruments, syringe, a diagnostic `monitor` (9 by 6) |
+| `monitor_wall` | keyboard, mug (`cup`), papers on the ledge |
+| `drinks_fridge`, `snack_machine`, `shelf_aisle` | runs of bottles, snack packs (below) |
+
+The monitor wall's `PieceHeights` are its real parts now (the desk and its ledge 31 px, the band of the screens 53, the rail 62: an
+item set on the ledge starts on it, not on the rail); the cart's tray is still the cart's one box, so an item stands on the rim, 2 px
+over the tray's floor.
+
+**Stock behind glass (the fridge, the snack machine, the shelf aisle).** These three are hollow (`ShopHollow`):
+thin parts round open bays, like the emptied shelves of SI13, and they move as the solid box of their extent (`PieceBody._as_solid`).
+Their stock is free items on the boards, from `ShopStock`: a run of up to four bottles (`bottles`, glass) on the fridge's three shelves,
+snack packs (`snacks`, cardboard) on the machine's two and on each side of an aisle's three tiers; a run is one body, its `spines` what
+the mesh draws. The fridge's and the machine's front is a **glass part** (3 px, a collider; the pane is not drawn: a clear pane has no
+mesh) that holds the stock in when the piece lurches or turns; a piece laid on its side spills it. A round meets the glass as glass
+(`penetration` 6, material `glass`: `Piece.get_surface_at_point`, which the Projectile reads where it has the point struck; the steel
+elsewhere), goes on through it to the bottles, and meets each by its own material. The stock is lit by a glow node on the bay's back
+wall. **Not done:** breaking the glass (a shot leaves the front whole, so the stock never falls out of an upright piece), the
+monitor wall's screens (part of the wall: a screen is a lit pane of its band, not a loose thing).
+
+**The cyberware shelf.** The ripperdoc's shelf is hollow too (`CyberwareShelf`) and steps up in three columns, a board on four posts each, the left lowest and the right as tall as the shelf, moving as the solid box of its extent. No board is over another's cyberware: the game camera looks down on the shelf, so tiers one over another (as it was built first: 26 of 38 items under a full board) would hide the lower ones, and every item shows from above. What it held is free items on the boards, laid left to right along each column by a generator seeded from the look: chrome arms (`cyber_arm`: a bar with its joint, lying the depth of the column) and stacks of three small things across it, eyes (`cyber_eye`, a ball with its pupil), chips (`cyber_chip`, a body with its pins) and jars (`cyber_jar`), each in its own colour (`plain`); a shelf is 18 of them (9 arms, 1 eye, 3 chips, 5 jars). Tests: `objects/cyberware_shelf_carries_its_cyberware` (no part over any item) and the shelf in `objects/emptied_shelves_keep_their_things`.
+
+**Sight and the glass.** The glass front of the fridge and the snack machine is a plain collider, not transparent: `get_surface()` (read per body by `SightRay`) says opaque for the whole piece, so AI and player sight stop at the glass exactly as at the solid fridge it replaced, though the stock behind it is drawn. A round meets the glass as glass (`EnvironmentObject.get_surface_at_point`, `ShopHollow.surface_at`). Nothing in the AI changed.
+
+**The old look kept, found wanting.** The noodle counter's pots carry their broth (`well` on the row, `ItemStockMesh._pot`): the flat old pot was a pale rim with a brown disc; its lit 3D picture is measured by `art/shop_items_lit_windowed` (pot red: the broth does not show yet, see the ticket notes). `art/shop_items_lit_windowed` judges every kind by what the old drawing has (an old measure under 12 pixels is not used: the kind is judged by its mean colour, its coverage and the measures it has), each kind its own bar with its measured cause.
+
+**What reads as the old look (found side by side).** The whole pieces were shot old (08f43a10) against new at one spot: a run's top is
+painted pack by pack (`spines` reach the flat art: one graded colour for a run read as a brown block, a quarter of the old aisle's bright
+pixels); the cyberware's lid is a rim; the tool cart's diagnostic screen is its own item, `screen` (a dark body with a lit pane in the
+piece's neon: the reused `monitor` showed only its thin lit edge from above).
+
+**Bodies, and the rule for grouping.** A district's `TwinSpace.bodies()` after 2 s of the district (plan `garage_home`, doors off):
+seed 2 1130 (08f43a10: 742; 457 items against 56), seed 13 1423 (854), seed 1 1361 (786), seed 8, the most ripperdocs (6 shelves,
+228 cyberware), 1263 (775); the busiest of 11 seeds is 1423, a seventh of Jolt's 10240. Over 600 physics frames of a quiet district
+the step costs 0.51 to 0.55 ms against 0.42 to 0.43 (08f43a10), about a tenth of a millisecond for 390 bodies (headless, load 60
+to 120, three alternated runs): no fight frame shows it, and nothing is grouped beyond **a run is one body** (up to four like bottles or
+packs, `ShopStock.RUN`, as a `book_stood` run is). The rule: where a room's free bodies would make a fight frame cost show, group
+like items into runs of one body per row (a row is what stands in a line on one board); a shelf of cyberware (18 bodies) is not one.
+Not measured: the perf guards (the machine's load was over 30).
+
+**The old look.** `tests/_art/old_shop_look.gd` holds what the shop, noodle, clinic and tech painters drew of each thing (as of
+08f43a10) and `art/shop_items_lit_windowed` (windowed) puts that drawing and the new item at one spot in turn under one light: the
+item must show two fifths of the drawing's bright and saturated pixels (the bar's cause is in the test). It found a noodle bowl that
+lost its broth (a bowl's `well` colour: a row sets it, the flat art and the mesh draw it), a chip whose pins sank in its body and an
+eye that read dark (a ball: now a disc with a raised pupil). The bottles and snacks are lit by the glow of the fridge or machine
+they stand in, so one alone is no pair.
+Tests: `worldgen/old_looks_keep_their_items`
+(`COMMERCIAL`: each piece carries exactly its row and paints none of it), `objects/furniture_commercial_mesh`,
+`objects/piece_heights`, `objects/stocked_fridge_keeps_its_stock`, `objects/shop_stock_paints_its_packs`, `objects/emptied_shelves_keep_their_things`,
+`projectile/round_through_a_fridge_glass`.

@@ -9,6 +9,10 @@
      a round at that height along that direction meets: `get_surface()`, or over armour that surface with the armour's `penetration`,
      `material`, `color` plus `stop_power` (a round whose power × speed factor is below it is stopped) and `inner_material` (what a
      round that beats it strikes: flesh). The projectile asks it before `get_surface()` when it exists.
+   - optionally `get_surface_at_point(height, point) -> Dictionary` (a piece's `EnvironmentObject`, only a hollow shop piece: a fridge or
+     a snack machine's glass front, `docs/stacked-items.md` SI16): the surface a round at `height` over the plan `point` meets, the glass's
+     `{ penetration, material, color }`, else `get_surface()` (`{}` of its own where it has no part to tell). The glass still blocks sight
+     as the solid piece did (`get_surface()` is opaque).
    - an object also carries `object_name` (display name), which the AI's wording reads.
 
    `HitInfo` (`physics/hit_info.gd`): `position, normal, direction, damage, speed_factor, penetrated, source`, `has_exit` /
