@@ -79,6 +79,7 @@ beside the gameplay lines it caused. `tail` the editor log or `$TMPDIR/godot_run
 ## 4. Clean up
 
 `kill` the Bash-launched pid (leave a `show-me` editor open). A hard kill skips `_exit_tree`, so the Von decision server it
-spawned (port 8000) is orphaned: **always `pkill -f "von serve"` after one.** An orphaned server answers HTTP but its stdout
-pipe is dead, so every decision fails (`422 Failed to load Option-Marker decision weights … [Errno 32] Broken pipe`) and
+spawned (port 8000) is orphaned: **run `tools/von_stop.sh <game pid>` first, then `kill <game pid>`** (it stops only the
+server under that game; killing by name would take other worktrees' servers down, and a hook refuses it). An
+orphaned server answers HTTP but its stdout pipe is dead, so every decision fails (`422 Failed to load Option-Marker decision weights … [Errno 32] Broken pipe`) and
 every NPC sits in `HOLD`.

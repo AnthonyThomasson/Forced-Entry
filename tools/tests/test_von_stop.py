@@ -1,0 +1,231 @@
+"""tools/von_stop.sh and tools/proctree.py: stopping the Von server one game started, and only that one.
+
+Each game is a fake: a Python 'game' process that starts a Python 'boot script' (the PowerShell of a Windows boot
+script, the `von` shim of a Mac one), which starts a Python HTTP server whose command line reads `fake_von.py serve`
+(what the default match, a `von serve`, looks for), plus a 'sidecar' child that has nothing to do with Von. Python
+fakes, not shebang scripts: Windows cannot run those. The tests start two games, stop one's server through the script
+and check that only that branch went: the other server still answers, both games and the sidecar still run.
+"""
+import os
+import shutil
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+import unittest
+from pathlib import Path
+from unittest import mock
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "tools"))
+import proctree  # noqa: E402  (the tool's own functions)
+
+SCRIPT = ROOT / "tools" / "von_stop.sh"
+
+SERVER = """\
+import http.server, sys
+server = http.server.HTTPServer(("127.0.0.1", 0), http.server.SimpleHTTPRequestHandler)
+open(sys.argv[2], "w").write(str(server.server_address[1]))
+server.serve_forever()
+"""
+BOOT = """\
+import subprocess, sys
+subprocess.Popen([sys.executable, sys.argv[1], "serve", sys.argv[2]]).wait()
+"""
+GAME = """\
+import subprocess, sys
+boot = subprocess.Popen([sys.executable, sys.argv[1], sys.argv[2], sys.argv[3]])
+sidecar = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(300)"])
+boot.wait()
+sidecar.wait()
+"""
+
+
+def find_bash() -> str:
+    """Git Bash on Windows (not the System32 WSL launcher `bash` finds first), `bash` elsewhere."""
+    if os.name == "nt":
+        for folder in Path(shutil.which("git") or "").parents:
+            if (folder / "bin" / "bash.exe").exists():
+                return str(folder / "bin" / "bash.exe")
+    return shutil.which("bash") or ""
+
+
+BASH = find_bash()
+
+
+def answers(port: int) -> bool:
+    try:
+        socket.create_connection(("127.0.0.1", port), timeout=2).close()
+        return True
+    except OSError:
+        return False
+
+
+def wait_for(condition, seconds: float = 120.0) -> bool:
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        if condition():
+            return True
+        time.sleep(0.1)
+    return condition()
+
+
+class Game:
+    """One fake game: its process, its server's port and its sidecar."""
+
+    def __init__(self, folder: Path, name: str):
+        self.port_file = folder / f"{name}.port"
+        args = [sys.executable, str(folder / "game.py"), str(folder / "boot.py"), str(folder / "fake_von.py"),
+                str(self.port_file)]
+        self.process = subprocess.Popen(args)
+        self.pid = self.process.pid
+        if not wait_for(self.port_file.exists) or not wait_for(lambda: self.port_file.read_text() != ""):
+            raise AssertionError(f"game {name} did not start its server")
+        self.port = int(self.port_file.read_text())
+
+    def server_pid(self) -> int:
+        return next(p.pid for p in proctree.descendants(proctree.snapshot(), self.pid) if "fake_von.py serve" in p.cmd)
+
+    def sidecar_pid(self) -> int:
+        return next(p.pid for p in proctree.descendants(proctree.snapshot(), self.pid) if "time.sleep" in p.cmd)
+
+
+@unittest.skipUnless(BASH, "no bash to run tools/von_stop.sh")
+class VonStopTests(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.folder = Path(tmp.name)
+        for name, text in (("fake_von.py", SERVER), ("boot.py", BOOT), ("game.py", GAME)):
+            (self.folder / name).write_text(text)
+        self.games = []
+        self.addCleanup(self.stop_games)
+
+    def start_game(self, name: str) -> Game:
+        game = Game(self.folder, name)
+        self.games.append(game)
+        return game
+
+    def stop_games(self):
+        for game in self.games:
+            proctree.kill_tree(game.pid)
+            game.process.wait(timeout=120)
+
+    def von_stop(self, *args: str) -> subprocess.CompletedProcess:
+        env = {**os.environ, "PYTHON": sys.executable, "PROCTREE_NATIVE_PID": "1"}
+        return subprocess.run([BASH, SCRIPT.as_posix(), *args], env=env, capture_output=True, text=True, timeout=300)
+
+    def test_it_stops_only_the_server_under_the_game_it_is_given(self):
+        first, second = self.start_game("first"), self.start_game("second")
+        self.assertTrue(answers(first.port) and answers(second.port))
+        sidecar, boot_children = first.sidecar_pid(), proctree.children(proctree.snapshot(), first.pid)
+        self.assertEqual(len(boot_children), 2, "the game's two children: the boot script and the sidecar")
+
+        run = self.von_stop(str(first.pid))
+
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        self.assertIn("stopped pid", run.stdout)
+        self.assertTrue(wait_for(lambda: not answers(first.port)), "the server under the game it was given stopped")
+        self.assertTrue(answers(second.port), "the other game's server still answers")
+        now = proctree.snapshot()
+        self.assertIn(first.pid, now, "the game it was given is left running")
+        self.assertIn(second.pid, now)
+        self.assertIn(sidecar, now, "a child of the game that holds no server is left running")
+        self.assertEqual([p.pid for p in proctree.children(now, first.pid)], [sidecar],
+                         "the boot script that started the server went with it")
+
+    def test_the_boot_script_and_the_server_under_it_both_stop(self):
+        game = self.start_game("only")
+        server = game.server_pid()
+        boot = next(p.pid for p in proctree.children(proctree.snapshot(), game.pid) if p.pid != game.sidecar_pid())
+        self.assertEqual(self.von_stop(str(game.pid)).returncode, 0)
+        self.assertTrue(wait_for(lambda: server not in proctree.snapshot() and boot not in proctree.snapshot()))
+
+    def test_a_game_with_no_server_under_it_exits_non_zero_with_a_message(self):
+        game = self.start_game("gone")
+        self.assertEqual(self.von_stop(str(game.pid)).returncode, 0)
+        self.assertTrue(wait_for(lambda: not answers(game.port)))
+        again = self.von_stop(str(game.pid))
+        self.assertEqual(again.returncode, 1)
+        self.assertIn("nothing stopped", again.stderr)
+        self.assertIn(str(game.pid), again.stderr)
+        self.assertNotEqual(self.von_stop(str(game.sidecar_pid())).returncode, 0, "the sidecar has no server under it")
+
+    def test_a_bad_argument_is_a_usage_error(self):
+        for args in ((), ("not-a-pid",), ("1", "2")):
+            run = self.von_stop(*args)
+            self.assertEqual(run.returncode, 2, args)
+            self.assertIn("usage", run.stderr)
+
+
+class ProctreeTests(unittest.TestCase):
+    def test_descendants_list_the_whole_tree_parents_first(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            for name, text in (("fake_von.py", SERVER), ("boot.py", BOOT), ("game.py", GAME)):
+                (folder / name).write_text(text)
+            game = Game(folder, "tree")
+            try:
+                found = proctree.descendants(proctree.snapshot(), game.pid)
+                self.assertEqual(len(found), 3, [p.cmd for p in found])
+                server = next(p for p in found if "fake_von.py serve" in p.cmd)
+                boot = next(p for p in found if p.pid == server.ppid)
+                self.assertLess(found.index(boot), found.index(server))
+                self.assertTrue(proctree.kill_tree(game.pid))
+                self.assertTrue(wait_for(lambda: not answers(game.port)))
+                self.assertNotIn(game.pid, proctree.snapshot())
+            finally:
+                proctree.kill_tree(game.pid)
+                game.process.wait(timeout=120)
+
+    def test_a_pid_with_nothing_under_it_has_no_descendants(self):
+        self.assertEqual(proctree.descendants({}, 4242), [])
+
+
+PS_OUTPUT = """    1     0 Ss   /sbin/launchd
+  100     1 S    /Applications/Godot.app/Contents/MacOS/Godot --path /Users/me/Forced-Entry
+  101   100 S    /Users/me/Library/Application Support/Forced-Entry/von/bin/python /Users/me/x/bin/von serve --device cpu
+  102   101 Z    (python)
+  103   100 S    /usr/bin/taskpolicy -b -p 101
+  200     1 S    /Applications/Godot.app/Contents/MacOS/Godot --path /Users/me/Other
+  201   200 S    /Users/me/Library/Application Support/Forced-Entry/von/bin/python /Users/me/x/bin/von serve --device cpu
+"""
+
+
+class MacTableTests(unittest.TestCase):
+    """The macOS side, which no Windows run can start: `ps`'s table read from a canned output, and the signals a stop
+    sends on a platform that is not Windows."""
+
+    def table(self):
+        ps = subprocess.CompletedProcess([], 0, stdout=PS_OUTPUT.encode(), stderr=b"")
+        with mock.patch.object(proctree.subprocess, "run", return_value=ps):
+            return proctree.snapshot_ps()
+
+    def test_ps_output_is_read_into_pids_parents_states_and_whole_command_lines(self):
+        procs = self.table()
+        self.assertEqual(procs[101].ppid, 100)
+        self.assertEqual(procs[102].state, "Z")
+        self.assertTrue(procs[101].cmd.endswith("von serve --device cpu"), procs[101].cmd)
+        self.assertIn("Application Support", procs[101].cmd)
+
+    def test_the_server_is_found_under_its_game_only(self):
+        procs = self.table()
+        self.assertEqual([p.pid for p in proctree.descendants(procs, 100)], [101, 103, 102])
+        self.assertEqual([p.pid for p in proctree.branch_roots(procs, 100, proctree.VON_SERVER)], [101])
+        self.assertEqual([p.pid for p in proctree.branch_roots(procs, 200, proctree.VON_SERVER)], [201])
+        self.assertEqual(proctree.branch_roots(procs, 103, proctree.VON_SERVER), [])
+
+    def test_a_stop_sends_sigterm_to_the_tree_then_sigkill_to_what_survives(self):
+        procs = self.table()
+        sent = []
+        # The server ignores SIGTERM: snapshots show it alive until the SIGKILL, and the clock jumps past the grace.
+        with mock.patch.object(proctree, "WINDOWS", False),                 mock.patch.object(proctree, "snapshot", side_effect=[procs, procs, {}]),                 mock.patch.object(proctree.signal, "SIGKILL", 9, create=True),                 mock.patch.object(proctree, "send", side_effect=lambda pids, sig: sent.append((sig, list(pids)))),                 mock.patch.object(proctree.time, "monotonic", side_effect=[0, 0, 10, 10]),                 mock.patch.object(proctree.time, "sleep"):
+            self.assertTrue(proctree.kill_tree(101, procs))
+        term, kill = sent
+        self.assertEqual(term, (proctree.signal.SIGTERM, [101, 102]))
+        self.assertEqual(kill, (9, [101]), "a zombie is gone already, the server that ignored SIGTERM is not")
+
+
+if __name__ == "__main__":
+    unittest.main()

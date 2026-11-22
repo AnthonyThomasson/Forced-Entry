@@ -118,7 +118,7 @@ Nothing changed: say so and skip. Otherwise behaviour must be identical:
 - `tools/run_tests.sh --changed`: a removed dynamically dispatched member fails at runtime, not at parse. A changed skill
   or `AGENTS.md`: `tools/tool_tests.sh --changed`.
 - Touched anything in the 1a dynamic-dispatch list: drive it live (`godot-run`) and confirm it still happens. After a hard
-  kill, `pkill -f "von serve"`.
+  kill, stop the Von server first: `tools/von_stop.sh <game pid>`.
 - Rerun `python3 -I tools/audit_scan.py all`: fixed findings gone, no new `deps` edge.
 
 ## Output

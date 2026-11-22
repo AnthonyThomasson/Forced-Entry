@@ -12,8 +12,8 @@ extends Node
 ## (which skips `_exit_tree`) has a dead stdout pipe, so when it tries to fetch weights the progress
 ## output raises `EPIPE` and the load fails — permanently. It still serves HTTP, so a liveness check
 ## would reuse it forever while every decision 422s. Asking for a real decision catches that and
-## resolves `false` with the server's own explanation. To clear such a server by hand:
-## `pkill -f "von serve"`.
+## resolves `false` with the server's own explanation. To clear such a server by hand, before
+## killing its game: `tools/von_stop.sh <game pid>`.
 
 ## Emitted exactly ONCE when the server question settles: `live` is true when a server answered (NPC
 ## decisions will succeed), false when none is coming — no `von_path`, a failed spawn, an exported
