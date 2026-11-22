@@ -42,7 +42,8 @@ dir="$CACHE/v$VERSION/${asset%%.tar.gz}"; dir="${dir%%.zip}"
 binary="$dir/$exe"
 
 sha256_of() {
-  if command -v sha256sum >/dev/null; then sha256sum "$1"; else shasum -a 256 "$1"; fi | cut -d' ' -f1
+  # sha256sum puts a backslash before the hash when the path holds one (a Windows path): drop it.
+  if command -v sha256sum >/dev/null; then sha256sum "$1"; else shasum -a 256 "$1"; fi | cut -d' ' -f1 | tr -d '\\'
 }
 
 if [[ ! -x "$binary" ]]; then
@@ -66,6 +67,8 @@ if [[ ! -x "$binary" ]]; then
 fi
 
 if [[ "${1:-}" == fmt && " $* " != *" --check "* ]]; then
-  exec python3 "$(cd "$(dirname "$0")" && pwd)/gdstyle_reflow.py" "$binary" "$@"
+  source "$(dirname "$0")/setup/lib.sh"
+  fe_use_python || exit $?
+  exec "$PYTHON" "$(cd "$(dirname "$0")" && pwd)/gdstyle_reflow.py" "$binary" "$@"
 fi
 exec "$binary" "$@"

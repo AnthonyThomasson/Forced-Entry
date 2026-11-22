@@ -6,9 +6,12 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+from tools.coverage.tests.support import copy_setup
 
 ROOT = Path(__file__).resolve().parents[2]
 GUARDS = ["perf/match_5v5_stress", "perf/grenade_match_stress", "perf/match_10v10_stress", "perf/match_npc_vision"]
@@ -57,6 +60,8 @@ sys.exit(0 if avg <= 16.7 else 1)
 """
 
 
+@unittest.skipIf(sys.platform == "win32", "tools/perf_ab.py runs tools/run_tests.sh as a program and this test's stand-in for it is a "
+                 "Python script: neither can be started on Windows (porting the dev scripts: #212)")
 class PerfAbTests(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="perf_ab_"))
@@ -67,6 +72,7 @@ class PerfAbTests(unittest.TestCase):
         (self.repo / "tools").mkdir(parents=True)
         for name in ("perf_ab.sh", "perf_ab.py"):
             shutil.copy2(ROOT / "tools" / name, self.repo / "tools" / name)
+        copy_setup(self.repo)
         self.log = self.tmp / "calls.log"
         self.plan = self.tmp / "plan.json"
         self.git("init", "-q")

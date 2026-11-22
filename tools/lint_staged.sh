@@ -12,6 +12,8 @@
 # the commit stages no script the lint reads" on stderr and exits 0.
 set -uo pipefail
 cd "$(dirname "$0")/.."
+source tools/setup/lib.sh
+fe_use_python || exit $?
 quiet=()
 for a in "$@"; do
   case "$a" in
@@ -42,7 +44,7 @@ status=$?
 if [[ $status -ne 0 ]]; then
   held=()
   while IFS= read -r f; do held+=("$f"); done < <(git -c core.quotePath=false diff --cached --name-only)
-  out=$(python3 tools/lint_label.py ${held[@]+"${held[@]}"} <<<"$out")
+  out=$("$PYTHON" tools/lint_label.py ${held[@]+"${held[@]}"} <<<"$out")
 fi
 [[ -n "$out" ]] && echo "$out"
 exit $status

@@ -20,6 +20,8 @@
 # git a test runs in a throwaway repo of its own would obey them and act on this repo instead.
 set -uo pipefail
 cd "$(dirname "$0")/.."
+source tools/setup/lib.sh
+fe_use_python || exit $?
 
 staged=0
 changed=0
@@ -69,7 +71,7 @@ if [[ $staged -eq 1 || $changed -eq 1 ]]; then
   fi
   picked=""
   if [[ ${#paths[@]} -gt 0 ]]; then
-    picked=$(python3 tools/tool_tests_pick.py "${paths[@]}") || exit 1
+    picked=$("$PYTHON" tools/tool_tests_pick.py "${paths[@]}") || exit 1
   fi
   if [[ -z "$picked" ]]; then
     echo "tool tests: none (no tool test names a $kind file)"
@@ -86,7 +88,7 @@ fi
 
 while IFS= read -r var; do unset "$var"; done < <(compgen -e | grep '^GIT_')
 if [[ ${#modules[@]} -gt 0 ]]; then
-  python3 -m unittest "${modules[@]}"
+  "$PYTHON" -m unittest "${modules[@]}"
 else
-  python3 -m unittest discover -s tools -t .
+  "$PYTHON" -m unittest discover -s tools -t .
 fi

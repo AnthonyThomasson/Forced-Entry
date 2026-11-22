@@ -11,6 +11,9 @@ import sys
 import tempfile
 from pathlib import Path
 
+from tools.coverage.tests.support import copy_setup
+from tools.setup import fe_env
+
 ROOT = Path(__file__).resolve().parents[3]
 LINT_RULES = ROOT / "tools" / "lint_rules"
 RUNNER = LINT_RULES / "runner.py"
@@ -103,6 +106,7 @@ class LintTree:
         tools.mkdir(parents=True)
         for name in ("lint.sh", "lint_report.py", "lint_gdstyle.py", "gdstyle.sh"):
             shutil.copy2(ROOT / "tools" / name, tools / name)
+        copy_setup(self.root)
         shutil.copy2(ROOT / "gdstyle.toml", self.root / "gdstyle.toml")
         (tools / "__init__.py").write_text("")
         shutil.copytree(LINT_RULES, tools / "lint_rules",
@@ -123,7 +127,7 @@ class LintTree:
     def lint(self, *args: str, log: str = "clean.log"):
         """Run the tree's own tools/lint.sh with the fake Godot printing fixtures/logs/`log`."""
         env = clean_env(GODOT=str(self.godot), FAKE_GODOT_CALLS=str(self.calls), FAKE_GODOT_OUTPUT=str(LOGS / log))
-        return subprocess.run([str(self.root / "tools" / "lint.sh"), *args], cwd=self.root, env=env,
+        return subprocess.run(["bash", str(self.root / "tools" / "lint.sh"), *args], cwd=self.root, env=env,
                               capture_output=True, text=True, timeout=120)
 
     def engine_calls(self) -> list[str]:
@@ -132,16 +136,8 @@ class LintTree:
 
 
 def godot_binary() -> str | None:
-    """The Godot binary, looked up in tools/lint.sh's order (GODOT, then godot / godot4 on PATH, then
-    /Applications/Godot*.app); None when there is none."""
-    if os.environ.get("GODOT"):
-        return os.environ["GODOT"]
-    for name in ("godot", "godot4"):
-        found = shutil.which(name)
-        if found:
-            return found
-    apps = sorted(Path("/Applications").glob("Godot*.app/Contents/MacOS/Godot"))
-    return str(apps[0]) if apps else None
+    """The Godot binary, found as the scripts find it (tools/setup/fe_env.py). None when there is none."""
+    return fe_env.find_godot()
 
 
 ENGINE_PROJECT = """config_version=5
@@ -165,6 +161,7 @@ class EngineLintTree:
         for name in ("lint.sh", "lint_report.py", "lint_gdstyle.py", "gdstyle.sh", "lint_scripts.gd",
                      "lint_scripts.tscn"):
             shutil.copy2(ROOT / "tools" / name, tools / name)
+        copy_setup(self.root)
         shutil.copy2(ROOT / "gdstyle.toml", self.root / "gdstyle.toml")
         (tools / "__init__.py").write_text("")
         shutil.copytree(LINT_RULES, tools / "lint_rules", ignore=shutil.ignore_patterns("tests", "__pycache__"))
@@ -177,5 +174,5 @@ class EngineLintTree:
 
     def lint(self, *args: str):
         """Run the tree's own tools/lint.sh with the real engine."""
-        return subprocess.run([str(self.root / "tools" / "lint.sh"), *args], cwd=self.root,
+        return subprocess.run(["bash", str(self.root / "tools" / "lint.sh"), *args], cwd=self.root,
                               env=clean_env(GODOT=godot_binary()), capture_output=True, text=True, timeout=300)

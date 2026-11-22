@@ -4,13 +4,13 @@
 # FIXTURE_ARGS_FILE set, appends its own arguments to that file (one per line, then a `--end--` line), so a test can
 # see what the coverage tool asked of it.
 set -uo pipefail
-cd "$(dirname "$0")/.."
+TOOLS="$(cd "$(dirname "$0")" && pwd)"
+cd "$TOOLS/.."
 if [[ -n "${FIXTURE_ARGS_FILE:-}" ]]; then
   { printf '%s\n' "$@"; echo "--end--"; } >> "$FIXTURE_ARGS_FILE"
 fi
-GODOT="${GODOT:-$( command -v godot || command -v godot4 \
-  || ls /Applications/Godot*.app/Contents/MacOS/Godot 2>/dev/null | head -1 )}"
-[[ -n "$GODOT" ]] || { echo "Godot binary not found (set GODOT=/path/to/Godot)" >&2; exit 2; }
+source "$TOOLS/setup/lib.sh"   # the fixture repo gets a copy of the real tools/setup (support.fixture_repo)
+fe_use_godot || exit $?
 jobs=1
 pass=()
 for a in "$@"; do

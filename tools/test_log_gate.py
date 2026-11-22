@@ -48,19 +48,17 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))  # run as a script: the repo root, for tools.setup
+from tools.coverage.tests.support import copy_setup  # noqa: E402
+from tools.setup import fe_env  # noqa: E402
 SCAN = ROOT / "tools" / "scan_godot_log.py"
 RUN = ROOT / "tools" / "run_tests.sh"
 HEADED = "--headed" in sys.argv
 
 
 def godot_binary():
-    for name in ("godot", "godot4"):
-        p = shutil.which(name)
-        if p:
-            return p
-    for p in sorted(Path("/Applications").glob("Godot*.app/Contents/MacOS/Godot")):
-        return str(p)
-    return os.environ.get("GODOT")
+    """The Godot binary, found as the scripts find it (tools/setup/fe_env.py)."""
+    return fe_env.find_godot()
 
 
 def copy_checkout(dest: Path) -> Path:
@@ -491,6 +489,7 @@ class LintFingerprintTests(unittest.TestCase):
         tools.mkdir(parents=True)
         for name in ("run_tests.sh", "scan_godot_log.py", "godot_slot.py"):
             shutil.copy2(ROOT / "tools" / name, tools / name)
+        copy_setup(self.repo)
         (tools / "lint.sh").write_text(FAKE_LINT)
         (tools / "lint.sh").chmod(0o755)
         self.fake = self.tmp / "fakegodot"
@@ -559,6 +558,7 @@ class StagedChangedTests(unittest.TestCase):
         tools.mkdir(parents=True)
         for name in ("run_tests.sh", "scan_godot_log.py", "godot_slot.py", "lint_staged.sh", "lint_label.py"):
             shutil.copy2(ROOT / "tools" / name, tools / name)
+        copy_setup(self.repo)
         (tools / "lint.sh").write_text(FAKE_STAGED_LINT)
         (tools / "lint.sh").chmod(0o755)
         self.fake = self.tmp / "fakegodot"
@@ -659,6 +659,7 @@ class SpecNamedTestsTests(unittest.TestCase):
         tools.mkdir(parents=True)
         for name in ("run_tests.sh", "scan_godot_log.py", "godot_slot.py", "spec_tests.py", "lint_staged.sh", "lint_label.py"):
             shutil.copy2(ROOT / "tools" / name, tools / name)
+        copy_setup(self.repo)
         self.fake = self.tmp / "fakegodot"
         self.fake.write_text(FAKE_GODOT)
         self.fake.chmod(0o755)
@@ -765,6 +766,7 @@ class ChangedSinceRefTests(unittest.TestCase):
         tools.mkdir(parents=True)
         for name in ("run_tests.sh", "scan_godot_log.py", "godot_slot.py", "spec_tests.py", "lint_staged.sh", "lint_label.py"):
             shutil.copy2(ROOT / "tools" / name, tools / name)
+        copy_setup(self.repo)
         self.fake = self.tmp / "fakegodot"
         self.fake.write_text(FAKE_GODOT)
         self.fake.chmod(0o755)

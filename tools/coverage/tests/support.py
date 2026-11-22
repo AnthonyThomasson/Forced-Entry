@@ -4,8 +4,9 @@ with the tool copied in, the CLI, run folders and an independent tree digest.
 Not a test module (unittest discovery only loads test*.py).
 
 Environment:
-  GODOT=/path/to/Godot  the engine, found as tools/run_tests.sh finds it (GODOT, then godot / godot4 on PATH, then
-                        /Applications/Godot*.app); tests that need it are skipped when there is none.
+  GODOT=/path/to/Godot  the engine, found as tools/run_tests.sh finds it (tools/setup/fe_env.py: GODOT, then godot / godot4 on
+                        PATH, then the setup's install folder and the usual per-OS places); tests that need it are
+                        skipped when there is none.
   FE_SLOW_TESTS=1       also run the slow tests: the real tree instrumented and played with the Von server
                         (test_isolation_run.py) and the windowed fixture run.
 """
@@ -20,6 +21,8 @@ import time
 import unittest
 from pathlib import Path
 
+from tools.setup import fe_env
+
 ROOT = Path(__file__).resolve().parents[3]
 TOOL = ROOT / "tools" / "coverage.py"
 PACKAGE = ROOT / "tools" / "coverage"
@@ -30,15 +33,8 @@ RUN_FILES = ("hits.json", "meta.json", "map.json", "report.md", "report.json")
 
 
 def godot_binary() -> str | None:
-    """The Godot binary, looked up in tools/run_tests.sh's order."""
-    if os.environ.get("GODOT"):
-        return os.environ["GODOT"]
-    for name in ("godot", "godot4"):
-        found = shutil.which(name)
-        if found:
-            return found
-    apps = sorted(Path("/Applications").glob("Godot*.app/Contents/MacOS/Godot"))
-    return str(apps[0]) if apps else None
+    """The Godot binary, found as the scripts find it (tools/setup/fe_env.py)."""
+    return fe_env.find_godot()
 
 
 needs_godot = unittest.skipUnless(godot_binary(), "no Godot binary (set GODOT=/path/to/Godot)")
@@ -105,6 +101,12 @@ def class_tempdir(cls, prefix: str = "coverage_test.") -> Path:
     return path
 
 
+def copy_setup(tree: Path) -> None:
+    """Copy this checkout's tools/setup (the Godot and Python lookup the scripts source) into the tree's tools/."""
+    shutil.copytree(ROOT / "tools" / "setup", tree / "tools" / "setup", dirs_exist_ok=True,
+                    ignore=shutil.ignore_patterns("__pycache__"))
+
+
 def require_tool() -> None:
     """Fail (not skip) when the tool is not there yet."""
     missing = [str(p.relative_to(ROOT)) for p in (TOOL, PACKAGE / "workspace.py") if not p.exists()]
@@ -125,7 +127,7 @@ def project_repo(dest: Path, edit=None) -> Path:
 
 def fixture_repo(dest: Path, edit=None) -> Path:
     """The fixture project as a git repo at `dest/repo`, with the coverage tool (tools/coverage.py and
-    tools/coverage/, its tests left out) and tools/audit_scan.py copied in, so the repo's OWN tools/coverage.py works
+    tools/coverage/, its tests left out), tools/setup/ and tools/audit_scan.py copied in, so the repo's OWN tools/coverage.py works
     on it as the real one works on Forced-Entry. `edit(repo)` may change the fixture before the commit."""
     require_tool()
 
@@ -134,6 +136,7 @@ def fixture_repo(dest: Path, edit=None) -> Path:
         shutil.copy2(TOOL, repo / "tools" / "coverage.py")
         shutil.copy2(ROOT / "tools" / "audit_scan.py", repo / "tools" / "audit_scan.py")
         shutil.copytree(PACKAGE, repo / "tools" / "coverage", ignore=shutil.ignore_patterns("tests", "__pycache__"))
+        copy_setup(repo)
         if edit is not None:
             edit(repo)
 

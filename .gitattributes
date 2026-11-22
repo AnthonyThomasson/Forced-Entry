@@ -1,0 +1,13 @@
+# Files bash reads (or that run as scripts) are checked out with LF on every OS: with Git for Windows' default
+# core.autocrlf=true a CRLF shell script fails on its first line (`bash\r`), and a CRLF value in versions.env or a
+# pattern in a grep over a .gd file would no longer match.
+*.sh text eol=lf
+*.env text eol=lf
+*.conf text eol=lf
+*.py text eol=lf
+*.gd text eol=lf
+*.uid text eol=lf
+/.githooks/* text eol=lf
+/.claude/hooks/* text eol=lf
+# tools/*.cmd are shell/cmd polyglots (the sh half needs LF; cmd.exe runs LF-only files with single-line commands).
+/tools/*.cmd text eol=lf

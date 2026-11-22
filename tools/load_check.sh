@@ -10,10 +10,10 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 export GODOT_CMD_PORT=off
-GODOT="${GODOT:-$( command -v godot || command -v godot4 \
-  || ls /Applications/Godot*.app/Contents/MacOS/Godot 2>/dev/null | head -1 )}"
-[[ -n "$GODOT" ]] && command -v "$GODOT" >/dev/null \
-  || { echo "Godot binary not found (set GODOT=/path/to/Godot)" >&2; exit 2; }
+source tools/setup/lib.sh
+fe_use_python || exit $?
+fe_use_godot || exit $?
+command -v "$GODOT" >/dev/null || { echo "Godot binary not found (set GODOT=/path/to/Godot)" >&2; exit 2; }
 HEADLESS=--headless; STRICT=; IMPORT=
 for a in "$@"; do
   case "$a" in
@@ -33,6 +33,6 @@ if [[ -n "$IMPORT" ]]; then
 fi
 "$GODOT" $HEADLESS --path . --quit-after 30 --log-file "$out/godot.log" >"$out/stdout.txt" 2>&1
 code=$?
-python3 tools/scan_godot_log.py "$out/godot.log" $STRICT || code=1
+"$PYTHON" tools/scan_godot_log.py "$out/godot.log" $STRICT || code=1
 [[ $code -eq 0 ]] && echo "PASS: project loads and runs with no errors or warnings" || echo "FAIL (log: $out/godot.log)"
 exit $code

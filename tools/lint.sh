@@ -27,10 +27,12 @@
 #                      *.gd files, its hidden folders left out) and check only those paths (the rules and gdstyle)
 set -uo pipefail
 cd "$(dirname "$0")/.."
+source tools/setup/lib.sh
+fe_use_python || exit $?
 flags=(); only=(); paths=(); rule_args=(); engine=1; style=1
 for a in "$@"; do
   case "$a" in
-    --list-rules) exec python3 tools/lint_rules/runner.py --list-rules ;;
+    --list-rules) exec "$PYTHON" tools/lint_rules/runner.py --list-rules ;;
     --rule=*) rule_args+=("$a"); engine=0; style=0 ;;
     --skip-rule=*) rule_args+=("$a") ;;
     --no-gdstyle) style=0 ;;
@@ -53,9 +55,7 @@ done
 
 status=0
 if [[ $engine -eq 1 ]]; then
-  GODOT="${GODOT:-$( command -v godot || command -v godot4 \
-    || ls /Applications/Godot*.app/Contents/MacOS/Godot 2>/dev/null | head -1 )}"
-  [[ -n "$GODOT" ]] || { echo "Godot binary not found (set GODOT=/path/to/Godot)" >&2; exit 2; }
+  fe_use_godot || exit $?
   # A fresh checkout has no class cache, and without it every script that names a class_name fails to parse.
   if [[ ! -f .godot/global_script_class_cache.cfg ]]; then
     echo "importing the project (first run in this checkout)..." >&2
@@ -66,15 +66,15 @@ if [[ $engine -eq 1 ]]; then
   # --debug is what makes the engine report analyzer warnings at all; stdin is closed so a script error does not
   # park the process at the debugger prompt.
   "$GODOT" --headless --debug --path . res://tools/lint_scripts.tscn ${extra[@]+"${extra[@]}"} </dev/null >"$out/lint.log" 2>&1
-  report=$(GODOT="$GODOT" python3 tools/lint_report.py "$out/lint.log" ${flags[@]+"${flags[@]}"}) || status=1
+  report=$(GODOT="$GODOT" "$PYTHON" tools/lint_report.py "$out/lint.log" ${flags[@]+"${flags[@]}"}) || status=1
   [[ -n "$report" ]] && printf '== GDScript analyzer (engine) ==\n%s\n' "$report"
 fi
-python3 tools/lint_rules/runner.py ${flags[@]+"${flags[@]}"} ${rule_args[@]+"${rule_args[@]}"} \
+"$PYTHON" tools/lint_rules/runner.py ${flags[@]+"${flags[@]}"} ${rule_args[@]+"${rule_args[@]}"} \
   ${paths[@]+"${paths[@]}"}
 code=$?  # 2 = a usage error (an unknown rule), which wins over a plain failure
 [[ $code -gt $status ]] && status=$code
 if [[ $style -eq 1 ]]; then
-  python3 tools/lint_gdstyle.py ${flags[@]+"${flags[@]}"} ${paths[@]+"${paths[@]}"}
+  "$PYTHON" tools/lint_gdstyle.py ${flags[@]+"${flags[@]}"} ${paths[@]+"${paths[@]}"}
   code=$?  # 2 = gdstyle could not run (no binary to be had), which wins too
   [[ $code -gt $status ]] && status=$code
 fi

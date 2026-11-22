@@ -37,6 +37,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))  # run as a script: the repo root, for tools.coverage.tests.support
 from tools.coverage.tests.support import clean_env  # noqa: E402
+from tools.setup import fe_env  # noqa: E402
 HEADED = "--headed" in sys.argv
 PANEL = "res://tools/gdunit_panel.gd"
 SCAN = ROOT / "tools" / "scan_godot_log.py"
@@ -52,13 +53,8 @@ TIMING_TESTS = [
 
 
 def godot_binary():
-    for name in ("godot", "godot4"):
-        p = shutil.which(name)
-        if p:
-            return p
-    for p in sorted(Path("/Applications").glob("Godot*.app/Contents/MacOS/Godot")):
-        return str(p)
-    return os.environ.get("GODOT")
+    """The Godot binary, found as the scripts find it (tools/setup/fe_env.py)."""
+    return fe_env.find_godot()
 
 
 def os_data_dir() -> Path:

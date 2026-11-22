@@ -30,9 +30,9 @@ done
 ticket="${ticket:-$(basename "$path")}"
 [[ -f "$path/project.godot" ]] || { echo "no project.godot in $path" >&2; exit 2; }
 
-GODOT="${GODOT:-$( command -v godot || command -v godot4 \
-  || ls /Applications/Godot*.app/Contents/MacOS/Godot 2>/dev/null | head -1 )}"
-[[ -n "$GODOT" ]] || { echo "Godot binary not found (set GODOT=/path/to/Godot)" >&2; exit 2; }
+source "$(dirname "$0")/setup/lib.sh"
+fe_use_godot || exit $?
+fe_use_python || exit $?
 
 safe="${ticket//[^A-Za-z0-9._-]/_}"
 log="${TMPDIR:-/tmp}/editor_$safe.log"
@@ -64,7 +64,7 @@ fi
 # Port: hash of the ticket (stable per ticket), moved up to the next free one so worktrees never share.
 if [[ -z "$port" ]]; then
   base=$(( 9080 + $(printf '%s' "$ticket" | cksum | cut -d' ' -f1) % 500 ))
-  port=$(python3 - "$base" <<'PY'
+  port=$("$PYTHON" - "$base" <<'PY'
 import socket, sys
 p = int(sys.argv[1])
 while True:

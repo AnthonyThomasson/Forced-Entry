@@ -9,6 +9,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tools.coverage.tests.support import copy_setup
+
 ROOT = Path(__file__).resolve().parents[2]
 
 # Stands in for Godot: `--import` does nothing; the list script (`-s res://scenes/testing/test_list.gd`) notes its
@@ -54,6 +56,7 @@ class FakeTree(unittest.TestCase):
         tools.mkdir(parents=True)
         for name in ("run_tests.sh", "scan_godot_log.py", "godot_slot.py"):
             shutil.copy2(ROOT / "tools" / name, tools / name)
+        copy_setup(self.repo)
         self.conf = tools / "perf_quiet.conf"
         self.conf.write_text("max_load=6\ntimeout_min=30\nbusy_cpu=50\nbusy_sample_s=0.05\n")
         (self.repo / ".godot").mkdir()

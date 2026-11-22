@@ -28,19 +28,15 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))  # run as a script: the repo root, for tools.coverage.tests.support
-from tools.coverage.tests.support import clean_env  # noqa: E402
+from tools.coverage.tests.support import clean_env, copy_setup  # noqa: E402
+from tools.setup import fe_env  # noqa: E402
 PLAY = ROOT / "tools" / "play_tests.sh"
 RUNNER_SCENE = "res://scenes/testing/test_runner.tscn"
 
 
 def godot_binary():
-    for name in ("godot", "godot4"):
-        p = shutil.which(name)
-        if p:
-            return p
-    for p in sorted(Path("/Applications").glob("Godot*.app/Contents/MacOS/Godot")):
-        return str(p)
-    return os.environ.get("GODOT")
+    """The Godot binary, found as the scripts find it (tools/setup/fe_env.py)."""
+    return fe_env.find_godot()
 
 
 def alive(pid: int) -> bool:
@@ -92,6 +88,8 @@ CHANGE_IDS = ["a/modified_committed", "ai/entry/deep_added", "b/modified_uncommi
               "c/added_staged", "z/untracked"]
 
 
+@unittest.skipIf(sys.platform == "win32", "tools/play_tests.sh keeps its window's POSIX pid in a file and checks it with ps and kill: "
+                 "a Git Bash pid is no Windows pid (WinError 87), and /tmp is another folder to Python than to bash")
 class ScriptTests(unittest.TestCase):
     """tools/play_tests.sh in a temporary git repo, around a fake Godot."""
 
@@ -139,6 +137,7 @@ class ScriptTests(unittest.TestCase):
         if PLAY.exists():
             (self.repo / "tools").mkdir()
             shutil.copy2(PLAY, self.repo / "tools" / "play_tests.sh")
+            copy_setup(self.repo)
         for rel in ("tests/a/kept_test.gd", "tests/a/x_test.gd", "tests/b/y_test.gd", "tests/a/modified_committed_test.gd",
                     "tests/b/modified_uncommitted_test.gd", "tests/a/deleted_test.gd",
                     "tests/b/deleted_uncommitted_test.gd", "tests/_x/existing_helper.gd"):

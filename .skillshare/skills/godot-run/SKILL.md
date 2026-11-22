@@ -6,11 +6,13 @@ description: Use after editing GDScript or scenes, before reporting work done, a
 # Godot run
 
 **Bash sandbox disabled** (`dangerouslyDisableSandbox: true`) for every Godot, `tools/*.sh` and `gcmd.py` command: under the
-sandbox Godot busy-spins with no output. Godot is not on PATH; the scripts find it themselves (`GODOT` overrides). For a
-direct call:
+sandbox Godot busy-spins with no output. Godot is not on PATH; the scripts find it themselves (`GODOT` overrides), through
+one resolver, `tools/setup/lib.sh`: `GODOT`, then `godot` / `godot4` on PATH, then the setup's install folder, then the
+usual per-OS places (a Mac's Godot apps in `/Applications`, mono or not; on Windows `%LOCALAPPDATA%\Programs`, Program Files).
+Python is found the same way (`$PYTHON`, `python3` if it runs, `py -3`, `python`). For a direct call:
 
 ```bash
-GODOT="$( command -v godot || command -v godot4 || ls /Applications/Godot*.app/Contents/MacOS/Godot 2>/dev/null | head -1 )"
+source tools/setup/lib.sh; fe_use_godot; fe_use_python   # exports GODOT and PYTHON; each returns 2 with a message when none is found
 ```
 
 **Keep logs out of your context:** for a log-heavy run, spawn `Agent` with `model: "haiku"` giving it the worktree root, the

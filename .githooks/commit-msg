@@ -18,9 +18,13 @@
 #   An amend (`git commit --amend`, as a rebase's reword and the hint's `--exec` make one: read off the git process
 #   that runs this hook) replaces HEAD, so HEAD is left out of the earlier commits and the amend can put HEAD's own
 #   line right.
+#   On Windows an amend cannot be told apart (Git Bash has no `ps -o args=` and the hook's PPID is 1): it is checked as a
+#   plain commit, so HEAD's own model counts among the earlier commits'.
 # Enable with tools/install_hooks.sh; bypass with `git commit --no-verify`.
 set -uo pipefail
 msg="$1"
+source "$(git rev-parse --show-toplevel)/tools/setup/lib.sh"
+fe_use_python || exit $?
 
 base=""
 for ref in origin/main main; do
@@ -36,7 +40,12 @@ history() {
   fi
 }
 
-python3 - "$msg" "$base" <(history) <<'EOF'
+# A temp file, not `<(history)`: a Windows Python cannot open the /dev/fd path bash hands it.
+hist_file="$(mktemp)"
+trap 'rm -f "$hist_file"' EXIT
+history > "$hist_file"
+
+"$PYTHON" - "$msg" "$base" "$hist_file" <<'EOF'
 import re, shlex, sys
 from collections import OrderedDict
 

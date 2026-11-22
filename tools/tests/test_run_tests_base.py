@@ -13,6 +13,7 @@ import time
 import unittest
 from pathlib import Path
 
+from tools.coverage.tests.support import copy_setup
 from tools.tests.test_godot_slot import HOLDER
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -57,6 +58,7 @@ class BaseRunTests(unittest.TestCase):
         tools.mkdir(parents=True)
         for name in ("run_tests.sh", "scan_godot_log.py", "godot_slot.py"):
             shutil.copy2(ROOT / "tools" / name, tools / name)
+        copy_setup(self.repo)
         self.fake = self.tmp / "fakegodot"
         self.fake.write_text(FAKE_GODOT)
         self.fake.chmod(self.fake.stat().st_mode | stat.S_IEXEC)

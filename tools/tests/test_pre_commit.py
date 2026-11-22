@@ -32,10 +32,11 @@ The fake runner and the sentinel both log the two variables they were given to `
 """
 import shutil
 import subprocess
+import sys
 import unittest
 from pathlib import Path
 
-from tools.coverage.tests.support import TempDir, clean_env, git
+from tools.coverage.tests.support import TempDir, clean_env, copy_setup, git
 
 ROOT = Path(__file__).resolve().parents[2]
 HOOK = ROOT / ".githooks" / "pre-commit"
@@ -164,6 +165,7 @@ class HookRepo:
         (root / "tools").mkdir()
         for name in ("lint_staged.sh", "lint_label.py", "tool_tests.sh", "tool_tests_pick.py"):
             shutil.copy2(ROOT / "tools" / name, root / "tools" / name)
+        copy_setup(root)
         write(root, ".githooks/post-merge", "#!/usr/bin/env bash\n", executable=True)
         write(root, "tools/run_tests.sh", FAKE_RUN_TESTS, executable=True)
         write(root, "tools/lint.sh", FAKE_LINT, executable=True)
@@ -472,6 +474,8 @@ class PreCommitTests(unittest.TestCase):
             self.assertIn("Could not preload resource script 'res://scenes/thing.gd'.", r.stderr)
             self.assertNotIn("not in this commit", r.stderr)
 
+    @unittest.skipIf(sys.platform == "win32", "tools/tool_tests.sh passes every staged path to tool_tests_pick.py as arguments, "
+                     "and 3000 of them exceed Windows' 32 KB command-line limit")
     def test_a_script_staged_ahead_of_a_long_list_still_runs_the_lint(self):
         # Far more than a pipe holds after the script: a check that stops reading at the first match would fail.
         with TempDir("pre_commit_test.") as d:

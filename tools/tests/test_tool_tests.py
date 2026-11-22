@@ -14,13 +14,14 @@ are exact, and the picker refuses an argument holding several paths.
 import json
 import os
 import subprocess
+import sys
 import unittest
 from collections import Counter
 from pathlib import Path
 from unittest import mock
 
 from tools import tool_tests_pick
-from tools.coverage.tests.support import TempDir, clean_env, git
+from tools.coverage.tests.support import TempDir, clean_env, copy_setup, git
 
 ROOT = Path(__file__).resolve().parents[2]
 SELF = "tools.tests.test_tool_tests"
@@ -162,7 +163,7 @@ class PickTests(unittest.TestCase):
             self.assertIn(module, picked)
 
     def why(self, *paths):
-        return subprocess.run(["python3", str(ROOT / "tools" / "tool_tests_pick.py"), "--why", *paths],
+        return subprocess.run([sys.executable, str(ROOT / "tools" / "tool_tests_pick.py"), "--why", *paths],
                               capture_output=True, text=True, check=True).stdout.splitlines()
 
     def test_why_names_the_file_a_test_reads(self):
@@ -188,7 +189,7 @@ class PickTests(unittest.TestCase):
         self.assertIn("tools.tests.test_gdstyle <- is tools/tests/test_gdstyle.py", self.why("tools/tests/test_gdstyle.py"))
 
     def refused(self, *args):
-        return subprocess.run(["python3", str(ROOT / "tools" / "tool_tests_pick.py"), *args], capture_output=True, text=True)
+        return subprocess.run([sys.executable, str(ROOT / "tools" / "tool_tests_pick.py"), *args], capture_output=True, text=True)
 
     def test_why_with_no_path_is_a_usage_error_and_prints_nothing(self):
         r = self.refused("--why")
@@ -227,7 +228,7 @@ class PickTests(unittest.TestCase):
         self.assertEqual(swept["files"], len(listed))
 
     def sweep_script(self, *args):
-        return subprocess.run(["python3", str(ROOT / "tools" / "tool_tests_pick.py"), "--sweep", *args],
+        return subprocess.run([sys.executable, str(ROOT / "tools" / "tool_tests_pick.py"), "--sweep", *args],
                               capture_output=True, text=True, check=True).stdout
 
     def test_the_sweep_script_prints_the_count_each_modules_picks_most_first(self):
@@ -261,7 +262,7 @@ class PickTests(unittest.TestCase):
 
     def test_the_script_prints_the_picks_all_and_why_or_nothing(self):
         def script(*paths):
-            return subprocess.run(["python3", str(ROOT / "tools" / "tool_tests_pick.py"), *paths],
+            return subprocess.run([sys.executable, str(ROOT / "tools" / "tool_tests_pick.py"), *paths],
                                   capture_output=True, text=True, check=True).stdout
 
         self.assertIn("tools.tests.test_commit_msg\n", script(".githooks/commit-msg"))
@@ -332,6 +333,7 @@ class ScriptTests(unittest.TestCase):
         for name in ("tool_tests.sh", "tool_tests_pick.py"):
             (self.root / "tools" / name).write_bytes((ROOT / "tools" / name).read_bytes())
         (self.root / "tools" / "tool_tests.sh").chmod(0o755)
+        copy_setup(self.root)
         git(d, "init", "-q", "-b", "main", "repo")
         git(self.root, "add", "-A")
         git(self.root, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "base")
@@ -499,7 +501,7 @@ class ScriptTests(unittest.TestCase):
         self.assertIn("unknown argument: --stagd", out)
 
     def run_picker(self, *args):
-        return subprocess.run(["python3", str(self.root / "tools" / "tool_tests_pick.py"), *args], cwd=self.root,
+        return subprocess.run([sys.executable, str(self.root / "tools" / "tool_tests_pick.py"), *args], cwd=self.root,
                               capture_output=True, text=True, timeout=120, env=clean_env())
 
     def test_the_picker_refuses_two_paths_joined_in_one_argument(self):

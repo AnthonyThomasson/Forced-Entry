@@ -17,7 +17,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tools.coverage.tests.support import clean_env, env_with_godot, needs_godot
+from tools.coverage.tests.support import clean_env, copy_setup, env_with_godot, needs_godot
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -46,6 +46,7 @@ class LoadCheckTree:
         (self.root / "tools").mkdir(parents=True)
         for name in ("load_check.sh", "scan_godot_log.py"):
             shutil.copy2(ROOT / "tools" / name, self.root / "tools" / name)
+        copy_setup(self.root)
         self.godot = self.dir / "godot"
         self.godot.write_text(FAKE_GODOT)
         self.godot.chmod(0o755)

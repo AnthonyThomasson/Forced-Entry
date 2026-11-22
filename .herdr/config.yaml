@@ -1,6 +1,6 @@
 # Buttons the run page shows for a ticket worktree of this repo. Each runs its command in a new tab, in the worktree.
 buttons:
   - name: Godot
-    command: /Applications/Godot_mono.app/Contents/MacOS/Godot --editor --path .
+    command: ./tools/godot_open.cmd --editor
   - name: Play
-    command: /Applications/Godot_mono.app/Contents/MacOS/Godot --path .
+    command: ./tools/godot_open.cmd

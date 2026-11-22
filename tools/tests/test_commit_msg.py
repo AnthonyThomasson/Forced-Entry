@@ -12,10 +12,11 @@ folder holding a copy of this checkout's hook.
 """
 import shutil
 import subprocess
+import sys
 import unittest
 from pathlib import Path
 
-from tools.coverage.tests.support import TempDir, clean_env, git
+from tools.coverage.tests.support import TempDir, clean_env, copy_setup, git
 
 ROOT = Path(__file__).resolve().parents[2]
 HOOK = ROOT / ".githooks" / "commit-msg"
@@ -35,6 +36,7 @@ class Repo:
         git(root, "init", "-q", "-b", "main")
         (root / ".githooks").mkdir()
         shutil.copy2(HOOK, root / ".githooks" / "commit-msg")
+        copy_setup(root)  # the hook sources tools/setup/lib.sh from the repo it runs in
         self.commit("base", message("Base, by a person"))
         git(root, "checkout", "-q", "-b", "work")
         self.n = 0
@@ -87,6 +89,8 @@ class CommitMsgTests(unittest.TestCase):
         self.assertEqual(len(lines), 1, "one rebase command line in the hint\n" + stderr)
         return lines[0]
 
+    @unittest.skipIf(sys.platform == "win32", "the hook finds an amend from `ps -o args=` on its parent, which Git Bash lacks "
+                     "(PPID is 1 there): on Windows an amend is checked as a plain commit")
     def test_the_hints_rebase_rewords_the_earlier_commits_without_an_editor(self):
         with TempDir("commit_msg_test.") as d:
             repo = self.repo(d)
@@ -197,6 +201,8 @@ class CommitMsgTests(unittest.TestCase):
             self.assertEqual(repo.short(), head, "no commit was made")
             self.assertEqual(repo.commit("b.txt", message("Second", OPUS), hooks=True).returncode, 0)
 
+    @unittest.skipIf(sys.platform == "win32", "the hook finds an amend from `ps -o args=` on its parent, which Git Bash lacks "
+                     "(PPID is 1 there): on Windows an amend is checked as a plain commit")
     def test_an_amend_that_puts_heads_model_right_passes(self):
         with TempDir("commit_msg_test.") as d:
             repo = self.repo(d)

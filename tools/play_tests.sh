@@ -54,9 +54,8 @@ if [[ ${#ids[@]} -eq 0 ]]; then
 fi
 queue="$(IFS=,; echo "${ids[*]}")"
 
-GODOT="${GODOT:-$( command -v godot || command -v godot4 \
-  || ls /Applications/Godot*.app/Contents/MacOS/Godot 2>/dev/null | head -1 )}"
-[[ -n "$GODOT" ]] || { echo "Godot binary not found (set GODOT=/path/to/Godot)" >&2; exit 2; }
+source "$root/tools/setup/lib.sh"
+fe_use_godot || exit $?
 
 # One test window per worktree: close the one an earlier run opened, only if that pid is still our runner on this
 # checkout (a pid is reused once its process is gone; the editor and the editor's game never run the runner scene).

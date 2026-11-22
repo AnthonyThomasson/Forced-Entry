@@ -44,6 +44,7 @@ from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..setup import fe_env
 from . import hits, instrument, report, static_refs, workspace
 
 JOBS_MOST = 6
@@ -208,16 +209,10 @@ def resolve_jobs(value) -> int:
 
 
 def godot_binary() -> str:
-    """The Godot binary, found as tools/run_tests.sh finds it."""
-    if os.environ.get("GODOT"):
-        return os.environ["GODOT"]
-    for name in ("godot", "godot4"):
-        found = shutil.which(name)
-        if found:
-            return found
-    apps = sorted(Path("/Applications").glob("Godot*.app/Contents/MacOS/Godot"))
-    if apps:
-        return str(apps[0])
+    """The Godot binary, found as the scripts find it (tools/setup/fe_env.py)."""
+    found = fe_env.find_godot()
+    if found:
+        return found
     raise RunFailed("Godot binary not found (set GODOT=/path/to/Godot)")
 
 

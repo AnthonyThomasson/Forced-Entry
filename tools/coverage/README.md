@@ -18,8 +18,8 @@ python3 tools/coverage.py report                 # both, combined, for HEAD
 python3 tools/coverage.py report --domain=ai     # one domain
 ```
 
-Run `run` with the Bash sandbox disabled: it starts Godot (found as `tools/run_tests.sh` finds it: `GODOT`, then
-`godot` / `godot4` on PATH, then `/Applications/Godot*.app`).
+Run `run` with the Bash sandbox disabled: it starts Godot (found as `tools/run_tests.sh` finds it, through `tools/setup/lib.sh`: `GODOT`, then
+`godot` / `godot4` on PATH, then the install folder under the per-user root, then the usual per-OS places).
 
 | Command | What it does |
 |---|---|

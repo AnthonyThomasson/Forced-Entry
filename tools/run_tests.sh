@@ -151,6 +151,8 @@
 set -euo pipefail
 TOOLS="$(cd "$(dirname "$0")" && pwd)"   # this wrapper's tools/, whichever checkout (a --base worktree) it runs in
 cd "$TOOLS/.."
+source "$TOOLS/setup/lib.sh"
+fe_use_python || exit $?
 exec 3>&2   # the run's own stderr: a shard's output is held back, but its wait for a slot is said at once (fd 3)
 # Every engine process runs with the dev command server off (over any port the caller set): a test run never drives
 # it, and a port another worktree's game or run holds would otherwise fail the run on its "failed to listen" warning.
@@ -158,16 +160,11 @@ export GODOT_CMD_PORT=off
 # The fight fingerprint's directory (tests/_perf/fight_fingerprint.gd) reaches every engine process as an absolute path: a
 # --base run's engine runs in another checkout, a relative one would land inside it.
 if [[ -n "${GAME_TEST_FINGERPRINT_DIR:-}" ]]; then
-  GAME_TEST_FINGERPRINT_DIR=$(python3 -c 'import os, sys; print(os.path.abspath(sys.argv[1]))' "$GAME_TEST_FINGERPRINT_DIR")
+  GAME_TEST_FINGERPRINT_DIR=$("$PYTHON" -c 'import os, sys; print(os.path.abspath(sys.argv[1]))' "$GAME_TEST_FINGERPRINT_DIR")
   export GAME_TEST_FINGERPRINT_DIR
   mkdir -p "$GAME_TEST_FINGERPRINT_DIR"
 fi
-GODOT="${GODOT:-$( command -v godot || command -v godot4 \
-  || ls /Applications/Godot*.app/Contents/MacOS/Godot 2>/dev/null | head -1 )}"
-if [[ -z "$GODOT" ]]; then
-  echo "Godot binary not found (set GODOT=/path/to/Godot)" >&2
-  exit 2
-fi
+fe_use_godot || exit $?
 
 # One cleanup for every way out (an exit, ^C, a kill: the signal first ends the processes this run started): this run's
 # note file and, for --base, its temporary worktree.
@@ -187,7 +184,7 @@ trap cleanup EXIT
 # gate), then exits through the cleanup above. bash runs a trap only when its foreground command ends: those are run
 # through bg_wait, whose `wait` the signal interrupts at once.
 interrupted() {
-  python3 "$TOOLS/godot_slot.py" stop --ancestor=$$ 2>/dev/null || true
+  "$PYTHON" "$TOOLS/godot_slot.py" stop --ancestor=$$ 2>/dev/null || true
   exit "$1"
 }
 trap 'interrupted 130' INT
@@ -279,7 +276,7 @@ for a in "$@"; do
     --failed)
       [[ -f "$LAST" ]] || { echo "No previous run of this checkout to take failures from." >&2; exit 2; }
       # 0: a failed test to rerun; 1: none; 3: the report cannot be read.
-      python3 -c 'import json, sys
+      "$PYTHON" -c 'import json, sys
 try:
     results = json.load(open(sys.argv[1])).get("results", [])
 except (OSError, ValueError, AttributeError):
@@ -319,7 +316,7 @@ JOBS_EXPLICIT=0
 # least one. Asked per run: the slots other runs hold change while this one goes on.
 auto_jobs() {
   local free
-  free=$(python3 "$TOOLS/godot_slot.py" free)
+  free=$("$PYTHON" "$TOOLS/godot_slot.py" free)
   echo $(( free < 1 ? 1 : free ))
 }
 if [[ $JOBS_EXPLICIT -eq 1 && "$JOBS" != "auto" ]]; then
@@ -350,7 +347,7 @@ fi
 # fails to parse and the runner hangs instead of failing, so import first.
 if [[ ! -f .godot/global_script_class_cache.cfg ]]; then
   echo "importing the project (first run in this checkout)..." >&2
-  bg_wait python3 "$TOOLS/godot_slot.py" run --notice-fd=3 -- "$GODOT" --headless --path . --import >/dev/null 2>&1 || true
+  bg_wait "$PYTHON" "$TOOLS/godot_slot.py" run --notice-fd=3 -- "$GODOT" --headless --path . --import >/dev/null 2>&1 || true
 fi
 
 # The domains the selection args name with --domain (comma list, every flag joined), "" for none.
@@ -399,7 +396,7 @@ jobs_wanted() {
 # selection names (--domain, --skip-domain, the folders of --id and --failed's ids). Which tests run is decided by the
 # suites themselves (test_batch.gd); this only spares gdUnit loading suites that cannot hold one.
 suites_for() {
-  python3 - "$@" <<'EOF'
+  "$PYTHON" - "$@" <<'EOF'
 import json, os, sys
 from pathlib import Path
 opts, flags = {}, set()
@@ -475,14 +472,14 @@ ONLY_SUITES=""
 godot_run() {
   local out="$1"; shift
   local rel suites=() s code
-  rel=$(python3 -c 'import os, sys; print(os.path.relpath(sys.argv[1]))' "$out")
+  rel=$("$PYTHON" -c 'import os, sys; print(os.path.relpath(sys.argv[1]))' "$out")
   while IFS= read -r s; do [[ -n "$s" ]] && suites+=(-a "$s"); done < <(
     if [[ -n "$ONLY_SUITES" ]]; then echo "$ONLY_SUITES"; else suites_for "$@"; fi)
   set +e
-  python3 "$TOOLS/godot_slot.py" run --notice-fd=3 -- "$GODOT" $HEADLESS $NOVSYNC --path . --fixed-fps 60 --log-file "$out/godot.log" \
+  "$PYTHON" "$TOOLS/godot_slot.py" run --notice-fd=3 -- "$GODOT" $HEADLESS $NOVSYNC --path . --fixed-fps 60 --log-file "$out/godot.log" \
     -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd --ignoreHeadlessMode -c -rc 1 -rd "res://$rel/gdunit" \
-    ${suites[@]+"${suites[@]}"} -- --out="$out" "$@" | tee "$out/gdunit.txt" | python3 -u -c "$CONSOLE_FILTER" \
-    | python3 "$TOOLS/godot_slot.py" annotate --ancestor=$$ $(busy_args) ${LOADED_RUN:+--loaded}
+    ${suites[@]+"${suites[@]}"} -- --out="$out" "$@" | tee "$out/gdunit.txt" | "$PYTHON" -u -c "$CONSOLE_FILTER" \
+    | "$PYTHON" "$TOOLS/godot_slot.py" annotate --ancestor=$$ $(busy_args) ${LOADED_RUN:+--loaded}
   code=${PIPESTATUS[0]}
   set -e
   if [[ $code -ne 0 && $code -ne 100 && $code -ne 101 ]]; then
@@ -492,7 +489,7 @@ godot_run() {
   if [[ ! -f "$out/report.json" ]] && grep -q "No test cases found" "$out/gdunit.txt"; then
     # gdUnit runs no session, so no suite and no hook, when the selection holds no test: an empty run.
     echo '{"results": [], "stray_logs": [], "log_end": 0}' > "$out/report.json"
-    echo "0 passed, 0 failed, 0 timed out, 0 skipped, 0 gap" | python3 "$TOOLS/godot_slot.py" annotate --ancestor=$$ $(busy_args)
+    echo "0 passed, 0 failed, 0 timed out, 0 skipped, 0 gap" | "$PYTHON" "$TOOLS/godot_slot.py" annotate --ancestor=$$ $(busy_args)
     echo "Report: $out/report.json"
   fi
   [[ -n "$LOADED_RUN" ]] && mark_loaded "$out"
@@ -501,7 +498,7 @@ godot_run() {
 
 # Marks every result of the report.json in dir $1 `"loaded": true`: the process ran without the quiet machine it waited for.
 mark_loaded() {
-  python3 - "$1/report.json" <<'EOF'
+  "$PYTHON" - "$1/report.json" <<'EOF'
 import json, sys
 try:
     data = json.load(open(sys.argv[1]))
@@ -516,7 +513,7 @@ EOF
 # The verdict of the run that wrote $1/report.json: 1 when a test FAILED or TIMED OUT or a line was logged outside
 # any test, 0 otherwise (and when there is no report, which scan_log reports).
 verdict() {
-  python3 - "$1/report.json" <<'EOF'
+  "$PYTHON" - "$1/report.json" <<'EOF'
 import json, sys
 try:
     data = json.load(open(sys.argv[1]))
@@ -530,7 +527,7 @@ EOF
 # Whether the runs that wrote the dirs given held no test at all, catalog or native: every one wrote a report and none
 # has a result (a single empty shard is not an empty selection; a run that wrote no report is scan_log's to fail).
 no_test() {
-  python3 - "$@" <<'EOF'
+  "$PYTHON" - "$@" <<'EOF'
 import json, os, sys
 try:
     sys.exit(1 if any(json.load(open(os.path.join(d, "report.json"))).get("results") for d in sys.argv[1:]) else 0)
@@ -548,7 +545,7 @@ no_test_matched() {
 # (scenes/testing/test_list.gd); it writes no report, so its whole log is scanned.
 godot_list() {
   local out="$1"; shift
-  python3 "$TOOLS/godot_slot.py" run --notice-fd=3 -- "$GODOT" --headless --path . --log-file "$out/godot.log" -s res://scenes/testing/test_list.gd -- --out="$out" "$@"
+  "$PYTHON" "$TOOLS/godot_slot.py" run --notice-fd=3 -- "$GODOT" --headless --path . --log-file "$out/godot.log" -s res://scenes/testing/test_list.gd -- --out="$out" "$@"
 }
 
 # Merge the report.json of each dir given into $LAST (what --failed reads) and fold each test's wall-clock ms into
@@ -556,7 +553,7 @@ godot_list() {
 # says nothing about how long a test takes). With TALLY=1 it first prints the FLAKY / FAILING lines of the merged run
 # (a test that passed some of its runs / none), as each process prints its own; with SLOWEST=1 the five slowest tests.
 save_reports() {
-  python3 - "$LAST_OUT" "$COSTS" "${SLOWEST:-0}" "${TALLY:-0}" "$@" <<'EOF'
+  "$PYTHON" - "$LAST_OUT" "$COSTS" "${SLOWEST:-0}" "${TALLY:-0}" "$@" <<'EOF'
 import json, os, sys
 last, costs_path, slowest, tally = sys.argv[1], sys.argv[2], sys.argv[3] == "1", sys.argv[4] == "1"
 results, stray = [], []
@@ -607,18 +604,18 @@ EOF
 scan_log() {
   local dir="$1" listing="$2" from=0 bad=0
   if [[ -f "$dir/report.json" ]]; then
-    from=$(python3 -c 'import json,sys; print(int(json.load(open(sys.argv[1])).get("log_end", 0)))' "$dir/report.json" 2>/dev/null || echo 0)
+    from=$("$PYTHON" -c 'import json,sys; print(int(json.load(open(sys.argv[1])).get("log_end", 0)))' "$dir/report.json" 2>/dev/null || echo 0)
   elif [[ "$listing" -eq 0 ]]; then
     echo "Logged outside any test: the runner wrote no report (it crashed or stopped early) in $dir"
     bad=1
   fi
-  python3 "$TOOLS/scan_godot_log.py" "$dir/godot.log" --from="$from" $STRICT || bad=1
+  "$PYTHON" "$TOOLS/scan_godot_log.py" "$dir/godot.log" --from="$from" $STRICT || bad=1
   return $bad
 }
 
 # Whether the report $1 (what --failed reads) holds a perf test that FAILED or TIMED OUT.
 failed_perf() {
-  python3 - "$1" <<'EOF'
+  "$PYTHON" - "$1" <<'EOF'
 import json, sys
 try:
     results = json.load(open(sys.argv[1])).get("results", [])
@@ -713,7 +710,7 @@ quiet_gate() {
   min=${QUIET_MIN:-$(sed -n 's/^timeout_min=//p' "$TOOLS/perf_quiet.conf")}
   cpu=$(sed -n 's/^busy_cpu=//p' "$TOOLS/perf_quiet.conf")
   sample=$(sed -n 's/^busy_sample_s=//p' "$TOOLS/perf_quiet.conf")
-  bg_wait python3 "$TOOLS/godot_slot.py" quiet --ancestor=$$ --max-load="$max" --timeout-min="$min" \
+  bg_wait "$PYTHON" "$TOOLS/godot_slot.py" quiet --ancestor=$$ --max-load="$max" --timeout-min="$min" \
     --busy-cpu="$cpu" --busy-sample="$sample" || rc=$?
   case $rc in
     0) ;;
@@ -756,7 +753,7 @@ live_run() {
 # Writes the results and stray logs of the report.json of every dir after the first into the first's report.json, so
 # the `Report:` path of a run holds the results of all its processes.
 merge_reports_into() {
-  python3 - "$@" <<'EOF'
+  "$PYTHON" - "$@" <<'EOF'
 import json, os, sys
 first = os.path.join(sys.argv[1], "report.json")
 try:
@@ -777,7 +774,7 @@ EOF
 # The native suites met by the runs that wrote the dirs given (their records' `<suite id>::<case>` ids), as res://
 # paths, one per line.
 native_suites_met() {
-  python3 - "$@" <<'EOF'
+  "$PYTHON" - "$@" <<'EOF'
 import json, os, sys
 seen = []
 for d in sys.argv[1:]:
@@ -796,7 +793,7 @@ EOF
 # The Von tests the runs that wrote the dirs given skipped (the records the batch marked `"von": true`, as the totals
 # line counts them), appended to $VON_SKIPPED as one JSON `[domain, id]` line each for --changed's closing NOTE.
 note_von_skips() {
-  python3 - "$VON_SKIPPED" "$@" <<'EOF'
+  "$PYTHON" - "$VON_SKIPPED" "$@" <<'EOF'
 import json, os, sys
 with open(sys.argv[1], "a") as out:
     for d in sys.argv[2:]:
@@ -813,7 +810,7 @@ EOF
 # The closing NOTE of --changed: the Von tests the runs skipped (live-only: they need the server) are run by
 # --require-von on their domains.
 von_note() {
-  python3 - "$VON_SKIPPED" <<'EOF'
+  "$PYTHON" - "$VON_SKIPPED" <<'EOF'
 import json, sys
 live = {}
 for line in open(sys.argv[1]):
@@ -834,7 +831,7 @@ load_1min() {
 # The line before a run's first test: the 1-minute load and how many of the pool's Godot slots other runs hold.
 run_header() {
   local taken size
-  read -r taken size < <(python3 "$TOOLS/godot_slot.py" status)
+  read -r taken size < <("$PYTHON" "$TOOLS/godot_slot.py" status)
   echo "load $(load_1min), $taken of $size Godot slots taken"
 }
 
@@ -843,7 +840,7 @@ run_header() {
 # (the shard count) and the 1-minute load.
 merged_totals() {
   local shards="$1"; shift
-  python3 - "$shards" "$(load_1min)" "$@" <<'EOF'
+  "$PYTHON" - "$shards" "$(load_1min)" "$@" <<'EOF'
 import re, sys
 LINE = re.compile(r"^(\d+) passed, (\d+) failed, (\d+) timed out, (\d+) skipped"
                   r"(?: \((\d+) need Von, not run: --require-von\))?, (\d+) gap")
@@ -1213,7 +1210,7 @@ if [[ $CHANGED -eq 1 ]]; then
           fi ;;
         NOTE*) echo "$line" ;;
       esac
-    done < <(python3 "$TOOLS/spec_tests.py" $([[ $STAGED -eq 1 ]] && echo --staged) $([[ -n "$CHANGED_BASE" ]] && echo "--base=$CHANGED_BASE"))
+    done < <("$PYTHON" "$TOOLS/spec_tests.py" $([[ $STAGED -eq 1 ]] && echo --staged) $([[ -n "$CHANGED_BASE" ]] && echo "--base=$CHANGED_BASE"))
     if [[ -n "$spec_ids" ]]; then
       ran=1
       echo "== tests named by changed spec paragraphs =="

@@ -16,7 +16,7 @@ import subprocess
 import unittest
 from pathlib import Path
 
-from tools.coverage.tests.support import TempDir, clean_env, git
+from tools.coverage.tests.support import TempDir, clean_env, copy_setup, git
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -43,6 +43,7 @@ class Repo:
         (root / "tools").mkdir()
         for name in ("lint_staged.sh", "lint_label.py"):
             shutil.copy2(ROOT / "tools" / name, root / "tools" / name)
+        copy_setup(root)
         (root / "tools" / "lint.sh").write_text(FAKE_LINT)
         (root / "tools" / "lint.sh").chmod(0o755)
         for rel in FILES:

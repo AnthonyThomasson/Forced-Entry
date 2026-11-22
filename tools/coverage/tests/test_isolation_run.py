@@ -2,7 +2,7 @@
 criterion), and the instrumented copy of the real game still loads, lints and passes game tests.
 
 SLOW: it instruments the whole of Forced-Entry and plays one real Watch match, so it runs only with
-`FE_SLOW_TESTS=1` (and a Godot binary, found as tools/run_tests.sh finds it: GODOT, `godot`, /Applications/Godot*.app):
+`FE_SLOW_TESTS=1` (and a Godot binary, found as tools/run_tests.sh finds it, by tools/setup/fe_env.py):
 
     FE_SLOW_TESTS=1 python3 -m unittest tools.coverage.tests.test_isolation_run
 
