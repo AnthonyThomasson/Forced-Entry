@@ -24,7 +24,7 @@
 		},
 		{
 			"options": [
-				"You heard gunfire or lost sight of a hostile recently and know where to look (1 lead (freshest: gunfire heard to the north-east, in the garage))"
+				"You heard gunfire or lost sight of a hostile recently and know where to look (1 lead (freshest: gunfire heard to the east, in the garage))"
 			],
 			"pick": "investigate",
 			"probabilities": {
@@ -35,7 +35,7 @@
 		},
 		{
 			"options": [
-				"gunfire heard to the north-east, in the garage — a while ago — short route"
+				"gunfire heard to the east, in the garage — a while ago — short route"
 			],
 			"pick": "lead_gunfire_4_1",
 			"probabilities": {

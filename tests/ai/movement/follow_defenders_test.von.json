@@ -16,12 +16,12 @@
 		{
 			"options": [
 				"the bathroom — unsearched — medium route",
-				"the kitchen living — searched recently — short route"
+				"the kitchen living — searched recently — medium route"
 			],
 			"pick": "room_great_room",
 			"probabilities": {
-				"room_bathroom": 0.4234,
-				"room_great_room": 0.5766
+				"room_bathroom": 0.4298,
+				"room_great_room": 0.5702
 			},
 			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
 			"state": "You are the armed guard of this house. Shoot hostile intruders with your SMG to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the home office, inside the house, holding a SMG. You are unhurt.\nCurrent activity: SEARCH - the home office (reached it, for 3s).\nDecided so far: SEARCH."
@@ -33,11 +33,11 @@
 			],
 			"pick": "room_home_office",
 			"probabilities": {
-				"room_bathroom": 0.376,
-				"room_home_office": 0.624
+				"room_bathroom": 0.3789,
+				"room_home_office": 0.6211
 			},
 			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
-			"state": "You are the armed guard of this house. Shoot hostile intruders with your SMG to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the kitchen living, inside the house, holding a SMG. You are unhurt.\nCurrent activity: SEARCH - the kitchen living (reached it, for 4s).\nDecided so far: SEARCH."
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your SMG to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the kitchen living, inside the house, holding a SMG. You are unhurt.\nCurrent activity: SEARCH - the kitchen living (reached it, for 5s).\nDecided so far: SEARCH."
 		},
 		{
 			"options": [
@@ -50,7 +50,7 @@
 				"room_great_room": 0.5702
 			},
 			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
-			"state": "You are the armed guard of this house. Shoot hostile intruders with your SMG to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the home office, inside the house, holding a SMG. You are unhurt.\nCurrent activity: SEARCH - the home office (reached it, for 3s).\nDecided so far: SEARCH."
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your SMG to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the home office, inside the house, holding a SMG. You are unhurt.\nCurrent activity: SEARCH - the home office (reached it, for 4s).\nDecided so far: SEARCH."
 		}
 	],
 	"version": 1
