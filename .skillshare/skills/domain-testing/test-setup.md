@@ -55,7 +55,8 @@ only (the browser also calls it to list the switches).
   (`<name>_test.von.json` beside the test; `tools/run_tests.sh --record-von --id=<id>` writes it, `gotchas.md`). Assert world
   outcomes and `require` the premise as for any test, never that a pick was made. `"live_only": true` (the transport itself, and
   `ai/investigate/defenders_stay_in_house_quiet_von`, a 40 s generated-house match whose fight moves the NPCs by a hair
-  differently in a replay; `runner-flags.md`) keeps the real server.
+  differently in a replay; `runner-flags.md`) keeps the real server and has no recording (`--record-von` has nothing to
+  write for it; it runs only live, with `--include-von` / `--require-von`).
 - **Presentation:** `show_overlays([...])`, `camera_follow([ids])` (default frames all actors; the hand-pan is off when a
   `player` actor is present, since WASD walks it) and `lock_interaction([&"camera", …])`
   (`in-game-runner.md`, "Locking interactions"), `own_picture()` (the test builds its own 3D picture, a `Main` run whole or a `View3D` by hand: the session shows none over its world, `in-game-runner.md`; also set by tests of the 2D draw or the plain camera, which need the world as it is, until the 2D draw's jobs delete them).

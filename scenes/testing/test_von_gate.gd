@@ -101,9 +101,8 @@ func end() -> void:
 
 
 ## Ensure the Von launcher exists and has settled; returns whether a server is live. With
-## GAME_TEST_VON_PORT set the launcher probes that port and never starts a server: `von_path` is
-## cleared after its `_ready` (which fills a blank one from the project setting) and before the
-## first probe answers, the only time it reads the path. `announce` is told the wait.
+## GAME_TEST_VON_PORT set the launcher probes that port and never starts a server (`probe_only`).
+## `announce` is told the wait.
 func _await_von(announce: Callable) -> bool:
 	if not is_instance_valid(_launcher):
 		_launcher = LAUNCHER.new()
@@ -112,11 +111,10 @@ func _await_von(announce: Callable) -> bool:
 		var port := OS.get_environment(VON_PORT_ENV)
 		if port != "":
 			_launcher.port = int(port)
+			_launcher.probe_only = true
 		_launcher.resolved.connect(func(is_live: bool): _von_live = is_live)
 		_von_live = false
 		(launcher_parent if launcher_parent != null else _session).add_child(_launcher)
-		if port != "":
-			_launcher.von_path = ""
 	if not _launcher.is_resolved():
 		announce.call("Waiting for the decision server…")
 		await _launcher.resolved

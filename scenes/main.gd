@@ -261,7 +261,7 @@ func _close_settings() -> void:
 
 
 ## Wait for the Von decision server to settle before the world is built. Returns at once when the
-## launcher has already resolved — a reused server, or none coming (exported build, blank von_path,
+## launcher has already resolved — a reused server, or none coming (exported build, no Von setup,
 ## timeout) — so the usual case adds no delay at all. The launcher guarantees it always resolves, so
 ## this cannot stall the setup window indefinitely; a run without a server still starts, just with
 ## NPCs that hold steady.

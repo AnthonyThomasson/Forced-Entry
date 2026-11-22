@@ -19,7 +19,8 @@ plan. Don't shape the behaviour around what the AI, snapshot or navmesh can do t
   guard all run. `"requires_von": true`, tag `von`: recorded once with `tools/run_tests.sh --record-von --id=<id>` (commit
   `<name>_test.von.json`), replayed in every run; `--require-von` runs it live. `live_only` (never replayed) is for a test of the transport itself and for
   `ai/investigate/defenders_stay_in_house_quiet_von`, a 40 s generated-house match whose fight moves the NPCs by a hair
-  differently in a replay.
+  differently in a replay: it has no recording (nothing to record or commit), is skipped in a normal run and runs only
+  with `--include-von` / `--require-von` against a live server.
 - Build the world so the decision under test is the natural one (nearest doorway, the one unsearched room, the hostile in
   view), and `require` the AI took that path before asserting what it did there, so a surprising Von pick reads as a
   set-up finding in the bundle.

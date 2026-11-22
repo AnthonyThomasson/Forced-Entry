@@ -1,11 +1,14 @@
 extends Node
 ## AI domain: development convenience that starts a local decision-model server (Von's `von serve`)
 ## when the game runs from the Godot editor, and stops it when the game exits. Exported builds never
-## launch it. A server already answering on `port` is reused and left running, and only a server
-## this launcher itself started is stopped on exit. Reuse is decided by probing `port` up to
-## `probe_attempts` times so a slow-to-answer existing server is reused rather than racing into a
-## duplicate that cannot bind the port. The server's output is appended to `user://von_server.log`
-## and, when `echo_to_output` is set, printed to the editor Output panel as `[von] …` lines.
+## launch it. The server is started by the project's boot script for the current OS
+## (`tools/von/boot.sh` or `tools/von/boot.ps1`, start-only: they install nothing), which finds the
+## Von install in the per-user Forced-Entry home itself. A server already answering on `port` is
+## reused and left running, and only a server this launcher itself started is stopped on exit. Reuse
+## is decided by probing `port` up to `probe_attempts` times so a slow-to-answer existing server is
+## reused rather than racing into a duplicate that cannot bind the port. The server's output is
+## appended to `user://von_server.log` and, when `echo_to_output` is set, printed to the editor
+## Output panel as `[von] …` lines.
 ##
 ## The probe asks the server to DECIDE (see `_probe_once`), not merely to answer `GET /`, because an
 ## ORPHANED server is worse than an absent one. A `von serve` left behind by a hard-killed run
@@ -16,8 +19,9 @@ extends Node
 ## killing its game: `tools/von_stop.sh <game pid>`.
 
 ## Emitted exactly ONCE when the server question settles: `live` is true when a server answered (NPC
-## decisions will succeed), false when none is coming — no `von_path`, a failed spawn, an exported
-## build, or `ready_timeout` elapsed. Main gates the match start on this, so every terminal path
+## decisions will succeed), false when none is coming — a probe-only launcher, a setup that is
+## missing or broken (the boot script's exit 3), a failed spawn, an exported build, or
+## `ready_timeout` elapsed. Main gates the match start on this, so every terminal path
 ## must reach `_resolve()`: one that silently never resolved would hang the setup window forever.
 signal resolved(live: bool)
 
@@ -27,16 +31,18 @@ const LOG_PATH := "user://von_server.log"
 const ServerProbe := preload("res://scenes/ai/decision/server_probe.gd")
 ## The Von transport, whose reporting of a refused decision the probe's warning reuses (`_detail`).
 const DecisionClient := preload("res://scenes/ai/decision/decision_client.gd")
+## The boot script's output: its pipes drained into the log, its `von:` line kept.
+const ServerOutput := preload("res://scenes/ai/decision/server_output.gd")
 
-## Absolute path to the `von` executable (the editor-launched game doesn't see the shell PATH).
-## Empty = never auto-start. Defaults to the `application/von/server_path` project setting, so the
-## path is configured per machine (Project Settings) rather than hard-coded here; set it on the
-## node to override.
-@export_global_file var von_path: String = ""
+## Never start a server: only probe `port` and reuse what answers (the test runner's gate when it
+## is pointed at another port, `TestVonGate`). With nothing live there the launcher just resolves
+## `false`.
+@export var probe_only: bool = false
 ## Port the server listens on: the NPCs' default endpoint's (`NpcDecisionTuning.SERVER_PORT`).
 @export var port: int = NpcDecisionTuning.SERVER_PORT
-## Compute device passed to `von serve --device`. `cpu` is the default because PyTorch's Apple
-## GPU backend (`mps`, which `auto` picks on a Mac) crashes the server on its first request.
+## Compute device passed to the boot script (`von serve --device`). `cpu` is the default because
+## PyTorch's Apple GPU backend (`mps`, which `auto` picks on a Mac) crashes the server on its first
+## request.
 @export_enum("cpu", "auto", "mps", "cuda", "openvino") var device: String = "cpu"
 ## Once our server answers its readiness probe, move it to macOS background QoS
 ## (`taskpolicy -b -p <pid>`), which keeps PyTorch's CPU bursts on the efficiency cores so they do
@@ -59,12 +65,16 @@ const DecisionClient := preload("res://scenes/ai/decision/decision_client.gd")
 ## waiting.
 @export var ready_timeout: float = 90.0
 
-## Process id of the server we launched; -1 if none (including a reused server).
+## Why no server is coming, `""` while nothing is wrong (a live or reused server): the warning the
+## launcher printed, with the cause and the fix. Set before `resolved(false)` fires.
+var problem := ""
+## Process id of the server we launched; -1 if none (including a reused server). On Windows it is
+## the boot script's PowerShell, which holds the server in a kill-on-close job: ending it ends the
+## server. On a Mac the boot script has become the server (`exec`).
 var _pid := -1
-## The server's merged stdout/stderr.
-var _pipe: FileAccess
-## Drains `_pipe` into the log file (and Output).
-var _reader: Thread
+## The boot script's output, drained into the log (`server_output.gd`; its `von: <cause>. Fix:
+## <command>` line is on stderr).
+var _output := ServerOutput.new()
 ## The readiness probe: its HTTP request (freed once the server answers or we give up), the reuse
 ## attempts left, and whether (and until when) we are polling a server we launched.
 var _probe := ServerProbe.new()
@@ -83,9 +93,6 @@ func _ready() -> void:
 		_resolve(false)  # Exported build: never auto-starts, so the match must not wait on one.
 		return
 	_start_ms = Time.get_ticks_msec()
-	# Fall back to the per-machine project setting when no explicit path is set on the node.
-	if von_path.is_empty():
-		von_path = ProjectSettings.get_setting("application/von/server_path", "")
 	_probe.request = HTTPRequest.new()
 	# Generous: the probe is a real inference, and the first one also pays for loading the weights.
 	# A refused connection still returns immediately, so this doesn't slow cold-start detection.
@@ -101,10 +108,9 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	_end_probing()
 	if _pid > 0:
-		OS.kill(_pid)
+		OS.kill(_pid)  # The whole server on both OSes (see `_pid`).
 		_pid = -1
-	if _reader != null and _reader.is_started():
-		_reader.wait_to_finish()
+	_output.finish()
 
 
 ## Whether the server question has settled. Main checks this BEFORE awaiting `resolved`, because a
@@ -177,21 +183,26 @@ func _on_probe_completed(
 	if result == HTTPRequest.RESULT_SUCCESS and code == 200:
 		_announce_ready()
 		return
+	if _probe.waiting_ready and _server_exited():
+		await _report_exit()  # The boot script ended: its setup is missing, or the port is held.
+		return
 	if result == HTTPRequest.RESULT_SUCCESS:
 		if _probe.attempts_left > 0:
 			await _wait_then_probe()
 			return
-		push_warning("[von] Server on port %d is up but cannot decide (HTTP %d): %s"
-				% [port, code, _detail(body)])
-		_resolve(false)
+		_give_up(
+			("[von] Server on port %d is up but cannot decide (HTTP %d): %s. If it is not Von, "
+			+ "free the port; if it is an old Von, stop it (tools/von_stop.sh <game pid>, or end "
+			+ "the process holding the port) and start the game again. NPCs hold steady.")
+			% [port, code, _detail(body)],
+		)
 		return
 	if _probe.waiting_ready:
 		if Time.get_ticks_msec() >= _probe.ready_deadline_ms:
-			push_warning(
+			_give_up(
 				"[von] Server has not answered within %.0fs; NPCs hold steady until it does."
 				% ready_timeout,
 			)
-			_resolve(false)
 			return
 		await _wait_then_probe()
 		return
@@ -220,12 +231,12 @@ func _wait_then_probe() -> void:
 
 
 ## Start our own server, then poll it until it answers so `resolved` fires `true` only for a LIVE
-## brain rather than merely a spawned process. If nothing started (no `von_path`, or the spawn
-## failed) there is nothing to wait for, so probing stops.
+## brain rather than merely a spawned process. If nothing started (a probe-only launcher, a boot
+## script that is missing or would not spawn) there is nothing to wait for, so probing stops.
 func _launch_and_await_ready() -> void:
 	_launch()
 	if _pid <= 0:
-		_resolve(false)  # Nothing started (blank von_path or a failed spawn) — nothing to wait for.
+		_resolve(false)  # Nothing started: nothing to wait for (`_launch` said why).
 		return
 	_probe.waiting_ready = true
 	_probe.ready_deadline_ms = Time.get_ticks_msec() + int(ready_timeout * 1000.0)
@@ -235,6 +246,9 @@ func _launch_and_await_ready() -> void:
 ## The server answered: report how long it took from scene load and let anyone gating on it proceed.
 func _announce_ready() -> void:
 	var secs: float = (Time.get_ticks_msec() - _start_ms) / 1000.0
+	if _server_exited():
+		# Ours stopped (the port was already taken) and what answers is another's: reuse it.
+		_pid = -1
 	if _pid > 0:
 		GameLog.say("[von] Decision server live on port %d, %.1fs after scene load (pid %d)."
 				% [port, secs, _pid])
@@ -271,40 +285,112 @@ static func qos_failure_line(exit_code: int) -> String:
 	return "[von] QoS not applied (exit %d)." % exit_code
 
 
-## Start `von serve` with its output piped back to us, and a thread to read it.
+## Whether the boot script we started has ended (the setup is missing, or the server stopped).
+func _server_exited() -> bool:
+	return _pid > 0 and not OS.is_process_running(_pid)
+
+
+## The boot script ended before the server answered: say why (its own `von: <cause>. Fix: <command>`
+## line, else the last lines it printed) and settle with no server. It gives the readers a moment to
+## drain the pipes first, so the line has been read.
+func _report_exit() -> void:
+	var code := OS.get_process_exit_code(_pid)
+	var waited := 0.0
+	while waited < 2.0 and _output.alive():
+		await get_tree().create_timer(0.05).timeout
+		waited += 0.05
+		if _resolved or not is_inside_tree():
+			return
+	_pid = -1
+	_give_up(exit_warning(code, _output.von_line(), _output.tail(), port))
+
+
+## Warn, remember why (`problem`) and settle with no server.
+func _give_up(text: String) -> void:
+	push_warning(text)
+	problem = text
+	_resolve(false)
+
+
+## The program and arguments that run the boot script of `os_name` start-only, with the project
+## folder `project_dir` (globalized, no trailing slash): Windows PowerShell 5.1 with
+## `-ExecutionPolicy Bypass` (the scripts dot-source lib.ps1), anything else the bash script, which
+## becomes the server. `system_root` is `%SystemRoot%` (empty: found on `PATH`).
+static func boot_command(
+	os_name: String,
+	project_dir: String,
+	server_port: int,
+	server_device: String,
+	system_root := "",
+) -> Dictionary:
+	if os_name == "Windows":
+		var powershell := "powershell.exe"
+		if system_root != "":
+			powershell = system_root.path_join("System32/WindowsPowerShell/v1.0/powershell.exe")
+		return {
+			"program": powershell,
+			"script": project_dir.path_join("tools/von/boot.ps1"),
+			"args": PackedStringArray([
+				"-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+				"-File", project_dir.path_join("tools/von/boot.ps1"),
+				"-Port", str(server_port),
+				"-BindHost", NpcDecisionTuning.SERVER_HOST,
+				"-Device", server_device,
+			]),
+		}
+	return {
+		"program": project_dir.path_join("tools/von/boot.sh"),
+		"script": project_dir.path_join("tools/von/boot.sh"),
+		"args": PackedStringArray([
+			"--host", NpcDecisionTuning.SERVER_HOST,
+			"--port", str(server_port),
+			"--device", server_device,
+		]),
+	}
+
+
+## The warning for a boot script that ended before any server answered, with its exit `code`: the
+## script's own `von:` line when it printed one (exit 3: no venv, no Python, no weights ... and the
+## bootstrap command that fixes it), else the last lines it printed, which name a port in use.
+static func exit_warning(
+	code: int,
+	von_line: String,
+	tail: PackedStringArray,
+	server_port: int,
+) -> String:
+	if von_line != "":
+		return "[von] No decision server: %s. NPCs hold steady." % von_line.trim_suffix(".")
+	var said := " ".join(tail) if not tail.is_empty() else "(it printed nothing)"
+	return (
+		("[von] The decision server stopped right after starting (exit %d): %s. Is port %d held by "
+		+ "another program? See user://von_server.log. NPCs hold steady.")
+		% [code, said, server_port]
+	)
+
+
+## Run the boot script with its output piped back to us, and a thread per pipe to read it.
 func _launch() -> void:
-	if von_path.is_empty():
-		GameLog.say(("[von] No server on port %d and von_path is empty — set it on "
-					+ "DecisionServerLauncher to auto-start Von.") % port)
+	if probe_only:
+		GameLog.say("[von] No server on port %d, and this launcher only probes." % port)
 		return
-	# `exec` makes the shell become the server, so the pid we kill is the server itself.
-	var command := ("exec '%s' serve --host 127.0.0.1 --port %d --device %s 2>&1"
-			% [von_path, port, device])
-	var process := OS.execute_with_pipe("/bin/sh", ["-c", command])
+	var command := boot_command(
+		OS.get_name(),
+		ProjectSettings.globalize_path("res://").trim_suffix("/"),
+		port,
+		device,
+		OS.get_environment("SystemRoot"),
+	)
+	if not FileAccess.file_exists(command["script"]):
+		_give_up("[von] No decision server: %s is missing. NPCs hold steady." % command["script"])
+		return
+	var process := OS.execute_with_pipe(command["program"], command["args"])
 	if process.is_empty():
-		push_warning("[von] Failed to start %s" % von_path)
+		_give_up(
+			"[von] No decision server: could not run %s. NPCs hold steady." % command["program"],
+		)
 		return
 	_pid = process["pid"]
-	_pipe = process["stdio"]
-	_reader = Thread.new()
-	_reader.start(_read_output)
+	_output.echo = echo_to_output
+	_output.start(process, LOG_PATH)
 	GameLog.say("[von] Started decision server (pid %d); log: %s"
 			% [_pid, ProjectSettings.globalize_path(LOG_PATH)])
-
-
-## Reader thread: copy each server line into the log file (and Output) until the pipe closes.
-func _read_output() -> void:
-	var log_file := FileAccess.open(LOG_PATH, FileAccess.READ_WRITE)
-	if log_file == null:
-		log_file = FileAccess.open(LOG_PATH, FileAccess.WRITE)
-	if log_file != null:
-		log_file.seek_end()
-	while _pipe.is_open() and _pipe.get_error() == OK:
-		var line := _pipe.get_line()
-		if line.is_empty() and _pipe.get_error() != OK:
-			break
-		if log_file != null:
-			log_file.store_line(line)
-			log_file.flush()
-		if echo_to_output:
-			GameLog.say("[von] " + line)
