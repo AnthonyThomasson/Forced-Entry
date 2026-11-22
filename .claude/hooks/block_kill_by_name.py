@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Claude Code PreToolUse hook (Bash and PowerShell): refuse a command that kills processes BY NAME. Every worktree runs
-its own Von decision server, and a name matches every worktree's (and another agent's) process, so `pkill -f "von serve"`
-takes the others' servers down with it. Reads the hook's JSON on stdin; exit 2 with the reason on stderr refuses the
+"""Claude Code PreToolUse hook (Bash and PowerShell): refuse a command that kills processes BY NAME. Every worktree
+runs its own Von decision server, and a name matches every worktree's (and another agent's) process, so
+`pkill -f "von serve"` takes the others' servers down with it. Reads the hook's JSON on stdin; exit 2 with the reason on stderr refuses the
 command, exit 0 lets it through. Wired in .claude/settings.json through block_kill_by_name.sh.
 
 Refused (as the command of any statement of the line, also inside `bash -c "..."`, `eval`, `powershell -Command "..."`,
@@ -29,7 +29,8 @@ WRAPPERS = {"sudo", "env", "nohup", "exec", "time", "command", "builtin", "xargs
             "then", "do", "else", "if", "while", "until", "!", "call", "start"}
 SHELLS = {"bash", "sh", "zsh", "dash", "ksh"}
 POWERSHELLS = {"powershell", "pwsh"}
-# What ends one command and starts the next: every operator but a single `|`, which only pipes (a pipeline is read whole).
+# What ends one command and starts the next: every operator but a single `|`, which only pipes (a pipeline is read
+# whole).
 STATEMENT_END = r"&&|\|\||[;&\n(){}`]"
 PIPE = r"\|"
 STOP_NAME = re.compile(r"^-(n|na|nam|name|pr|pro|proc|proce|proces|process|processn|processna|processnam|processname)"
@@ -37,7 +38,7 @@ STOP_NAME = re.compile(r"^-(n|na|nam|name|pr|pro|proc|proce|proces|process|proce
 GET_PROCESS = {"get-process", "gps"}
 STOP_PROCESS = {"stop-process", "spps"}
 HEREDOC = re.compile(r"(?<!<)<<(?!<)-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
-WINDOWS_PATH_BACKSLASH =re.compile(r"\\(?=[A-Za-z0-9_.])")
+WINDOWS_PATH_BACKSLASH = re.compile(r"\\(?=[A-Za-z0-9_.])")
 
 
 def base(word: str) -> str:
@@ -127,11 +128,48 @@ def by_name(args: List[str]) -> bool:
     return bool(rest)
 
 
+ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+OPERAND = re.compile(r"^\d+[smhd]?$")
+
+
+def kill_by_name(rest: List[str]) -> bool:
+    """PowerShell's `kill` is Stop-Process: -Name / -ProcessName (and abbreviations), not a POSIX `kill -n 9 <pid>`."""
+    for i, arg in enumerate(rest):
+        if STOP_NAME.match(arg) and not (arg.lower() == "-n" and i + 1 < len(rest) and OPERAND.match(rest[i + 1])):
+            return True
+    return False
+
+
+def commands(args: List[str]) -> List[List[str]]:
+    """The command lines `args` may run: itself, and, behind wrapper words, what follows their flags and operands
+    (`timeout 5 pkill x`, `sudo -u root pkill x`, `nice -n 10 pkill x`, `sudo -n pkill x`). A flag's value may be
+    the program or not, so each start is a candidate. `command -v pkill` only looks a command up."""
+    if len(args) > 1 and base(args[0]) == "command" and args[1] in ("-v", "-V"):
+        return []
+    found, i, wrapped, after_flag = [], 0, False, False
+    while i < len(args):
+        found.append(args[i:])
+        word = args[i]
+        if ASSIGNMENT.match(word) or base(word) in WRAPPERS:
+            wrapped = wrapped or base(word) in WRAPPERS
+            after_flag = False
+        elif wrapped and (word.startswith("-") or OPERAND.match(word) or after_flag):
+            after_flag = word.startswith("-")
+        else:
+            break
+        i += 1
+    return found
+
+
 def command_refusal(args: List[str], depth: int) -> Optional[str]:
-    # Leading VAR=value assignments, wrapper words (and their flags) are no command.
-    while args and (re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", args[0]) or base(args[0]) in WRAPPERS
-                    or args[0].startswith("-")):
-        args = args[1:]
+    for candidate in commands(args):
+        found = program_refusal(candidate, depth)
+        if found:
+            return found
+    return None
+
+
+def program_refusal(args: List[str], depth: int) -> Optional[str]:
     if not args:
         return None
     program, rest = base(args[0]), args[1:]
@@ -145,7 +183,7 @@ def command_refusal(args: List[str], depth: int) -> Optional[str]:
                 return "`taskkill /FI` on IMAGENAME"
     if program in STOP_PROCESS and any(STOP_NAME.match(a) for a in rest):
         return "`Stop-Process -Name`"
-    if program == "kill" and any(re.match(r"^-(name|processname)(:.*)?$", a, re.I) for a in rest):
+    if program == "kill" and kill_by_name(rest):
         return "`kill -Name`"
     # A command line handed to another shell: look inside it.
     inner = None

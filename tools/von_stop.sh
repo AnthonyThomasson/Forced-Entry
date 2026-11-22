@@ -21,6 +21,7 @@ if [[ $# -ne 1 || ! $1 =~ ^[0-9]+$ ]]; then
 fi
 pid=$1
 if [[ -z "${PROCTREE_NATIVE_PID:-}" && -r /proc/$pid/winpid ]]; then
+  echo "MSYS pid $pid is Windows pid $(cat "/proc/$pid/winpid")" >&2
   pid=$(cat "/proc/$pid/winpid")
 fi
 

@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Process trees on macOS (ps) and Windows (Win32_Process through Windows PowerShell 5.1): find the descendants of a
-pid and stop a whole tree. Git Bash's own `ps` does not see Windows processes, so on Windows the table comes from the
-Win32 API (`ctypes`: a Toolhelp32 snapshot, the command lines of the processes asked about from
-NtQueryInformationProcess; no PowerShell to start, which can take many seconds on a loaded machine) and, should that fail, from `Get-CimInstance Win32_Process` through
-Windows PowerShell 5.1 (`PROCTREE_CIM=1` forces it). A tree is stopped by ending each process of the table's tree
+"""Process trees on macOS (ps) and Windows: find the descendants of a pid and stop a whole tree. Git Bash's own `ps`
+does not see Windows processes, so on Windows the table comes from the Win32 API (`ctypes`: a Toolhelp32 snapshot, the
+command lines of the processes asked about from NtQueryInformationProcess; no PowerShell to start, which can take many
+seconds on a loaded machine) and, should that fail, from `Get-CimInstance Win32_Process` through Windows PowerShell 5.1 (`PROCTREE_CIM=1` forces it). A tree is stopped by ending each process of the table's tree
 (TerminateProcess), then `taskkill /T /F /PID` for whatever still runs: taskkill's own tree walk goes through WMI,
 which can take minutes on a loaded machine.
 
@@ -93,6 +92,7 @@ class Win32:
         k.Process32FirstW.argtypes = k.Process32NextW.argtypes = [wintypes.HANDLE, ctypes.POINTER(Entry)]
         k.GetProcessTimes.argtypes = [wintypes.HANDLE] + [ctypes.POINTER(wintypes.FILETIME)] * 4
         k.TerminateProcess.argtypes = [wintypes.HANDLE, wintypes.UINT]
+        k.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
         self.ntdll.NtQueryInformationProcess.argtypes = [wintypes.HANDLE, ctypes.c_ulong, ctypes.c_void_p,
                                                          ctypes.c_ulong, ctypes.POINTER(ctypes.c_ulong)]
 
@@ -134,6 +134,18 @@ class Win32:
             length = int.from_bytes(buf.raw[0:2], "little")  # UNICODE_STRING: Length, MaximumLength, [pad], Buffer
             offset = ctypes.sizeof(ctypes.c_void_p) * 2
             return ticks, buf.raw[offset:offset + length].decode("utf-16-le", "replace")
+        finally:
+            self.kernel.CloseHandle(handle)
+
+    def running(self, pid: int) -> bool:
+        """Whether `pid` still runs: a terminated process stays in the table while anything holds a handle to it (the
+        game that started it), so its exit code, not its listing, says it is gone."""
+        handle = self.kernel.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            return False
+        try:
+            code = self.wintypes.DWORD()
+            return not self.kernel.GetExitCodeProcess(handle, self.ctypes.byref(code)) or code.value == 259
         finally:
             self.kernel.CloseHandle(handle)
 
@@ -256,7 +268,17 @@ def alive(procs: Dict[int, Proc], pid: int) -> bool:
 def gone(tree: List[int]) -> bool:
     """Whether none of the pids `tree` is running now."""
     now = snapshot()
-    return not any(alive(now, p) for p in tree)
+    return not any(alive(now, p) and still_running(p) for p in tree)
+
+
+def still_running(pid: int) -> bool:
+    """The Windows second opinion on a pid the table lists (see `Win32.running`); True wherever it cannot be asked."""
+    if not WINDOWS or os.environ.get("PROCTREE_CIM"):
+        return True
+    try:
+        return win32().running(pid)
+    except (OSError, AttributeError):
+        return True
 
 
 def kill_tree(pid: int, procs: Optional[Dict[int, Proc]] = None) -> bool:

@@ -1,9 +1,9 @@
 """The PreToolUse hook that refuses killing processes by name (.claude/hooks/block_kill_by_name.sh, rules in
 block_kill_by_name.py), and its wiring in .claude/settings.json and .skillshare/config.yaml.
 
-The rules are tried on command lines directly; the shim is run the way Claude Code runs it, the hook's JSON on stdin and
-the shim reading it without jq, and exit 2 with the reason on stderr is a refusal. The wiring: settings.json and the skillshare config
-declare the same PreToolUse matcher and command, so a `skillshare sync` does not drop it.
+The rules are tried on command lines directly; the shim is run the way Claude Code runs it, the hook's JSON on stdin
+and the shim reading it without jq, and exit 2 with the reason on stderr is a refusal. The wiring: settings.json and
+the skillshare config declare the same PreToolUse matcher and command, so a `skillshare sync` does not drop it.
 """
 import json
 import os
@@ -49,6 +49,13 @@ REFUSED = [
     "Stop-Process -Name python",
     "Stop-Process -ProcessName python -Force",
     "Stop-Process -n python",
+    "timeout 5 pkill x",
+    "nice -n 10 pkill x",
+    "sudo -u root pkill -f x",
+    "sudo -n pkill x",
+    "env -i FOO=1 killall x",
+    "kill -n python",
+    "kill -pr python",
     "spps -na python",
     'powershell -Command "Stop-Process -Name python"',
     'powershell.exe -NoProfile -Command "Stop-Process -ProcessName python"',
@@ -60,6 +67,10 @@ ALLOWED = [
     "kill 123",
     "kill -9 123",
     "kill -TERM $!",
+    "kill -n 9 123",
+    "command -v pkill",
+    "sudo grep pkill file",
+    "timeout 5 sleep 1",
     "taskkill /PID 123 /T /F",
     "taskkill //PID 123",
     "Stop-Process -Id 123",

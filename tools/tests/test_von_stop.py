@@ -6,6 +6,7 @@ script, the `von` shim of a Mac one), which starts a Python HTTP server whose co
 fakes, not shebang scripts: Windows cannot run those. The tests start two games, stop one's server through the script
 and check that only that branch went: the other server still answers, both games and the sidecar still run.
 """
+import contextlib
 import os
 import shutil
 import socket
@@ -185,11 +186,11 @@ class ProctreeTests(unittest.TestCase):
 
 PS_OUTPUT = """    1     0 Ss   /sbin/launchd
   100     1 S    /Applications/Godot.app/Contents/MacOS/Godot --path /Users/me/Forced-Entry
-  101   100 S    /Users/me/Library/Application Support/Forced-Entry/von/bin/python /Users/me/x/bin/von serve --device cpu
+  101   100 S    /Users/me/Library/Application Support/Forced-Entry/von/bin/python /Users/me/x/bin/von serve
   102   101 Z    (python)
   103   100 S    /usr/bin/taskpolicy -b -p 101
   200     1 S    /Applications/Godot.app/Contents/MacOS/Godot --path /Users/me/Other
-  201   200 S    /Users/me/Library/Application Support/Forced-Entry/von/bin/python /Users/me/x/bin/von serve --device cpu
+  201   200 S    /Users/me/Library/Application Support/Forced-Entry/von/bin/python /Users/me/x/bin/von serve
 """
 
 
@@ -206,7 +207,7 @@ class MacTableTests(unittest.TestCase):
         procs = self.table()
         self.assertEqual(procs[101].ppid, 100)
         self.assertEqual(procs[102].state, "Z")
-        self.assertTrue(procs[101].cmd.endswith("von serve --device cpu"), procs[101].cmd)
+        self.assertTrue(procs[101].cmd.endswith("bin/von serve"), procs[101].cmd)
         self.assertIn("Application Support", procs[101].cmd)
 
     def test_the_server_is_found_under_its_game_only(self):
@@ -220,7 +221,15 @@ class MacTableTests(unittest.TestCase):
         procs = self.table()
         sent = []
         # The server ignores SIGTERM: snapshots show it alive until the SIGKILL, and the clock jumps past the grace.
-        with mock.patch.object(proctree, "WINDOWS", False),                 mock.patch.object(proctree, "snapshot", side_effect=[procs, procs, {}]),                 mock.patch.object(proctree.signal, "SIGKILL", 9, create=True),                 mock.patch.object(proctree, "send", side_effect=lambda pids, sig: sent.append((sig, list(pids)))),                 mock.patch.object(proctree.time, "monotonic", side_effect=[0, 0, 10, 10]),                 mock.patch.object(proctree.time, "sleep"):
+        with contextlib.ExitStack() as stack:
+            for target, name, kwargs in (
+                    (proctree, "WINDOWS", {"new": False}),
+                    (proctree, "snapshot", {"side_effect": [procs, procs, {}]}),
+                    (proctree.signal, "SIGKILL", {"new": 9, "create": True}),
+                    (proctree, "send", {"side_effect": lambda pids, sig: sent.append((sig, list(pids)))}),
+                    (proctree.time, "monotonic", {"side_effect": [0, 0, 10, 10]}),
+                    (proctree.time, "sleep", {})):
+                stack.enter_context(mock.patch.object(target, name, **kwargs))
             self.assertTrue(proctree.kill_tree(101, procs))
         term, kill = sent
         self.assertEqual(term, (proctree.signal.SIGTERM, [101, 102]))
