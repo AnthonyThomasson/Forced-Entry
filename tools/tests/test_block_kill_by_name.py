@@ -56,6 +56,13 @@ REFUSED = [
     "env -i FOO=1 killall x",
     "kill -n python",
     "kill -pr python",
+    'Get-Process -Name "von*" | Stop-Process',
+    'Get-Process "von*" | Stop-Process',
+    "Get-Process -Name 'von' | Stop-Process",
+    "Get-Process -ProcessName python | Stop-Process",
+    "Get-Process -Name $n | Stop-Process",
+    "Get-Process $n | Stop-Process",
+    "gps -n python | % { Stop-Process -Id $_.Id }",
     'powershell "Stop-Process -Name x"',
     'pwsh -NoProfile "Stop-Process -ProcessName x"',
     'powershell -NoProfile -ExecutionPolicy Bypass "pkill x"',
@@ -83,6 +90,10 @@ ALLOWED = [
     "kill -9 123",
     "kill -TERM $!",
     "kill -n 9 123",
+    "Get-Process -Id $x | Stop-Process",
+    "gps -id 5 | Stop-Process",
+    "Get-Process -InputObject $p | Stop-Process",
+    "Get-Process -Inp $p | Stop-Process",
     "kill -n TERM 123",
     "kill -n SIGKILL 5",
     "powershell -File x.ps1",
@@ -143,6 +154,11 @@ class RulesTests(unittest.TestCase):
         for command in ALLOWED:
             with self.subTest(command=command):
                 self.assertIsNone(rules.refusal(command))
+
+    def test_a_pgrep_refusal_says_where_such_text_may_go(self):
+        run = run_shim("kill $(pgrep von)")
+        self.assertEqual(run.returncode, 2)
+        self.assertIn("single-quoted string or a heredoc", run.stderr)
 
     def test_the_refusal_names_the_way_out(self):
         self.assertIn("kill <pid>", rules.MESSAGE)

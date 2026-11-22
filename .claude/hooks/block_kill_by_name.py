@@ -41,10 +41,15 @@ STOP_NAME = re.compile(r"^-(n|na|nam|name|pr|pro|proc|proce|proces|process|proce
 STOP_PROCESS = {"stop-process", "spps"}
 # Statements, but a `{ }` block or `( )` group stays in its statement (`Get-Process x | % { Stop-Process -Id $_.Id }`).
 WHOLE_STATEMENT_END = r"&&|\|\||[;&\n`]"
-GET_BY_NAME = re.compile(r"\b(?:get-process|gps)\s+(?:-n\w*[:\s]+)?[A-Za-z*]", re.I)
+# A Get-Process / gps with any argument but -Id / -InputObject (or their abbreviations): a name, quoted or not, a
+# variable, -Name / -ProcessName ...; a bare `Get-Process |` has none.
+BY_PID_SWITCH = r"(?:id|i|in(?:p(?:u(?:t(?:o(?:b(?:j(?:e(?:c(?:t)?)?)?)?)?)?)?)?)?)(?:[\s:]|$)"
+GET_BY_NAME = re.compile(r"\b(?:get-process|gps)\s+(?:[^\s|)};&-]|-(?!" + BY_PID_SWITCH + "))", re.I)
 STOPS_PROCESSES = re.compile(r"\b(?:stop-process|spps)\b|\.kill\(|\{[^}]*\bkill\b", re.I)
 QUOTED = re.compile(r"\"(?:\\.|[^\"\\])*\"|'[^']*'")
 SINGLE_QUOTED = re.compile(r"'[^']*'")
+PGREP_WHAT = "`kill` fed by `pgrep` / `pidof`"
+PGREP_HINT = " If this is only text (a commit message, say), put it in a single-quoted string or a heredoc."
 # A kill fed by a lookup by name (the shell expands what a double quote holds, not a single quote).
 PGREP_KILL = re.compile(
     r"\bkill\b[^;&|\n]*(?:\$\(|`)\s*(?:pgrep|pidof)\b"  # kill $(pgrep x), kill `pgrep x`
@@ -139,7 +144,7 @@ def lookup_refusal(command: str) -> Optional[str]:
         if GET_BY_NAME.search(text) and STOPS_PROCESSES.search(text):
             return "`Get-Process <name>` into a Stop-Process"
     if PGREP_KILL.search(SINGLE_QUOTED.sub("''", body)):
-        return "`kill` fed by `pgrep` / `pidof`"
+        return PGREP_WHAT
     return None
 
 
@@ -242,7 +247,7 @@ def main() -> int:
         return 0
     what = refusal(command)
     if what:
-        print(MESSAGE.format(what=what), file=sys.stderr)
+        print(MESSAGE.format(what=what) + (PGREP_HINT if what == PGREP_WHAT else ""), file=sys.stderr)
         return 2
     return 0
 
