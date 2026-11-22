@@ -21,6 +21,9 @@ branch. Enable both once per clone with `tools/install_hooks.sh`; each script's 
 the post-checkout hook, for a new worktree, run it). Tests run through
 gdUnit4 (`addons/gdUnit4/`; `tools/run_tests.sh` drives it headless).
 
+**A fresh machine:** one bootstrap command per OS installs and pins everything (`README.md`: `tools/setup/bootstrap.ps1` on
+Windows, `tools/setup/bootstrap.sh` on a Mac); `tools/von/boot.ps1` / `boot.sh` start Von.
+
 **Godot and Python are found, never hard-coded:** a bash script sources `tools/setup/lib.sh` (`fe_use_godot`,
 `fe_use_python`), Python code imports `tools/setup/fe_env.py` (`find_godot()`); both read the pins in
 `tools/setup/versions.env` and the per-user root (`FORCED_ENTRY_HOME`, else the OS's app-data folder). Scripts run on a

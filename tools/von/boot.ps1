@@ -15,8 +15,20 @@
 # Exit codes: 0 -Check passed (a started server exits with its own code); 2 a bad argument; 3 the setup is missing or
 # broken. The cause is one line on stderr, `von: <cause>. Fix: <the bootstrap command>`, and -Check says `von: ready`.
 # It needs -ExecutionPolicy Bypass, as the dot-sourced tools\setup\lib.ps1 does (see there).
-param([switch]$Check, [int]$Port = 8000, [string]$BindHost = '127.0.0.1', [string]$Device = 'cpu')
+[CmdletBinding(PositionalBinding = $false)]
+param([switch]$Check, [string]$Port = '8000', [string]$BindHost = '127.0.0.1', [string]$Device = 'cpu',
+      [Parameter(ValueFromRemainingArguments = $true)][string[]]$Rest)
 . (Join-Path $PSScriptRoot '..\setup\lib.ps1')
+
+# Bad arguments end the run with exit code 2 and a message, as boot.sh does.
+if ($Rest) {
+    [Console]::Error.WriteLine("von: unknown argument: $($Rest -join ' ') (boot.ps1 [-Check] [-Port N] [-BindHost H] [-Device D])")
+    exit 2
+}
+if ($Port -notmatch '^\d+$' -or -not $BindHost -or -not $Device) {
+    [Console]::Error.WriteLine('von: -Port needs a number, -BindHost and -Device a value')
+    exit 2
+}
 
 $vonHome = Get-FeVonHome
 $venv = Join-Path $vonHome 'venv'
@@ -40,10 +52,12 @@ if (Test-Path -LiteralPath $cfg) {
         }
     }
 }
-& (Join-Path $bin 'python.exe') -c 'pass' 2>$null | Out-Null
+$venvPython = Join-Path $bin 'python.exe'
+if (-not (Test-Path -LiteralPath $venvPython)) { Stop-Broken "the Von venv's Python is missing ($venvPython)" }
+& $venvPython -c 'pass' 2>$null | Out-Null
 if ($LASTEXITCODE -ne 0) { Stop-Broken "the Von venv's Python does not run ($bin\python.exe)" }
 if (-not (Test-Path -LiteralPath $von)) { Stop-Broken "von-sdk is not installed in the Von venv ($von is missing)" }
-foreach ($f in 'config.json', 'tokenizer.json', 'calibration.json', 'marker_calibration.json', 'model.safetensors', 'option_marker.pt') {
+foreach ($f in @((Get-FeManifest)['VON_WEIGHT_FILES'] -split ',')) {
     $p = Join-Path $vonHome "checkpoints\von-1.2\$f"
     if (-not (Test-Path -LiteralPath $p) -or (Get-Item -LiteralPath $p).Length -eq 0) { Stop-Broken "the Von weights are missing ($p)" }
 }

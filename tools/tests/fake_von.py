@@ -9,7 +9,8 @@ What the fake does, so the scripts can be driven end to end:
   von serve --host H --port N --device D  writes served.json (its cwd and arguments) into its working directory, then
                                           answers every GET with 200 on H:N until it is killed; `--device crash` exits 7
   hf download REPO --revision R --local-dir DIR
-                                          writes the six weight files into DIR (what `hf download` would leave there)
+                                          writes the weight files into DIR (what `hf download` would leave there); with
+                                          FAKE_HF_FAIL set it fails with exit 1 instead (the network is down)
 
 `von_home()` builds the venv once per test process (a venv is not relocatable: its launchers hold its own path) and
 removes it at exit; callers get a `FakeHome` whose pieces they may break and must restore.
@@ -27,8 +28,10 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-WEIGHT_FILES = ("config.json", "tokenizer.json", "calibration.json", "marker_calibration.json", "model.safetensors",
-                "option_marker.pt")
+ROOT = Path(__file__).resolve().parents[2]
+# The one list of weight files, from the manifest (the scripts read it from there too).
+WEIGHT_FILES = tuple(next(line.partition("=")[2] for line in (ROOT / "tools" / "setup" / "versions.env").read_text().splitlines()
+                          if line.startswith("VON_WEIGHT_FILES=")).strip().split(","))
 WINDOWS = sys.platform == "win32"
 
 SOURCE = '''
@@ -55,6 +58,9 @@ def main():
 
 def hf_main():
     args = sys.argv[1:]
+    if os.environ.get("FAKE_HF_FAIL"):
+        print("fake hf: no network", file=sys.stderr)
+        return 1
     target = args[args.index("--local-dir") + 1]
     os.makedirs(target, exist_ok=True)
     for name in %r:

@@ -29,7 +29,7 @@ What it does, step by step (each is logged as `installed`, `upgraded` or `up to 
 | `git` | Git for Windows through `winget` (it brings Git Bash, which the repo's `tools/*.sh` run in) | already there |
 | `python` | Python 3.12 through `winget` | `python@3.12` through `brew` |
 | `godot` | the standard Godot 4.4.1 (no .NET, no C# in this project) from the GitHub release, checked against the pinned SHA-512, in the per-user folder below | the same, or the Godot already in `/Applications` when it is exactly that version (mono or not) |
-| `skillshare` | the pinned release, checked against its pinned SHA-256 | the same |
+| `skillshare` | one at or above the pinned version is kept where it is; otherwise the pinned release (checked against its pinned SHA-256) goes into `<per-user folder>\bin` | the same, into `<per-user folder>/bin` |
 | `hooks` | `tools/install_hooks.sh` through Git Bash: the git hooks and the skills links | the same |
 | `venv` | a venv under the Von home with `von-sdk` at the pinned version (built from Python 3.12 even when a newer Python is installed) | the same |
 | `weights` | the Von weights at the pinned revision into `<von home>/checkpoints/von-1.2` (about 3 GB) | the same |
@@ -45,6 +45,12 @@ present. A run that stopped (a failed download, a pip error, a closed terminal) 
 and finishes: a half-built venv or unpacked Godot is redone, a stopped weights download resumes. When a step changes your
 `PATH` (a `winget` install, the skillshare folder) the log ends with a note to open a new terminal; the bootstrap itself
 carries on in the same run.
+
+The bootstrap never writes skillshare over another install or into a package manager's folder, and never downgrades
+one. The repo's scripts (the hooks, `tools/sync_skills.sh`) look in `<per-user folder>/bin` for skillshare themselves, so
+they need no `PATH` change. To run `skillshare` by hand: on Windows the bootstrap adds that folder to your user `PATH`; on a
+Mac it prints the line to add to your shell profile (it edits no profile), and until you do, `skillshare` on the command
+line is whichever one your `PATH` already finds.
 
 Options (the Windows spelling first): `-Check` / `--check` looks, installs nothing and touches no network, and exits 1 when
 any step is missing or out of date; `-Skip a,b` / `--skip=a,b` leaves steps out (`git python godot skillshare hooks venv

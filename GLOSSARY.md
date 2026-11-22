@@ -399,12 +399,11 @@ reason.
 ### Setup
 
 **Von home**:
-The per-user folder that holds everything Von needs: its Python environment and its weights. Von is started with it as its
-working directory, because it looks for its weights only there.
-_Avoid_: Von install, Von folder
+The per-user folder that holds Von's install: its software and its weights.
+_Avoid_: Von folder
 
 **Bootstrap**:
 The one command per operating system that installs or upgrades everything the game, Von and the dev tooling need on a
-machine, at the versions pinned in the manifest. It does only what is missing or out of date, so running it again installs
-nothing and carries on from where an earlier run stopped.
+machine, at the pinned versions. It does only what is missing or out of date, so running it again installs nothing and
+carries on from where an earlier run stopped.
 _Avoid_: installer, setup script

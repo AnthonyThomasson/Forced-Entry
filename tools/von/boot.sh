@@ -42,7 +42,7 @@ home="$(sed -n 's/^home *= *//p' "$VENV/pyvenv.cfg" 2>/dev/null | head -n1 | tr 
 [[ -z "$home" || -d "$(fe_posix_path "$home")" ]] || broken "the Von venv's base Python is gone (pyvenv.cfg home = $home)"
 "$VENV_BIN/python$EXE" -c 'pass' >/dev/null 2>&1 || broken "the Von venv's Python does not run ($VENV_BIN/python$EXE)"
 [[ -x "$VENV_BIN/von$EXE" ]] || broken "von-sdk is not installed in the Von venv ($VENV_BIN/von$EXE is missing)"
-for f in config.json tokenizer.json calibration.json marker_calibration.json model.safetensors option_marker.pt; do
+for f in $(fe_manifest_get VON_WEIGHT_FILES | tr ',' ' '); do
   [[ -s "$VON_HOME/checkpoints/von-1.2/$f" ]] || broken "the Von weights are missing ($VON_HOME/checkpoints/von-1.2/$f)"
 done
 

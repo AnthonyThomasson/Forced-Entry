@@ -169,12 +169,21 @@ class CheckTests(BootCase):
             self.assert_broken(boot, r"'von --version' fails in the Von venv")
         self.each(check)
 
-    def test_a_bad_argument_exits_2_in_bash(self):
-        if not BASH:
-            self.skipTest("no bash")
-        for args in (["--bogus"], ["--port", "not-a-number"]):
-            r = self.run_boot(Boot("bash", BOOT_SH), args)
-            self.assertEqual(r.returncode, 2, r.stderr)
+    def test_a_bad_argument_exits_2_with_one_message(self):
+        def check(boot):
+            bad = [["-Bogus"], ["-Port", "not-a-number"], ["stray"]] if boot.name == "powershell" else \
+                [["--bogus"], ["--port", "not-a-number"]]
+            for args in bad:
+                r = self.run_boot(boot, args)
+                self.assertEqual(r.returncode, 2, f"{args}: {r.stdout}{r.stderr}")
+                self.assertEqual(len([ln for ln in r.stderr.splitlines() if ln.strip()]), 1, r.stderr)
+                self.assertTrue(r.stderr.startswith("von: "), r.stderr)
+        self.each(check)
+
+    def test_a_venv_whose_python_is_gone_gives_only_the_one_line(self):
+        py = self.fake.python
+        self.swap(py, rename_to=self.tmp / "python.moved")
+        self.each(lambda boot: self.assert_broken(boot, r"the Von venv's Python (is missing|does not run) \(.*python.*\)"))
 
 
 class StartTests(BootCase):

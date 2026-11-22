@@ -8,17 +8,22 @@
 #     -Check      look, install nothing and touch no network: log each step as up to date or missing/outdated;
 #                 exit 1 when any is
 #     -Skip       leave these steps out (comma list of: git python godot skillshare hooks venv weights)
-#     -NoPath     do not add the skillshare folder to the user's PATH (the tool tests use it)
+#     -NoPath     do not add the skillshare folder to the user's PATH (the tool tests use it; the repo's scripts look in
+#                 that folder themselves)
 # Steps, in order: git (winget Git.Git: Git Bash), python (winget Python.Python.3.12: the 3.12 the Von venv is built
 # from, even when a newer Python is installed), godot (the pinned standard build, unpacked into the per-user root),
-# skillshare, hooks (git hooks and the skills links: tools/install_hooks.sh through Git Bash), venv (the Von venv under
-# <von home> with von-sdk), weights (the Von weights under <von home>\checkpoints\von-1.2). The per-user root is
-# tools\setup\lib.ps1's Get-FeHome (FORCED_ENTRY_HOME). It needs -ExecutionPolicy Bypass (lib.ps1 says why).
+# skillshare (one at or above the pin is kept; otherwise the pin goes into <fe home>\bin, never over another install),
+# hooks (git hooks and the skills links: tools/install_hooks.sh through Git Bash), venv (the Von venv under <von home>
+# with von-sdk), weights (the Von weights under <von home>\checkpoints\von-1.2; present but unverifiable offline they are
+# kept with a warning). The per-user root is tools\setup\lib.ps1's Get-FeHome (FORCED_ENTRY_HOME). It needs
+# -ExecutionPolicy Bypass (lib.ps1 says why).
 # Exit codes: 0 every step is up to date or done; 1 a step failed (the log names it; re-run to carry on) or, with
-# -Check, something is missing. When a step changed PATH the log ends with a note to open a new shell.
+# -Check, something is missing; 2 a bad argument (an unknown option, or a step name that is not one of the above).
+# When a step changed PATH the log ends with a note to open a new shell.
 # Other environment: FE_VON_PYTHON=C:\path\python.exe builds the Von venv from that Python instead of a 3.12 (its
 # version is then not checked).
-param([switch]$Check, [string[]]$Skip = @(), [switch]$NoPath)
+[CmdletBinding(PositionalBinding = $false)]
+param([switch]$Check, [string[]]$Skip = @(), [switch]$NoPath, [Parameter(ValueFromRemainingArguments = $true)][string[]]$Rest)
 $ErrorActionPreference = 'Continue'
 $ProgressPreference = 'SilentlyContinue'   # Invoke-WebRequest is many times faster without its progress bar
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch { }
@@ -34,11 +39,25 @@ $VenvBin = Join-Path $Venv 'Scripts'
 $VenvPy = Join-Path $VenvBin 'python.exe'
 $VenvVon = Join-Path $VenvBin 'von.exe'
 $Weights = Join-Path $VonHome 'checkpoints\von-1.2'
-$WeightFiles = 'config.json', 'tokenizer.json', 'calibration.json', 'marker_calibration.json', 'model.safetensors', 'option_marker.pt'
+# The files Von loads from the weights folder (the manifest's list), and the marker that says which revision they are.
+$WeightFiles = @($M['VON_WEIGHT_FILES'] -split ',')
 $Marker = '.fe-revision'
+$Steps = 'git', 'python', 'godot', 'skillshare', 'hooks', 'venv', 'weights'
 $SkipSet = @($Skip | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 
-$script:Installed = 0; $script:Upgraded = 0; $script:UpToDate = 0; $script:Missing = 0; $script:Skipped = 0
+# Bad arguments end the run with exit code 2 and a message, before anything is looked at or installed.
+if ($Rest) {
+    [Console]::Error.WriteLine("bootstrap: unknown argument: $($Rest -join ' ') (bootstrap.ps1 [-Check] [-Skip STEP,...] [-NoPath])")
+    exit 2
+}
+foreach ($name in $SkipSet) {
+    if ($Steps -notcontains $name) {
+        [Console]::Error.WriteLine("bootstrap: unknown step in -Skip: $name (steps: $($Steps -join ' '))")
+        exit 2
+    }
+}
+
+$script:Installed = 0; $script:Upgraded = 0; $script:UpToDate = 0; $script:Missing = 0; $script:Skipped = 0; $script:Unverified = 0
 $script:Notes = @()
 
 function Log([string]$text) { [Console]::Out.WriteLine("bootstrap: $text"); [Console]::Out.Flush() }
@@ -46,17 +65,25 @@ function Report-Ok([string]$step, [string]$detail) { $script:UpToDate++; Log "${
 function Report-Installed([string]$step, [string]$detail) { $script:Installed++; Log "${step}: installed ($detail)" }
 function Report-Upgraded([string]$step, [string]$detail) { $script:Upgraded++; Log "${step}: upgraded ($detail)" }
 function Report-Missing([string]$step, [string]$detail) { $script:Missing++; Log "${step}: $detail" }
+function Write-Notes { foreach ($n in $script:Notes | Select-Object -Unique) { Log "NOTE: $n" } }
 function Stop-Step([string]$step, [string]$cause) {
     Log "${step}: FAILED: $cause"
+    Write-Notes
     Log 'fix the cause and run the bootstrap again; it carries on from here'
     exit 1
 }
 
-# Re-read PATH from the registry, so what winget just installed is found without a new shell.
+# Add the registry's PATH entries this session lacks, so what winget just installed is found without a new shell. What
+# the session has is kept as it is (it may hold entries a parent process added that the registry does not).
 function Update-SessionPath {
-    $machine = [Environment]::GetEnvironmentVariable('Path', 'Machine')
-    $user = [Environment]::GetEnvironmentVariable('Path', 'User')
-    $env:Path = (@($machine, $user) | Where-Object { $_ }) -join ';'
+    $have = @($env:Path -split ';' | Where-Object { $_ })
+    $seen = @($have | ForEach-Object { $_.TrimEnd('\').ToLower() })
+    foreach ($scope in 'Machine', 'User') {
+        foreach ($entry in @([Environment]::GetEnvironmentVariable('Path', $scope) -split ';' | Where-Object { $_ })) {
+            if ($seen -notcontains $entry.TrimEnd('\').ToLower()) { $have += $entry; $seen += $entry.TrimEnd('\').ToLower() }
+        }
+    }
+    $env:Path = $have -join ';'
 }
 function Add-Note([string]$text) { $script:Notes += $text }
 
@@ -81,6 +108,12 @@ function Get-Download([string]$url, [string]$dest) {
     return $true
 }
 function Get-Sum([string]$algo, [string]$file) { return (Get-FileHash -Algorithm $algo -LiteralPath $file).Hash.ToLower() }
+# A file passes only when there is a pinned sum AND a computed one and they are equal (two empty strings are not a match).
+function Test-Sum([string]$algo, [string]$file, [string]$pinned) {
+    if (-not $pinned) { return $false }
+    $sum = Get-Sum $algo $file
+    return ($sum -and ($sum -eq $pinned.ToLower()))
+}
 function Expand-Zip([string]$zip, [string]$dest) {
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     [IO.Compression.ZipFile]::ExtractToDirectory($zip, $dest)
@@ -185,7 +218,7 @@ function Step-Godot {
         Log "godot: downloading $zip"
         $url = "$($M['GODOT_BASE_URL'])/$zip"
         if (-not (Get-Download $url (Join-Path $tmp $zip))) { Stop-Step 'godot' "download of $url failed (network?)" }
-        if ((Get-Sum 'SHA512' (Join-Path $tmp $zip)) -ne $M['GODOT_WIN64_SHA512']) {
+        if (-not (Test-Sum 'SHA512' (Join-Path $tmp $zip) $M['GODOT_WIN64_SHA512'])) {
             Stop-Step 'godot' "$zip does not match the SHA-512 pinned in versions.env"
         }
         Remove-Quietly $dir; Remove-Quietly "$dir.partial"
@@ -218,14 +251,20 @@ function Add-UserPathEntry([string]$Dir, [string]$KeyPath = 'Environment') {
     }
 }
 
+# The skillshare this repo's tools use: the one in <fe home>\bin first (the tools look there before anything else, so the
+# pinned one wins), then PATH, then ~\go\bin.
 function Find-Skillshare {
+    $own = Join-Path $FeHome 'bin\skillshare.exe'
+    if (Test-Path -LiteralPath $own) { return $own }
     $cmd = Get-Command skillshare -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($cmd) { return $cmd.Source }
-    foreach ($c in (Join-Path $FeHome 'bin\skillshare.exe'), (Join-Path $env:USERPROFILE 'go\bin\skillshare.exe')) {
-        if (Test-Path -LiteralPath $c) { return $c }
-    }
+    $go = Join-Path $env:USERPROFILE 'go\bin\skillshare.exe'
+    if (Test-Path -LiteralPath $go) { return $go }
     return $null
 }
+# One at or above the pin is up to date, wherever it is (a newer one is never downgraded). An older or unreadable one is
+# left alone and the pin goes into <fe home>\bin, the only folder the bootstrap writes skillshare into (never over another
+# install or into a package manager's folder).
 function Step-Skillshare {
     $want = $M['SKILLSHARE_VERSION']
     $bin = Find-Skillshare
@@ -233,46 +272,63 @@ function Step-Skillshare {
     if ($bin) {
         $out = (& $bin --version 2>$null) -join ' '
         if ($out -match '(\d+\.\d+\.\d+)') { $have = $Matches[1] }
-        if ($have -eq $want) { Report-Ok 'skillshare' "v$want at $bin"; return }
+        if ($have -and ([version]$have -ge [version]$want)) { Report-Ok 'skillshare' "v$have at $bin"; return }
     }
     if ($Check) {
-        if ($bin) { Report-Missing 'skillshare' "outdated (v$have), needs v$want" }
-        else { Report-Missing 'skillshare' "missing (needs v$want)" }
+        if ($bin) {
+            $shown = '?'
+            if ($have) { $shown = $have }
+            Report-Missing 'skillshare' "outdated (v$shown), needs v$want"
+        } else { Report-Missing 'skillshare' "missing (needs v$want)" }
         return
     }
     $zip = $M['SKILLSHARE_WIN64_ZIP']
-    # An old one is replaced where it is (so the PATH still finds the new one); else it goes into <home>\bin.
-    if ($bin) { $dir = Split-Path -Parent $bin } else { $dir = Join-Path $FeHome 'bin' }
+    $dir = Join-Path $FeHome 'bin'
+    $own = Join-Path $dir 'skillshare.exe'
     $tmp = New-ScratchDir
     try {
         Log "skillshare: downloading $zip"
         $url = "$($M['SKILLSHARE_BASE_URL'])/$zip"
         if (-not (Get-Download $url (Join-Path $tmp $zip))) { Stop-Step 'skillshare' "download of $url failed (network?)" }
-        if ((Get-Sum 'SHA256' (Join-Path $tmp $zip)) -ne $M['SKILLSHARE_WIN64_SHA256']) {
+        if (-not (Test-Sum 'SHA256' (Join-Path $tmp $zip) $M['SKILLSHARE_WIN64_SHA256'])) {
             Stop-Step 'skillshare' "$zip does not match the SHA-256 pinned in versions.env"
         }
         try { Expand-Zip (Join-Path $tmp $zip) (Join-Path $tmp 'x') } catch { Stop-Step 'skillshare' "unpacking $zip failed: $_" }
         New-Item -ItemType Directory -Force -Path $dir | Out-Null
-        try { Copy-Item -LiteralPath (Join-Path $tmp 'x\skillshare.exe') -Destination (Join-Path $dir 'skillshare.exe') -Force -ErrorAction Stop }
-        catch { Stop-Step 'skillshare' "could not write $dir\skillshare.exe (is skillshare running?): $_" }
+        try { Copy-Item -LiteralPath (Join-Path $tmp 'x\skillshare.exe') -Destination $own -Force -ErrorAction Stop }
+        catch { Stop-Step 'skillshare' "could not write $own (is skillshare running?): $_" }
     } finally { Remove-Quietly $tmp }
-    if ($bin) { Report-Upgraded 'skillshare' "v$have to v$want at $dir" } else { Report-Installed 'skillshare' "v$want at $dir" }
+    if ($bin -and ($bin -eq $own)) {
+        Report-Upgraded 'skillshare' "v$have to v$want at $dir"
+    } else {
+        $left = ''
+        if ($bin) { $left = " (the v$have at $bin is left alone)" }
+        Report-Installed 'skillshare' "v$want at $dir$left"
+    }
     $onPath = @($env:Path -split ';' | Where-Object { $_ -and ($_.TrimEnd('\') -eq $dir.TrimEnd('\')) }).Count -gt 0
     if (-not $onPath) {
         $env:Path = "$dir;$env:Path"
         if ($NoPath) { return }
         Add-UserPathEntry $dir
-        Add-Note "PATH changed (added $dir): open a new terminal so every shell sees skillshare"
+        Add-Note "PATH changed (added $dir): open a new terminal to run skillshare by hand; this repo's scripts look in that folder themselves"
     }
 }
 
 # ---- hooks and skills --------------------------------------------------------------------------------------------
+# Every skill in .skillshare\skills must be linked in .claude\skills (not just any entry).
+function Test-SkillsLinked {
+    $skills = Join-Path $Root '.claude\skills'
+    if (-not (Test-Path -LiteralPath $skills -PathType Container)) { return $false }
+    $source = Join-Path $Root '.skillshare\skills'
+    foreach ($d in @(Get-ChildItem -LiteralPath $source -Directory -ErrorAction SilentlyContinue)) {
+        if (-not (Test-Path -LiteralPath (Join-Path $skills $d.Name))) { return $false }
+    }
+    return $true
+}
 function Step-Hooks {
     $hooksPath = (& git config core.hooksPath 2>$null)
-    $skills = Join-Path $Root '.claude\skills'
-    $linked = (Test-Path -LiteralPath $skills) -and (@(Get-ChildItem -LiteralPath $skills -Force -ErrorAction SilentlyContinue).Count -gt 0)
-    if ($hooksPath -eq '.githooks' -and $linked) { Report-Ok 'hooks' 'core.hooksPath=.githooks, skills linked'; return }
-    if ($Check) { Report-Missing 'hooks' 'missing (tools/install_hooks.sh has not run in this checkout)'; return }
+    if ($hooksPath -eq '.githooks' -and (Test-SkillsLinked)) { Report-Ok 'hooks' 'core.hooksPath=.githooks, skills linked'; return }
+    if ($Check) { Report-Missing 'hooks' 'missing (tools/install_hooks.sh has not run in this checkout, or a skill is not linked)'; return }
     $bash = Find-GitBash
     if (-not $bash) { Stop-Step 'hooks' 'Git Bash not found (the git step installs Git for Windows)' }
     # install_hooks.sh runs sync_skills.sh, which needs skillshare on the PATH: it may have just been put elsewhere.
@@ -280,6 +336,7 @@ function Step-Hooks {
     if ($ss) { $env:Path = "$(Split-Path -Parent $ss);$env:Path" }
     & $bash 'tools/install_hooks.sh'
     if ($LASTEXITCODE -ne 0) { Stop-Step 'hooks' "tools/install_hooks.sh failed (exit $LASTEXITCODE; see above)" }
+    if (-not (Test-SkillsLinked)) { Stop-Step 'hooks' 'tools/install_hooks.sh finished but not every skill in .skillshare\skills is linked in .claude\skills' }
     Report-Installed 'hooks' 'git hooks enabled, skills linked'
 }
 
@@ -303,6 +360,9 @@ function Get-VenvProblem {
     $minor = Get-PyMinor $VenvPy
     if (-not $minor) { return 'rebuild: its Python does not run' }
     if (-not $env:FE_VON_PYTHON -and $minor -ne $M['VON_PYTHON']) { return "rebuild: it is Python $minor, Von needs $($M['VON_PYTHON'])" }
+    # A venv made without pip (or with a broken one) cannot install anything and never recovers: build it again.
+    & $VenvPy -m pip --version 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 0) { return 'rebuild: its pip does not run' }
     $have = Get-VenvSdkVersion
     if (-not $have) { return 'pip: von-sdk is not installed' }
     if ($have -ne $M['VON_SDK_VERSION']) { return "pip: von-sdk $have, want $($M['VON_SDK_VERSION'])" }
@@ -363,7 +423,15 @@ function Step-Weights {
     New-Item -ItemType Directory -Force -Path $Weights | Out-Null
     $env:PYTHONUTF8 = '1'   # hf's progress output has characters a Windows code page cannot encode
     & $hf download $repo --revision $rev --local-dir $Weights
-    if ($LASTEXITCODE -ne 0) { Stop-Step 'weights' 'hf download failed (network?)' }
+    if ($LASTEXITCODE -ne 0) {
+        # Offline (or the hub is down) with every file already here: Von can run on them, only their revision is unproven.
+        if (Test-WeightsPresent) {
+            $script:Unverified++
+            Log 'weights: present, revision not verified (hf download failed, network? run again online to verify and mark them)'
+            return
+        }
+        Stop-Step 'weights' 'hf download failed (network?)'
+    }
     if (-not (Test-WeightsPresent)) { Stop-Step 'weights' "hf download finished but $Weights lacks one of: $($WeightFiles -join ' ')" }
     [IO.File]::WriteAllText($markerFile, "$rev`n")
     Report-Installed 'weights' "$repo@$short in $Weights"
@@ -372,13 +440,14 @@ function Step-Weights {
 $suffix = ''
 if ($Check) { $suffix = ' (check only: nothing is installed)' }
 Log "per-user root: $FeHome$suffix"
-foreach ($step in 'git', 'python', 'godot', 'skillshare', 'hooks', 'venv', 'weights') {
+foreach ($step in $Steps) {
     if ($SkipSet -contains $step) { $script:Skipped++; Log "${step}: skipped"; continue }
     & "Step-$([cultureinfo]::InvariantCulture.TextInfo.ToTitleCase($step))"
 }
-foreach ($n in $script:Notes | Select-Object -Unique) { Log "NOTE: $n" }
+Write-Notes
 $summary = "$script:Installed installed, $script:Upgraded upgraded, $script:UpToDate up to date"
 if ($script:Skipped -gt 0) { $summary += ", $script:Skipped skipped" }
+if ($script:Unverified -gt 0) { $summary += ", $script:Unverified unverified" }
 if ($script:Missing -gt 0) { $summary += ", $script:Missing missing or outdated" }
 Log "done: $summary"
 if ($script:Missing -gt 0) { exit 1 }
