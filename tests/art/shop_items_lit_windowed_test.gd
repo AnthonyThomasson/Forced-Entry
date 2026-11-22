@@ -45,33 +45,39 @@ const VALUE := 0.3
 ## An old measure under this many pixels says nothing (the pot has no bright pixel at all): the
 ## kind is judged by the other measures, and by its mean colour, which every kind has.
 const MIN_PX := 12
-## What the new item shows of the old drawing, per kind, as measured in `SHOP_LIT_RECORD` mode
-## (old `a`, new `b`): `colour` the most the mean colour of what it adds may be from the old's (the
-## largest channel), `cover` the least share of the pixels it changes, `middle` (when it is there)
-## the most the pixel in the middle may be from the old's (a pot's broth), `bright` and `sat` the
-## least share of the old's bright and saturated pixels (0: the old has under `MIN_PX` of them, so
-## the kind is not judged by it, and the test says so). The causes of the gaps: the lit 3D picture
-## darkens a flat colour a shade (a mean about 0.02 to 0.05 under the flat's) and an item of
-## volume has a dark outline ring and a shadow the flat drawing has not (it changes more pixels).
+## What the new item shows of the old drawing, per kind, each bar its measured result (the picture
+## is the same every run: `SHOP_LIT_RECORD=<file>` writes old and new) with a little to spare for
+## the GPU: `colour` the most the mean colour of what it adds may be from the old's (the largest
+## channel), `cover` the least and the most share of the pixels it changes (an item of volume
+## changes more: its shadow and outline ring), `middle` (when it is there) the most the pixel in
+## the middle may be from the old's (a pot's broth), `bright` and `sat` the least share of the
+## old's bright and saturated pixels (0: the old has under `MIN_PX` of them, so the kind is not
+## judged by it, and the test says so). The cause of each kind's gap is on its row; the shared one
+## is that the lit 3D picture darkens a flat colour a shade.
 const BARS := {
-	"till": {
-		"colour": 0.09,
-		"cover": 0.6,
-		"bright": 0.4,
-		"sat": 0.0,
-	},  # a glowing pane, flat keys
-	"jar": { "colour": 0.04, "cover": 0.6, "bright": 0.4, "sat": 0.0 },
-	"pack": { "colour": 0.2, "cover": 0.6, "bright": 0.0, "sat": 0.4 },  # red 0.47 against 0.29
+	# a glowing pane on a dark body, flat keys; the till's body is a box with a shadow (cover 2.1)
+	"till": { "colour": 0.085, "cover": Vector2(1.8, 2.4), "bright": 1.3, "sat": 0.0 },
+	"jar": { "colour": 0.035, "cover": Vector2(0.9, 1.2), "bright": 1.2, "sat": 0.0 },
+	# red 0.47 flat against 0.29 lit; a pack of volume covers 2.9 times the flat one
+	"pack": { "colour": 0.19, "cover": Vector2(2.5, 3.2), "bright": 0.0, "sat": 1.1 },
 	# the pot: a dark outline ring, two handles and a shadow the flat drawing has not (0.081 darker)
-	"pot": { "colour": 0.1, "cover": 0.6, "bright": 0.0, "sat": 0.0, "middle": 0.05 },
-	"bowl": { "colour": 0.11, "cover": 0.6, "bright": 0.4, "sat": 0.4 },  # the rim ring: 480 of 960
-	"instruments": { "colour": 0.04, "cover": 0.6, "bright": 0.0, "sat": 0.0 },
-	"syringe": { "colour": 0.03, "cover": 0.6, "bright": 0.4, "sat": 0.4 },
-	"screen": { "colour": 0.06, "cover": 0.6, "bright": 0.4, "sat": 0.4 },
-	"cyber_arm": { "colour": 0.06, "cover": 0.6, "bright": 0.0, "sat": 0.4 },
-	"cyber_eye": { "colour": 0.1, "cover": 0.6, "bright": 0.4, "sat": 0.4 },
-	"cyber_chip": { "colour": 0.05, "cover": 0.6, "bright": 0.0, "sat": 0.4 },
-	"cyber_jar": { "colour": 0.12, "cover": 0.6, "bright": 0.0, "sat": 0.0 },
+	"pot": {
+		"colour": 0.09, "cover": Vector2(1.3, 1.7), "bright": 0.0, "sat": 0.0, "middle": 0.05,
+	},
+	# the bowl keeps its rim of its own colour to the footprint's edge, the broth inside (bright
+	# 640 of 960: a shadow ring)
+	"bowl": { "colour": 0.08, "cover": Vector2(0.75, 1.0), "bright": 0.6, "sat": 0.9 },
+	"instruments": { "colour": 0.035, "cover": Vector2(1.7, 2.2), "bright": 0.0, "sat": 0.0 },
+	"syringe": { "colour": 0.025, "cover": Vector2(1.7, 2.2), "bright": 1.9, "sat": 0.9 },
+	# a screen's lit pane is a thinner line in 3D (bright .78)
+	"screen": { "colour": 0.055, "cover": Vector2(1.0, 1.3), "bright": 0.7, "sat": 1.4 },
+	"cyber_arm": { "colour": 0.055, "cover": Vector2(1.0, 1.3), "bright": 0.0, "sat": 1.2 },
+	# an eye's bright white is a sphere with a shaded side (bright .82)
+	"cyber_eye": { "colour": 0.09, "cover": Vector2(0.9, 1.2), "bright": 0.75, "sat": 0.9 },
+	"cyber_chip": { "colour": 0.04, "cover": Vector2(1.2, 1.6), "bright": 0.0, "sat": 0.6 },
+	# a jar of volume: its glass is darker lit than flat (0.1 under) and it casts a shadow (cover
+	# 1.9)
+	"cyber_jar": { "colour": 0.11, "cover": Vector2(1.6, 2.1), "bright": 0.0, "sat": 0.0 },
 }
 
 var _window: SubViewport
@@ -262,14 +268,7 @@ func _judge(t: TestContext, key: String, old: Dictionary, new: Dictionary) -> vo
 		"the new %s is the colour of its prop (%.3f apart, %s against %s)"
 		% [key, gap, new["colour"], old["colour"]],
 	)
-	t.check(
-		new["changed"] >= int(old["changed"] * bar["cover"]),
-		"the new %s covers as much as its prop (%d px against %d)" % [
-			key,
-			new["changed"],
-			old["changed"],
-		],
-	)
+	_judge_cover(t, key, old["changed"], new["changed"], bar["cover"])
 	if bar.has("middle"):  # a thing with something in its middle (the pot's broth) shows it
 		t.check(
 			_gap(old["middle"], new["middle"]) <= float(bar["middle"]),
@@ -292,6 +291,15 @@ func _judge(t: TestContext, key: String, old: Dictionary, new: Dictionary) -> vo
 				old[measure] < MIN_PX,
 				"%s: the old prop has too few %s px to measure (%d)" % [key, measure, old[measure]],
 			)
+
+
+## The new item changes as many pixels as its prop, within `share`'s least and most of them.
+func _judge_cover(t: TestContext, key: String, old: int, new: int, share: Vector2) -> void:
+	t.check(
+		new >= int(old * share.x) and new <= int(old * share.y),
+		"the new %s covers what its prop does (%d px against %d: %.1f to %.1f times)"
+		% [key, new, old, share.x, share.y],
+	)
 
 
 func _line(m: Dictionary) -> String:

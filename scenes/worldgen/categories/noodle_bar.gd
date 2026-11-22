@@ -31,24 +31,18 @@ const OBJECTS := {
 			},
 			{
 				"key": "bowl", "at": Vector2(37, 3), "on_top": true,
-				"size": Vector2(
-					10,
-					10,
-				), "color": Color(0.9, 0.88, 0.8), "well": Color(0.74, 0.5, 0.2), "height": 5,
+				"size": Vector2(10, 10),
+				"color": Color(0.9, 0.88, 0.8), "well": Color(0.74, 0.5, 0.2), "height": 5,
 			},
 			{
 				"key": "bowl", "at": Vector2(49, 3), "on_top": true,
-				"size": Vector2(
-					10,
-					10,
-				), "color": Color(0.9, 0.88, 0.8), "well": Color(0.74, 0.5, 0.2), "height": 5,
+				"size": Vector2(10, 10),
+				"color": Color(0.9, 0.88, 0.8), "well": Color(0.74, 0.5, 0.2), "height": 5,
 			},
 			{
 				"key": "bowl", "at": Vector2(61, 3), "on_top": true,
-				"size": Vector2(
-					10,
-					10,
-				), "color": Color(0.9, 0.88, 0.8), "well": Color(0.74, 0.5, 0.2), "height": 5,
+				"size": Vector2(10, 10),
+				"color": Color(0.9, 0.88, 0.8), "well": Color(0.74, 0.5, 0.2), "height": 5,
 			},
 		],
 		"weight": 130,
@@ -78,17 +72,13 @@ const OBJECTS := {
 		"carries": [
 			{
 				"key": "bowl", "at": Vector2(-18, 0), "on_top": true,
-				"size": Vector2(
-					12,
-					12,
-				), "color": Color(0.9, 0.88, 0.8), "well": Color(0.74, 0.5, 0.2), "height": 3,
+				"size": Vector2(12, 12),
+				"color": Color(0.9, 0.88, 0.8), "well": Color(0.74, 0.5, 0.2), "height": 3,
 			},
 			{
 				"key": "bowl", "at": Vector2(22, 0), "on_top": true,
-				"size": Vector2(
-					12,
-					12,
-				), "color": Color(0.9, 0.88, 0.8), "well": Color(0.74, 0.5, 0.2), "height": 3,
+				"size": Vector2(12, 12),
+				"color": Color(0.9, 0.88, 0.8), "well": Color(0.74, 0.5, 0.2), "height": 3,
 			},
 		],
 		"weight": 110,

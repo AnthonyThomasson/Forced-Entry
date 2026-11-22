@@ -65,7 +65,9 @@ static func _shelf_run(c: PixelCanvas, base: Color, top: Color, row: Rect2i) -> 
 	Kit.fill_rect(c, Rect2i(1, outer_y, c.w - 2, 2), top, 10)
 
 
-## The fridge: a steel body and top with vents, its lit glass of drinks along the front.
+## The fridge: a steel body and top with vents, its lit glass of drinks along the front. The 3D
+## picture lays this flat art over the roof (the old look, kept there); the front it shows is the
+## mesh's lit pane with the real bottles in its windows (`ShopMesh`).
 static func _fridge(c: PixelCanvas, base: Color, top: Color, opts: Dictionary) -> void:
 	var packs: Array[Color] = ObjectArtShopConfig.shop_packs
 	Tech.box(c, Rect2i(0, 0, c.w, c.h), base, _FRIDGE_HEIGHT, 2)
@@ -83,7 +85,9 @@ static func _fridge(c: PixelCanvas, base: Color, top: Color, opts: Dictionary) -
 	)
 
 
-## The snack machine: a steel body, a keypad and a lit window of packs along the front.
+## The snack machine: a steel body, a keypad and a lit window of packs along the front. The 3D
+## picture lays this flat art over the roof (the old look, kept there); the front it shows is the
+## mesh's lit pane with the real packs in its windows (`ShopMesh`).
 static func _snack(c: PixelCanvas, base: Color, top: Color, opts: Dictionary) -> void:
 	var packs: Array[Color] = ObjectArtShopConfig.shop_packs
 	Tech.box(c, Rect2i(0, 0, c.w, c.h), base, 12, 2)

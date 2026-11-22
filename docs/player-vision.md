@@ -97,7 +97,7 @@ seen if any one is clear, the head tried first (the first clear point ends the a
 they stand, at the height they stand: a standing NPC (eye 69 px) looks over a table (31 px) and sees a standing body close behind a sofa
 (back 38 px), a ducked body (head 32 px, chest 24, hips 18) right behind that sofa is hidden from it, and a ducked NPC (eye 32 px) cannot
 look over a counter (38 px) at all; a car (47 px) is looked over standing and blocks ducked, the same; bodies never block, so a character in the way hides nothing; a `transparent` surface (a glass-panel
-door) is looked through however tall (the glass front of a shop's fridge or snack machine is a collider, not `transparent`: it blocks sight as the solid fridge did, though the stock behind it is drawn: `docs/stacked-items.md` SI16). A body in the open is seen from anywhere its lines are clear, so a ducked one far behind cover is
+door) is looked through however tall (the glass front of a shop's fridge or snack machine is a collider, not `transparent`: it blocks sight as the solid fridge did, though the stock behind it is drawn; the shelf aisle's bays are open, so a ducked eye sees through between its boards, which the old solid aisle did not allow: `docs/stacked-items.md` SI16). A body in the open is seen from anywhere its lines are clear, so a ducked one far behind cover is
 seen over it (the eye looks down). The query behind it is public (`SightRay.visible_parts(viewer, target)`: the heights of the target's
 points the viewer's eye sees, and `visible_centre`: the middle of them, -1 when none: what an aim at the visible part reads). **The
 view** casts the same rule on the plan (`SightRay.plan_hit`): a 3D ray level at the viewer's eye height in the twin space, so a piece lower

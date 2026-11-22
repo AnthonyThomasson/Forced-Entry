@@ -43,25 +43,43 @@ const SATURATION := 0.45
 const VALUE := 0.3
 ## An old measure under this many pixels says nothing: the piece is judged by the others.
 const MIN_PX := 12
-## What the new piece keeps of the old one, per piece, as measured in `SHOP_PIECE_RECORD` mode
-## (old and new, in a window): `bright` and `sat` the least share of the old's bright and saturated
-## pixels, `lum` the most its mean luminance may be under the old's, `colour` the most its mean
-## colour may be from the old's (the largest channel). The causes of what a bar leaves: a piece of
-## volume has a dark outline ring and a shadow the flat drawing had not (a pot, a bowl: the ring
-## takes half of a bowl's bright pixels), a chrome tool lying on a tray is a thinner and less
-## saturated bar than the flat line was (the cart), and the lit 3D picture darkens a flat colour a
-## shade (the till's, the snack machine's packs). A fridge keeps its glowing pale-blue glass (its
-## mean luminance .31): the pane is part of what the piece shows.
+## The shape of a stocked front (a fridge's, a snack machine's): over the picture rows of the
+## front face (this many art px above the footprint's front edge, to this many), the most separate
+## runs of stock-coloured pixels one scan line crosses (a bottle, a pack: a run at least this many
+## picture px wide, its luminance this much under the brightest of the band's) the piece shows.
+const FRONT_ROWS := Vector2(12.0, 3.0)
+const RUN_WIDTH := 4
+const RUN_DEPTH := 0.25
+## What the new piece keeps of the old one, per piece: `bright` and `sat` the least share of the
+## old's bright and saturated pixels, `lum` the most its mean luminance may be under the old's,
+## `colour` the most its mean colour may be from the old's (the largest channel), and on a fridge
+## and a snack machine `runs` (`_front_runs`) the stock a scan line of its front shows. Each bar is
+## what the piece measures in a window (the picture is the same every run:
+## `SHOP_PIECE_RECORD=<file>` writes old and new) with a little under it for the GPU; a bar that
+## sits at its result has a cause: the booth's bowls are painted the old size but are a cylinder
+## with a dark ring and a shadow the flat drawing had not (bright .64); the cart's chrome tools
+## lying on a tray are thinner, less saturated bars than the flat line (sat .53); the fridge's lit
+## front has a window cut for each bottle, so the bottles show dark against it, not the pane the old
+## drew over them (lum .023
+## under, blue .033 under); the snack machine's pane is dim and its packs stand behind its windows
+## (lum .017 under); the aisle's boards and packs are real and lit from the side (sat .89, colour
+## .025); the cyberware shelf holds 26 of the old 38 items (bright .87).
 const BARS := {
-	"shop_counter": { "bright": 0.9, "sat": 0.9, "lum": 0.01, "colour": 0.03 },
-	"noodle_counter": { "bright": 0.7, "sat": 0.8, "lum": 0.01, "colour": 0.03 },
-	"noodle_booth": { "bright": 0.6, "sat": 0.75, "lum": 0.01, "colour": 0.02 },
-	"tool_cart": { "bright": 0.9, "sat": 0.45, "lum": 0.01, "colour": 0.02 },
-	"monitor_wall": { "bright": 0.9, "sat": 0.9, "lum": 0.01, "colour": 0.02 },
-	"drinks_fridge": { "bright": 0.9, "sat": 0.9, "lum": 0.02, "colour": 0.03 },
-	"snack_machine": { "bright": 0.9, "sat": 0.9, "lum": 0.03, "colour": 0.04 },
-	"shelf_aisle": { "bright": 0.9, "sat": 0.8, "lum": 0.03, "colour": 0.04 },
-	"cyberware_shelf": { "bright": 0.6, "sat": 0.75, "lum": 0.03, "colour": 0.02 },
+	"shop_counter": { "bright": 1.3, "sat": 0.9, "lum": 0.005, "colour": 0.015 },
+	"noodle_counter": { "bright": 1.0, "sat": 0.95, "lum": 0.005, "colour": 0.015 },
+	"noodle_booth": { "bright": 0.6, "sat": 0.95, "lum": 0.005, "colour": 0.01 },
+	"tool_cart": { "bright": 1.0, "sat": 0.5, "lum": 0.005, "colour": 0.01 },
+	"monitor_wall": { "bright": 0.95, "sat": 0.95, "lum": 0.005, "colour": 0.005 },
+	"drinks_fridge": {
+		"bright": 0.95, "sat": 1.3, "lum": 0.03, "colour": 0.04,
+		"runs": { "share": 0.75, "floor": 6 },
+	},
+	"snack_machine": {
+		"bright": 1.0, "sat": 0.95, "lum": 0.02, "colour": 0.025,
+		"runs": { "share": 0.0, "floor": 4 },
+	},
+	"shelf_aisle": { "bright": 1.9, "sat": 0.85, "lum": 0.02, "colour": 0.03 },
+	"cyberware_shelf": { "bright": 0.85, "sat": 1.3, "lum": 0.005, "colour": 0.015 },
 }
 
 var _window: SubViewport
@@ -180,7 +198,10 @@ func _measure(image: Image, bare: Image, size: Vector2) -> Dictionary:
 		centre - half - Vector2(0.0, RISE * ZOOM),
 		half * 2.0 + Vector2(0.0, RISE * ZOOM),
 	).intersection(Rect2i(Vector2i.ZERO, image.get_size()))
-	var out := { "changed": 0, "bright": 0, "sat": 0, "lum": 0.0, "colour": Color(0, 0, 0) }
+	var out := {
+		"changed": 0, "bright": 0, "sat": 0, "lum": 0.0, "colour": Color(0, 0, 0),
+		"runs": _front_runs(image, size),
+	}
 	var sum := Vector3.ZERO
 	var light := 0.0
 	for y in range(area.position.y, area.end.y):
@@ -238,6 +259,8 @@ func _judge(t: TestContext, key: String, old: Dictionary, new: Dictionary) -> vo
 		"the new %s is as light on average (%.3f against %.3f, %.3f under at most)"
 		% [key, new["lum"], old["lum"], bar["lum"]],
 	)
+	if bar.has("runs"):
+		_judge_runs(t, key, old["runs"], new["runs"], bar["runs"])
 	var gap := _gap(old["colour"], new["colour"])
 	t.check(
 		gap <= float(bar["colour"]),
@@ -246,9 +269,48 @@ func _judge(t: TestContext, key: String, old: Dictionary, new: Dictionary) -> vo
 	)
 
 
+## The new piece shows its stock through the glass: as many runs of it on a scan line as the old
+## front did, to `share` of them.
+func _judge_runs(t: TestContext, key: String, old: int, new: int, bar: Dictionary) -> void:
+	var least := maxi(int(bar["floor"]), int(old * float(bar["share"])))
+	t.check(
+		new >= least,
+		"the new %s shows its stock through the glass (%d runs on a scan line against %d, at least "
+		% [key, new, old] + "%.0f%%, none under %d)" % [float(bar["share"]) * 100.0, bar["floor"]],
+	)
+
+
+## The most runs of stock a scan line of the front face of a piece of footprint `size` crosses
+## (`FRONT_ROWS`): the pixels well under the band's brightest are the stock, a run of them at
+## least `RUN_WIDTH` px wide one item (a lit front with nothing standing in it has none).
+func _front_runs(image: Image, size: Vector2) -> int:
+	var centre := Vector2(image.get_size()) * 0.5
+	var front := centre.y + size.y * 0.5 * ZOOM
+	var cols := Vector2i(
+		int(centre.x - (size.x * 0.5 - 6.0) * ZOOM), int(centre.x + (size.x * 0.5 - 6.0) * ZOOM)
+	)
+	var rows := Vector2i(int(front - FRONT_ROWS.x * ZOOM), int(front - FRONT_ROWS.y * ZOOM))
+	var brightest := 0.0
+	for y in range(rows.x, rows.y):
+		for x in range(cols.x, cols.y):
+			brightest = maxf(brightest, image.get_pixel(x, y).get_luminance())
+	var most := 0
+	for y in range(rows.x, rows.y):
+		var runs := 0
+		var width := 0
+		for x in range(cols.x, cols.y + 1):
+			if x < cols.y and image.get_pixel(x, y).get_luminance() < brightest - RUN_DEPTH:
+				width += 1
+				continue
+			runs += 1 if width >= RUN_WIDTH else 0
+			width = 0
+		most = maxi(most, runs)
+	return most
+
+
 func _line(m: Dictionary) -> String:
 	var c: Color = m["colour"]
-	return "%d %d %d %.3f %.3f %.3f %.3f" % [
+	return "%d %d %d %.3f %.3f %.3f %.3f runs %d" % [
 		m["changed"],
 		m["bright"],
 		m["sat"],
@@ -256,6 +318,7 @@ func _line(m: Dictionary) -> String:
 		c.r,
 		c.g,
 		c.b,
+		m["runs"],
 	]
 
 

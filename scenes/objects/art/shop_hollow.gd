@@ -4,9 +4,9 @@ extends RefCounted
 ## fridge, the snack machine and the shelf aisle are thin parts round empty bays, not a solid
 ## block with the stock painted on: the bottles, snack packs and goods stand on their boards as free
 ## items (`ShopStock`, `PieceCarries`). A fridge and a snack machine have a glass front (a part with
-## `material: "glass"`: a round meets it as glass, `Piece.get_surface_at`) that holds the stock in;
-## it is a collider and is not drawn (a clear pane has no mesh). The piece moves as the solid box of
-## its extent (`PieceBody._as_solid`).
+## `material: "glass"`: a round meets it as glass, `EnvironmentObject.get_surface_at_point`) that
+## holds the stock in; it is a collider and is not drawn (a clear pane has no mesh). The piece moves
+## as the solid box of its extent (`PieceBody._as_solid`).
 ## Everything is in px in the painter's canonical frame (`FurnitureSpec.area`: back-left corner at
 ## (0, 0), x across, the front toward +y); `parts` are `{ base, top, rect[, material] }` as
 ## `PieceHeights` reads them, `bays` the open spaces the stock stands in.
@@ -101,7 +101,9 @@ static func surface_at(spec: FurnitureSpec, height: float, point: Vector2) -> Di
 
 
 ## The bays of `spec`: `{ area (px), tops (px above the floor the boards' tops are at), room (px of
-## height above a board), depth (px) the stock stands in, key (the stock's item) }`.
+## height above a board), depth (px) the stock stands in, key (the stock's item), front (the stock
+## stands against the glass, to be seen through it, not in the middle of the bay: a fridge, a snack
+## machine; absent on an aisle) }`.
 static func bays(spec: FurnitureSpec) -> Array[Dictionary]:
 	var w := spec.size.x
 	var d := spec.size.y
@@ -112,13 +114,13 @@ static func bays(spec: FurnitureSpec) -> Array[Dictionary]:
 				shelves.append(shelves[-1] + 22.0)
 			return [{
 				"area": Rect2(WALL, WALL, w - 2.0 * WALL, d - WALL - GLASS), "tops": shelves,
-				"room": 20.0, "depth": 8.0, "key": "bottles",
+				"room": 20.0, "depth": 8.0, "key": "bottles", "front": true,
 			}]
 		"snack":
 			var shelves: Array[float] = [SNACK_SILL + BOARD, SNACK_SILL + 14.0 + BOARD]
 			return [{
 				"area": Rect2(WALL, WALL, w - WALL - KEYPAD, d - WALL - GLASS), "tops": shelves,
-				"room": 12.0, "depth": 6.0, "key": "snacks",
+				"room": 12.0, "depth": 6.0, "key": "snacks", "front": true,
 			}]
 	var middle := floorf(d / 2.0)
 	var tops: Array[float] = []

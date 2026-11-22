@@ -17,8 +17,8 @@ func describe() -> Dictionary:
 		"name": "A shop's hollow pieces move like solid ones",
 		"description": "The drinks fridge, snack machine, shelf aisle and cyberware shelf have "
 			+ "the centre of mass at the middle of their box and the yaw inertia of the solid "
-			+ "box of their footprint and height, and the same shove slides each as far as the "
-			+ "mass of that box would.",
+			+ "box of their footprint and height (the numbers a shove moves them by; the shove "
+			+ "itself is `objects/stocked_fridge_keeps_its_stock`).",
 		"tags": ["furniture", "3d", "tipping", "unbake"],
 		"timeout": 40.0,
 	}

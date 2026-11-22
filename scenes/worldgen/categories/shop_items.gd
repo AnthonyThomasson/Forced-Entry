@@ -3,12 +3,10 @@ class_name ShopItemsCatalog
 ## (`docs/stacked-items.md` SI16, decision D21): a till, a jar and a pack on a shop counter, the
 ## instruments and the syringe on a clinic cart's tray, a run of bottles in a drinks fridge and of
 ## snack packs in a snack machine or on an aisle's board (`ShopStock`: a run is one body, its
-## `spines` the
-## ones it draws). Each is a free piece (Objects' `item`
-## painter and mesh), like `ItemsCatalog`'s: an emptied piece (`PieceCarries`) sets them where it
-## drew them, and `RoomItems` never strews them on a top at random (they are in no `TOPS` row).
-## Footprints are px; the
-## heights are `ObjectMeshShopItemConfig`'s; a carrying row sets the colour it needs (a pack's).
+## `spines` the ones it draws). Each is a free piece (Objects' `item` painter and mesh), like
+## `ItemsCatalog`'s: an emptied piece (`PieceCarries`) sets them where it drew them, and
+## `RoomItems` never strews them on a top at random (they are in no `TOPS` row). Footprints are px;
+## the heights are `ObjectMeshShopItemConfig`'s; a carrying row sets the colour it needs (a pack's).
 
 const OBJECTS := {
 	"till": {

@@ -6,8 +6,9 @@ extends RefCounted
 ## boards in tiers, a steel lip along each outer edge; `fridge` is a tall drinks fridge and `snack`
 ## a snack machine with a keypad, both with a bay behind a glass front: the three are hollow
 ## (`ShopHollow`: a box per part, the glass a collider and not drawn) and their stock is free items
-## on the boards (`ShopStock`). What is lit (a fridge's front pane, a machine's back wall) is a glow
-## node of the piece's rig, no real light (the Lighting domain's).
+## on the boards (`ShopStock`). What is lit (the lit front of a fridge or a machine, with a window
+## cut for each bottle or pack) is a glow node of the piece's rig, no real light (the Lighting
+## domain's).
 
 const OPTIONS := ["kind", "top_color", "accent_color", "glass_color", "fridge_glow", "height"]
 ## How far a feature stands proud of the face it is laid on.
@@ -75,6 +76,7 @@ static func _tuning(spec: FurnitureSpec) -> Dictionary:
 		"glow": _colour(spec, "fridge_glow"),
 		"height": height_of(spec),
 		"tiers": ObjectMeshShopConfig.aisle_tiers,
+		"windows": ShopStock.windows(spec),
 	}
 
 
@@ -104,34 +106,59 @@ static func _counter(spec: FurnitureSpec, kit: MeshKit) -> void:
 	)
 
 
-## What glows: a fridge's lit pale-blue pane, a thin panel standing just behind the glass front
-## (the old front pane: a lit surface facing the room reads bright where one at the back of the bay
-## sits in the shade of its own roof; the stock stands behind it), and a snack machine's bay's back
-## wall, so its stock stands against a glow (the glass front is a collider, not drawn).
+## What glows: the lit front of a fridge (pale blue) or a snack machine (its glass colour), a thin
+## panel just inside the glass with a window cut for each bottle or pack (`ShopStock.windows`), so
+## the free stock stands behind it and shows against the glow round it, as the old front's bottles
+## stood against its pane. Nothing is drawn where the glass is: a clear pane has no mesh.
 static func _glass(spec: FurnitureSpec) -> Mesh:
 	var kit := spec.kit()
 	var bay: Dictionary = ShopHollow.bays(spec)[0]
 	var area: Rect2 = bay["area"]
-	var tops: Array[float] = bay["tops"]
-	if kind_of(spec) == "fridge":
-		var low := ShopHollow.KICK
-		kit.box(
-			MeshKit.volume(
-				spec.area(area.position.x, area.end.y - PROUD, area.size.x, PROUD),
-				low,
-				height_of(spec) - ShopHollow.FRAME - low,
-			),
-			_colour(spec, "fridge_glow"),
-		)
-		return kit.build()
-	var high: float = tops[-1] + float(bay["room"]) - tops[0]
-	kit.box(
-		MeshKit.volume(
-			spec.area(area.position.x, ShopHollow.WALL, area.size.x, PROUD), tops[0], high
-		),
-		_colour(spec, "glass_color"),
-	)
+	var low := ShopHollow.KICK
+	var high := height_of(spec) - ShopHollow.FRAME
+	if kind_of(spec) == "snack":
+		low = ShopHollow.SNACK_SILL
+		high = low + ShopHollow.SNACK_WINDOW
+	var colour := _glow_colour(spec)
+	var windows := ShopStock.windows(spec)
+	var xs: Array[float] = [area.position.x, area.end.x]
+	for window in windows:
+		xs.append_array([window.position.x, window.end.x])
+	xs.sort()
+	for k in xs.size() - 1:
+		var from := clampf(xs[k], area.position.x, area.end.x)
+		var to := clampf(xs[k + 1], area.position.x, area.end.x)
+		if to - from < 0.01:
+			continue
+		for span in _free_spans(windows, from, to, low, high):
+			kit.box(
+				MeshKit.volume(
+					spec.area(from, area.end.y - PROUD, to - from, PROUD), span.x, span.y - span.x
+				),
+				colour,
+			)
 	return kit.build()
+
+
+## The heights, `Vector2(from, to)`, between `low` and `high` that no window covers across the
+## width `from` to `to`.
+static func _free_spans(
+	windows: Array[Rect2], from: float, to: float, low: float, high: float
+) -> Array[Vector2]:
+	var blocked: Array[Vector2] = []
+	for window in windows:
+		if window.position.x <= from + 0.01 and window.end.x >= to - 0.01:
+			blocked.append(Vector2(window.position.y, window.end.y))
+	blocked.sort()
+	var out: Array[Vector2] = []
+	var at := low
+	for span in blocked:
+		if span.x > at:
+			out.append(Vector2(at, minf(span.x, high)))
+		at = maxf(at, span.y)
+	if at < high:
+		out.append(Vector2(at, high))
+	return out
 
 
 ## The hollow pieces (`ShopHollow`): a box per part but the glass, steel with the lighter top, and
