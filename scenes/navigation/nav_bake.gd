@@ -71,7 +71,10 @@ static func frames_for(region: NavigationRegion2D, avoid := false, ring := false
 ## `frames_for`), bake it (`origin` is the region's offset), assign it to `region` and call
 ## `landed`. Held weakly: a region freed meanwhile is left alone (a lambda that captures a
 ## node freed before it runs logs an engine error: a world torn down mid-bake), and `landed` is
-## still called. Returns the bake, to read `was_late` once it has landed.
+## still called. A job marked `urgent` (the planning ring's) is a high-priority task, one a pool
+## whose normal threads are busy with other bakes still runs: 14 ms of thread that waited 46 ms
+## behind three district bakes, and the frame that landed it with it. Returns the bake, to read
+## `was_late` once it has landed.
 static func start(
 	region: NavigationRegion2D,
 	job: Dictionary,
@@ -87,8 +90,9 @@ static func start(
 	bake._tree = Engine.get_main_loop() as SceneTree
 	var source: NavigationMeshSourceGeometryData2D = job["source"]
 	var poly := bake._poly
+	var urgent: bool = job.get("urgent", false)
 	bake._task = WorkerThreadPool.add_task(func() -> void:
-		NavSource.bake_polygon(poly, source, origin), false, "nav bake")
+		NavSource.bake_polygon(poly, source, origin), urgent, "nav bake")
 	if bake._tree == null:
 		bake._land()
 		return bake

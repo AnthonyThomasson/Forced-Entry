@@ -8,17 +8,17 @@ class_name NavBakeConfig
 ## too high and everything that waits for the
 ## map (the AI's first decision, an entry's slots) waits for it too, which moves the fight.
 
-## A district's planning re-bake (the 3D baker's, D16). Measured 2026-11-22 over the match guards
-## (`ambush_order_stress`, `grenade_match_stress`, `match_5v5_stress`; 15 planning bakes), the
-## thread takes 104 to 113 ms (the 2D baker's was 53), which is 6 to 17 frames of the 5v5's and the
-## grenade match's frame (9 ms) but 23 of the ambush guard's (4.7 ms a frame): a count is frames,
-## so the guard with the shortest frames sets it. At 24 that guard's second planning bake was still
-## on its thread at its landing frame (it started with the pool busy with a tile burst) and the
-## frame waited 38 ms (max 41.6 against a budget of 33.4); 32 is the 23 frames and the wait the
-## pool's other work adds (a landing still waits 20 ms at most there). The merge of the baker's
-## polygons (`NavMerge`, 13 ms of the district's thread) takes it to 36 (ambush guard: the landing
-## at 32 waited 34 to 42 ms on a quiet machine, 25 to 28 at 36).
-static var district_frames := 36
+## A district's planning re-bake (the 3D baker's, D16). The thread is the server's bake (98 to 105
+## ms) plus the polygon merge (`NavMerge`, 16 to 30 ms) and the plan's prep (3 to 6 ms): 120 to 140
+## ms, and the pool runs it beside the tile bursts and the avoid bakes. Measured 2026-11-23 over the
+## match guards (`ambush_order_stress`, `grenade_match_stress`, `match_5v5_stress`, 2 runs each, 25
+## planning bakes): the frame the thread was done on, counted from its start, was 8 to 24 in the
+## grenade and 5v5 matches (a frame of 7 to 9 ms) and 46 or 47 in 4 of the 7 ambush guard's (a
+## frame of 3 ms: a count is frames, so the guard with the shortest frames sets it). The count is
+## the p95 of those, 47, and 3 frames (a thread's 9 ms of spread there): 50. At 36 every landing
+## in the ambush guard was late (a frame held 26 to 30 ms, max 35.3 to 37.7 against 33.4); at 48 one
+## in six was still a few ms late.
+static var district_frames := 50
 ## A district's avoid map (`NavBuilder.avoid_map`): the same source and a few holes, so the same
 ## thread as the planning bake, and the AI asks for one at the start of every decision's walk and
 ## of an entry's slot, and a new set of bodies is a new bake, so what it waits for is a chain of
@@ -27,13 +27,16 @@ static var district_frames := 36
 ## 2 to 16 frames, none late at 20; the polygon merge adds 2 frames: 22), since a later thread holds
 ## the frame for the rest of its run, and the count does not decide the fight: with the map synced
 ## on the main thread (`navigation/map_syncs_without_a_thread`) the 5v5 guard's contact came the
-## same every run of a count.
+## same every run of a count. Measured again 2026-11-23 (73 avoid bakes of the guards above): done
+## on frame 3 to 20, p95 19; 22 holds.
 static var avoid_frames := 22
 ## The planning ring (`NavRing`): a small map of the match building, read by every snap and route
-## in the building, so it lands as soon as it safely can. The 3D baker's thread takes 14 ms and is
-## done in 0 to 2 frames, but 4 of the 15 rings that landed on 3 found it still queued behind a
-## tile burst (3 to 6 ms waited): 4.
-static var ring_frames := 4
+## in the building, so it lands as soon as it safely can. It is a high-priority task
+## (`NavBake.start`, `urgent`: queued with the others it waited 46 ms behind three district bakes
+## and the frame that landed it was 67 ms), a 14 ms thread. Measured on the guards above (36 rings):
+## done 0 to 2 frames after its start for 30, 6 for 6 of them (the thread taken late behind a
+## tile burst's group): the p95 is 6, and 7 holds it.
+static var ring_frames := 7
 ## A lone house (a test world's, the sandboxes'): its bake takes a few ms, so a count of 36 would
 ## make the AI wait 0.6 s for an avoid map it used to have in a frame or two (its first decision
 ## waits for it). Measured 2026-11-09 with the 2D baker over 517 bakes of the ai and navigation

@@ -122,7 +122,8 @@ static func covered(rect: Rect2) -> Rect2:
 ## walls and the furniture footprints of the district that reach it. `walls` is a parse of the
 ## district (`NavTiles.walls_after`'s shape) when the caller has one this frame, else the towers
 ## that reach the ring are parsed (`NavTiles.walls_reaching`). `furniture` is
-## `NavBuilder.furniture_holes`. {} when the region has no ring.
+## `NavBuilder.furniture_holes`. {} when the region has no ring. The job is `urgent`
+## (`NavBake.start`).
 static func job(
 	region: NavigationRegion2D,
 	site: NavSite,
@@ -140,4 +141,6 @@ static func job(
 	)
 	var reached := NavSource.walls(NavTiles.bin(outlines, reaches, Vector2.ZERO)[0])
 	var holes: Array = NavTiles.bin(furniture, reaches, ring.house.position)[0]
-	return NavSource.job(ring, holes, [], reached)
+	var baked := NavSource.job(ring, holes, [], reached)
+	baked["urgent"] = true
+	return baked

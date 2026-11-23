@@ -31,10 +31,10 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
   `WorkerThreadPool` task (the server's sync bake) through `NavBake.start`, which takes its result in (assign to the
   region, `landed`) on the physics frame the caller's count says after the start, not when the thread finishes. A thread not done by then is waited for, which holds that frame (`NavBake.was_late` of that bake, `late_total` of all; the match
   guards log `PERF <label> nav bakes late N of M`); one on time costs the frame its assignment only. `NavBake.frames_for(region, avoid, ring)`
-  picks the count from `NavBakeConfig`: a district's planning bake `district_frames` 36 (a 104 to 113 ms thread), its avoid
-  maps `avoid_frames` 22 (the AI waits for a chain of them, so each link costs the count), the planning ring `ring_frames` 4
-  (a 14 ms thread), a lone house's bakes `house_frames` 3.
-  Scaled to the 3D baker's 104 to 113 ms thread, so later than the 2D baker's landings (planning 14 frames before, avoid 12); bringing them down is open work.
+  picks the count from `NavBakeConfig`, a district's planning bake `district_frames` 50 (a 120 to 140 ms thread), its avoid
+  maps `avoid_frames` 22 (the AI waits for a chain of them, so each link costs the count), the planning ring `ring_frames` 7
+  (a 14 ms thread, an `urgent` job: a high-priority task, so busy normal threads do not queue it), a lone house's bakes `house_frames` 3.
+  Later than the 2D baker's (planning 14 frames before, avoid 12): open work.
   Remeasure when a bake or a frame changes. A region freed meanwhile is left
   alone and `landed` still called; a game closing finishes every bake in flight (`NavBake._finish_all`).
 - **A map syncs on the main thread** (`project.godot`, `navigation/world/map_use_async_iterations` off; `navigation/map_syncs_without_a_thread`): the server's
