@@ -10,15 +10,15 @@ class_name NavBakeConfig
 
 ## A district's planning re-bake (the 3D baker's, D16). The thread is the server's bake (98 to 105
 ## ms) plus the polygon merge (`NavMerge`, 16 to 30 ms) and the plan's prep (3 to 6 ms): 120 to 140
-## ms, and the pool runs it beside the tile bursts and the avoid bakes. Measured 2026-11-23 over the
-## match guards (`ambush_order_stress`, `grenade_match_stress`, `match_5v5_stress`, 2 runs each, 25
-## planning bakes): the frame the thread was done on, counted from its start, was 8 to 24 in the
-## grenade and 5v5 matches (a frame of 7 to 9 ms) and 46 or 47 in 4 of the 7 ambush guard's (a
-## frame of 3 ms: a count is frames, so the guard with the shortest frames sets it). The count is
-## the p95 of those, 47, and 3 frames (a thread's 9 ms of spread there): 50. At 36 every landing
-## in the ambush guard was late (a frame held 26 to 30 ms, max 35.3 to 37.7 against 33.4); at 48 one
-## in six was still a few ms late.
-static var district_frames := 50
+## ms, and the pool runs it beside the tile bursts and the avoid bakes. 36 frames is about 600 ms
+## in play at 60 fps, well above the thread, and what the fight tolerates: at 43 or more the
+## fight itself moves heavier (`perf/match_npc_vision` fails its p95), at 36 it is lighter than
+## before the 3D baker. A count is frames, so a guard whose frames are short sees the thread late:
+## `perf/ambush_order_stress`' headless frames are about 3 ms, so 36 of them are about 110 ms,
+## under the thread's 120 to 140, and it sets 50 for itself (its thread was done on frame 46 or
+## 47 in 4 of 7 runs). Bringing the thread down (a faster planning bake) is open work, after which
+## that override goes.
+static var district_frames := 36
 ## A district's avoid map (`NavBuilder.avoid_map`): the same source and a few holes, so the same
 ## thread as the planning bake, and the AI asks for one at the start of every decision's walk and
 ## of an entry's slot, and a new set of bodies is a new bake, so what it waits for is a chain of

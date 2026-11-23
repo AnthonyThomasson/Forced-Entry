@@ -31,8 +31,8 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
   `WorkerThreadPool` task (the server's sync bake) through `NavBake.start`, which takes its result in (assign to the
   region, `landed`) on the physics frame the caller's count says after the start, not when the thread finishes. A thread not done by then is waited for, which holds that frame (`NavBake.was_late` of that bake, `late_total` of all; the match
   guards log `PERF <label> nav bakes late N of M`); one on time costs the frame its assignment only. `NavBake.frames_for(region, avoid, ring)`
-  picks the count from `NavBakeConfig`, a district's planning bake `district_frames` 50 (a 120 to 140 ms thread), its avoid
-  maps `avoid_frames` 22 (the AI waits for a chain of them, so each link costs the count), the planning ring `ring_frames` 7
+  picks the count from `NavBakeConfig`, a district's planning bake `district_frames` 36 (a 120 to 140 ms thread; `perf/ambush_order_stress` sets 50, its headless frames being 3 ms), its avoid
+  maps `avoid_frames` 22 (the AI waits for a chain of them), the planning ring `ring_frames` 7
   (a 14 ms thread, an `urgent` job: a high-priority task, so busy normal threads do not queue it), a lone house's bakes `house_frames` 3.
   Later than the 2D baker's (planning 14 frames before, avoid 12): open work.
   Remeasure when a bake or a frame changes. A region freed meanwhile is left
