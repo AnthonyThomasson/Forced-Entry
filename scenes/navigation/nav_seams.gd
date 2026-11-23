@@ -44,6 +44,8 @@ const MIN_STRETCH := 0.5
 ## The most rounds `weld` goes on agreeing borders (a closed corner cell opens a stretch across).
 const MAX_ROUNDS := 4
 
+## How many welds ended with a tile still to agree after `MAX_ROUNDS` (a real bake has none).
+static var rounds_exhausted_total := 0
 ## How many edges `_emit` found cut but in one line with the corners round it, so left as they are
 ## (unwelded): a real bake has none (`steering_seams_welded` checks it).
 static var unsplit_total := 0
@@ -75,32 +77,41 @@ static func take(tile: NavigationRegion2D, poly: NavigationPolygon) -> void:
 ## (the cells of its outermost column), so both sides hold the same stretches, whichever tile was
 ## baked last.
 static func weld(changed: Array) -> void:
-	var agree := {}
+	var queue := {}
 	for item: Variant in changed:
 		if not _live(item):
 			continue
 		var tile := item as NavigationRegion2D
-		agree[tile] = true
-		for entry: Dictionary in neighbours(tile):
-			if _live(entry["tile"]):
-				agree[entry["tile"]] = true
+		queue[tile] = true
+		_add_neighbours(queue, tile)
 	var fit := {}
-	for item: Variant in agree:
-		var tile := item as NavigationRegion2D
-		fit[tile] = true
-		for entry: Dictionary in neighbours(tile):
-			if _live(entry["tile"]):
-				fit[entry["tile"]] = true
-	# Closing a cell at a tile's corner opens a stretch on the border across: go on until none do.
+	for item: Variant in queue:
+		fit[item] = true
+		_add_neighbours(fit, item as NavigationRegion2D)
+	# Closing a cell at a tile's corner opens a stretch on the border across: each tile that was
+	# baked again queues its neighbours for the next round, until none is.
 	for _round in MAX_ROUNDS:
-		var again := false
-		for item: Variant in agree:
-			again = _agree(item as NavigationRegion2D) or again
-		if not again:
+		var next := {}
+		for item: Variant in queue:
+			if _live(item) and _agree(item as NavigationRegion2D):
+				_add_neighbours(next, item as NavigationRegion2D)
+				_add_neighbours(fit, item as NavigationRegion2D)
+				fit[item] = true
+		queue = next
+		if queue.is_empty():
 			break
+	if not queue.is_empty():
+		rounds_exhausted_total += 1
 	for item: Variant in fit:
 		if _live(item):
 			_fit(item as NavigationRegion2D)
+
+
+## Add the live neighbours of `tile` to the set `into`.
+static func _add_neighbours(into: Dictionary, tile: NavigationRegion2D) -> void:
+	for entry: Dictionary in neighbours(tile):
+		if _live(entry["tile"]):
+			into[entry["tile"]] = true
 
 
 ## Bake `tile` again, from what it was first baked from, with the stretches of its borders its
@@ -372,9 +383,9 @@ static func _emit(ring: PackedInt32Array, cut: Dictionary, rings: Array[PackedIn
 		var corner := ring[(k + 2) % n] if forward else ring[(k + n - 1) % n]
 		if not forward and not _bends(
 				cut["verts"], ring[(k + n - 1) % n], ring[k], ring[(k + 1) % n]):
-			unsplit_total += 1
-			push_error("NavSeams: an edge to cut lies in one line with the corners round it")
-			continue
+			if not _emit_across(ring, k, cut, rings):
+				continue
+			return
 		var along: Array[int] = [ring[k]]
 		along.append_array(chain)
 		along.append(ring[(k + 1) % n])
@@ -389,6 +400,56 @@ static func _emit(ring: PackedInt32Array, cut: Dictionary, rings: Array[PackedIn
 			_emit(rest, cut, rings)
 		return
 	rings.append(ring)
+
+
+## `_emit` for the cut edge `ring[k]` to `ring[k + 1]` when the corners either side of it are in
+## line with it (a merged polygon keeps the collinear vertices of the borders it was made over):
+## the triangles of the edge are fanned from the nearest vertex of the ring (by steps round it)
+## that is off its line, and the two parts of the polygon left either side of that triangle are
+## taken the same way. A polygon is convex, so the triangle lies inside it. False when the ring has
+## no such vertex: the edge is left whole (`unsplit_total`).
+static func _emit_across(
+	ring: PackedInt32Array,
+	k: int,
+	cut: Dictionary,
+	rings: Array[PackedInt32Array],
+) -> bool:
+	var n := ring.size()
+	var a := ring[k]
+	var b := ring[(k + 1) % n]
+	var at := -1
+	for step in range(1, n):
+		for j in [(k + 1 + step) % n, (k + n - step + 1) % n]:
+			if at < 0 and j != k and j != (k + 1) % n and _bends(cut["verts"], a, b, ring[j]):
+				at = j
+	if at < 0:
+		unsplit_total += 1
+		push_error("NavSeams: an edge to cut lies in one line with the corners round it")
+		return false
+	var corner := ring[at]
+	var along: Array[int] = [a]
+	along.append_array(_cuts(a, b, cut))
+	along.append(b)
+	for i in along.size() - 1:
+		rings.append(PackedInt32Array([along[i], along[i + 1], corner]))
+	var after := PackedInt32Array()
+	var i := (k + 1) % n
+	while true:
+		after.append(ring[i])
+		if i == at:
+			break
+		i = (i + 1) % n
+	var before := PackedInt32Array()
+	i = at
+	while true:
+		before.append(ring[i])
+		if i == k:
+			break
+		i = (i + 1) % n
+	for part in [after, before]:
+		if part.size() >= 3:
+			_emit(part, cut, rings)
+	return true
 
 
 ## Whether the corner `b` of the points `a`, `b`, `c` is a turn (they are not in one line).
