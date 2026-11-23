@@ -123,6 +123,8 @@ func advance_build(staged: SnapshotBuild) -> void:
 			_start_build(staged)
 		SnapshotBuild.Piece.HOSTILE:
 			_hostile_piece(staged)
+		SnapshotBuild.Piece.AMBUSH:
+			_ambush_piece(staged)
 		SnapshotBuild.Piece.FINISH:
 			_finish_build(staged)
 
@@ -158,9 +160,9 @@ func _start_build(staged: SnapshotBuild) -> void:
 	staged.ctx = ctx
 	staged.parts = { "per_target": {}, "per_sections": {}, "analyses": {}, "targets": {} }
 	staged.analysed = _analysed_ids(ctx)
-	staged.piece = SnapshotBuild.Piece.FINISH
-	if not ctx["hostiles"].is_empty():
-		staged.piece = SnapshotBuild.Piece.HOSTILE
+	staged.piece = SnapshotBuild.Piece.HOSTILE
+	if ctx["hostiles"].is_empty():
+		_after_hostiles(staged)
 
 
 ## The decision's context every group reads: where the NPC stands, its world, space, map and body,
@@ -227,7 +229,26 @@ func _hostile_piece(staged: SnapshotBuild) -> void:
 		_analyse_target(staged, t)
 		if _analysed_ahead(staged):
 			return
+	_after_hostiles(staged)
+
+
+## What follows the hostiles: the ambush ranking when the order is an ambush whose posts are not
+## ranked yet, else the finish.
+func _after_hostiles(staged: SnapshotBuild) -> void:
+	staged.ambush_work = _orders.ambush_work(staged.ctx, staged.knowledge["order"], staged.rooms)
 	staged.piece = SnapshotBuild.Piece.FINISH
+	if not staged.ambush_work.is_empty():
+		staged.piece = SnapshotBuild.Piece.AMBUSH
+
+
+## The AMBUSH piece: a chunk of the ambush ranking the finish's order option reads; the finish
+## when the ranking is done.
+func _ambush_piece(staged: SnapshotBuild) -> void:
+	_own_scratch(staged)
+	_orders.ambush_step(staged.ambush_work, staged.ctx)
+	if staged.ambush_work.has("ranking"):
+		staged.ambush_work = {}
+		staged.piece = SnapshotBuild.Piece.FINISH
 
 
 ## Whether a hostile given full analysis is yet to come in the contacts' order.

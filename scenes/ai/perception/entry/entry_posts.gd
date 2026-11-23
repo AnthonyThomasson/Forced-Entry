@@ -41,6 +41,10 @@ const AMBUSH_DEPTH := 110.0
 const AMBUSH_LATERALS := [30.0, 60.0, 90.0, 120.0, 150.0, 180.0, 220.0, 260.0]
 ## Inset (px) of an ambush post from the room's walls.
 const AMBUSH_INSET := 22.0
+## A chunk of the ranking's candidate offsets that is one piece of a decision's build
+## (`ambush_step`: 16 of the 80 offsets, about 4 ms), and one past them all.
+const AMBUSH_CHUNK := 16
+const AMBUSH_WHOLE := 1 << 30
 ## How far apart (px) two ambushers' posts on one side of the doorway stand (a stack's slot spacing:
 ## clear of each other's footprint).
 const AMBUSH_SPACING := 44.0
@@ -384,18 +388,35 @@ func _ambush_ranking(
 	space: PhysicsDirectSpaceState3D,
 	bodies: Array,
 ) -> Dictionary:
+	var work := ambush_begin(entry, g, map, bodies)
+	while not work.has("ranking"):
+		ambush_step(work, map, space, AMBUSH_WHOLE)
+	return work["ranking"]
+
+
+## `ambush_begin` for a build's piece, the characters' bodies read as `ambush_spot` reads them.
+func ambush_start(entry: AgentEntry, g: Dictionary, map: RID) -> Dictionary:
+	return ambush_begin(entry, g, map, _bodies())
+
+
+## The ranking of `g`'s ambush posts, begun: `{ ranking }` when it is worked out already (the NPC's
+## own `cache` or the map's `_shared`), else the work in hand for `ambush_step`, which goes through
+## the candidate offsets a chunk at a time and ends with `ranking` in it. The same ranking whatever
+## the chunk, and kept (as `_ambush_ranking` keeps it) when the last chunk is done.
+func ambush_begin(
+	entry: AgentEntry, g: Dictionary, map: RID, bodies: Array = []
+) -> Dictionary:
 	var room_key := String(g["into"])
 	var key := "%s>%s" % [g["id"], room_key]
 	if cache.has(key):
-		return cache[key]
+		return { "ranking": cache[key] }
 	# Only an NPC's ranking (its body known: every body under its world root looked through) is
 	# shared; a geometry with no NPC keeps its own.
 	var npc := is_instance_valid(body)
-	var shared := EntryLayouts.per_map(_shared, map) if npc else {}
 	var shared_key := "%s|%s" % [entry.layouts.key(entry), key]
-	if shared.has(shared_key):
-		cache[key] = shared[shared_key]
-		return cache[key]
+	if npc and EntryLayouts.per_map(_shared, map).has(shared_key):
+		cache[key] = EntryLayouts.per_map(_shared, map)[shared_key]
+		return { "ranking": cache[key] }
 	var f := {
 		"id": g["id"],
 		"pos": g["pos"],
@@ -407,19 +428,35 @@ func _ambush_ranking(
 		"entry": entry,
 		"bodies": bodies,
 	}
-	var observers := _observers_of(g)
-	var out: Array = []
-	for at: Array in _offsets(AMBUSH_DEPTHS, AMBUSH_LATERALS):
-		var post := _ambush_post(f, at, observers, map, space)
+	return {
+		"key": key, "shared_key": shared_key, "npc": npc, "g": g, "f": f,
+		"observers": _observers_of(g), "offsets": _offsets(AMBUSH_DEPTHS, AMBUSH_LATERALS),
+		"cursor": 0, "posts": [],
+	}
+
+
+## The next `count` candidate offsets of the ranking in hand (`ambush_begin`), the last of them
+## ending it: `ranking` is `{ posts, landings }` (`_ambush_ranking`) and is kept on a baked map.
+func ambush_step(
+	work: Dictionary, map: RID, space: PhysicsDirectSpaceState3D, count: int
+) -> void:
+	var offsets: Array = work["offsets"]
+	var posts: Array = work["posts"]
+	var end := mini(int(work["cursor"]) + count, offsets.size())
+	for i in range(int(work["cursor"]), end):
+		var post := _ambush_post(work["f"], offsets[i], work["observers"], map, space)
 		if not post.is_empty():
-			out.append(post)
-	var ranking := { "posts": out, "landings": _bang_landings(g) }
+			posts.append(post)
+	work["cursor"] = end
+	if end < offsets.size():
+		return
+	var ranking := { "posts": posts, "landings": _bang_landings(work["g"]) }
 	if NavBuilder.ready(map):
 		# Only keep what was snapped onto a baked map.
-		cache[key] = ranking
-		if npc:
-			shared[shared_key] = ranking
-	return ranking
+		cache[work["key"]] = ranking
+		if work["npc"]:
+			EntryLayouts.per_map(_shared, map)[work["shared_key"]] = ranking
+	work["ranking"] = ranking
 
 
 ## The ambush post at offset `at` (`_offsets`) in frame `f` (`_ambush_ranking`: the doorway, its

@@ -176,6 +176,30 @@ func _entry_order_option(ctx: Dictionary, order: Dictionary, into: Dictionary) -
 	}
 
 
+## The ranking of the posts an `ambush` order's option will read, begun as the work in hand
+## (`EntryPosts.ambush_start`), for a build to go through a chunk a piece (`ambush_step`) so the
+## option finds it kept; {} for any other order, a room or doorway it does not know, or a ranking
+## worked out already.
+func ambush_work(ctx: Dictionary, order: Dictionary, rooms: Array) -> Dictionary:
+	if String(order.get("kind", "")) != "ambush":
+		return {}
+	var room := HouseRooms.by_key(rooms, String(order.get("room", "")))
+	if room.is_empty():
+		return {}
+	var g: Dictionary = _entry.geometry(
+		String(order.get("opening", "")), String(room["key"]), ctx["map"], ctx["space"],
+	)
+	if g.is_empty():
+		return {}
+	var work: Dictionary = _entry.posts.ambush_start(_entry, g, ctx["map"])
+	return {} if work.has("ranking") else work
+
+
+## One chunk of the ranking in hand (`ambush_work`), `ranking` in it when that was the last.
+func ambush_step(work: Dictionary, ctx: Dictionary) -> void:
+	_entry.posts.ambush_step(work, ctx["map"], ctx["space"], _entry.posts.AMBUSH_CHUNK)
+
+
 ## The ORDER option of an `ambush` order: an `ambush` of the doorway from the ordered room at this
 ## member's post (`EntryPosts.ambush_spot`), its gun on the threshold; {} for a room it does not
 ## know or no post.

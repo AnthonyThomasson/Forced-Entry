@@ -34,6 +34,9 @@ static var per_frame: int = 4
 static var cost_start: int = 1
 static var cost_hostile: int = 2
 static var cost_finish: int = 1
+## A chunk of an ambush order's post ranking (`EntryPosts.AMBUSH_CHUNK` offsets: 3 to 5 ms measured
+## in the grenade match's district, the whole ranking 15 to 23 ms, once a doorway and then kept).
+static var cost_ambush: int = 4
 static var cost_refusal: int = 0
 static var cost_level: int = 0
 ## What a step of the throw search costs (the piece between the order-refusal step and the walk,
@@ -47,9 +50,8 @@ static var cost_throw_route: int = 1
 ## piece, which builds the leads and, with a stun in the stack, the entries the root reads; and the
 ## piece after it that builds the throws at the hostiles, the one the search found one at first):
 ## one unit of work, a lead's route, a doorway's pick or one kind's throw (about 0.4 ms), and the
-## finish that sorts and caps what the units made (free).
+## finish that sorts and caps what the units made (free: no price to set).
 static var cost_group_unit: int = 1
-static var cost_group_finish: int = 0
 ## The planner work (`GrenadeArc.work`, a count) one unit holds: a priced step that did more than
 ## its price's worth (a throw block of 40 is 3 units, about 3 ms) is charged the rest once it has
 ## run (`charge`), so a frame holds one such block, not four 5 ms ones from four NPCs. 0: no charge.

@@ -384,6 +384,8 @@ func cost_of(kind: int) -> int:
 			return Budget.cost_start
 		SnapshotBuild.Piece.HOSTILE:
 			return Budget.cost_hostile
+		SnapshotBuild.Piece.AMBUSH:
+			return Budget.cost_ambush
 		SnapshotBuild.Piece.FINISH:
 			return Budget.cost_finish
 	return -1
@@ -397,7 +399,7 @@ func group_cost_of(kind: int) -> int:
 		GroupBuild.Kind.UNIT:
 			return Budget.cost_group_unit
 		GroupBuild.Kind.FINISH:
-			return Budget.cost_group_finish
+			return 0
 	return -1
 
 

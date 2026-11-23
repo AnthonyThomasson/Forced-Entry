@@ -3,7 +3,9 @@ extends RefCounted
 ## author) begins it (`begin_build`) and `step()` runs the next piece: START (gather the knowledge
 ## the build reads, set the decision up and work out the context), one HOSTILE piece per hostile
 ## given full analysis (with the cheap `line` entries of the listed hostiles ahead of it), then
-## FINISH (the shared facts, the option groups, the demand set-up and the sections). Piece by piece
+## AMBUSH (only for an ambush order whose doorway's posts are not ranked yet: the ranking, a chunk
+## of its candidates a piece, so it is not one frame's heavy lump), then FINISH (the shared facts,
+## the option groups, the demand set-up and the sections). Piece by piece
 ## it does exactly the work, in the order, that one `AgentSnapshot.build()` call does; `result()` is
 ## the dictionary `build()` returns. `next_piece()` says which kind runs next, for a caller that
 ## prices the pieces.
@@ -13,12 +15,15 @@ extends RefCounted
 ## outside it has changed but the author's per-decision scratch, which the next build's START
 ## resets.
 
-## The kinds of piece, in the order they run. DONE once the result is ready.
+## The kinds of piece, in the order they run but for AMBUSH, which runs between HOSTILE and FINISH
+## (listed last: the numbers the decision job's fakes give the others stay). DONE once the result
+## is ready.
 enum Piece {
 	START,
 	HOSTILE,
 	FINISH,
 	DONE,
+	AMBUSH,
 }
 
 ## The author whose logic steps this build (an `AgentSnapshot`).
@@ -44,6 +49,8 @@ var parts := {}
 ## them all), and where in the contacts' order the next piece goes on.
 var analysed: Array = []
 var cursor := 0
+## The ambush ranking in hand (`SnapshotOrders.ambush_work`), {} when there is none.
+var ambush_work := {}
 ## The kind of piece that runs next.
 var piece := Piece.START
 var _result := {}

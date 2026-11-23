@@ -9,9 +9,9 @@ const Budget := preload("res://scenes/ai/decision/decision_budget.gd")
 const ThrowSpots := preload("res://scenes/ai/perception/throw_spots.gd")
 ## The pool and prices of `DecisionBudget`, by name (and the throw scan's block, `throw_block`).
 const PRICES := [
-	"per_frame", "cost_start", "cost_hostile", "cost_finish", "cost_refusal", "cost_level",
-	"cost_throw_block", "cost_throw_rank", "cost_throw_route", "cost_group_unit",
-	"cost_group_finish", "work_unit",
+	"per_frame", "cost_start", "cost_hostile", "cost_ambush", "cost_finish", "cost_refusal",
+	"cost_level", "cost_throw_block", "cost_throw_rank", "cost_throw_route", "cost_group_unit",
+	"work_unit",
 ]
 
 
@@ -40,9 +40,9 @@ static func set_prices(values: Dictionary) -> void:
 ## pieces by hand starts from, then prices the pieces it means to).
 static func whole_prices() -> void:
 	set_prices({
-		"per_frame": 1, "cost_start": 1, "cost_hostile": 0, "cost_finish": 0, "cost_refusal": 0,
-		"cost_level": 0, "cost_throw_block": 0, "cost_throw_rank": 0, "cost_throw_route": 0,
-		"throw_block": 16, "cost_group_unit": 0, "cost_group_finish": 0,
+		"per_frame": 1, "cost_start": 1, "cost_hostile": 0, "cost_ambush": 0, "cost_finish": 0,
+		"cost_refusal": 0, "cost_level": 0, "cost_throw_block": 0, "cost_throw_rank": 0,
+		"cost_throw_route": 0, "throw_block": 16, "cost_group_unit": 0,
 	})
 
 

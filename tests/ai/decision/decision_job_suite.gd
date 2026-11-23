@@ -367,15 +367,16 @@ func test_an_order_overtakes_only_a_job_begun_before_it() -> void:
 func test_every_piece_kind_has_its_own_price_and_an_unknown_one_has_none() -> void:
 	DecisionBudget.cost_start = 3
 	DecisionBudget.cost_hostile = 5
+	DecisionBudget.cost_ambush = 9
 	DecisionBudget.cost_finish = 11
 	DecisionBudget.cost_throw_block = 2
 	DecisionBudget.cost_throw_rank = 4
 	DecisionBudget.cost_throw_route = 7
 	DecisionBudget.cost_group_unit = 3
-	DecisionBudget.cost_group_finish = 0
 	var build_kinds: Dictionary = Job.SnapshotBuild.Piece
 	assert_int(_job.cost_of(build_kinds.START)).is_equal(3)
 	assert_int(_job.cost_of(build_kinds.HOSTILE)).is_equal(5)
+	assert_int(_job.cost_of(build_kinds.AMBUSH)).is_equal(9)
 	assert_int(_job.cost_of(build_kinds.FINISH)).is_equal(11)
 	assert_int(_job.cost_of(build_kinds.DONE)).is_equal(-1)  # nothing runs for it
 	assert_int(_job.cost_of(99)).is_equal(-1)  # never taken for a start
