@@ -9,7 +9,7 @@ house with no twin space bakes no walls and no holes, so `MatchBuilder.stage` ma
 frame for its twin.
 
 - **Walls** (`NavSource.walls_of(house, frame)`): the plan footprint of each *grounded* shape of each wall twin (`grounded`: its underside within
-  `NavTwins.FLOOR_SLACK` of the floor), moved into the house's frame by `frame * house.global_transform.affine_inverse()` and snapped to the 1 px grid.
+  `NavTwins.FLOOR_SLACK` of the floor), moved into the house's frame by `frame * house.global_transform.affine_inverse()` and snapped to whole pixels.
   A wall twin also holds a **lintel** over each doorway (84 to 96 px up): it is not grounded, so it closes no doorway. The bake projects at the plan and never by an agent's height.
 - **Holes** (`NavHoles.cut`): the convex hull of each shape's footprint grown by `OBSTACLE_MARGIN` (a polygon offset, corners mitred: a
   rectangle stays one); an upright cylinder (a round piece, a character) is `NavHoles.CIRCLE_SEGMENTS` (10) points round `r + margin`, as the 2D circle

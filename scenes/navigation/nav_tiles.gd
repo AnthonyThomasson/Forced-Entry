@@ -6,7 +6,7 @@ class_name NavTiles extends RefCounted
 ## bake, so a character stopping re-bakes the one tile it stands in (two or four on a seam). The
 ## tiles are regions on the steering map, children of the planning region, baked to meet at their
 ## edges (`BORDER`: the baker sees past the tile's edge so the agent's erosion does not shrink it;
-## the grid lies on the bake's cells, `whole_pixels`, and `NavSeams` splits each border edge at the
+## the grid lies on the bake's cells, `on_cells`, and `NavSeams` splits each border edge at the
 ## vertices its neighbour has there, so the server joins them by the edge they share and the map
 ## needs no edge-connection pass).
 ## `NavBuilder` builds the tiles and hands each tick's footprints to `rebake`.
@@ -50,13 +50,13 @@ static var late_total := 0
 ## world's (`origin`, the house's position): the rect the tiles are laid over. The baker takes a
 ## bake's rect to the nearest cell line, so tiles whose edges fall between lines would be baked to
 ## edges apart; on the lines every tile's edge is the edge of its neighbour, which `NavSeams` welds.
-static func whole_pixels(footprint: Rect2, origin: Vector2) -> Rect2:
+static func on_cells(footprint: Rect2, origin: Vector2) -> Rect2:
 	var from := ((footprint.position + origin) / NavSource.CELL_SIZE).floor() * NavSource.CELL_SIZE
 	var to := ((footprint.end + origin) / NavSource.CELL_SIZE).ceil() * NavSource.CELL_SIZE
 	return Rect2(from - origin, to - from)
 
 
-## The tiles that cover `footprint` (`whole_pixels`), row by row; the last of a row or a column is
+## The tiles that cover `footprint` (`on_cells`), row by row; the last of a row or a column is
 ## the remainder.
 static func grid(footprint: Rect2) -> Array[Rect2]:
 	var out: Array[Rect2] = []
@@ -70,7 +70,7 @@ static func grid(footprint: Rect2) -> Array[Rect2]:
 	return out
 
 
-## The name of the tile region over `rect`, a tile of the grid over `footprint` (`whole_pixels`).
+## The name of the tile region over `rect`, a tile of the grid over `footprint` (`on_cells`).
 static func name_of(rect: Rect2, footprint: Rect2) -> String:
 	var column := int((rect.position.x - footprint.position.x) / SIZE)
 	var row := int((rect.position.y - footprint.position.y) / SIZE)
@@ -328,7 +328,7 @@ static func _assign(
 	tile.set_meta(SEEN_META, holes)
 
 
-## The wall outlines (the house's local frame, on the map's 1 px grid) of the towers whose walls
+## The wall outlines (the house's local frame, on whole pixels) of the towers whose walls
 ## reach any of `reaches`. Each direct child of the house is parsed on its own and kept on `region`
 ## (`_refreshed`); the ones that reach are parsed again, so a wall dented since is in the result.
 ## A tower costs a tenth of the whole district's parse, and a tile touches one or two. A collider

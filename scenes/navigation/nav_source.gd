@@ -3,7 +3,10 @@ class_name NavSource extends RefCounted
 ## `NavBuilder`, `NavTiles`, `NavRing` and `NavRebake` share. A bake is a job, `{ poly, source }`:
 ## the polygon to bake into (the agent radius set) and its source geometry (the walls read from the
 ## twins, the walkable footprint and the furniture and character holes), gathered on the main
-## thread. `bake` runs a job at once; `NavRebake` hands one to a worker thread (`NavBake`). The
+## thread. The source stays a 2D one
+## (`NavigationMeshSourceGeometryData2D`: plan outlines on whole pixels, which the planning region
+## keeps for the avoid maps); `bake_polygon` projects it into the 3D baker's source (ADR 0016).
+## `bake` runs a job at once; `NavRebake` hands one to a worker thread (`NavBake`). The
 ## walls are a
 ## `walls` dictionary, `{ traversable, obstruction, projected }`, built only by `walls`.
 
@@ -27,13 +30,9 @@ const ORIGIN_META := "nav_baked_origin"
 ## merged mesh (`NavMerge`) from 1142 polygons to 853 and a sofa's lane 4 px narrower (a 140 px
 ## hall's lane closed: `ai/grenade/combat_stun_then_advance`).
 const EDGE_MAX_ERROR := 0.8
-## How near (px) to a polygon's edge a cell's centre is asked of `Geometry2D.is_point_in_polygon`
-## rather than read from where the polygon crosses the line of centres (`_fill`): the engine's
-## answer for a point on an edge differs from one point of it to the next, and the bake follows it.
-const TIE_DISTANCE := 0.05
 
 
-## The walls as the source takes them: the `obstruction` outlines (on the map's 1 px grid)
+## The walls as the source takes them: the `obstruction` outlines (on whole pixels)
 ## and, beside them, `traversable` outlines and `projected` obstructions (none: the twins give
 ## obstructions only).
 static func walls(
@@ -46,13 +45,13 @@ static func walls(
 
 ## What a bake of `house` reads of its walls: the floor-plan polygon each shape of a wall's twin
 ## stands on (`NavTwins.footprints`; no 2D collider is read), as `walls`, the
-## obstructions in the house's local frame snapped to the map's 1 px grid. A lintel over a doorway
+## obstructions in the house's local frame snapped to whole pixels. A lintel over a doorway
 ## (a header from a door's height up) is no obstruction: the bake projects at the plan, so the
 ## doorways stay open to the paths, and so do the doors (the group `doors`: their leaves stand in
 ## the doorways and are no wall's shape). Furniture is not read here: it is carved from its
 ## footprints. The same for every bake of the house until a wall's twin changes (a dent cuts it), so
 ## `nav_updater.gd` reads once for a tick's two bakes. `frame` places `house`'s own frame in its
-## parent's (the obstructions are moved by it before they are snapped to the grid): a part of a
+## parent's (the obstructions are moved by it before they are snapped to whole pixels): a part of a
 ## larger house, read on its own.
 static func walls_of(house: Node2D, frame := Transform2D.IDENTITY) -> Dictionary:
 	var into := frame * house.global_transform.affine_inverse()
@@ -130,8 +129,8 @@ static func local_outlines(origin: Vector2, footprints: Array) -> Array:
 	return outlines
 
 
-## Add `fused` (the fused `local_outlines`) to `source` as obstruction outlines: snapped to the 1 px
-## grid and simplified.
+## Add `fused` (the fused `local_outlines`) to `source` as obstruction outlines: snapped to whole
+## pixels and simplified.
 static func finish_holes(source: NavigationMeshSourceGeometryData2D, fused: Array) -> void:
 	for outline in on_grid(fused):
 		source.add_obstruction_outline(simplified(outline))
@@ -197,8 +196,8 @@ static func bake_polygon(
 			boxes.append(outline_bounds(outline).grow(radius))
 			geometry.add_projected_obstruction(_ring(grown), 0.0, OBSTRUCTION_HEIGHT, true)
 	if poly.baking_rect.has_area():
-		var tile := _tile_rect(poly.baking_rect, poly.border_size, origin)
-		for square in _border_runs(obstructions, boxes, shrunk, tile):
+		var tile := NavBorder.tile_rect(poly.baking_rect, poly.border_size, origin)
+		for square in NavBorder.runs(obstructions, boxes, shrunk, tile):
 			geometry.add_projected_obstruction(_ring(square), 0.0, OBSTRUCTION_HEIGHT, true)
 	for square in closed:
 		geometry.add_projected_obstruction(_ring(square), 0.0, OBSTRUCTION_HEIGHT, true)
@@ -230,285 +229,6 @@ static func _ring(outline: PackedVector2Array) -> PackedVector3Array:
 	for p in outline:
 		ring.append(Vector3(p.x, 0.0, p.y))
 	return ring
-
-
-## A tile's own rect (the baking rect less its border) on whole cells of the world's grid.
-static func _tile_rect(reach: Rect2, border: float, origin: Vector2) -> Rect2:
-	var inner := reach.grow(-border)
-	var low := ((inner.position + origin) / CELL_SIZE).round() * CELL_SIZE - origin
-	var high := ((inner.end + origin) / CELL_SIZE).round() * CELL_SIZE - origin
-	return Rect2(low, high - low)
-
-
-## The cells of the tile's own outermost column that are held, or whose neighbour's
-## cell across the border is held: by an obstruction, or by lying outside the floor (a cell is held
-## by where its centre lies). The voxel baker takes a cell as held by where its centre lies, so a
-## wall's tip or a floor's edge that ends between the two columns of a border leaves one tile's
-## column open and its neighbour's shut, and the two tiles' walkable stretches along the border then
-## differ; with the column shut on both sides they agree. Neighbouring held cells are one rectangle
-## (the baker rasterises the same cells, with a fraction of the polygons).
-static func _border_runs(
-	obstructions: Array[PackedVector2Array],
-	boxes: Array[Rect2],
-	floors: Array[PackedVector2Array],
-	tile: Rect2,
-) -> Array[PackedVector2Array]:
-	var out: Array[PackedVector2Array] = []
-	var floor_boxes := _boxes(floors)
-	for side in 4:
-		var band := _strip_across(tile, side).merge(_strip_inside(tile, side))
-		var blocks: Array[PackedVector2Array] = []
-		for i in _touching(boxes, band):
-			blocks.append(obstructions[i])
-		var near: Array[PackedVector2Array] = []
-		for i in _touching(floor_boxes, band):
-			near.append(floors[i])
-		out.append_array(_side_squares(blocks, near, tile, side))
-	return out
-
-
-## `_border_runs` along the `side` of `tile`, from the polygons `blocks` and `floors` that reach its
-## two columns. A cell is a byte of `held`, found a line of cell centres at a time (`_fill`), not
-## a point at a time. When the floor holds the whole band only a cell in a block can be held, and a
-## band no floor reaches is held whole.
-static func _side_squares(
-	blocks: Array[PackedVector2Array],
-	floors: Array[PackedVector2Array],
-	tile: Rect2,
-	side: int,
-) -> Array[PackedVector2Array]:
-	var out: Array[PackedVector2Array] = []
-	var along := side <= 1
-	var first := (tile.position.y if along else tile.position.x) + CELL_SIZE * 0.5
-	var last := (tile.end.y if along else tile.end.x) - CELL_SIZE * 0.5
-	if floors.is_empty():
-		out.append(_run_inside(tile, side, first, last))
-		return out
-	var covered := _covers(floors, _strip_across(tile, side).merge(_strip_inside(tile, side)))
-	if covered and blocks.is_empty():
-		return out
-	var held := PackedByteArray()
-	held.resize(int(roundf((last - first) / CELL_SIZE)) + 1)
-	var unfloored: Array[PackedVector2Array] = []
-	for across in [true, false]:
-		var cells := _line_held(blocks, unfloored if covered else floors, tile, side, across)
-		for k in held.size():
-			held[k] = held[k] | cells[k]
-	return _runs_of(held, tile, side)
-
-
-## The cells along the `side` of `tile` (a byte each, from the first centre) that are held on the
-## line of centres across the border (`across`) or inside it: in one of `blocks`, or in none of
-## `floors` (none given: only `blocks` hold).
-static func _line_held(
-	blocks: Array[PackedVector2Array],
-	floors: Array[PackedVector2Array],
-	tile: Rect2,
-	side: int,
-	across: bool,
-) -> PackedByteArray:
-	var along := side <= 1
-	var first := (tile.position.y if along else tile.position.x) + CELL_SIZE * 0.5
-	var last := (tile.end.y if along else tile.end.x) - CELL_SIZE * 0.5
-	var strip := _strip_across(tile, side) if across else _strip_inside(tile, side)
-	var at := strip.get_center().x if along else strip.get_center().y
-	var held := PackedByteArray()
-	held.resize(int(roundf((last - first) / CELL_SIZE)) + 1)
-	_fill(held, blocks, at, along, first)
-	if floors.is_empty():
-		return held
-	var inside := PackedByteArray()
-	inside.resize(held.size())
-	_fill(inside, floors, at, along, first)
-	for k in held.size():
-		held[k] = held[k] | (1 - inside[k])
-	return held
-
-
-## The cells of `held` (a byte each, from the first centre along the `side` of `tile`) that are 1,
-## each stretch of them one rectangle (`_run_inside`).
-static func _runs_of(
-	held: PackedByteArray,
-	tile: Rect2,
-	side: int,
-) -> Array[PackedVector2Array]:
-	var out: Array[PackedVector2Array] = []
-	var first := (tile.position.y if side <= 1 else tile.position.x) + CELL_SIZE * 0.5
-	var run_from := -INF
-	for k in held.size():
-		var mid := first + CELL_SIZE * k
-		if held[k] == 1 and run_from == -INF:
-			run_from = mid
-		elif held[k] == 0 and run_from != -INF:
-			out.append(_run_inside(tile, side, run_from, mid - CELL_SIZE))
-			run_from = -INF
-	if run_from != -INF:
-		out.append(_run_inside(tile, side, run_from, first + CELL_SIZE * (held.size() - 1)))
-	return out
-
-
-## Set to 1 each cell of `cells` (the centres `first` and every `CELL_SIZE` on, along the y axis
-## when `vertical`, else the x axis, on the line `at` across it) that lies in one of `polygons`
-## (what `Geometry2D.is_point_in_polygon` answers): the polygon's crossings with the line, paired in
-## order, are the stretches inside it. A centre on or within `TIE_DISTANCE` of an edge is no
-## stretch's to decide (the engine's answer on an edge is not the same at every point of it): it is
-## asked of the engine, one call each.
-static func _fill(
-	cells: PackedByteArray,
-	polygons: Array[PackedVector2Array],
-	at: float,
-	vertical: bool,
-	first: float,
-) -> void:
-	for polygon in polygons:
-		var crossings := PackedFloat64Array()
-		var windows := PackedFloat64Array()
-		_trace(polygon, at, vertical, crossings, windows)
-		var ties := _cells_in(windows, first, cells.size())
-		var kept := PackedByteArray()
-		for k in ties:
-			kept.append(cells[k])
-		crossings.sort()
-		for i in range(0, crossings.size() - 1, 2):
-			_mark(cells, crossings[i], crossings[i + 1], first)
-		for i in ties.size():
-			var centre := first + CELL_SIZE * ties[i]
-			var point := Vector2(at, centre) if vertical else Vector2(centre, at)
-			var inside := kept[i] == 1 or Geometry2D.is_point_in_polygon(point, polygon)
-			cells[ties[i]] = 1 if inside else 0
-
-
-## Where `polygon` meets the line `at` (across the axis `vertical` names): the points along the line
-## it crosses (`crossings`, a vertex on the line counts as just past it), and as pairs of `windows`
-## the stretches along it within `TIE_DISTANCE` of an edge.
-static func _trace(
-	polygon: PackedVector2Array,
-	at: float,
-	vertical: bool,
-	crossings: PackedFloat64Array,
-	windows: PackedFloat64Array,
-) -> void:
-	var from := polygon[polygon.size() - 1]
-	for to in polygon:
-		var u_from := from.x if vertical else from.y
-		var u_to := to.x if vertical else to.y
-		var v_from := from.y if vertical else from.x
-		var v_to := to.y if vertical else to.x
-		var near := TIE_DISTANCE * 2.0
-		if absf(u_from - at) <= TIE_DISTANCE:
-			windows.append(minf(v_from, v_to if absf(u_to - at) <= TIE_DISTANCE else v_from) - near)
-			windows.append(maxf(v_from, v_to if absf(u_to - at) <= TIE_DISTANCE else v_from) + near)
-		if (u_from > at) != (u_to > at):
-			var run := absf(v_to - v_from)
-			var reach := minf(TIE_DISTANCE * (1.0 + run / absf(u_to - u_from)), run + TIE_DISTANCE)
-			var v := v_from + (at - u_from) * (v_to - v_from) / (u_to - u_from)
-			crossings.append(v)
-			windows.append(v - reach)
-			windows.append(v + reach)
-		from = to
-
-
-## The cells (of `count`, centres `first` and every `CELL_SIZE` on) whose centre is in a stretch of
-## `windows` (pairs: from, to).
-static func _cells_in(windows: PackedFloat64Array, first: float, count: int) -> PackedInt32Array:
-	var out := PackedInt32Array()
-	for i in range(0, windows.size() - 1, 2):
-		for k in range(
-			maxi(ceili((windows[i] - first) / CELL_SIZE), 0),
-			mini(floori((windows[i + 1] - first) / CELL_SIZE), count - 1) + 1,
-		):
-			out.append(k)
-	return out
-
-
-## Set to 1 the cells of `cells` whose centre lies between `low` and `high` (either order).
-static func _mark(cells: PackedByteArray, low: float, high: float, first: float) -> void:
-	if low > high:
-		var swap := low
-		low = high
-		high = swap
-	var from := maxi(ceili((low - first) / CELL_SIZE), 0)
-	var to := mini(floori((high - first) / CELL_SIZE), cells.size() - 1)
-	for k in range(from, to + 1):
-		cells[k] = 1
-
-
-## The bounds of each of `polygons`.
-static func _boxes(polygons: Array[PackedVector2Array]) -> Array[Rect2]:
-	var out: Array[Rect2] = []
-	for polygon in polygons:
-		var box := Rect2(polygon[0], Vector2.ZERO)
-		for p in polygon:
-			box = box.expand(p)
-		out.append(box)
-	return out
-
-
-## The indices of `boxes` that reach `band`.
-static func _touching(boxes: Array[Rect2], band: Rect2) -> Array[int]:
-	var out: Array[int] = []
-	for i in boxes.size():
-		if boxes[i].intersects(band):
-			out.append(i)
-	return out
-
-
-## Whether the one floor polygon of `floors` holds the whole of `band` (nothing of the band is
-## outside it); false for none or several, which are asked cell by cell.
-static func _covers(floors: Array[PackedVector2Array], band: Rect2) -> bool:
-	if floors.size() != 1:
-		return false
-	var corners := PackedVector2Array([
-		band.position, Vector2(band.end.x, band.position.y), band.end,
-		Vector2(band.position.x, band.end.y),
-	])
-	return Geometry2D.clip_polygons(corners, floors[0]).is_empty()
-
-
-## The strip of cells just outside `tile`'s `side` (0 left, 1 right, 2 top, 3 bottom).
-static func _strip_across(tile: Rect2, side: int) -> Rect2:
-	match side:
-		0:
-			return Rect2(tile.position.x - CELL_SIZE, tile.position.y, CELL_SIZE, tile.size.y)
-		1:
-			return Rect2(tile.end.x, tile.position.y, CELL_SIZE, tile.size.y)
-		2:
-			return Rect2(tile.position.x, tile.position.y - CELL_SIZE, tile.size.x, CELL_SIZE)
-	return Rect2(tile.position.x, tile.end.y, tile.size.x, CELL_SIZE)
-
-
-## The strip of `tile`'s own outermost column on `side`.
-static func _strip_inside(tile: Rect2, side: int) -> Rect2:
-	match side:
-		0:
-			return Rect2(tile.position.x, tile.position.y, CELL_SIZE, tile.size.y)
-		1:
-			return Rect2(tile.end.x - CELL_SIZE, tile.position.y, CELL_SIZE, tile.size.y)
-		2:
-			return Rect2(tile.position.x, tile.position.y, tile.size.x, CELL_SIZE)
-	return Rect2(tile.position.x, tile.end.y - CELL_SIZE, tile.size.x, CELL_SIZE)
-
-
-## The cells of `tile`'s outermost column on `side` from the one level with `from` to the one level
-## with `to` (along the border), as one rectangle.
-static func _run_inside(tile: Rect2, side: int, from: float, to: float) -> PackedVector2Array:
-	var half := CELL_SIZE * 0.5
-	var low: Vector2
-	var high: Vector2
-	match side:
-		0:
-			low = Vector2(tile.position.x, from - half)
-			high = Vector2(tile.position.x + CELL_SIZE, to + half)
-		1:
-			low = Vector2(tile.end.x - CELL_SIZE, from - half)
-			high = Vector2(tile.end.x, to + half)
-		2:
-			low = Vector2(from - half, tile.position.y)
-			high = Vector2(to + half, tile.position.y + CELL_SIZE)
-		_:
-			low = Vector2(from - half, tile.end.y - CELL_SIZE)
-			high = Vector2(to + half, tile.end.y)
-	return PackedVector2Array([low, Vector2(high.x, low.y), high, Vector2(low.x, high.y)])
 
 
 ## The box a bake is made in: `rect` less its `border` (a tile's reach less what it sees past its
@@ -644,7 +364,8 @@ static func outline_bounds(outline: PackedVector2Array) -> Rect2:
 	return box.grow(BOUNDS_EPSILON)
 
 
-## `outlines` with every vertex snapped to the map's 1 px cell grid.
+## `outlines` with every vertex snapped to whole pixels (the bake's cells, `CELL_SIZE`, lie on whole
+## pixels too).
 static func on_grid(outlines: Array) -> Array:
 	var out: Array = []
 	for outline in outlines:
@@ -663,7 +384,7 @@ static func on_grid(outlines: Array) -> Array:
 
 ## `outline` without the vertices that sit within `NavBuilder.SIMPLIFY_TOLERANCE` of the line
 ## between their neighbours (the nearest to that line first, never below a triangle). A shot-up
-## piece's hull has many such vertices (a shallow curve), and snapping them to the 1 px grid leaves
+## piece's hull has many such vertices (a shallow curve), and snapping them to whole pixels leaves
 ## a run of steps and notches a pixel deep. The baker's offset and its convex partition cannot
 ## always make a mesh of that, and then log "polygon convex partition failed" and bake NO navmesh at
 ## all (every path in the house is gone until the next re-bake). Dropping the vertices moves the

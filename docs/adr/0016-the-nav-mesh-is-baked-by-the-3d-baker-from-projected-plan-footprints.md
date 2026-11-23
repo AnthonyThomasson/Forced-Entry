@@ -1,7 +1,7 @@
 # The nav mesh is baked by the 3D baker from projected plan footprints
 
 #194 (D16, job nav3d-a). The nav mesh was baked by `NavigationServer2D.bake_from_source_geometry_data`, which clips polygons: a few big convex polygons made
-of the walls' and holes' outlines, on a 1 px map grid. The sim's walls and pieces are 3D twins now ([ADR 0014](0014-twin-staging-and-plan-space.md)) and the
+of the walls' and holes' outlines, on a 1 px map cell grid (the 2D baker's). The sim's walls and pieces are 3D twins now ([ADR 0014](0014-twin-staging-and-plan-space.md)) and the
 nav domain reads their plan footprints ([ADR 0010](0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md), `domain-navigation` `twins.md`), but the bake itself stayed 2D.
 
 **Decision.** Every bake (planning, steering tile, ring, avoid map) is made by `NavigationServer3D.bake_from_source_geometry_data` (`NavSource.bake_polygon`): the
@@ -9,6 +9,7 @@ walkable outlines are the floor of a plan-space world `(x, 0, z)`, each wall or 
 lintel, a door or a piece can close a doorway or leave a walkable top. The voxel grid is 4 px (`NavSource.CELL_SIZE`) laid on the world's grid, and the map's
 `2d/default_cell_size` is 4 so the server merges the mesh's edges by the same cell. The regions, the maps and every query (`ready`, `snap`, `route`,
 `NavigationAgent2D`) stay `NavigationServer2D`'s: the mesh is a `NavigationPolygon` as before, so interface 9 keeps its signatures. (nav3d-b moves them.)
+The source is still gathered as 2D plan outlines (a `NavigationMeshSourceGeometryData2D`, snapped to whole pixels, which the planning region keeps for the avoid maps): `bake_polygon` projects them into the 3D source at the bake, so what a bake reads of the world is unchanged and only the baker differs.
 
 **Why 4 px.** D16 measured a district's bake at 113 ms on 4 px cells against 2.0 s on 1 px: the voxel baker is cubic in its resolution, the 2D clipper is not.
 

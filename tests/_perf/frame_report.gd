@@ -124,6 +124,7 @@ func _read() -> Dictionary:
 		"late_bakes": NavBake.late_total,
 		"landings": NavBake.landed_total,
 		"tile_bakes": NavTiles.baked_total,
+		"late_tile_bakes": NavTiles.late_total,
 		"avoid_starts": NavBuilder.avoid_starts,
 		"avoid_rebakes": NavBuilder.avoid_rebakes,
 		"cone_restarts": causes["restarts"],

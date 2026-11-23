@@ -44,8 +44,6 @@ const MIN_STRETCH := 0.5
 ## The most rounds `weld` goes on agreeing borders (a closed corner cell opens a stretch across).
 const MAX_ROUNDS := 4
 
-## How many tiles were baked again with border cells closed (`_agree`).
-static var closing_total := 0
 ## How many edges `_emit` found cut but in one line with the corners round it, so left as they are
 ## (unwelded): a real bake has none (`steering_seams_welded` checks it).
 static var unsplit_total := 0
@@ -128,7 +126,6 @@ static func _agree(tile: NavigationRegion2D) -> bool:
 			_cells(closed, rect),
 		)
 		_snap_to_borders(poly, rect)
-		closing_total += 1
 	tile.set_meta(CLOSED_META, closed)
 	tile.set_meta(RAW_META, poly)
 	tile.set_meta(NOW_META, _border_edges(poly, rect))

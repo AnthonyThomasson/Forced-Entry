@@ -2,7 +2,7 @@
 
 Side file of `domain-navigation` (`SKILL.md`); the welded tiles it rests on: `district-tiles-and-avoid.md`.
 
-The server joins polygons that hold the same edge (the same two 1 px cells) and then runs a pass joining free edges of different regions within `default_edge_connection_margin` (1 px). The pass rebuilds the whole map's links on any change: a sync of the 42-tile district costs ~10.6 ms with it and 0.32 ms without, whether one tile or five changed (roughly quadratic in the regions: 21 tiles 2.3 ms, 10 tiles 0.45). The steering map is built **without** it (`NavBuilder._steering_map_for`, `NavSource.new_map(false)`); the planning, ring and avoid maps keep it (nothing measured there).
+The server joins polygons that hold the same edge (the same two corners of the map's 4 px cells) and then runs a pass joining free edges of different regions within `default_edge_connection_margin` (1 px). The pass rebuilds the whole map's links on any change: a sync of the 42-tile district costs ~10.6 ms with it and 0.32 ms without, whether one tile or five changed (roughly quadratic in the regions: 21 tiles 2.3 ms, 10 tiles 0.45). The steering map is built **without** it (`NavBuilder._steering_map_for`, `NavSource.new_map(false)`); the planning, ring and avoid maps keep it (nothing measured there).
 
 What makes that safe is the weld (`NavSeams`, `district-tiles-and-avoid.md`): every border edge both tiles hold is one edge to the server, so the hash joins them (`navigation/steering_seams_welded`).
 

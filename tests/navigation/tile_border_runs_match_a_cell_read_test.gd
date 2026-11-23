@@ -1,6 +1,6 @@
 extends GameTest
 ## A steering tile holds the cells of its border column that an obstruction or the lack of floor
-## holds, found a line of cell centres at a time (`NavSource._border_runs`). This pins it to asking
+## holds, found a line of cell centres at a time (`NavBorder.runs`). This pins it to asking
 ## the engine about each centre in turn (`Geometry2D.is_point_in_polygon`), over polygons whose
 ## edges sit on the centres' lines (the engine's answer on an edge differs along it),
 ## through them at a slant, past a tile's corner and with the floor ending inside the border band.
@@ -44,7 +44,7 @@ func run(t: TestContext) -> void:
 	for case: Array in cases:
 		var floors: Array[PackedVector2Array] = []
 		floors.assign(case)
-		var ours := NavSource._border_runs(blocks, boxes, floors, tile)
+		var ours := NavBorder.runs(blocks, boxes, floors, tile)
 		var theirs := _asked_one_by_one(blocks, floors, tile)
 		t.check(
 			ours == theirs,
@@ -58,7 +58,7 @@ func _rect(rect: Rect2) -> PackedVector2Array:
 	return NavSource.rect_outline(rect)
 
 
-## What `NavSource._border_runs` finds, a cell at a time: the cell of `tile`'s outermost column on
+## What `NavBorder.runs` finds, a cell at a time: the cell of `tile`'s outermost column on
 ## each side level with a centre, or the one across the border from it, held by a block or by no
 ## floor, joined to its neighbours.
 func _asked_one_by_one(
@@ -71,8 +71,8 @@ func _asked_one_by_one(
 		var along := side <= 1
 		var first := (tile.position.y if along else tile.position.x) + NavSource.CELL_SIZE * 0.5
 		var last := (tile.end.y if along else tile.end.x) - NavSource.CELL_SIZE * 0.5
-		var outer := NavSource._strip_across(tile, side).get_center()
-		var inner := NavSource._strip_inside(tile, side).get_center()
+		var outer := NavBorder.strip_across(tile, side).get_center()
+		var inner := NavBorder.strip_inside(tile, side).get_center()
 		var from := -INF
 		var mid := first
 		while mid <= last:
@@ -83,11 +83,11 @@ func _asked_one_by_one(
 			if held and from == -INF:
 				from = mid
 			elif not held and from != -INF:
-				out.append(NavSource._run_inside(tile, side, from, mid - NavSource.CELL_SIZE))
+				out.append(NavBorder.run_inside(tile, side, from, mid - NavSource.CELL_SIZE))
 				from = -INF
 			mid += NavSource.CELL_SIZE
 		if from != -INF:
-			out.append(NavSource._run_inside(tile, side, from, last))
+			out.append(NavBorder.run_inside(tile, side, from, last))
 	return out
 
 

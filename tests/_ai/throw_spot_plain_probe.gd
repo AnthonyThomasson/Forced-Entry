@@ -4,6 +4,9 @@ extends RefCounted
 ## lob-tested, including one whose snapped point was already tried and rejected.
 
 const Spots := preload("res://scenes/ai/perception/throw_spots.gd")
+## How near (px) a candidate may lie to a spot already found: the reference's own number, written
+## here (not read from the search under test), so a change of the search's spacing fails the match.
+const SPACING := 12.0
 
 
 ## The full undeduplicated candidate search, in the same order and with the same annotations as
@@ -15,7 +18,7 @@ static func found(tactics: RefCounted, ctx: Dictionary, aim: ThrowAim, ex: Array
 		var p: Vector2 = tactics.throws.on_navmesh(tactics, ctx, r, aim)
 		if p == Vector2.INF:
 			continue
-		if (out.any(func(c): return (c["point"] as Vector2).distance_to(p) < 12.0)
+		if (out.any(func(c): return (c["point"] as Vector2).distance_to(p) < SPACING)
 				or not aim.lob.call(p)):
 			continue
 		var hidden: bool = tactics.blocked(ctx["space"], aim.spot, p, ex)

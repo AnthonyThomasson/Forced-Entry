@@ -58,8 +58,8 @@ func run(t: TestContext) -> void:
 
 
 ## The first cheap-test-passing point produced by two raw candidates, that no earlier point stands
-## within 12 px of (one that did would be skipped before its first lob: `ThrowSpots._candidate`),
-## or INF when there is none.
+## within `Plain.SPACING` of (one that did would be skipped before its first lob:
+## `ThrowSpots._candidate`), or INF when there is none.
 func _repeated_point(tactics: RefCounted, ctx: Dictionary, aim: ThrowAim) -> Vector2:
 	var seen := {}
 	var earlier: Array = []
@@ -68,7 +68,9 @@ func _repeated_point(tactics: RefCounted, ctx: Dictionary, aim: ThrowAim) -> Vec
 		if p == Vector2.INF:
 			continue
 		if seen.has(p):
-			if not earlier.any(func(q: Vector2) -> bool: return q != p and q.distance_to(p) < 12.0):
+			var near := func(q: Vector2) -> bool:
+				return q != p and q.distance_to(p) < Plain.SPACING
+			if not earlier.any(near):
 				return p
 			continue
 		seen[p] = true
