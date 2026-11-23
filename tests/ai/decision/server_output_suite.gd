@@ -22,7 +22,9 @@ func test_finish_leaves_a_reader_whose_pipe_stays_open_and_reap_joins_it_once_it
 	assert_bool(output.alive()).is_true()  # left running, not joined
 	OS.kill(process["pid"])
 	var waited := 0
-	while output.alive() and waited < 10_000:
+	# Ends as soon as the reader does; the bound is generous because a killed PowerShell on a loaded Windows machine
+	# takes several seconds to let go of its pipe.
+	while output.alive() and waited < 30_000:
 		OS.delay_msec(50)
 		waited += 50
 	assert_bool(output.alive()).is_false()
