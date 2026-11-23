@@ -38,7 +38,7 @@ static var ring_frames := 4
 ## make the AI wait 0.6 s for an avoid map it used to have in a frame or two (its first decision
 ## waits for it). Measured 2026-11-09 with the 2D baker over 517 bakes of the ai and navigation
 ## tests' houses (the frame 1 to 3 ms): 1 to 2 frames, p50 1, p95 2; 3, a little above the p95. Not
-## measured again with the 3D baker, whose thread is longer (perf3d owns that).
+## measured again with the 3D baker, whose thread is longer (open work).
 static var house_frames := 3
 ## A district's steering tiles (`NavTileBurst`): each tile of a tick's burst is baked on a worker
 ## thread (`NavTiles.prepare`) and the burst lands, all its tiles at once, this many frames after

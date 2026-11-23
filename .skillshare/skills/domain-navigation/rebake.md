@@ -34,7 +34,7 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
   picks the count from `NavBakeConfig`: a district's planning bake `district_frames` 36 (a 104 to 113 ms thread), its avoid
   maps `avoid_frames` 22 (the AI waits for a chain of them, so each link costs the count), the planning ring `ring_frames` 4
   (a 14 ms thread), a lone house's bakes `house_frames` 3.
-  Scaled to the 3D baker's 104 to 113 ms thread, so later than the 2D baker's landings (planning 14 frames before, avoid 12); perf3d owns bringing them down.
+  Scaled to the 3D baker's 104 to 113 ms thread, so later than the 2D baker's landings (planning 14 frames before, avoid 12); bringing them down is open work.
   Remeasure when a bake or a frame changes. A region freed meanwhile is left
   alone and `landed` still called; a game closing finishes every bake in flight (`NavBake._finish_all`).
 - **A map syncs on the main thread** (`project.godot`, `navigation/world/map_use_async_iterations` off; `navigation/map_syncs_without_a_thread`): the server's

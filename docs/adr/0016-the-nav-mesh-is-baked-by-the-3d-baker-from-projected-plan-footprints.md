@@ -30,4 +30,4 @@ The source is still gathered as 2D plan outlines (a `NavigationMeshSourceGeometr
   closest-point test fans from the first vertex and loses a polygon whose first or last triangle is flat).
 - *Landing is later than the 2D baker's.* The thread takes 104 to 113 ms for a district (the 2D baker's 53), so `NavBakeConfig`'s counts were scaled to it: a district's planning bake
   lands 36 frames after its start (14 before), an avoid map 22 (12), a steering burst 3 frames after its last tile (+3), the ring 4 (3). A moved piece reaches the planning map about
-  0.37 s later and an avoid-map link waits about 0.17 s longer; perf3d owns bringing them down.
+  0.37 s later and an avoid-map link waits about 0.17 s longer; bringing them down is open work.
