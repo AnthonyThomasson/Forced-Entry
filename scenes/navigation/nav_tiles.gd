@@ -105,17 +105,17 @@ static func rebake(
 	if parsed.is_empty():
 		parsed = NavSource.walls(walls_reaching(region, site, reaches))
 	var wall_bins := bin(parsed["obstruction"], reaches, Vector2.ZERO)
-	var gathered: Array[Dictionary] = []
+	var gathered: Array[NavTileBake] = []
 	for k in due.size():
 		var held := _gathered_if_changed(
 			tiles[due[k]], site, parsed, wall_bins[k], hole_bins[due[k]])
-		if not held.is_empty():
+		if held != null:
 			gathered.append(held)
 	_bake_together(gathered)
 	var baked: Array = []
-	for held: Dictionary in gathered:
-		_assign(held["tile"], held["poly"], held["walls"], held["holes"])
-		baked.append(held["tile"])
+	for held in gathered:
+		_assign(held.tile, held.poly, held.walls, held.holes)
+		baked.append(held.tile)
 	NavSeams.weld(baked)
 	baked_total += baked.size()
 	return baked.size()
@@ -167,20 +167,20 @@ static func parse_for(
 ## Start one entry of `due_tiles` (`{ tile, holes }`) baking, from `parsed` (`parse_for`) and the
 ## holes it was due with: the source is gathered here, on the main thread, and the bake runs on a
 ## worker thread (`task`), so a frame pays for the gathering only. Nothing on the tile changes until
-## `land`. Returns the held bake `{ tile, poly, walls, holes, source, origin, task }`, `{}` when
+## `land`. Returns the held bake (`NavTileBake`), null when
 ## nothing was started (the tile was freed meanwhile, was baked from these holes already, or the
-## site has nothing to bake).
-static func prepare(site: NavSite, entry: Dictionary, parsed: Dictionary) -> Dictionary:
+## site has nothing to bake). The worker is handed the bake's values, not the record
+## (`NavTileBake.start`).
+static func prepare(site: NavSite, entry: Dictionary, parsed: Dictionary) -> NavTileBake:
 	var tile := entry["tile"] as NavigationRegion2D
 	if not is_instance_valid(tile) or not tile.is_inside_tree():
-		return {}
+		return null
 	var reaches: Array[Rect2] = [_reach(tile)]
 	var walls: Array = bin(parsed["obstruction"], reaches, Vector2.ZERO)[0]
 	var held := _gathered_if_changed(tile, site, parsed, walls, entry["holes"])
-	if held.is_empty():
-		return {}
-	held["task"] = WorkerThreadPool.add_task(
-		func() -> void: _bake_held(held), true, "nav tile bake")
+	if held == null:
+		return null
+	held.start()
 	threaded_total += 1
 	baked_total += 1
 	return held
@@ -192,13 +192,12 @@ static func prepare(site: NavSite, entry: Dictionary, parsed: Dictionary) -> Dic
 static func land(held: Array) -> void:
 	_join(held)
 	var landed: Array = []
-	for bake: Dictionary in held:
-		if not is_instance_valid(bake["tile"]):
+	for bake: NavTileBake in held:
+		if not is_instance_valid(bake.tile):
 			continue
-		var tile := bake["tile"] as NavigationRegion2D
-		if tile.is_inside_tree():
-			_assign(tile, bake["poly"], bake["walls"], bake["holes"])
-			landed.append(tile)
+		if bake.tile.is_inside_tree():
+			_assign(bake.tile, bake.poly, bake.walls, bake.holes)
+			landed.append(bake.tile)
 	NavSeams.weld(landed)
 
 
@@ -208,16 +207,11 @@ static func abandon(held: Array) -> void:
 
 
 ## Wait for each of `held`'s bakes still running on a worker thread (`late_total` counts those
-## that were), and forget its task.
+## that were); a record's `task` is cleared only once its thread is done (`NavTileBake.join`).
 static func _join(held: Array) -> void:
-	for bake: Dictionary in held:
-		if not bake.has("task"):
-			continue
-		var task: int = bake["task"]
-		bake.erase("task")
-		if not WorkerThreadPool.is_task_completed(task):
+	for bake: NavTileBake in held:
+		if bake.join():
 			late_total += 1
-		WorkerThreadPool.wait_for_task_completion(task)
 
 
 ## The world points of the living characters under `root` that are walking (collision layer still
@@ -255,61 +249,54 @@ static func _nearer(a: Dictionary, b: Dictionary) -> bool:
 
 ## The source of a bake of `tile` from `walls` (a parse's shape) and `holes`, gathered as far as the
 ## main thread must (the walls and the footprint; the holes are fused and added by the bake itself,
-## `_bake_held`, which reads nothing of the tree): `{ tile, poly, walls, holes, source, origin }`;
-## `{}` when the site has nothing to bake.
+## `NavTileBake.run`, which reads nothing of the tree): a `NavTileBake`; null when the site has
+## nothing to bake.
 static func _gathered(
 	tile: NavigationRegion2D,
 	site: NavSite,
 	walls: Dictionary,
 	holes: Array,
-) -> Dictionary:
+) -> NavTileBake:
 	var job := NavSource.base(site, walls)
 	if job.is_empty():
-		return {}
+		return null
 	var nav_poly: NavigationPolygon = job["poly"]
 	nav_poly.baking_rect = _reach(tile)
 	nav_poly.border_size = BORDER
-	return {
-		"tile": tile,
-		"poly": nav_poly,
-		"walls": walls,
-		"holes": holes,
-		"source": job["source"],
-		"origin": site.house.position,
-	}
+	var held := NavTileBake.new()
+	held.tile = tile
+	held.poly = nav_poly
+	held.walls = walls
+	held.holes = holes
+	held.source = job["source"]
+	held.origin = site.house.position
+	return held
 
 
 ## `_gathered` for `tile` from the `walls` that reach it (of the parse `parsed`) and its `holes`,
-## `{}` when it was baked from these walls and holes already (the holes to within `NavSettle`).
+## null when it was baked from these walls and holes already (the holes to within `NavSettle`).
 static func _gathered_if_changed(
 	tile: NavigationRegion2D,
 	site: NavSite,
 	parsed: Dictionary,
 	walls: Array,
 	holes: Array,
-) -> Dictionary:
+) -> NavTileBake:
 	if _baked_from(tile, walls, holes):
-		return {}
+		return null
 	var reached := NavSource.walls(walls, parsed["traversable"], parsed["projected"])
 	return _gathered(tile, site, reached, holes)
 
 
-## Add the holes of `held` (`_gathered`) to its source and bake its polygon: the work of a worker
-## thread, which reads nothing but `held`.
-static func _bake_held(held: Dictionary) -> void:
-	NavSource.add_holes(held["source"], held["origin"], held["holes"])
-	NavSource.bake_polygon(held["poly"], held["source"], held["origin"])
-
-
 ## Run the bakes of `gathered` (`_gathered`) in parallel, as one group on the worker pool, and wait
 ## for them all: a lone one is baked where it stands.
-static func _bake_together(gathered: Array[Dictionary]) -> void:
+static func _bake_together(gathered: Array[NavTileBake]) -> void:
 	if gathered.size() < 2:
-		for held: Dictionary in gathered:
-			_bake_held(held)
+		for held in gathered:
+			held.run_here()
 		return
 	var group := WorkerThreadPool.add_group_task(func(i: int) -> void:
-		_bake_held(gathered[i]),
+		gathered[i].run_here(),
 		gathered.size(), -1, true, "nav tile bakes")
 	WorkerThreadPool.wait_for_group_task_completion(group)
 

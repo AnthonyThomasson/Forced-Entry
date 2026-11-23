@@ -34,9 +34,10 @@ func run(t: TestContext) -> void:
 	])
 	NavSeams.weld([away])
 	parent.remove_child(away)
-	var held := { "tile": away, "poly": _poly([[Vector2(0, 0), Vector2(1, 0), Vector2(0, 1)]]) }
-	held["walls"] = { "obstruction": [] }
-	held["holes"] = []
+	var held := NavTileBake.new()
+	held.tile = away
+	held.poly = _poly([[Vector2(0, 0), Vector2(1, 0), Vector2(0, 1)]])
+	held.walls = { "obstruction": [] }
 	var kept: NavigationPolygon = away.get_meta(NavSeams.RAW_META)
 	NavTiles.land([held])
 	t.check(
@@ -44,6 +45,8 @@ func run(t: TestContext) -> void:
 		"a tile out of the tree is not given its landed polygon",
 	)
 	NavSeams.weld([away, right])
+	var gone := NavTileBake.new()
+	gone.tile = right
 	right.free()
 	NavSeams.weld([left])
 	t.expect_eq(
@@ -51,6 +54,6 @@ func run(t: TestContext) -> void:
 		left.get_meta(NavSeams.RAW_META),
 		"the tile beside a freed one is whole again",
 	)
-	NavTiles.land([{ "tile": right }])
+	NavTiles.land([gone])
 	t.expect_eq(NavSeams.unsplit_total, 0, "no edge was left uncut")
 	away.free()

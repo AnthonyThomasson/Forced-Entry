@@ -20,7 +20,7 @@ A leaf: it builds the maps; everyone else pathfinds. Takes a plain `rooms` array
 | `nav_source.gd` (`NavSource`), `nav_border.gd` (`NavBorder`) | `NavSource`, all static: what a bake is gathered from (the walls read from the twins, the `job` of polygon and source: 2D plan outlines, projected into the 3D baker's at the bake) and running it (`bake_polygon`, `CELL_SIZE` 4 px). `NavBorder`: the raster of a steering tile's border cells (`runs`). |
 | `nav_rebake.gd` (`NavRebake`) | All static: the updater's re-bakes, the planning one (its `swap` onto a worker thread) and the steering one. |
 | `nav_bake.gd` (`NavBake`), `nav_bake_config.gd` (`NavBakeConfig`) | `NavBake`: one planning bake's worker thread and its landing on a fixed `GameClock` frame (not `Engine.get_physics_frames()`, which runs through a pause). `NavBakeConfig`: that count by kind of bake (`district_frames`, `avoid_frames`, `ring_frames`, `house_frames`, `tile_frames`: a steering burst's landing). |
-| `nav_tiles.gd` (`NavTiles`), `nav_tile_burst.gd`, `nav_seams.gd`, `nav_settle.gd` | A district's steering tiles (each baked on a worker thread), the wall cache. `NavTileBurst`: a tick's tiles started a frame each, landed together. `NavSeams`: border welds. `NavSettle`: settling under 0.1 px is no change. |
+| `nav_tiles.gd` (`NavTiles`), `nav_tile_bake.gd`, `nav_tile_burst.gd`, `nav_seams.gd`, `nav_settle.gd` | A district's steering tiles (each baked on a worker thread), the wall cache. `NavTileBake`: a bake in flight. `NavTileBurst`: a tick's tiles started a frame each, landed together. `NavSeams`: border welds. `NavSettle`: settling under 0.1 px is no change. |
 | `nav_ring.gd` (`NavRing`) | A district's planning ring: a small map of the match building. |
 | `nav_ready.gd`, `nav_snaps.gd` | `NavReady`: does a map answer yet. `NavSnaps`: what `snap` learned. |
 | `nav_routes.gd` (`NavRoutes`) | The exact route answers remembered between planning-map re-bakes, and `iterations(map)`. |
@@ -54,7 +54,7 @@ unreachable: the AI's cue to shove through). The bake runs in the house's local 
 - **The bake reads the 3D twins, not the 2D colliders** (`twins.md`): a wall's and a piece's or character's footprint is the plan polygon of its twin's shapes,
   grown by `OBSTACLE_MARGIN` for a hole, a round one the bake's own 10-sided polygon. Overlapping footprints are fused (skipped for outlines whose boxes are apart:
   `tests/navigation/furniture_union_fast_path_test.gd`) and every outline is snapped to whole pixels.
-- **Every bake is the grid baker's** (ADR 0016, `NavSource.bake_polygon`, `baker.md`): `NavigationServer3D` on 4 px cells from the footprints projected onto a plan-space floor; no weld is needed (`NavWeld` is gone). Regions, maps and queries stay `NavigationServer2D`'s until nav3d-b.
+- **Every bake is the grid baker's** (ADR 0016, `NavSource.bake_polygon`, `baker.md`): `NavigationServer3D` on 4 px cells from the footprints projected onto a plan-space floor; no `NavWeld`. Regions, maps and queries stay `NavigationServer2D`'s until nav3d-b.
 
 ## The steering map: characters at rest are holes too
 

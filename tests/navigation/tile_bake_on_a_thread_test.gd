@@ -54,28 +54,30 @@ func run(t: TestContext) -> void:
 	var tile := due[0]["tile"] as NavigationRegion2D
 	var polygon := tile.navigation_polygon
 	var held := NavTiles.prepare(site, due[0], parsed)
-	if not t.require(not held.is_empty(), "premise: the first due tile was started"):
+	if not t.require(held != null, "premise: the first due tile was started"):
 		return
 	t.expect_eq(NavTiles.threaded_total, before + 1, "the bake was started on a worker thread")
-	t.check(held.has("task"), "the held bake names its pool task")
+	t.check(held.task >= 0, "the held bake names its pool task")
 	t.expect_eq(tile.navigation_polygon, polygon, "the tile is as it was until the burst lands")
 	NavTiles.land([held])
-	t.check(not held.has("task"), "landing joined the task")
+	t.expect_eq(held.task, -1, "landing joined the task")
 	t.check(tile.navigation_polygon != polygon, "the tile took a polygon when the burst landed")
-	var again := _on_main_thread(tile, site, held)
-	var poly: NavigationPolygon = held["poly"]
+	var again := _on_main_thread(tile, site, held.walls, held.holes)
+	var poly := held.poly
 	t.expect_eq(poly.vertices, again.vertices, "the threaded bake's vertices are the main thread's")
 	t.expect_eq(poly.get_polygon_count(), again.get_polygon_count(), "and its polygons")
 	_group_matches_singles(t, site)
+	_late_task_is_joined_first(t)
 
 
 ## The tile `held` was baked for, baked here from the same source on the calling thread.
 func _on_main_thread(
 	tile: NavigationRegion2D,
 	site: NavSite,
-	held: Dictionary,
+	walls: Dictionary,
+	holes: Array,
 ) -> NavigationPolygon:
-	var job := NavSource.job(site, held["holes"], [], held["walls"])
+	var job := NavSource.job(site, holes, [], walls)
 	var nav_poly: NavigationPolygon = job["poly"]
 	nav_poly.baking_rect = (tile.get_meta(NavTiles.RECT_META) as Rect2).grow(NavTiles.BORDER)
 	nav_poly.border_size = NavTiles.BORDER
@@ -98,12 +100,13 @@ func _group_matches_singles(t: TestContext, site: NavSite) -> void:
 	for tile in tiles:
 		if not tile.has_meta(NavTiles.HOLES_META):
 			continue
-		var held := {
-			"holes": tile.get_meta(NavTiles.HOLES_META),
-			"walls": NavSource.walls(tile.get_meta(NavTiles.WALLS_META)),
-		}
 		var raw: NavigationPolygon = tile.get_meta(NavSeams.RAW_META)
-		var single := _on_main_thread(tile, site, held)
+		var single := _on_main_thread(
+			tile,
+			site,
+			NavSource.walls(tile.get_meta(NavTiles.WALLS_META)),
+			tile.get_meta(NavTiles.HOLES_META),
+		)
 		if (single.vertices == raw.vertices
 				and single.get_polygon_count() == raw.get_polygon_count()):
 			matched += 1
@@ -111,3 +114,19 @@ func _group_matches_singles(t: TestContext, site: NavSite) -> void:
 		matched >= baked,
 		"%d tile(s) of the group equal a lone bake (baked %d)" % [matched, baked],
 	)
+
+
+## A task still running when its burst lands is joined before its record is touched: `land` returns
+## only with the task done and `task` cleared (not before, which let the main thread write the
+## record a running worker could read), and `late_total` counts it.
+func _late_task_is_joined_first(t: TestContext) -> void:
+	var done := [false]
+	var bake := NavTileBake.new()
+	bake.task = WorkerThreadPool.add_task(func() -> void:
+		OS.delay_msec(250)
+		done[0] = true, true, "late nav tile bake")
+	var late := NavTiles.late_total
+	NavTiles.land([bake])
+	t.check(done[0], "land returned only when the late task was done")
+	t.expect_eq(bake.task, -1, "its task was cleared after the join")
+	t.expect_eq(NavTiles.late_total, late + 1, "the late task was counted")

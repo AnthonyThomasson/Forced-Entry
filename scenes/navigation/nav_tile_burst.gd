@@ -8,7 +8,7 @@ class_name NavTileBurst extends RefCounted
 ## The tiles still to bake (`NavTiles.due_tiles`), in the order they are.
 var tiles: Array[Dictionary] = []
 ## The bakes made so far, held until the last is made.
-var _held: Array[Dictionary] = []
+var _held: Array[NavTileBake] = []
 ## The walls the burst's tiles are baked from, parsed with the first.
 var _walls: Dictionary = {}
 ## The `GameClock` frame the last tile was started on, so no frame starts two.
@@ -34,8 +34,10 @@ func pending() -> bool:
 ## them (`navigation/tile_burst_lands_before_next_tick`).
 func tiles_in_play() -> Array[NavigationRegion2D]:
 	var out: Array[NavigationRegion2D] = []
-	for entry in tiles + _held:
+	for entry in tiles:
 		out.append(entry["tile"])
+	for held in _held:
+		out.append(held.tile)
 	return out
 
 
@@ -50,7 +52,7 @@ func step(region: NavigationRegion2D, site: NavSite) -> void:
 		if _walls.is_empty():
 			_walls = NavTiles.parse_for(region, site, tiles)
 		var held := NavTiles.prepare(site, tiles.pop_front(), _walls)
-		if not held.is_empty():
+		if held != null:
 			_held.append(held)
 		if tiles.is_empty():
 			_land_at = _frame + NavBakeConfig.tile_frames
