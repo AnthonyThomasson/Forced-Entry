@@ -3,12 +3,11 @@ class_name NavSource extends RefCounted
 ## `NavBuilder`, `NavTiles`, `NavRing` and `NavRebake` share. A bake is a job, `{ poly, source }`:
 ## the polygon to bake into (the agent radius set) and its source geometry (the walls read from the
 ## twins, the walkable footprint and the furniture and character holes), gathered on the main
-## thread. The source stays a 2D one
-## (`NavigationMeshSourceGeometryData2D`: plan outlines on whole pixels, which the planning region
-## keeps for the avoid maps); `bake_polygon` projects it into the 3D baker's source (ADR 0016).
-## `bake` runs a job at once; `NavRebake` hands one to a worker thread (`NavBake`). The
-## walls are a
-## `walls` dictionary, `{ traversable, obstruction, projected }`, built only by `walls`.
+## thread. The source stays a 2D one (`NavigationMeshSourceGeometryData2D`: plan outlines on whole
+## pixels, which the planning region keeps for the avoid maps); `bake_polygon` projects it into the
+## 3D baker's source (ADR 0016). `bake` runs a job at once; `NavRebake` hands one to a worker
+## thread (`NavBake`). The walls are a `walls` dictionary, `{ traversable, obstruction,
+## projected }`, built only by `walls`.
 
 ## The box round an outline is this much (px) larger than the polygon, so outlines that merely touch
 ## still count as overlapping.
@@ -153,11 +152,9 @@ static func bake(baked: Dictionary, origin: Vector2) -> NavigationPolygon:
 ## end a third nearer than its radius. The mesh is voxelised on a `CELL_SIZE` px grid laid on the
 ## WORLD's (`origin`: the region's offset), so every region's vertices fall on the cells the map
 ## merges by; its polygons (merged where the union is convex: `NavMerge`) and vertices are set on
-## `poly` in the
-## plan's (x, y). Runs on the main
-## thread or a worker's (`NavBake`): it reads nothing but its arguments. `closed` are cells (plan
-## rects, not grown by the radius) to hold as well: a tile's border cells its neighbour holds
-## (`NavSeams`).
+## `poly` in the plan's (x, y). Runs on the main thread or a worker's (`NavBake`): it reads
+## nothing but its arguments. `closed` are cells (plan rects, not grown by the radius) to hold as
+## well: a tile's border cells its neighbour holds (`NavSeams`).
 static func bake_polygon(
 	poly: NavigationPolygon,
 	source: NavigationMeshSourceGeometryData2D,

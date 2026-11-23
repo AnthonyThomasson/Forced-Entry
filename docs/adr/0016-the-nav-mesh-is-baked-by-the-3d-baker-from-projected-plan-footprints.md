@@ -24,3 +24,10 @@ The source is still gathered as 2D plan outlines (a `NavigationMeshSourceGeometr
 - *No weld.* The 2D mesh needed `NavWeld` (vertices a fraction of a pixel apart merged, slivers dropped) and still logged "Attempted to merge a navigation mesh polygon
   edge" on seed 35's district (`navigation/district_seed_35_bakes_clean`, red on the 2D baker). The grid baker's vertices lie on cells: `NavWeld` changed none of 1042 bakes of
   a full test run and was removed.
+- *The polygons are merged* (`NavMerge`). The baker cuts a district's floor into 2590 polygons (2.9 times the 2D baker's) and a path query pays for each it crosses (300
+  queries across the district: 47 ms, the 2D mesh 24 ms); merging neighbours whose union is convex (at most 12 corners, every vertex kept) leaves 1142, 36 ms. A contour error
+  of 1 cell instead of 0.8 would give 853 polygons and 28 ms but closes a 140 px hall's lane beside a sofa. A ring starts where both its neighbours are real corners (the server's
+  closest-point test fans from the first vertex and loses a polygon whose first or last triangle is flat).
+- *Landing is later than the 2D baker's.* The thread takes 104 to 113 ms for a district (the 2D baker's 53), so `NavBakeConfig`'s counts were scaled to it: a district's planning bake
+  lands 36 frames after its start (14 before), an avoid map 22 (12), a steering burst 3 frames after its last tile (+3), the ring 4 (3). A moved piece reaches the planning map about
+  0.37 s later and an avoid-map link waits about 0.17 s longer; perf3d owns bringing them down.

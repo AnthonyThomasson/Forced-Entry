@@ -29,15 +29,16 @@ static var district_frames := 36
 ## on the main thread (`navigation/map_syncs_without_a_thread`) the 5v5 guard's contact came the
 ## same every run of a count.
 static var avoid_frames := 22
-## The planning ring (`NavRing`): a small map of the match building, a bake of 4 to 7 ms that is
-## done in a frame (211 bakes: 1 frame, at most 4); read by every snap and route in the building,
-## so it lands as soon as it safely can: 4 (the thread is 14 ms, done in 0 to 2 frames, but 4 of
-## the 15 landed on 3 found it still queued behind a tile burst: 3 to 6 ms waited).
+## The planning ring (`NavRing`): a small map of the match building, read by every snap and route
+## in the building, so it lands as soon as it safely can. The 3D baker's thread takes 14 ms and is
+## done in 0 to 2 frames, but 4 of the 15 rings that landed on 3 found it still queued behind a
+## tile burst (3 to 6 ms waited): 4.
 static var ring_frames := 4
-## A lone house (a test world's, the sandboxes'): its bake takes a few ms, so a count of 14 would
-## make the AI wait 0.23 s for an avoid map it used to have in a frame or two (its first decision
-## waits for it). Measured 2026-11-09 over 517 bakes of the ai and navigation tests' houses (the
-## frame 1 to 3 ms): 1 to 2 frames, p50 1, p95 2; 3, a little above the p95.
+## A lone house (a test world's, the sandboxes'): its bake takes a few ms, so a count of 36 would
+## make the AI wait 0.6 s for an avoid map it used to have in a frame or two (its first decision
+## waits for it). Measured 2026-11-09 with the 2D baker over 517 bakes of the ai and navigation
+## tests' houses (the frame 1 to 3 ms): 1 to 2 frames, p50 1, p95 2; 3, a little above the p95. Not
+## measured again with the 3D baker, whose thread is longer (perf3d owns that).
 static var house_frames := 3
 ## A district's steering tiles (`NavTileBurst`): each tile of a tick's burst is baked on a worker
 ## thread (`NavTiles.prepare`) and the burst lands, all its tiles at once, this many frames after

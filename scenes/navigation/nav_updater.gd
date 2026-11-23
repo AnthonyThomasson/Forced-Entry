@@ -41,8 +41,9 @@ var _baking := false
 ## A district's planning gather in progress, a step a physics frame (`_physics_process`). Null
 ## between gathers.
 var _gather: NavGather = null
-## A district's steering tiles of this tick, baked one a physics frame (`_physics_process`) and
-## landed together (`NavTileBurst`).
+## A district's steering tiles of this tick, started baking a physics frame each
+## (`_physics_process`) and landed together `NavBakeConfig.tile_frames` after the last
+## (`NavTileBurst`).
 var _burst := NavTileBurst.new()
 
 
@@ -57,10 +58,10 @@ func _exit_tree() -> void:
 	_burst.clear()
 
 
-## One physics frame of the updater's work: the next due steering tile is baked (never a second on
-## a frame the tick already baked one on), and one step of the district's planning gather runs; the
-## finished gather is swapped in, whole, and baked. A match torn down meanwhile leaves the tiles and
-## the gather unfinished and nothing started.
+## One physics frame of the updater's work: the next due steering tile is started baking on a
+## worker thread (never a second on a frame the tick already started one on), and one step of the
+## district's planning gather runs; the finished gather is swapped in, whole, and baked. A match
+## torn down meanwhile leaves the tiles and the gather unfinished and nothing started.
 func _physics_process(_delta: float) -> void:
 	if not _alive():
 		_burst.clear()
@@ -131,9 +132,9 @@ func start() -> void:
 ## furniture move while one is in flight waits for the next tick) and the steering region's in
 ## place; if only a character has, re-carve the steering region. Refreshes the overlay after either.
 ## Nothing moved, nothing baked. A lone house's steering region lands in the tick's own frame; a
-## district's due tiles are baked one a physics frame, the walker's own first, and land together
-## with the last (`NavTileBurst`: one steering-map sync a tick), so a walker looking for a way round
-## a body at rest sees it up to the burst's frames later
+## district's due tiles are started baking a frame each, the walker's own first, and land together
+## `NavBakeConfig.tile_frames` after the last (`NavTileBurst`: one steering-map sync a tick), so a
+## walker looking for a way round a body at rest sees it up to the burst's frames later
 ## (`navigation/steering_rebake_lands_in_its_tick`, `navigation/tile_rebake_one_a_frame`). A lone
 ## house's planning gather goes with it; a district's is a job of a few physics frames (`NavGather`,
 ## `_physics_process`), swapped in whole and baked on the worker thread, and a move meanwhile waits

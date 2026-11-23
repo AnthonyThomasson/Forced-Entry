@@ -7,14 +7,14 @@
 	 **Doors are left out of every bake** (planning, steering and avoid maps): the bodies of the group `doors` (interface 24: a leaf is no wall's
 	 shape) are left out of the parse, so paths cross a doorway as if open and
 	 the walker opens the door (ADR 0010). **A door at its open stop** (within
-	 `NavLeaves.OPEN_SLACK`, 10°, standing) is carved where its leaf stands, as the leaf's own thickness (a furniture hole) where at least `NavLeaves.MIN_PASS` (4 px) of way past it stays open (not in a 52 px doorway): its
+	 `NavLeaves.OPEN_SLACK`, 10°, standing) is carved where its leaf stands, as the leaf's own thickness (a furniture hole) where at least `NavLeaves.MIN_PASS` (4 px) of way past it stays open: its
 	 doorway stays open past it and a path goes round the leaf in the room it swings into. `NavBuilder.leaf_in_map(door) -> bool` tells
-	 whether a door's leaf is in the map so (the walker goes through any other door by a clean gap or opens it, DR14).
+	 whether a door's leaf is in the map so (any other door: a clean gap or opened, DR14).
    - **Re-bake** is the Navigation domain's own: `nav_updater.gd` (built by `MatchBuilder.stage`) re-carves the furniture holes in place at
-	 the pieces' **current** positions, only when a piece has moved, the planning bake on a worker thread, landing on a fixed physics frame (`NavBakeConfig`). The steering re-bake lands in the tick's frame (a held walker looks for a way round a body on a timer) in a house; a district's due tiles are baked on threads, started a frame each, and land together `tile_frames` after the last; a district's planning re-bake is not in the tick: a job of `NavGather` steps over 7 physics frames into a second buffer nothing reads, swapped in whole by `NavRebake`'s swap when complete, so a read during it sees the previous map.
+	 the pieces' **current** positions, only when a piece has moved, the planning bake on a worker thread, landing on a fixed physics frame (`NavBakeConfig`). The steering re-bake lands in the tick's frame (a held walker looks for a way round a body on a timer) in a house; a district's due tiles are baked on threads, started a frame each, and land together `tile_frames` after the last; a district's planning re-bake is not in the tick: a job of `NavGather` steps over 7 physics frames into a second buffer nothing reads, swapped in whole by `NavRebake`'s swap when complete, so a read during it sees the previous map. Landings are later than the 2D baker's (planning 36 frames, 14 before); perf3d owns bringing them down.
 	 `NavBuilder.rebake` / `rebake_async` / `rebake_steering` are test-facing seams, not this surface (`domain-navigation`): `rebake_async`,
 	 `NavRebake.planning` and `swap` return `Array[NavBake]` (`was_late`); the perf probe reads `NavBake.started_total` /
-	 `late_total` / `landed_total`, `NavTiles.baked_total` / `threaded_total`, `NavBuilder.avoid_starts` / `avoid_rebakes`. A bake lands on a `GameClock` frame (a pause defers it).
+	 `late_total` / `landed_total`, `NavTiles.baked_total` / `threaded_total`, `NavBuilder.avoid_starts` / `avoid_rebakes`. A bake lands on a `GameClock` frame.
    - `NavBuilder.furniture_holes(house) -> Array` — the carved footprints (anchored pieces, open doors and leaning fallen ones, `NavLeaves.fallen_hole`, included) as world-space polygons: what
 	 `nav_debug.gd` draws, `nav_updater.gd` watches for a moved piece, and `match_spawner.gd` keeps a spawn's clearance from.
    - **Characters at rest are holes too, on a second map.** `NavBuilder.character_holes(root) -> Array` (footprints of the living characters
@@ -39,7 +39,7 @@
 	 know of it**: `snap`, `snap_within` and `route` take the world map as ever and answer from the ring when every point they weigh lies well
 	 inside it (`NavRing.MARGIN`), else from the world's map, and a route the ring cannot finish is asked of the world's map; `ready(map)` also
 	 waits for the ring. A lone house has no ring and one planning map. Walking, steering and the avoid maps stay on the world's maps.
-	 `NavRing.region_of` / `map_of` / `map_for`: Navigation's tests, the perf guard.
+	 `NavRing.region_of` / `map_of` / `map_for`: tests.
    - **Avoid maps**, for a walk that keeps out of some floor (the AI's doorway views, E18):
 	 `NavBuilder.avoid_map(region, key, holes) -> RID` (`region`: the planning region `build` returned, found from a world map by
 	 `NavBuilder.planning_region(planning_map) -> NavigationRegion2D`; `holes`: world-space polygons; `key` names the set): a map of its own
