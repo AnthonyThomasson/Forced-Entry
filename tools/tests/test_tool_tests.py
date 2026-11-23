@@ -30,7 +30,8 @@ UNNAMED = f"tools/no_tool_{os.getpid()}.py"
 OUTSIDE = f"no_tool_{os.getpid()}.md"
 # The tool test modules a game-only commit (scenes/, tests/, project.godot) can make the pre-commit hook run. Adding a
 # module here means the hook runs it on game commits: time it first.
-GAME_COMMIT_PICKS = {"tools.tests.test_dump_sounds", "tools.tests.test_load_check", "tools.tests.test_run_tests_flags"}
+GAME_COMMIT_PICKS = {"tools.tests.test_dump_sounds", "tools.tests.test_load_check", "tools.tests.test_run_tests_flags",
+                      "tools.tests.test_suites_no_static_var"}
 
 
 class PickTests(unittest.TestCase):

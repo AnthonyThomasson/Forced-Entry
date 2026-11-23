@@ -12,9 +12,10 @@ const Cadence := preload("res://scenes/ai/npc_cadence.gd")
 const Fakes := preload("res://tests/_ai/job_fakes.gd")
 const Builds := preload("res://tests/_ai/job_build_fakes.gd")
 
-## The frame the test is on; each test starts on a frame of its own.
-static var _next_base := 9000
-
+## The base of the frame the last test started on; each test starts on a frame of its own. An
+## instance var, not a `static var`: one in a suite script crashes the 4.4.1 Windows engine at exit
+## (tools/tests/test_suites_no_static_var.py).
+var _next_base := 9000
 var _frame := 0
 var _perception: Fakes.FakePerception
 var _planner: Fakes.FakePlanner

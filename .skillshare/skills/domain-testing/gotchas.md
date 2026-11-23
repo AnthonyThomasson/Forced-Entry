@@ -36,3 +36,6 @@ Side file of `domain-testing` (`SKILL.md`).
 - **No test reads the live settings file:** before a test's own statics the runner sets `Settings.path` to a scratch file
   (`TestWorld.settings_scratch()`, deleted after), so a `Main` in the tree never loads the
   developer's saved `user://settings.json`. A test needing another path pins it with `set_static`; `MainProbe.open` errors on the live path.
+- **No `static var` in a native suite (`tests/**/*_suite.gd`):** the batch loads every suite to count the native ones, and
+  on Windows a suite with a `static var` took Godot 4.4.1 down at exit (an access violation after the report was written,
+  so the run read as a crash). Use an instance var; `tools/tests/test_suites_no_static_var.py` fails otherwise.
