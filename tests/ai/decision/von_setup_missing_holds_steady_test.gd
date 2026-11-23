@@ -30,6 +30,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var home := ProjectSettings.globalize_path("user://von_setup_missing_home")
 	DirAccess.make_dir_recursive_absolute(home)
+	var had_home := OS.has_environment("FORCED_ENTRY_HOME")
 	var home_was := OS.get_environment("FORCED_ENTRY_HOME")
 	OS.set_environment("FORCED_ENTRY_HOME", home)
 	var launcher: Node = LAUNCHER.new()
@@ -46,7 +47,11 @@ func run(t: TestContext) -> void:
 	var problem: String = launcher.problem
 	var limit: float = launcher.ready_timeout
 	launcher.free()
-	OS.set_environment("FORCED_ENTRY_HOME", home_was)
+	if had_home:
+		OS.set_environment("FORCED_ENTRY_HOME", home_was)
+	else:
+		OS.unset_environment("FORCED_ENTRY_HOME")
+	DirAccess.remove_absolute(home)
 	t.require(
 		secs < limit,
 		"the launcher settled within ready_timeout (%.1fs)" % secs,

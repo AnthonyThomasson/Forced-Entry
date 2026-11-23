@@ -6,7 +6,7 @@ THINK: the decision policy as data, and the only place the AI talks to the outsi
 
 - `decision_tree.gd` — `const NODES`, data only: the node fields, the shape, each node's `desc` / `question` / `context`.
 - `decision_planner.gd` — the walk (a `Node`): gating, entry rules, per-level state, Von calls; `driven` by the job, each level a piece (`step`). Its leaf `decision_walk.gd` (`DecisionWalk`) holds the walk in flight.
-- `decision_job.gd`, `decision_budget.gd` (`DecisionBudget`): one decision as a job against a pool of work units, `decision-job.md`; the Von files are `decision-von.md`'s.
+- `decision_job.gd`, `decision_budget.gd` (`DecisionBudget`): one decision as a job against a pool of work units, `decision-job.md`; the Von transport files are `decision-von.md`'s, the server launcher's `decision-von-server.md`.
 
 ## The tree
 

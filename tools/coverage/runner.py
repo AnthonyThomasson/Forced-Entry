@@ -61,7 +61,7 @@ RUNS_DIR = Path("artifacts") / "coverage"
 VON_PORT = 8000
 VON_HEALTH = "/v1/systemone"
 VON_MODEL = "von-1.2.0"
-VON_READY_SECONDS = 90.0
+VON_READY_SECONDS = 180.0
 BOOT_SETUP_MISSING = 3         # the exit code of the boot script when the Von setup is missing or broken
 # The flags that run Von tests against the live server (--record-von too: it writes into the copy only).
 VON_TESTS_FLAGS = ("--include-von", "--require-von", "--record-von")

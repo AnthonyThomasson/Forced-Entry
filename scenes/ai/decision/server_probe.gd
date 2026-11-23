@@ -9,5 +9,5 @@ var request: HTTPRequest
 var attempts_left := 0
 ## True once the launcher launched and is polling for the server's first answer.
 var waiting_ready := false
-## When to stop polling a launched server (see the launcher's `ready_timeout`).
+## When every path of the launcher gives up: scene load plus its `ready_timeout`.
 var ready_deadline_ms := 0

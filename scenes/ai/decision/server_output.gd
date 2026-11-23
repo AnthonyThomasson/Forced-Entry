@@ -6,6 +6,12 @@ extends RefCounted
 
 ## How many of the last lines are kept.
 const TAIL_LINES := 4
+## How long (s) `finish` waits for the readers before it leaves them (see there).
+const JOIN_WAIT_S := 1.5
+
+## Readers `finish` left running because a pipe stayed open, with the objects they read into: kept
+## here so the threads never run on freed memory (`reap` joins them once their pipes close).
+static var _stragglers: Array[RefCounted] = []
 
 ## Also print each line to the Output panel as `[von] …`.
 var echo := true
@@ -54,8 +60,30 @@ func tail() -> PackedStringArray:
 	return lines
 
 
-## Wait for the readers to see their pipes close (the process is ended), then close the log.
+## Wait for the readers to see their pipes close (the process is ended), then close the log. It
+## waits at most `JOIN_WAIT_S`: a pipe can stay open (a process the server left behind holds it),
+## and the game's close must not hang on it. The readers still running are left to end on their own
+## (`reap` joins them later).
 func finish() -> void:
+	var deadline := Time.get_ticks_msec() + int(JOIN_WAIT_S * 1000.0)
+	while alive() and Time.get_ticks_msec() < deadline:
+		OS.delay_msec(20)
+	if alive():
+		_stragglers.append(self)
+		return
+	_join()
+
+
+## Join the readers `finish` left, those whose pipes have closed since; one still open stays kept.
+static func reap() -> void:
+	for kept in _stragglers.duplicate():
+		if not kept.alive():
+			kept._join()
+			_stragglers.erase(kept)
+
+
+## Join every reader (they have ended) and close the log.
+func _join() -> void:
 	for thread in _threads:
 		if thread.is_started():
 			thread.wait_to_finish()

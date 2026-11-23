@@ -28,6 +28,9 @@ signal resolved(live: bool)
 ## Seconds a TCP connect to `port` may take before nothing is taken to be bound there
 ## (`_port_open`).
 const CONNECT_WAIT_S := 3.0
+## Longest (s) one readiness probe waits: it is a real inference, and the first also loads the
+## weights.
+const PROBE_TIMEOUT_S := 15.0
 ## Where the server output is appended.
 const LOG_PATH := "user://von_server.log"
 ## The readiness probe (`_probe`).
@@ -56,17 +59,17 @@ const ServerOutput := preload("res://scenes/ai/decision/server_output.gd")
 @export var background_qos: bool = true
 ## Also print each server log line to the Output panel.
 @export var echo_to_output: bool = true
-## How many times to probe `port` before giving up and launching our own server. Retries let a
-## just-orphaned or briefly slow server (one that TIMES OUT) be reused instead of racing into a
-## duplicate. A port that REFUSES the connection has nothing bound to wait for, so that answer
-## short-circuits the retries and launches at once.
+## How many times to probe `port` before giving up on what holds it. Retries let a just-orphaned or
+## briefly slow server (one that TIMES OUT) be reused. A port that REFUSES the connection has
+## nothing bound to wait for, so that answer short-circuits the retries and launches our own server
+## at once; one that stays silent is never launched over (it is held by something else).
 @export var probe_attempts: int = 5
 ## Seconds between probe attempts.
 @export var probe_interval: float = 0.5
-## How long (s) to keep polling a server we launched for its first answer, so the match can know
-## when the brain is live. Model boot dominates this; it is not a hard failure, just when we stop
-## waiting.
-@export var ready_timeout: float = 90.0
+## How long (s) from scene load every path may take to settle (`resolved`): the probes of a port,
+## and the polling of a server we launched for its first answer, so the match can know when the
+## brain is live. Model boot dominates this; it is not a hard failure, just when we stop waiting.
+@export var ready_timeout: float = 180.0
 
 ## Why no server is coming, `""` while nothing is wrong (a live or reused server): the warning the
 ## launcher printed, with the cause and the fix. Set before `resolved(false)` fires.
@@ -96,10 +99,9 @@ func _ready() -> void:
 		_resolve(false)  # Exported build: never auto-starts, so the match must not wait on one.
 		return
 	_start_ms = Time.get_ticks_msec()
+	_probe.ready_deadline_ms = _start_ms + int(ready_timeout * 1000.0)
 	_probe.request = HTTPRequest.new()
-	# Generous: the probe is a real inference, and the first one also pays for loading the weights.
-	# A refused connection still returns immediately, so this doesn't slow cold-start detection.
-	_probe.request.timeout = 15.0
+	_probe.request.timeout = PROBE_TIMEOUT_S
 	add_child(_probe.request)
 	_probe.request.request_completed.connect(_on_probe_completed)
 	_probe.attempts_left = maxi(1, probe_attempts)
@@ -154,6 +156,9 @@ func _probe_once() -> void:
 		return
 	if _probe.request == null:
 		return  # The node left the tree while the connect was tried.
+	# The request never outlives the deadline (but for a second): a silent port gives up in time.
+	var left_s := (_probe.ready_deadline_ms - Time.get_ticks_msec()) / 1000.0
+	_probe.request.timeout = clampf(left_s, 1.0, PROBE_TIMEOUT_S)
 	var payload := {
 		"model": NpcDecisionTuning.MODEL,
 		"state": "Readiness check.",
@@ -201,30 +206,37 @@ func _on_probe_completed(
 	if _probe.waiting_ready and _server_exited():
 		await _report_exit()  # The boot script ended: its setup is missing, or the port is held.
 		return
+	var out_of_time := Time.get_ticks_msec() >= _probe.ready_deadline_ms
+	var retry := _probe.attempts_left > 0 and not out_of_time
 	if result == HTTPRequest.RESULT_SUCCESS:
-		if _probe.attempts_left > 0:
+		if retry:
 			await _wait_then_probe()
-			return
-		_give_up(
-			("[von] Server on port %d is up but cannot decide (HTTP %d): %s. If it is not Von, "
-			+ "free the port; if it is an old Von, stop it (tools/von_stop.sh <game pid>, or end "
-			+ "the process holding the port) and start the game again. NPCs hold steady.")
-			% [port, code, _detail(body)],
-		)
-		return
-	if _probe.waiting_ready:
-		if Time.get_ticks_msec() >= _probe.ready_deadline_ms:
+		else:
+			_give_up(
+				("[von] Server on port %d is up but cannot decide (HTTP %d): %s. If it is not Von, "
+				+ "free the port; if it is an old Von, stop it (tools/von_stop.sh <game pid>, or "
+				+ "end the process holding the port) and start the game again. NPCs hold steady.")
+				% [port, code, _detail(body)],
+			)
+	elif _probe.waiting_ready:
+		if out_of_time:
 			_give_up(
 				"[von] Server has not answered within %.0fs; NPCs hold steady until it does."
 				% ready_timeout,
 			)
-			return
-		await _wait_then_probe()
-		return
-	if result == HTTPRequest.RESULT_CANT_CONNECT or _probe.attempts_left <= 0:
+		else:
+			await _wait_then_probe()
+	elif result == HTTPRequest.RESULT_CANT_CONNECT:
 		_launch_and_await_ready()
-		return
-	await _wait_then_probe()
+	elif retry:
+		await _wait_then_probe()
+	else:
+		# Something accepts connections on the port and never decides (a timeout, a connection that
+		# is no HTTP): not a server of ours to replace, and a second one could not bind it.
+		_give_up(
+			("[von] Port %d is held by something that does not answer a decision, so it is not "
+			+ "Von: free the port and start the game again. NPCs hold steady.") % port,
+		)
 
 
 ## The server's own explanation for a non-200: `DecisionClient.error_detail`, capped at 300
@@ -282,7 +294,6 @@ func _launch_and_await_ready() -> void:
 		_resolve(false)  # Nothing started: nothing to wait for (`_launch` said why).
 		return
 	_probe.waiting_ready = true
-	_probe.ready_deadline_ms = Time.get_ticks_msec() + int(ready_timeout * 1000.0)
 	await _wait_then_probe()
 
 

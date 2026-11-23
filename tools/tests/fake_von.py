@@ -28,10 +28,11 @@ import tempfile
 import zipfile
 from pathlib import Path
 
+from tools.setup import fe_env
+
 ROOT = Path(__file__).resolve().parents[2]
 # The one list of weight files, from the manifest (the scripts read it from there too).
-WEIGHT_FILES = tuple(next(line.partition("=")[2] for line in (ROOT / "tools" / "setup" / "versions.env").read_text().splitlines()
-                          if line.startswith("VON_WEIGHT_FILES=")).strip().split(","))
+WEIGHT_FILES = tuple(fe_env.manifest()["VON_WEIGHT_FILES"].strip().split(","))
 WINDOWS = sys.platform == "win32"
 
 SOURCE = '''
