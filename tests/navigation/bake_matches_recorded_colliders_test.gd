@@ -44,11 +44,11 @@ const ROUTE_LONGER := 0.03
 const ROUTE_SHORTER := 0.08
 ## How many times the recorded polygon count the navmesh may hold, and at least: the baker cuts the
 ## floor into regions, and `NavMerge` fuses neighbours that make a convex one (the baker's own
-## were x2.9 district and x3.4 house; the merged mesh: x1.3 district). A mesh with
-## more polygons costs every path query more (300 queries across the district: 47 ms at x2.9,
-## 24 ms in the 2D baker's mesh).
+## were x2.9 district and x3.4 house; the merged mesh measured x1.28 district and x1.43 house). A
+## mesh with more polygons costs every path query more (300 queries across the district: 47 ms at
+## x2.9, 24 ms in the 2D baker's mesh); one with fewer than the record's has lost floor.
 const POLYGONS_MOST := 1.6
-const POLYGONS_LEAST := 0.5
+const POLYGONS_LEAST := 0.9
 ## How near (px) to a wall a route may come: the agent's radius (measured 15.2 at the least: the
 ## bake's 18 less half a cell's diagonal).
 const ROUTE_CLEARANCE := RADIUS

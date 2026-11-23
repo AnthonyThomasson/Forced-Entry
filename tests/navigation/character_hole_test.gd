@@ -7,10 +7,11 @@ extends GameTest
 ## How far (px) a character's centre is, at the least, from the path across the arena: a character
 ## the path goes round is off it by a body's width and more.
 const OFF_THE_LINE := 20.0
-## The path's length (px) past which it has bent: the straight line is 480, and the unoptimised path
-## zigzags through the polygons' edges, so its length says little (a straight run measured 480 to
-## 491.9, and 493.8 round a character on the merged mesh): `OFF_THE_LINE` is what shows a detour,
-## and this only keeps the length from being shorter than the line.
+## The path's length (px) a path round a character is not shorter than: the straight line is 480,
+## and the unoptimised path zigzags through the polygons' edges, so its length cannot tell a detour
+## (a straight run measured 480 to 491.9, 493.8 round a character on the merged mesh, the ranges
+## overlap): `OFF_THE_LINE` alone carries the detour, and this half only rules out no path (0) or
+## one shorter than the line.
 const BENT := 480.0
 
 

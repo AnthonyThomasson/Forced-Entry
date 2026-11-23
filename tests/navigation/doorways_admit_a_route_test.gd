@@ -6,7 +6,7 @@ extends GameTest
 ## walls alone (an empty doorway) and then with every house door open and its leaf carved
 ## (`NavLeaves.hole`). It is found, goes through the doorway (within `THROUGH` px of its middle:
 ## the open leaf may crowd one jamb) and keeps the agent's radius off every wall (a corner cut
-## would pass nearer: `CLEARANCE` of the radius at the least).
+## would pass nearer: the radius at the least, as in `bake_matches_recorded_colliders`).
 
 const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const Clearance := preload("res://tests/_navigation/route_clearance.gd")
@@ -23,9 +23,6 @@ const THROUGH := 26.0
 ## A route longer than this times the straight line (and `SLACK`) has gone the long way round.
 const DETOUR := 1.35
 const SLACK := 12.0
-## How near (px) a route may come to a wall under the agent's radius: the grid's cells and the
-## contour error.
-const CLEARANCE := 1.0
 ## The walls of a district's shells, whose doorways open on nothing the mesh holds.
 const SCENERY_WALLS := "Partition"
 ## What `_through` says of a doorway it could not probe.
@@ -152,7 +149,7 @@ func _problem(
 	if nearest > THROUGH:
 		return "misses the doorway by %.0f px" % nearest
 	var least := Clearance.least_off_walls(path, walls, frame)
-	if least < RADIUS - CLEARANCE:
+	if least < RADIUS:
 		return "cuts a corner: %.1f px off a wall (radius %.0f)" % [least, RADIUS]
 	return ""
 
