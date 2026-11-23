@@ -29,9 +29,10 @@ const STARTS := {
 ## that lands while it is crossing the front door's view (x -94 to 94 on the wall's south side) the
 ## entry guard secures that door and the member gives its claim up (E15). Where it stands when the
 ## move-up comes is a matter of a few px of the walk (the 4 px nav mesh runs its lanes 1 to 2 px off
-## the old mesh's), so it starts 40 px nearer the corner than the 300 the old mesh's lanes happened
-## to clear: from 280 to 240 it is across the view before the move-up lands.
-const WRONG_START := Vector2(260, -830)
+## the old mesh's). Measured by start x (step 20): 60 to 260 pass, 280 to 320 fail (the member is
+## across the view when the move-up lands): 240 stands in the passing band, 40 px from the failing
+## starts.
+const WRONG_START := Vector2(240, -830)
 
 
 func describe() -> Dictionary:
