@@ -23,6 +23,9 @@ const OBSTRUCTION_HEIGHT := 100.0
 const SOURCE_META := "nav_baked_source"
 const ORIGIN_META := "nav_baked_origin"
 ## The baker's contour error (cells): the most a hole's edge is moved by simplifying its outline.
+## Not 1: at 1 a one-cell stair step of a hole's outline is no corner, which takes the district's
+## merged mesh (`NavMerge`) from 1142 polygons to 853 and a sofa's lane 4 px narrower (a 140 px
+## hall's lane closed: `ai/grenade/combat_stun_then_advance`).
 const EDGE_MAX_ERROR := 0.8
 ## How near (px) to a polygon's edge a cell's centre is asked of `Geometry2D.is_point_in_polygon`
 ## rather than read from where the polygon crosses the line of centres (`_fill`): the engine's
@@ -150,7 +153,9 @@ static func bake(baked: Dictionary, origin: Vector2) -> NavigationPolygon:
 ## floor shrunk by it): the voxel baker's own erosion measures in whole cells and leaves a wall's
 ## end a third nearer than its radius. The mesh is voxelised on a `CELL_SIZE` px grid laid on the
 ## WORLD's (`origin`: the region's offset), so every region's vertices fall on the cells the map
-## merges by; its polygons and vertices are set on `poly` in the plan's (x, y). Runs on the main
+## merges by; its polygons (merged where the union is convex: `NavMerge`) and vertices are set on
+## `poly` in the
+## plan's (x, y). Runs on the main
 ## thread or a worker's (`NavBake`): it reads nothing but its arguments. `closed` are cells (plan
 ## rects, not grown by the radius) to hold as well: a tile's border cells its neighbour holds
 ## (`NavSeams`).
@@ -198,16 +203,25 @@ static func bake_polygon(
 	for square in closed:
 		geometry.add_projected_obstruction(_ring(square), 0.0, OBSTRUCTION_HEIGHT, true)
 	NavigationServer3D.bake_from_source_geometry_data(mesh, geometry)
+	_take_mesh(poly, mesh)
+	poly.set_meta(SOURCE_META, source)
+	poly.set_meta(ORIGIN_META, origin)
+
+
+## Set `mesh`'s vertices on `poly` in the plan's (x, y), and its polygons merged where the union is
+## convex (`NavMerge`).
+static func _take_mesh(poly: NavigationPolygon, mesh: NavigationMesh) -> void:
 	poly.clear()
 	poly.cell_size = CELL_SIZE
 	var vertices := PackedVector2Array()
 	for v in mesh.get_vertices():
 		vertices.append(Vector2(v.x, v.z))
 	poly.vertices = vertices
+	var polygons: Array[PackedInt32Array] = []
 	for i in mesh.get_polygon_count():
-		poly.add_polygon(mesh.get_polygon(i))
-	poly.set_meta(SOURCE_META, source)
-	poly.set_meta(ORIGIN_META, origin)
+		polygons.append(mesh.get_polygon(i))
+	for ring in NavMerge.merged(vertices, polygons):
+		poly.add_polygon(ring)
 
 
 ## `outline` as a ring of the plan-space world (x, 0, z).

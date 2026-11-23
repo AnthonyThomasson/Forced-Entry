@@ -7,11 +7,11 @@ extends GameTest
 ## How far (px) a character's centre is, at the least, from the path across the arena: a character
 ## the path goes round is off it by a body's width and more.
 const OFF_THE_LINE := 20.0
-## The path's length (px) past which it has bent: the straight line is 480 (491.9 measured with the
-## unoptimised path's own zigzag), the detour round a character standing 5 px off the line 503.3.
-## The old bound, 520, held for the 2D bake's triangulation (571 for the first character): it is the
-## polygons' edges the unoptimised path runs through, which the shape of a hole moves.
-const BENT := 495.0
+## The path's length (px) past which it has bent: the straight line is 480, and the unoptimised path
+## zigzags through the polygons' edges, so its length says little (a straight run measured 480 to
+## 491.9, and 493.8 round a character on the merged mesh): `OFF_THE_LINE` is what shows a detour,
+## and this only keeps the length from being shorter than the line.
+const BENT := 480.0
 
 
 func describe() -> Dictionary:

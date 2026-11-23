@@ -25,6 +25,7 @@ A leaf: it builds the maps; everyone else pathfinds. Takes a plain `rooms` array
 | `nav_ready.gd`, `nav_snaps.gd` | `NavReady`: does a map answer yet. `NavSnaps`: what `snap` learned. |
 | `nav_routes.gd` (`NavRoutes`) | The exact route answers remembered between planning-map re-bakes, and `iterations(map)`. |
 | `nav_union.gd` (`NavUnion`) | Fuses overlapping footprints. |
+| `nav_merge.gd` (`NavMerge`) | Merges the baker's polygons where convex (`baker.md`). |
 | `nav_debug.gd` | Draw-only overlay of the holes. |
 
 ## Baking
@@ -54,7 +55,7 @@ its source the same way, so all carve holes identically (default radius `NavBuil
 - **The bake reads the 3D twins, not the 2D colliders** (`twins.md`): a wall's and a piece's or character's footprint is the plan polygon of its twin's shapes,
   grown by `OBSTACLE_MARGIN` for a hole, a round one the bake's own 10-sided polygon. Overlapping footprints are fused (skipped for outlines whose boxes are apart:
   `tests/navigation/furniture_union_fast_path_test.gd`) and every outline is snapped to the 1 px grid.
-- **Every bake is the grid baker's** (ADR 0016, `NavSource.bake_polygon`, `baker.md`): `NavigationServer3D` on 4 px cells from the footprints projected onto a plan-space floor; no weld is needed (`NavWeld` is gone). Tests: `furniture_beside_wall_bakes_clean`, `character_beside_wall_bakes_clean`, `district_seed_35_bakes_clean`. Regions, maps and queries stay `NavigationServer2D`'s until nav3d-b.
+- **Every bake is the grid baker's** (ADR 0016, `NavSource.bake_polygon`, `baker.md`): `NavigationServer3D` on 4 px cells from the footprints projected onto a plan-space floor; no weld is needed (`NavWeld` is gone). Tests: `*_bakes_clean`, `mesh_merge`. Regions, maps and queries stay `NavigationServer2D`'s until nav3d-b.
 
 ## The steering map: characters at rest are holes too
 

@@ -25,12 +25,12 @@
 			],
 			"pick": "enter",
 			"probabilities": {
-				"enter": 0.3962,
-				"explore_east": 0.3111,
-				"stun_entry": 0.2926
+				"enter": 0.4003,
+				"explore_east": 0.3015,
+				"stun_entry": 0.2982
 			},
 			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your SMG.\nYou are in the security vestibule, inside the house, holding a SMG. You are unhurt.\nCurrent activity: SEARCH - ENTER - the doorway to the north-west (waiting, for 18s).\nDecided so far: SEARCH."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your SMG.\nYou are in the security vestibule, inside the house, holding a SMG. You are unhurt.\nCurrent activity: SEARCH - ENTER - the doorway to the north-west (waiting, for 19s).\nDecided so far: SEARCH."
 		},
 		{
 			"options": [
@@ -41,13 +41,13 @@
 			],
 			"pick": "explore_east",
 			"probabilities": {
-				"enter": 0.2981,
-				"explore_east": 0.3502,
-				"room_security_vestibule": 0.133,
-				"stun_entry": 0.2187
+				"enter": 0.3034,
+				"explore_east": 0.3416,
+				"room_security_vestibule": 0.1355,
+				"stun_entry": 0.2195
 			},
 			"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your SMG.\nYou are in the living room, inside the house, holding a SMG. You are unhurt.\nCurrent activity: SEARCH - ENTER - the doorway to the north-east (waiting, for 35s).\nDecided so far: SEARCH."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your SMG.\nYou are in the living room, inside the house, holding a SMG. You are unhurt.\nCurrent activity: SEARCH - ENTER - the doorway to the north-east (waiting, for 33s).\nDecided so far: SEARCH."
 		}
 	],
 	"version": 1

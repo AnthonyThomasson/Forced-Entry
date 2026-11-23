@@ -36,12 +36,12 @@
 			],
 			"pick": "advance",
 			"probabilities": {
-				"advance": 0.4034,
-				"engage": 0.3463,
-				"retreat": 0.2503
+				"advance": 0.4044,
+				"engage": 0.3585,
+				"retreat": 0.2371
 			},
 			"question": "How should you fight thrower? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the living room, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: EVADE - a live frag grenade (waiting, for 3s).\nKnown hostiles: 1 (0 in sight). Allies near you: none.\nYou are behind cover from thrower (the wall): your line to them is blocked.\nthrower — HOSTILE (trespassing) — last seen recently — too far to shoot, east of you, in the hallway — was standing still — holding a Pistol — looks badly wounded.\nFlanks on thrower (you are on their front): their left side — free, line blocked, cover, long hidden route; their right side — free, line blocked, cover, medium hidden route; behind them — route passes thrower, line blocked, cover, long exposed route.\nDecided so far: COMBAT → thrower."
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the living room, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: EVADE - a live frag grenade (waiting, for 3s).\nKnown hostiles: 1 (0 in sight). Allies near you: none.\nYou are behind cover from thrower (the wall): your line to them is blocked.\nthrower — HOSTILE (trespassing) — last seen recently — too far to shoot, east of you, in the hallway — was standing still — holding a Pistol — looks badly wounded.\nFlanks on thrower (you are on their front): their left side — free, line blocked, cover, long hidden route; their right side — free, line blocked, cover, medium hidden route; behind them — free, line blocked, cover, long hidden route.\nDecided so far: COMBAT → thrower."
 		}
 	],
 	"version": 1

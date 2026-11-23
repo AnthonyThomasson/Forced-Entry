@@ -41,9 +41,13 @@ const MESH_SHARE := 0.025
 ## is lost.
 const ROUTE_LONGER := 0.03
 const ROUTE_SHORTER := 0.08
-## How many times the recorded polygon count the navmesh may hold (at least as many): the baker
-## cuts the floor into regions and triangulates them (measured x2.9 district, x3.4 house).
-const POLYGON_RATIO := 3.5
+## How many times the recorded polygon count the navmesh may hold, and at least: the baker cuts the
+## floor into regions, and `NavMerge` fuses neighbours that make a convex one (the baker's own
+## were x2.9 district and x3.4 house; the merged mesh: x1.3 district). A mesh with
+## more polygons costs every path query more (300 queries across the district: 47 ms at x2.9,
+## 24 ms in the 2D baker's mesh).
+const POLYGONS_MOST := 1.6
+const POLYGONS_LEAST := 0.5
 ## What a pixel of area is: the summed areas of the same outlines agree to this.
 const AREA_EPSILON := 1.0
 ## The walls of a district's shells (a tower's outside: scenery with no walkable inside), whose
@@ -450,8 +454,8 @@ func _signed(ring: PackedVector2Array) -> float:
 	return sum * 0.5
 
 
-## The navmesh: its area within `MESH_SHARE` of the record's, and up to `POLYGON_RATIO` times its
-## polygons.
+## The navmesh: its area within `MESH_SHARE` of the record's, and between `POLYGONS_LEAST` and
+## `POLYGONS_MOST` times its polygons.
 func _check_mesh(t: TestContext, poly: NavigationPolygon, recorded: Dictionary) -> void:
 	var before: float = recorded["area"]
 	var after := _mesh_area(poly)
@@ -462,11 +466,11 @@ func _check_mesh(t: TestContext, poly: NavigationPolygon, recorded: Dictionary) 
 	)
 	t.check(
 		(
-			poly.get_polygon_count() >= int(recorded["polygons"])
-			and poly.get_polygon_count() <= float(recorded["polygons"]) * POLYGON_RATIO
+			poly.get_polygon_count() >= float(recorded["polygons"]) * POLYGONS_LEAST
+			and poly.get_polygon_count() <= float(recorded["polygons"]) * POLYGONS_MOST
 		),
-		"the navmesh has from 1 to %.1f times the recorded polygons (%d recorded, %d now)"
-			% [POLYGON_RATIO, recorded["polygons"], poly.get_polygon_count()],
+		"the navmesh has from %.1f to %.1f times the recorded polygons (%d recorded, %d now)"
+			% [POLYGONS_LEAST, POLYGONS_MOST, recorded["polygons"], poly.get_polygon_count()],
 	)
 
 

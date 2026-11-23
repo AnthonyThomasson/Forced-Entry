@@ -20,8 +20,10 @@ class_name NavBakeConfig
 ## frames, so the guard with the shortest frames sets it. At 24 that guard's second planning bake
 ## was still on its thread at its landing frame (it started with the pool busy with a tile burst)
 ## and the frame waited 38 ms (max 41.6 against a budget of 33.4); 32 is the 23 frames and the
-## wait the pool's other work adds (a landing still waits 20 ms at most there).
-static var district_frames := 32
+## wait the pool's other work adds (a landing still waits 20 ms at most there). The merge of the
+## baker's polygons (`NavMerge`, 13 ms of the district's thread) takes it to 36 (ambush guard: the
+## landing at 32 waited 34 to 42 ms on a quiet machine, 25 to 28 at 36); avoid 20 -> 22 likewise.
+static var district_frames := 36
 ## A district's avoid map (`NavBuilder.avoid_map`): the same source and a few holes, so the same
 ## thread (568 bakes in those runs: 1 to 14 frames of the 5v5 frame, p50 9, p75 11, p95 13), but
 ## the AI asks for one at the start of every decision's walk and of an entry's slot, and a new set
@@ -37,7 +39,7 @@ static var district_frames := 32
 ## at 12 s, 30 s or not at all from run to run at any count, and was taken for the count.)
 ## Measured with the same runs as `district_frames` (24 avoid bakes: the thread 105 to 176 ms,
 ## 2 to 16 frames, none late at 20).
-static var avoid_frames := 20
+static var avoid_frames := 22
 ## The planning ring (`NavRing`): a small map of the match building, a bake of 4 to 7 ms that is
 ## done in a frame (211 bakes: 1 frame, at most 4); read by every snap and route in the building,
 ## so it lands as soon as it safely can: 4 (the thread is 14 ms, done in 0 to 2 frames, but 4 of
