@@ -198,6 +198,33 @@ class StaleCacheHintTests(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout)
         self.assertNotIn(HINT, r.stdout + r.stderr)
 
+    def test_a_log_cut_off_at_a_debugger_break_names_the_script_and_the_reason(self):
+        # What the Windows engine leaves when a script has a parse error: it breaks and never goes on, and
+        # tools/lint_engine.py ends it (the log has no LINT-DONE).
+        r = self.report("windows_break_loop.log")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("res://scenes/broken.gd", r.stdout)
+        self.assertIn("Parser Error: Expected parameter name. (line 2)", r.stdout)
+        self.assertIn("the lint did not finish", r.stdout, "and still says it stopped early")
+
+    def test_a_break_in_a_log_that_finished_is_no_finding(self):
+        # A Mac's engine breaks at a parse error and goes on; the script's own error line is then the finding.
+        text = "\n".join(["LINT-PASS2", "Debugger Break, Reason: 'Parser Error: x'", "*Frame 0 - res://a.gd:1 in function ''",
+                          "LINT-DONE 1", ""])
+        self.assertEqual(list(self.entries(text)), [])
+
+    def test_a_log_with_no_break_that_never_finished_names_no_script(self):
+        text = "\n".join(["LINT-PASS2", "LINT> res://scenes/a.gd", ""])
+        self.assertEqual([p for p, _ in self.entries(text)], [None])
+
+    def entries(self, text):
+        sys.path.insert(0, str(ROOT / "tools"))
+        try:
+            import lint_report
+        finally:
+            sys.path.pop(0)
+        return lint_report.entries(text)
+
     def test_lint_sh_prints_the_hint_for_a_stale_cache(self):
         with LintTree(TWO) as tree:
             r = tree.lint("--skip-rule=toy_fail", log="stale_class_cache.log")

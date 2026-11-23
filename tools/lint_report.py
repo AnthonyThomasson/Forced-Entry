@@ -26,6 +26,8 @@ ANSI = re.compile(r"\x1b\[[0-9;]*m")
 HEADERS = ("SCRIPT ERROR:", "USER SCRIPT ERROR:", "ERROR:", "WARNING:", "SCRIPT WARNING:")
 NOISE = ("Debugger Break", "Enter \"help\"", "*Frame", "at:", "LINT")
 NAMED = re.compile(r'"(\w+)"')
+BREAK_REASON = re.compile(r"Debugger Break, Reason: '?(.*?)'?$")
+BREAK_FRAME = re.compile(r"\*Frame \d+ - (res://\S*?)(?::(\d+))?(?: in function.*)?$")
 MAX_CANDIDATES = 8
 # An unknown class name, which a stale class cache produces by the hundred; a typo produces one.
 UNKNOWN_CLASS = re.compile(r'Identifier "[A-Z]\w*" not declared|Could not find (?:base class|type) "|'
@@ -38,9 +40,12 @@ STALE_HINT = ("Hint: {n} unknown-class errors in {files} scripts look like a sta
 
 def entries(text: str):
     """Yield (path, message) for everything the engine printed after each `LINT> path` marker; (None, why) if
-    the lint did not run to the end."""
+    the lint did not run to the end. When it did not, and the engine stopped at a `Debugger Break` (a parse error
+    leaves it at its debugger prompt, and tools/lint_engine.py ends it there), the last break's reason is yielded
+    first, under the script its `*Frame` line names, so a broken script is named on every OS."""
     path = None
     started = done = False
+    broke = None  # (reason, script, line) of the last debugger break
     for raw in text.split("\n"):
         line = ANSI.sub("", raw.rstrip("\r")).strip()
         if line.startswith("debug> "):
@@ -50,6 +55,13 @@ def entries(text: str):
         elif line.startswith("LINT-DONE"):
             done = True
             break
+        elif line.startswith("Debugger Break, Reason:"):
+            reason = BREAK_REASON.match(line)
+            broke = (reason.group(1) if reason else line, None, None)
+        elif broke and broke[1] is None and line.startswith("*Frame"):
+            frame = BREAK_FRAME.match(line)
+            if frame:
+                broke = (broke[0], frame.group(1), frame.group(2))
         elif not started:
             continue
         elif line.startswith("LINT> "):
@@ -58,6 +70,9 @@ def entries(text: str):
             msg = next(line[len(h):].strip() for h in HEADERS if line.startswith(h))
             yield path, msg.strip("'")
     if not done:
+        if broke:
+            reason, script, row = broke
+            yield script, reason + (f" (line {row})" if row else "")
         yield None, "the lint did not finish (script crash or engine failure); see the log"
 
 
