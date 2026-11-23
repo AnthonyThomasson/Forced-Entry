@@ -9,7 +9,8 @@ description: Use after editing GDScript or scenes, before reporting work done, a
 sandbox Godot busy-spins with no output. Godot is not on PATH; the scripts find it themselves (`GODOT` overrides), through
 one resolver, `tools/setup/lib.sh`: `GODOT`, then `godot` / `godot4` on PATH, then the setup's install folder, then the
 usual per-OS places (a Mac's Godot apps in `/Applications`, mono or not; on Windows `%LOCALAPPDATA%\Programs`, Program Files).
-Python is found the same way (`$PYTHON`, `python3` if it runs, `py -3`, `python`). For a direct call:
+Python is found the same way, at 3.12 or newer (`PYTHON_MIN`): `$PYTHON`, then `python3.14` / `python3.13` / `python3.12`, then
+`python3` if it really runs (on Windows it is the Microsoft Store stub), `py -3`, `python`. For a direct call:
 
 ```bash
 source tools/setup/lib.sh; fe_use_godot; fe_use_python   # exports GODOT and PYTHON; each returns 2 with a message when none is found

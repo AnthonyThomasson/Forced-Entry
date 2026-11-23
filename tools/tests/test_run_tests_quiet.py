@@ -76,5 +76,38 @@ class FilterWordTests(FakeTree):
         self.assertEqual(self.listed(), [])
 
 
+# Added to the throwaway tree's copy of godot_slot.py: every call notes each `--ancestor=PID` it was given and whether that
+# pid is one of this process's own ancestors in the machine's process table (the wrapper's own pid, as that table has it).
+RECORD_ANCESTORS = r"""
+def record_ancestors(argv):
+    from tools import proctree
+    for a in argv:
+        if a.startswith("--ancestor="):
+            pid = int(a.split("=", 1)[1])
+            with open(os.environ["FAKE_ANCESTORS"], "a") as f:
+                f.write("%d %s\n" % (pid, pid in proctree.ancestors(proctree.snapshot(), os.getpid())))
+
+
+def main(argv: list) -> int:
+    record_ancestors(argv)
+"""
+
+
+class AncestorTests(FakeTree):
+    def test_the_pid_the_wrapper_hands_the_slot_tool_is_the_wrappers_own_in_the_process_table(self):
+        # Git Bash's $$ is an MSYS pid, not the Windows pid the slot tool's process table (and so `stop` and the count of
+        # other busy engines) goes by: it must be given the wrapper's Windows pid, or it ends and excludes nothing.
+        slot = self.repo / "tools" / "godot_slot.py"
+        text = slot.read_text()
+        self.assertIn("def main(argv: list) -> int:\n", text)
+        slot.write_text(text.replace("def main(argv: list) -> int:\n", RECORD_ANCESTORS.lstrip("\n"), 1))
+        noted = self.tmp / "ancestors"
+        code, out = self.run_tests("--quiet=1", FAKE_ANCESTORS=str(noted))
+        self.assertEqual(code, 0, out)
+        lines = noted.read_text().splitlines()
+        self.assertTrue(lines, "the slot tool was given an ancestor")
+        self.assertEqual([ln for ln in lines if not ln.endswith(" True")], [], "each is a pid above the slot tool")
+
+
 if __name__ == "__main__":
     unittest.main()

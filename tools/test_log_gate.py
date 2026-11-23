@@ -53,7 +53,19 @@ from tools.coverage.tests.support import copy_setup  # noqa: E402
 from tools.setup import fe_env  # noqa: E402
 SCAN = ROOT / "tools" / "scan_godot_log.py"
 RUN = ROOT / "tools" / "run_tests.sh"
+WINDOWS = sys.platform == "win32"
 HEADED = "--headed" in sys.argv
+
+
+def native(text: str) -> Path:
+    """A path the bash wrapper printed, as this Python opens it: Git Bash prints /tmp/x for the folder Windows calls
+    C:\\Users\\...\\Temp, and Path("/tmp/x") would be a folder on the current drive's root."""
+    if WINDOWS and text.startswith("/"):
+        shown = subprocess.run([fe_env.find_bash() or "bash", "-c", 'cygpath -w "$1"', "native", text], capture_output=True,
+                               text=True).stdout.strip()
+        if shown:
+            return Path(shown)
+    return Path(text)
 
 
 def godot_binary():
@@ -215,14 +227,20 @@ class WrapperTests(unittest.TestCase):
     def tearDownClass(cls):
         shutil.rmtree(cls.tmp, ignore_errors=True)
 
-    def run_wrapper(self, scenario, *args, lint=None, state=None):
+    @staticmethod
+    def as_shown(path):
+        """The tail of `path` as the bash wrapper prints it on every OS: its folder and file name with a slash between
+        (on Windows the wrapper shows /tmp/... or C:/..., never the backslash form str(Path) has; the folder is per test)."""
+        return f"{path.parent.name}/{path.name}"
+
+    def run_wrapper(self, scenario, *args, lint=None, state=None, **extra_env):
         """`lint` = None skips the lint (these tests are about the log gate); "clean" / "dirty" runs it on the fake.
         A lint run keeps its state (the fingerprint of the last clean lint) in `state`, a fresh directory unless the
         caller passes one, so one test's clean lint never makes the next test skip its lint."""
         if lint and state is None:
             state = Path(tempfile.mkdtemp(dir=self.tmp))
         env = dict(os.environ, GODOT=str(self.fake), FAKE_SCENARIO=scenario, FAKE_LINT=lint or "",
-                   TMPDIR=str(state or self.tmp))
+                   TMPDIR=str(state or self.tmp), **extra_env)
         flags = list(args) + ([] if lint else ["--no-lint"])
         r = subprocess.run(["bash", str(RUN), *flags], cwd=ROOT, env=env, capture_output=True, text=True)
         return r.returncode, r.stdout + r.stderr
@@ -258,7 +276,9 @@ class WrapperTests(unittest.TestCase):
     def test_record_von_is_a_flag_the_batch_is_given(self):
         for flag in ("--record-von", "--require-von", "--include-von"):
             with self.subTest(flag=flag):
-                code, out = self.run_wrapper("clean", flag, "--id=a/x")
+                # A port is named so the wrapper's Von preflight (tools/von/boot.sh --check, covered by
+                # test_run_tests_von_preflight.py) has nothing to check: this test is about the flag reaching the batch.
+                code, out = self.run_wrapper("clean", flag, "--id=a/x", GAME_TEST_VON_PORT="1")
                 self.assertEqual(code, 0, out)
                 self.assertIn(f"selection: {flag} --id=a/x", out)
 
@@ -325,7 +345,7 @@ class WrapperTests(unittest.TestCase):
         code, out = self.run_wrapper("clean", "--failed", state=state)
         self.assertEqual(code, 2, out)
         self.assertIn("cannot read the last report", out)
-        self.assertIn(str(last), out, "it names the file")
+        self.assertIn(self.as_shown(last), out, "it names the file")
         self.assertNotIn("nothing to rerun", out)
 
     def test_an_explicit_shard_runs_native_suites_once_and_says_so(self):
@@ -353,7 +373,7 @@ class WrapperTests(unittest.TestCase):
         self.assertEqual(costs, {"a/x": 120, "a/z": 80})  # the skipped test says nothing about how long a test takes
         code, out = self.run_wrapper("timed", "--jobs=2", state=state)
         self.assertEqual(out.count("costs-arg"), 2)  # every shard gets the same file
-        self.assertIn(str(next(state.glob("example_godot_costs_*.json"))), out)
+        self.assertIn(self.as_shown(next(state.glob("example_godot_costs_*.json"))), out)
 
     def test_a_sharded_run_prints_one_combined_slowest_list(self):
         out = self.run_wrapper("timed", "--jobs=2")[1]
@@ -495,7 +515,7 @@ class LintFingerprintTests(unittest.TestCase):
         self.fake = self.tmp / "fakegodot"
         self.fake.write_text(FAKE_GODOT)
         self.fake.chmod(0o755)
-        for rel, text in {".gitignore": ".godot/\n", ".godot/global_script_class_cache.cfg": "",
+        for rel, text in {".gitignore": ".godot/\n__pycache__/\n", ".godot/global_script_class_cache.cfg": "",
                           "scenes/a.gd": "extends Node\n"}.items():
             (self.repo / rel).parent.mkdir(parents=True, exist_ok=True)
             (self.repo / rel).write_text(text)
@@ -564,7 +584,7 @@ class StagedChangedTests(unittest.TestCase):
         self.fake = self.tmp / "fakegodot"
         self.fake.write_text(FAKE_GODOT)
         self.fake.chmod(0o755)
-        files = {".gitignore": ".godot/\n", ".godot/global_script_class_cache.cfg": "", "tests/ai/x_test.gd": "",
+        files = {".gitignore": ".godot/\n__pycache__/\n", ".godot/global_script_class_cache.cfg": "", "tests/ai/x_test.gd": "",
                  "tests/ui/y_test.gd": "", "tests/physics/z_test.gd": "", "scenes/ai/a.gd": "extends Node\n",
                  "scenes/ui/u.gd": "extends Node\n", "scenes/ui/u.tscn": "[gd_scene]\n"}
         for rel, text in files.items():
@@ -663,7 +683,7 @@ class SpecNamedTestsTests(unittest.TestCase):
         self.fake = self.tmp / "fakegodot"
         self.fake.write_text(FAKE_GODOT)
         self.fake.chmod(0o755)
-        files = {".gitignore": ".godot/\n", ".godot/global_script_class_cache.cfg": "", "docs/spec.md": SPEC_DOC,
+        files = {".gitignore": ".godot/\n__pycache__/\n", ".godot/global_script_class_cache.cfg": "", "docs/spec.md": SPEC_DOC,
                  "tests/ai/alpha_one_test.gd": "", "tests/physics/beta_two_test.gd": "", "scenes/ai/a.gd": "extends Node\n"}
         for rel, text in files.items():
             (self.repo / rel).parent.mkdir(parents=True, exist_ok=True)
@@ -770,7 +790,7 @@ class ChangedSinceRefTests(unittest.TestCase):
         self.fake = self.tmp / "fakegodot"
         self.fake.write_text(FAKE_GODOT)
         self.fake.chmod(0o755)
-        files = {".gitignore": ".godot/\n", ".godot/global_script_class_cache.cfg": "", "docs/spec.md": SPEC_DOC,
+        files = {".gitignore": ".godot/\n__pycache__/\n", ".godot/global_script_class_cache.cfg": "", "docs/spec.md": SPEC_DOC,
                  "tests/ai/alpha_one_test.gd": "", "tests/physics/beta_two_test.gd": "", "tests/ai/x_test.gd": "",
                  "tests/ui/u_test.gd": "", "scenes/ui/u.gd": "extends Node\n", "scenes/navigation/n.gd": "extends Node\n"}
         for rel, text in files.items():
@@ -934,11 +954,23 @@ exit 0
 """
 
 SLOT_TOOL = ROOT / "tools" / "godot_slot.py"
+SLOT_LOCK_AT = 1 << 20  # godot_slot.LOCK_AT: Windows locks this one byte, far past the pid text a slot file holds
+# A process that holds a slot as godot_slot does: the slot file's lock (flock on a POSIX system, the byte-range lock on
+# Windows), then the pid it is given in the file, then it sleeps. The lock line is the only part that differs.
+if sys.platform == "win32":
+    HOLDER_LOCK = ("import msvcrt\n"
+                   "fd = os.open(sys.argv[1], os.O_RDWR | os.O_CREAT | os.O_BINARY, 0o644)\n"
+                   f"os.lseek(fd, {SLOT_LOCK_AT}, os.SEEK_SET)\n"
+                   "msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)\n"
+                   "os.lseek(fd, 0, os.SEEK_SET)\n")
+else:
+    HOLDER_LOCK = ("import fcntl\n"
+                   "fd = os.open(sys.argv[1], os.O_RDWR | os.O_CREAT, 0o644)\n"
+                   "fcntl.flock(fd, fcntl.LOCK_EX)\n")
 HOLDER = (
-    "import fcntl, os, sys, time\n"
-    "fd = os.open(sys.argv[1], os.O_RDWR | os.O_CREAT, 0o644)\n"
-    "fcntl.flock(fd, fcntl.LOCK_EX)\n"
-    "os.write(fd, sys.argv[2].encode())\n"
+    "import os, sys, time\n"
+    + HOLDER_LOCK
+    + "os.write(fd, sys.argv[2].encode())\n"
     "print('held', flush=True)\n"
     "time.sleep(300)\n"
 )
@@ -951,9 +983,45 @@ def pool_size():
 
 def dead_pid():
     """The pid of a process that has ended."""
-    p = subprocess.Popen(["true"])
+    p = subprocess.Popen([sys.executable, "-c", "pass"])
     p.wait()
     return p.pid
+
+
+class Watched:
+    """A wrapper process whose output is read as it comes, so a test can wait until the run has said what it is doing
+    (a run_tests.sh takes seconds to reach its first line on Windows: a fixed sleep proves nothing about where it is)."""
+
+    def __init__(self, proc):
+        self.proc = proc
+        self.lines = []
+        self.reader = threading.Thread(target=self.read, daemon=True)
+        self.reader.start()
+
+    def read(self):
+        for line in self.proc.stdout:
+            self.lines.append(line)
+
+    def text(self):
+        return "".join(self.lines)
+
+    def wait_for(self, text, timeout=120):
+        """Whether `text` has been printed, waiting for it while the process runs."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if text in self.text():
+                return True
+            if self.proc.poll() is not None:
+                self.reader.join(10)
+                return text in self.text()
+            time.sleep(0.05)
+        return False
+
+    def finish(self, timeout=60):
+        self.proc.wait(timeout)
+        self.reader.join(10)
+        self.proc.stdout.close()
+        return self.text()
 
 
 class SlotPoolTests(unittest.TestCase):
@@ -988,6 +1056,7 @@ class SlotPoolTests(unittest.TestCase):
         for h in self.holders:
             h.kill()
             h.wait()
+            h.stdout.close()
 
     def env(self, **extra):
         env = {k: v for k, v in os.environ.items() if k not in ("GAME_TEST_JOBS", "GAME_TEST_CHANGED_FILES")}
@@ -1003,6 +1072,10 @@ class SlotPoolTests(unittest.TestCase):
     def run_wrapper(self, *args, timeout=60, **env):
         out, _ = self.wrapper(*args, **env).communicate(timeout=timeout)
         return out
+
+    # How long a fake engine stays up: long enough for every other one to start (a process takes a second or two to start
+    # on Windows, so all the slots are taken at one moment only when each engine outlasts the starting of the rest).
+    DWELL = "15" if WINDOWS else "1"
 
     def peak(self):
         counts = (self.conc / "counts").read_text().split()
@@ -1026,8 +1099,8 @@ class SlotPoolTests(unittest.TestCase):
 
     def test_two_concurrent_runs_never_hold_more_godot_processes_than_the_pool(self):
         size = pool_size()
-        runs = [self.wrapper(f"--jobs={size}", self.ids(size)) for _ in range(2)]
-        outs = [r.communicate(timeout=120)[0] for r in runs]
+        runs = [self.wrapper(f"--jobs={size}", self.ids(size), FAKE_SLEEP=self.DWELL) for _ in range(2)]
+        outs = [r.communicate(timeout=300)[0] for r in runs]
         self.assertEqual([r.returncode for r in runs], [0, 0], outs)
         self.assertEqual(self.peak(), size, "the pool is used up and never passed")
         self.assertTrue(any("waiting for a Godot slot" in o for o in outs), "the run that had to wait says so\n" + "\n".join(outs))
@@ -1036,12 +1109,12 @@ class SlotPoolTests(unittest.TestCase):
         size = pool_size()
         for i in range(size):
             self.hold(i, os.getpid())
-        run = self.wrapper("--jobs=1", self.ids(1))
-        time.sleep(1.5)
-        self.assertIsNone(run.poll(), "no slot is free: it waits")
+        run = Watched(self.wrapper("--jobs=1", self.ids(1)))
+        self.assertTrue(run.wait_for("waiting for a Godot slot"), "no slot is free: it waits\n" + run.text())
+        self.assertIsNone(run.proc.poll(), "no slot is free: it waits")
         self.release_holders()
-        out = run.communicate(timeout=60)[0]
-        self.assertEqual(run.returncode, 0, out)
+        out = run.finish()
+        self.assertEqual(run.proc.returncode, 0, out)
         self.assertEqual(out.count("waiting for a Godot slot"), 1, out)
         self.assertIn(f"waiting for a Godot slot ({size} of {size} taken)", out)
 
@@ -1049,15 +1122,15 @@ class SlotPoolTests(unittest.TestCase):
         size = pool_size()
         for i in range(size):
             self.hold(i, os.getpid())
-        run = self.wrapper("--list")
-        time.sleep(1.5)
-        self.assertIsNone(run.poll(), "--list is an engine process: it waits for a slot")
+        run = Watched(self.wrapper("--list"))
+        self.assertTrue(run.wait_for("waiting for a Godot slot"), "--list is an engine process: it waits for a slot\n" + run.text())
+        self.assertIsNone(run.proc.poll(), "--list is an engine process: it waits for a slot")
         self.release_holders()
-        run.communicate(timeout=60)
+        run.finish()
 
     def test_game_test_jobs_caps_auto_and_an_explicit_count(self):
         size = pool_size()
-        many = self.ids(12)
+        many = self.ids(size + 4)  # more tests than slots, or the shard count is capped by the tests, not the pool
         cases = (("auto", "2", min(2, size)), ("auto", "100", size), ("5", "2", 2), ("2", "5", 2))
         for jobs, cap, expected in cases:
             with self.subTest(jobs=jobs, cap=cap):
@@ -1073,15 +1146,17 @@ class SlotPoolTests(unittest.TestCase):
         for i in range(size - 1):
             self.hold(i, os.getpid())
         self.assertEqual(self.slot_tool("free"), (0, "1"))
-        out = self.run_wrapper("--jobs=auto", self.ids(12), FAKE_SLEEP="0")
+        out = self.run_wrapper("--jobs=auto", self.ids(size + 4), FAKE_SLEEP="0")
         self.assertEqual(WrapperTests.shards(out), 1, "one slot is free: one shard\n" + out)
         self.hold(size - 1, os.getpid())
         self.assertEqual(self.slot_tool("free"), (0, "0"))
         self.release_holders()
         self.holders.clear()
-        out = self.run_wrapper("--jobs=auto", self.ids(12), FAKE_SLEEP="0")
+        out = self.run_wrapper("--jobs=auto", self.ids(size + 4), FAKE_SLEEP="0")
         self.assertEqual(WrapperTests.shards(out), size if size > 1 else 1, out)
 
+    @unittest.skipIf(WINDOWS, "Windows: the slot's lock is held by godot_slot's own `run` process, which never lets an engine "
+                              "inherit it, so no live lock can name a dead pid (and a file open elsewhere cannot be replaced)")
     def test_a_lock_file_left_by_a_dead_pid_is_reclaimed(self):
         size = pool_size()
         gone = dead_pid()
@@ -1098,7 +1173,7 @@ class SlotPoolTests(unittest.TestCase):
         gone = dead_pid()
         slow = (HOLDER.replace("os.write(fd, sys.argv[2].encode())\n",
                                "os.write(fd, sys.argv[2].encode())\nprint('held', flush=True)\ntime.sleep(0.03)\n"
-                               "os.ftruncate(fd, 0)\nos.pwrite(fd, str(os.getpid()).encode(), 0)\n").replace("print('held', flush=True)\ntime.sleep(300)", "time.sleep(300)"))
+                               "os.ftruncate(fd, 0)\nos.lseek(fd, 0, os.SEEK_SET)\nos.write(fd, str(os.getpid()).encode())\n").replace("print('held', flush=True)\ntime.sleep(300)", "time.sleep(300)"))
         for i in range(size):
             proc = subprocess.Popen([sys.executable, "-c", slow, str(self.slots / f"slot{i}.lock"), str(gone)],
                                     stdout=subprocess.PIPE, text=True)
@@ -1119,6 +1194,8 @@ class SlotPoolTests(unittest.TestCase):
     def running_engines(self):
         return [int(f.name.split(".")[1]) for f in self.conc.glob("running.*")]
 
+    @unittest.skipIf(WINDOWS, "Windows: there is no SIGTERM to catch (os.kill ends the wrapper with TerminateProcess, no trap "
+                              "runs) and the fake engine's $$ is an MSYS pid, not the Windows pid the test looks for")
     def test_a_terminated_wrapper_stops_the_engines_of_its_shards(self):
         # SIGTERM to the wrapper's pid alone: the shards are its background jobs, their engines grandchildren.
         run = self.wrapper("--jobs=2", self.ids(2), FAKE_SLEEP="600")
@@ -1347,17 +1424,22 @@ class QuietGateTests(unittest.TestCase):
         self.load.write_text(load)
         self.others.write_text("".join(f"{p}\n" for p in others))
 
-    def start(self, *args, **env):
+    # Windows reads the process table through Win32 calls that take seconds on a loaded machine (a look at the busy engines
+    # reads it twice, and the wrapper takes as long to start), so whatever waits for a run waits several times as long there.
+    SLOW = 5 if WINDOWS else 1
+
+    def start(self, *args, **given):
         env = dict({k: v for k, v in os.environ.items() if k != "GAME_TEST_JOBS"}, GODOT=str(self.fake), TMPDIR=str(self.work),
                    FAKE_LOAD=str(self.load), FAKE_OTHERS=str(self.others), FAKE_SELF_PIDS=str(self.work / "self"),
                    FAKE_LOG=str(self.log), GAME_TEST_SLOT_DIR=str(self.work / "slots"), PATH=f"{self.bin}{os.pathsep}{os.environ['PATH']}",
                    GAME_TEST_QUIET_MINUTE="0.3", GAME_TEST_QUIET_POLL="0.05", GAME_TEST_SLOT_POLL="0.05",
-                   GAME_TEST_BUSY_SAMPLE="0.1", **env)
+                   GAME_TEST_BUSY_SAMPLE="0.1")
+        env.update(given)
         return subprocess.Popen(["bash", str(RUN), "--no-lint", *args], cwd=ROOT, env=env, stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, text=True)
 
     def finish(self, proc, timeout=60):
-        out = proc.communicate(timeout=timeout)[0]
+        out = proc.communicate(timeout=timeout * self.SLOW)[0]
         report = json.loads(next(self.work.glob("example_godot_last_report_*.json")).read_text())
         return out, {r["id"]: r for r in report["results"]}
 
@@ -1366,6 +1448,7 @@ class QuietGateTests(unittest.TestCase):
                     if "=" in l and not l.startswith("#"))
         self.assertEqual(conf, {"max_load": "6", "timeout_min": "30", "busy_cpu": "50", "busy_sample_s": "2"})
 
+    @unittest.skipIf(WINDOWS, "fakes the POSIX `ps` command: the Windows busy count reads the real process table (a Toolhelp snapshot and each engine's cpu time), which a script on PATH cannot stand in for")
     def test_it_waits_for_no_other_busy_godot_and_a_load_under_the_threshold_and_says_so_each_minute(self):
         proc = self.start("--domain=perf", "--quiet")
         time.sleep(1.0)
@@ -1384,6 +1467,7 @@ class QuietGateTests(unittest.TestCase):
         self.assertNotIn("loaded", out.replace("waiting", ""), "a quiet machine at last: nothing is marked")
         self.assertNotIn("loaded", results["perf/p"])
 
+    @unittest.skipIf(WINDOWS, "fakes the POSIX `ps` command: the Windows busy count reads the real process table (a Toolhelp snapshot and each engine's cpu time), which a script on PATH cannot stand in for")
     def test_an_idle_editor_and_a_godot_mcp_server_do_not_hold_the_gate(self):
         self.set_machine(load="1.00", others=["4000001 idle", "4000002 mcp"])
         proc = self.start("--domain=perf", "--quiet=1")
@@ -1392,6 +1476,7 @@ class QuietGateTests(unittest.TestCase):
         self.assertNotIn("waiting for a quiet machine", out, "nothing busy runs: the gate clears at once")
         self.assertNotIn("loaded", results["perf/p"])
 
+    @unittest.skipIf(WINDOWS, "fakes the POSIX `ps` command: the Windows busy count reads the real process table (a Toolhelp snapshot and each engine's cpu time), which a script on PATH cannot stand in for")
     def test_another_worktrees_busy_run_holds_the_gate_beside_an_idle_editor(self):
         self.set_machine(load="1.00", others=["4000001 idle", "4000002 mcp", "4000003"])
         proc = self.start("--domain=perf", "--quiet=1")
@@ -1399,6 +1484,7 @@ class QuietGateTests(unittest.TestCase):
         self.assertRegex(out, r"waiting for a quiet machine: load 1\.00.* 1 busy Godot")
         self.assertTrue(results["perf/p"]["loaded"], "the busy run never went away: the gate timed out\n" + out)
 
+    @unittest.skipIf(WINDOWS, "fakes the POSIX `ps` command: the Windows busy count reads the real process table (a Toolhelp snapshot and each engine's cpu time), which a script on PATH cannot stand in for")
     def test_a_machine_whose_processes_cannot_be_read_is_no_quiet_machine(self):
         self.set_machine(load="1.00", others=[])
         proc = self.start("--domain=perf", "--quiet=1", FAKE_PS_FAIL="1")
@@ -1453,14 +1539,15 @@ class QuietGateTests(unittest.TestCase):
                 self.assertTrue(results[result].get("loaded"), out)
 
     def test_the_minutes_waited_are_printed_to_one_decimal(self):
-        out, _ = self.finish(self.start("--domain=perf", "--quiet=2"))
+        minute = "30" if WINDOWS else "0.3"  # a look at the machine takes seconds on Windows, and the first line says it
+        out, _ = self.finish(self.start("--domain=perf", "--quiet=2", GAME_TEST_QUIET_MINUTE=minute), timeout=60)
         waits = [l for l in out.splitlines() if "waiting for a quiet machine" in l]
         self.assertTrue(waits, out)
         for line in waits:
             self.assertRegex(line, r"\(none wanted\), \d+\.\d of 2 min$")
 
     def test_the_harness_self_test_holds_no_perf_test_and_does_not_wait(self):
-        out = self.start("--self-test", "--quiet").communicate(timeout=20)[0]
+        out = self.start("--self-test", "--quiet").communicate(timeout=20 * self.SLOW)[0]
         self.assertNotIn("waiting for a quiet machine", out)
         self.assertNotIn("quiet gate timed out", out)
 
@@ -1470,6 +1557,7 @@ class QuietGateTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, out)
         self.assertNotIn("waiting for a quiet machine", out)
 
+    @unittest.skipIf(WINDOWS, "fakes the POSIX `ps` command: the Windows busy count reads the real process table (a Toolhelp snapshot and each engine's cpu time), which a script on PATH cannot stand in for")
     def test_a_perf_line_carries_the_load_and_the_busy_other_godot_processes(self):
         self.set_machine(load="9.00", others=[4000001, "4000002 idle", "4000003 mcp", 4000004])
         out, _ = self.finish(self.start("--domain=perf"))
@@ -1480,13 +1568,14 @@ class QuietGateTests(unittest.TestCase):
         self.assertIn("PERF perf/p frame 3.20 (budget 8.00) (load 0.50, 0 busy Godot)", out.splitlines(),
                       "the run's own engine is not another Godot")
 
+    @unittest.skipIf(WINDOWS, "fakes the POSIX `ps` command: the Windows busy count reads the real process table (a Toolhelp snapshot and each engine's cpu time), which a script on PATH cannot stand in for")
     def test_a_shards_perf_line_is_annotated_when_it_is_produced(self):
         out, _ = self.finish(self.start("--jobs=2", "--id=a/x,b/y"))
         self.assertIn("PERF a/s0/2 frame 3.20 (budget 8.00) (load 9.00, 2 busy Godot)", out.splitlines())
 
     def test_a_bad_quiet_count_is_refused(self):
         proc = self.start("--domain=perf", "--quiet=soon")
-        out = proc.communicate(timeout=20)[0]
+        out = proc.communicate(timeout=20 * self.SLOW)[0]
         self.assertEqual(proc.returncode, 2, out)
         self.assertIn("--quiet", out)
 
@@ -1747,6 +1836,9 @@ class EngineTests(unittest.TestCase):
             code, out = self.batch(probe, headed)
             self.assertEqual(code, 1, f"a logged {probe} fails the batch run\n" + out)
             self.assertIn(f"Logged {probe}: gate probe {probe}", out)
+        if WINDOWS:
+            self.skipTest("Windows: the in-game runner reads its engine log through its own command line (/proc/self/cmdline or "
+                          "`ps`, scenes/testing/log_watch.gd), which it cannot read there; the batch half above passed")
         out = self.in_game("", headed)
         self.assertRegex(out, r"PASS\s+_harness/log_gate_probe", "in-game, no probe: PASS\n" + out)
         for probe in ("error", "warning"):
@@ -1917,7 +2009,7 @@ class Run:
                 self.summary = tuple(int(g) for g in (passed, failed, timed_out, skipped, gap))
                 self.von_skipped = int(von) if von else 0
             if line.startswith("Report: "):
-                self.report_path = Path(line[len("Report: "):].strip())
+                self.report_path = native(line[len("Report: "):].strip())
 
     def status(self, test_id):
         return [r[0] for r in self.results.get(test_id, [])]

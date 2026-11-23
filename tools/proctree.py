@@ -12,6 +12,11 @@ which can take minutes on a loaded machine.
       PID has no descendant.
   python3 tools/proctree.py kill-tree PID
       stop PID and everything under it.
+  python3 tools/proctree.py matching REGEX [--name REGEX]
+      one line per process whose command line matches REGEX (a stand-in for `pgrep -f`, which Windows has not), `<pid>
+      <ppid> <command line>`; none, exit 1, when nothing matches. This process and what it runs under never count.
+      --name limits the search to processes whose program matches it (case-insensitive), which on Windows are the only
+      ones whose command lines are read (that is the slow part): `matching "--path ${PWD##*/}( |$)" --name godot`.
   python3 tools/proctree.py stop-matching PID [--match REGEX]
       stop only the branches of PID's descendants that hold a process whose command line matches REGEX (default
       VON_SERVER, a `von serve`): each branch from PID's direct child on down, so the shell or boot script that started
@@ -368,6 +373,17 @@ def stop_matching(game: int, pattern: str) -> int:
     return 1 if failed else 0
 
 
+def matching(procs: Dict[int, Proc], pattern: str, name: Optional[str] = None) -> List[Proc]:
+    """The processes whose command line matches `pattern`, by pid, but this process and those it runs under. `name`
+    (a regex over the program) narrows the table before any command line is read."""
+    regex = re.compile(pattern)
+    named = re.compile(name, re.IGNORECASE) if name else None
+    mine = set(ancestors(procs, os.getpid()))
+    wanted = [p for p, proc in procs.items() if p > 1 and p not in mine and (not named or named.search(proc.cmd))]
+    describe(procs, wanted)
+    return sorted((procs[p] for p in wanted if regex.search(procs[p].cmd)), key=lambda proc: proc.pid)
+
+
 def parse_pid(text: str) -> int:
     if not text.isdigit() or int(text) < 2:
         raise ValueError(f"not a pid: {text!r}")
@@ -375,8 +391,14 @@ def parse_pid(text: str) -> int:
 
 
 def main(argv: List[str]) -> int:
-    usage = "usage: proctree.py descendants PID | kill-tree PID | stop-matching PID [--match REGEX]"
+    usage = ("usage: proctree.py descendants PID | kill-tree PID | stop-matching PID [--match REGEX]"
+             " | matching REGEX [--name REGEX]")
     try:
+        if argv[:1] == ["matching"] and (len(argv) == 2 or (len(argv) == 4 and argv[2] == "--name")):
+            found = matching(snapshot(), argv[1], argv[3] if len(argv) == 4 else None)
+            for p in found:
+                print(p.pid, p.ppid, p.cmd)
+            return 0 if found else 1
         if len(argv) == 2 and argv[0] == "descendants":
             found = descendants(snapshot(), parse_pid(argv[1]))
             for p in found:

@@ -188,6 +188,11 @@ fi
 
 # One cleanup for every way out (an exit, ^C, a kill: the signal first ends the processes this run started): this run's
 # note file and, for --base, its temporary worktree.
+# This run's own pid as the process table tools/godot_slot.py reads it names it: Git Bash's $$ is an MSYS pid, and the
+# Windows pid (the one a child's parent pid is) is in /proc/$$/winpid. godot_slot's --ancestor wants that one, or `stop` ends
+# nothing of this run and the busy count takes its own engines for another run's.
+SELF_PID=$$
+if [[ -r /proc/$$/winpid ]]; then SELF_PID=$(</proc/$$/winpid); fi
 LIVE="$PWD"
 BASE=""         # --base=REV
 BASE_TREE=""    # the directory holding --base's worktree, once made
@@ -204,7 +209,7 @@ trap cleanup EXIT
 # gate), then exits through the cleanup above. bash runs a trap only when its foreground command ends: those are run
 # through bg_wait, whose `wait` the signal interrupts at once.
 interrupted() {
-  "$PYTHON" "$TOOLS/godot_slot.py" stop --ancestor=$$ 2>/dev/null || true
+  "$PYTHON" "$TOOLS/godot_slot.py" stop --ancestor=$SELF_PID 2>/dev/null || true
   exit "$1"
 }
 trap 'interrupted 130' INT
@@ -499,7 +504,7 @@ godot_run() {
   "$PYTHON" "$TOOLS/godot_slot.py" run --notice-fd=3 -- "$GODOT" $HEADLESS $NOVSYNC --path . --fixed-fps 60 --log-file "$out/godot.log" \
     -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd --ignoreHeadlessMode -c -rc 1 -rd "res://$rel/gdunit" \
     ${suites[@]+"${suites[@]}"} -- --out="$out" "$@" | tee "$out/gdunit.txt" | "$PYTHON" -u -c "$CONSOLE_FILTER" \
-    | "$PYTHON" "$TOOLS/godot_slot.py" annotate --ancestor=$$ $(busy_args) ${LOADED_RUN:+--loaded}
+    | "$PYTHON" "$TOOLS/godot_slot.py" annotate --ancestor=$SELF_PID $(busy_args) ${LOADED_RUN:+--loaded}
   code=${PIPESTATUS[0]}
   set -e
   if [[ $code -ne 0 && $code -ne 100 && $code -ne 101 ]]; then
@@ -509,7 +514,7 @@ godot_run() {
   if [[ ! -f "$out/report.json" ]] && grep -q "No test cases found" "$out/gdunit.txt"; then
     # gdUnit runs no session, so no suite and no hook, when the selection holds no test: an empty run.
     echo '{"results": [], "stray_logs": [], "log_end": 0}' > "$out/report.json"
-    echo "0 passed, 0 failed, 0 timed out, 0 skipped, 0 gap" | "$PYTHON" "$TOOLS/godot_slot.py" annotate --ancestor=$$ $(busy_args)
+    echo "0 passed, 0 failed, 0 timed out, 0 skipped, 0 gap" | "$PYTHON" "$TOOLS/godot_slot.py" annotate --ancestor=$SELF_PID $(busy_args)
     echo "Report: $out/report.json"
   fi
   [[ -n "$LOADED_RUN" ]] && mark_loaded "$out"
@@ -730,7 +735,7 @@ quiet_gate() {
   min=${QUIET_MIN:-$(sed -n 's/^timeout_min=//p' "$TOOLS/perf_quiet.conf")}
   cpu=$(sed -n 's/^busy_cpu=//p' "$TOOLS/perf_quiet.conf")
   sample=$(sed -n 's/^busy_sample_s=//p' "$TOOLS/perf_quiet.conf")
-  bg_wait "$PYTHON" "$TOOLS/godot_slot.py" quiet --ancestor=$$ --max-load="$max" --timeout-min="$min" \
+  bg_wait "$PYTHON" "$TOOLS/godot_slot.py" quiet --ancestor=$SELF_PID --max-load="$max" --timeout-min="$min" \
     --busy-cpu="$cpu" --busy-sample="$sample" || rc=$?
   case $rc in
     0) ;;

@@ -7,10 +7,9 @@
 #                                      filesystem with neither symlinks nor junctions). A copy goes stale: run it again
 #                                      after every change to a skill. (skillshare's own `target claude --mode copy`
 #                                      rewrites the tracked .skillshare/config.yaml, so this does not use it.)
-# Finds skillshare in the setup's own <per-user root>/bin first (tools/setup/lib.sh: fe_home: the pinned one the bootstrap
-# installs), then on PATH, in ~/go/bin and, on
-# Windows, in %LOCALAPPDATA%\Programs\skillshare. Exits 1, naming where to
-# get it, when there is none (the copy mode needs none).
+# Finds skillshare in the setup's own <per-user root>/bin first (tools/setup/lib.sh: fe_home: the pinned one the
+# bootstrap installs), then on PATH, in ~/go/bin and, on Windows, in %LOCALAPPDATA%\Programs\skillshare. Exits 1, naming
+# where to get it, when there is none (the copy mode needs none).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -49,7 +48,11 @@ fi
 fe_bin=""
 if [[ -f tools/setup/lib.sh ]]; then source tools/setup/lib.sh; fe_bin="$(fe_home)/bin"; fi
 skillshare=""
-for candidate in "${fe_bin:+$fe_bin/skillshare}" "${fe_bin:+$fe_bin/skillshare.exe}" "$(command -v skillshare || true)"     "$HOME/go/bin/skillshare" "$HOME/go/bin/skillshare.exe"     "${LOCALAPPDATA:+$(cygpath -u "$LOCALAPPDATA" 2>/dev/null)/Programs/skillshare/skillshare.exe}"     "$HOME/AppData/Local/Programs/skillshare/skillshare.exe"; do
+for candidate in \
+  "${fe_bin:+$fe_bin/skillshare}" "${fe_bin:+$fe_bin/skillshare.exe}" "$(command -v skillshare || true)" \
+  "$HOME/go/bin/skillshare" "$HOME/go/bin/skillshare.exe" \
+  "${LOCALAPPDATA:+$(cygpath -u "$LOCALAPPDATA" 2>/dev/null)/Programs/skillshare/skillshare.exe}" \
+  "$HOME/AppData/Local/Programs/skillshare/skillshare.exe"; do
   if [[ -n "$candidate" && -x "$candidate" ]]; then skillshare="$candidate"; break; fi
 done
 if [[ -z "$skillshare" ]]; then

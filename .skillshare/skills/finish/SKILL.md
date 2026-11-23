@@ -30,8 +30,10 @@ whether to finish and invokes `finish` again.
    origin main`; if that brought changes, back to step 3, then land and push again. Never force-push.
 6. **Make the worktree removable**, before closing anything (a failure leaves the ticket open). `git worktree remove` refuses
    any untracked, non-ignored file, and a running editor keeps writing `.uid`s.
-   - Stop editors/games on this worktree (`show-me` leaves one): `pgrep -f -- "--path $PWD( |\$)"`, plain `kill` each, wait
-     for exit.
+   - Stop editors/games on this worktree (`show-me` leaves one). Windows has no `pgrep`, so find them with the portable one
+     (`fe_use_python` sets `$PYTHON`):
+     `"$PYTHON" tools/proctree.py matching "--path [^ ]*$(basename "$PWD")[\"']?( |$)" --name godot`
+     then plain `kill <pid>` each, wait for exit.
    - `git status --short`: delete generated cruft (a `.uid` with no `.gd`, an `.import`); commit missed real work (back to
      step 2); unexplained scratch files: stop and ask, never delete silently.
    - Repeat until it prints nothing (ignored files like `.godot/` are fine). Won't go clean: stop and say why.
