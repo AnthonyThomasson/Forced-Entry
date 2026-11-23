@@ -13,7 +13,6 @@ line ends are kept.
 temp cache that splits the way the real one does; `fmt --check` and `check` pass through untouched; and, when the
 pinned gdstyle is in the default cache, the real one.
 """
-import os
 import re
 import subprocess
 import tempfile
@@ -23,6 +22,7 @@ from pathlib import Path
 
 from tools.coverage.tests.support import clean_env
 from tools.gdstyle_reflow import reflow
+from tools.setup import fe_env
 from tools.tests.test_gdstyle import VERSION, asset
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -259,7 +259,7 @@ class WrapperTests(unittest.TestCase):
 
 class RealGdstyleTests(unittest.TestCase):
     def test_the_pinned_gdstyle_then_the_re_flow_leaves_a_formatted_file(self):
-        cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "forced-entry-gdstyle"
+        cache = fe_env.home() / "gdstyle"  # where tools/gdstyle.sh keeps it: under the per-user root
         if not (cache / f"v{VERSION}" / asset().removesuffix(".tar.gz") / "gdstyle").exists():
             self.skipTest("the pinned gdstyle is not cached (tools/gdstyle.sh --version fetches it)")
         with tempfile.TemporaryDirectory() as d:

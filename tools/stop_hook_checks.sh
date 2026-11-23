@@ -12,6 +12,7 @@
 # tools/load_check.sh and the log scan it runs, tools/scan_godot_log.py). Wired in .claude/settings.json.
 set -uo pipefail
 cd "$(dirname "$0")/.."
+source tools/setup/lib.sh   # fe_hash: `shasum` is not on PATH outside a login Git Bash
 
 if grep -q '"stop_hook_active"[[:space:]]*:[[:space:]]*true' <(cat); then
   exit 0
@@ -21,7 +22,7 @@ paths=(scenes tests addons sandboxes project.godot '*.gd' ':(exclude)tools/cover
   gdstyle.toml tools/gdstyle.sh tools/lint_gdstyle.py
   tools/lint.sh tools/lint_rules tools/lint_report.py tools/lint_scripts.tscn tools/load_check.sh tools/scan_godot_log.py)
 fingerprint=$( { git diff HEAD -- "${paths[@]}"; git ls-files --others --exclude-standard -- "${paths[@]}" \
-  | while read -r f; do echo "$f"; shasum "$f"; done; } | shasum | cut -d' ' -f1 )
+  | while read -r f; do echo "$f"; fe_hash < "$f"; done; } | fe_hash )
 changed=$( { git diff --name-only HEAD -- "${paths[@]}"; git ls-files --others --exclude-standard -- "${paths[@]}"; } | head -1 )
 [[ -z "$changed" ]] && exit 0
 

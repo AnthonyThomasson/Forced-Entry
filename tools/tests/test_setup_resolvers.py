@@ -268,22 +268,26 @@ class GodotTests(Scratch):
 
 
 class PythonTests(Scratch):
-    """fe_find_python's order: $PYTHON, python3 if it runs, py -3, python. PATH is the fakes plus the folder of `tr` and
-    `cygpath` (all it runs), so only a fake answers."""
+    """fe_find_python's order: $PYTHON, python3.14/3.13/3.12 (PATH, then Homebrew's folders), python3, py -3, python,
+    each only if it runs and is PYTHON_MIN (3.12) or newer. PATH is the fakes plus the folder of `tr` and `cygpath` (all
+    it runs), so only a fake answers; FE_PYTHON_EXTRA_DIRS (Homebrew's folders) is a folder of the test's own."""
 
     def env(self, **over) -> dict:
         tools = {Path(shutil.which(n)).parent for n in ("tr", "uname") if shutil.which(n)}
         # A folder that holds a real Python (macOS's /usr/bin) comes after the fakes, which shadow it.
         path = os.pathsep.join([str(self.bin)] + [str(d) for d in sorted(tools)])
-        return child_env(PATH=path, **over)
+        return child_env(**{"PATH": path, "FE_PYTHON_EXTRA_DIRS": "", **over})
 
-    def fake_python(self, name: str, works: bool) -> None:
-        write_exe(self.bin / name, f'#!/usr/bin/env bash\nexit {0 if works else 9}\n')
+    def fake_python(self, name: str, works: bool, version: str = "3.12", folder: Path | None = None) -> Path:
+        """A python that prints `version` for the version probe (as `python -c ...` does) and exits 0, or fails (the Store stub)."""
+        body = f"echo {version}\nexit 0\n" if works else "exit 9\n"
+        return write_exe((folder or self.bin) / name, "#!/usr/bin/env bash\n" + body)
 
     def test_the_python_variable_wins(self):
         self.fake_python("python3", True)
-        r = bash("fe_find_python", self.env(PYTHON="/my/python"))
-        self.assertEqual(r.stdout.strip(), "/my/python")
+        mine = self.fake_python("mypython", True, "3.13", folder=self.tmp / "mine")
+        r = bash("fe_find_python", self.env(PYTHON=str(mine)))
+        self.assertEqual(r.stdout.strip(), str(mine))
 
     def test_python3_is_used_when_it_runs(self):
         self.fake_python("python3", True)
@@ -303,65 +307,240 @@ class PythonTests(Scratch):
         self.fake_python("python", True)
         self.assertEqual(bash("fe_find_python", self.env()).stdout.strip(), "python")
 
-    def test_none_found_returns_1_and_fe_use_python_says_so(self):
+    def test_none_found_returns_1_and_fe_use_python_says_so_with_the_bootstrap_command(self):
         self.fake_python("python3", False)
         env = self.env()
         self.assertEqual(bash("fe_find_python", env).returncode, 1)
         r = bash("fe_use_python", env)
         self.assertEqual(r.returncode, 2)
-        self.assertIn("Python not found", r.stderr)
+        self.assertIn("Python >= 3.12 not found; run ", r.stderr)
+        self.assertIn("bootstrap.ps1" if WINDOWS else "tools/setup/bootstrap.sh", r.stderr)
 
     def test_fe_use_python_exports_what_it_found(self):
         self.fake_python("python3", True)
         r = bash('fe_use_python && bash -c \'echo "$PYTHON"\'', self.env())
         self.assertEqual(r.stdout.strip(), "python3")
 
+    # R1: a fresh Mac has only the Command Line Tools' /usr/bin/python3 (3.9), and `brew install python@3.12` adds only
+    # python3.12 to the folder Homebrew is in. Every tool of ours needs 3.12 (`str | None`, tomllib ...).
+    def test_a_python3_below_the_minimum_is_skipped(self):
+        self.fake_python("python3", True, "3.9")
+        env = self.env()
+        self.assertEqual(bash("fe_find_python", env).returncode, 1)
+        r = bash("fe_use_python", env)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("Python >= 3.12 not found", r.stderr)
+
+    def test_python3_12_on_path_beats_an_old_python3(self):
+        self.fake_python("python3", True, "3.9")
+        self.fake_python("python3.12", True, "3.12")
+        self.assertEqual(bash("fe_find_python", self.env()).stdout.strip(), "python3.12")
+
+    def test_python3_13_comes_before_python3_12(self):
+        self.fake_python("python3.12", True, "3.12")
+        self.fake_python("python3.13", True, "3.13")
+        self.assertEqual(bash("fe_find_python", self.env()).stdout.strip(), "python3.13")
+
+    def test_homebrews_folder_is_searched_when_it_is_not_on_path(self):
+        self.fake_python("python3", True, "3.9")
+        brew = self.fake_python("python3.12", True, "3.12", folder=self.tmp / "opt" / "homebrew" / "bin")
+        env = self.env(FE_PYTHON_EXTRA_DIRS=f"{(self.tmp / 'nowhere').as_posix()} {brew.parent.as_posix()}")
+        self.assertEqual(bash("fe_find_python", env).stdout.strip(), brew.as_posix())
+
+    def test_a_python3_in_homebrews_folder_that_is_new_enough_is_used(self):
+        self.fake_python("python3", True, "3.9")
+        brew = self.fake_python("python3", True, "3.14", folder=self.tmp / "brew")
+        env = self.env(FE_PYTHON_EXTRA_DIRS=brew.parent.as_posix())
+        self.assertEqual(bash("fe_find_python", env).stdout.strip(), brew.as_posix())
+
+    def test_a_py_3_that_is_below_the_minimum_is_skipped(self):
+        self.fake_python("python3", False)
+        old = self.fake_python("oldpython", True, "3.8", folder=self.tmp / "old")
+        write_exe(self.bin / "py", '#!/usr/bin/env bash\n[[ "$1" == -3 ]] || exit 1\necho "' + old.as_posix() + '"\n')
+        self.assertEqual(bash("fe_find_python", self.env()).returncode, 1)
+
+    def test_the_python_variable_below_the_minimum_warns_and_is_refused(self):
+        old = self.fake_python("oldpython", True, "3.9", folder=self.tmp / "old")
+        self.fake_python("python3", True, "3.12")  # a good one on PATH is not a fallback for a bad $PYTHON
+        env = self.env(PYTHON=str(old))
+        r = bash("fe_find_python", env)
+        self.assertEqual((r.returncode, r.stdout), (1, ""))
+        self.assertIn("is Python 3.9, below the 3.12", r.stderr)
+        r = bash("fe_use_python", env)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("Python >= 3.12 not found; run ", r.stderr)
+        self.assertIn("below the 3.12", r.stderr)
+
+    def test_the_python_variable_that_does_not_run_is_refused(self):
+        env = self.env(PYTHON=str(self.tmp / "no" / "python"))
+        r = bash("fe_use_python", env)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("not a Python that runs", r.stderr)
+
+    def test_a_child_script_does_not_probe_the_python_a_parent_already_checked(self):
+        counter = self.tmp / "probes"
+        write_exe(self.bin / "python3", f'#!/usr/bin/env bash\necho probe >> "{counter.as_posix()}"\necho 3.12\n')
+        r = bash('fe_use_python && bash -c \'source "$0"; fe_use_python\' "' + (SETUP / "lib.sh").as_posix() + '"', self.env())
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(len(counter.read_text().split()), 1, "the second fe_use_python probed it again")
+
+    def test_this_machines_own_lookup_finds_a_python_the_tools_can_run(self):
+        # No fakes: the test run itself is on a Python the tools can use.
+        r = bash("fe_use_python && \"$PYTHON\" -c 'import sys; print(sys.version_info >= (3, 12))'",
+                 child_env(FE_PYTHON_EXTRA_DIRS=None))
+        self.assertEqual(r.stdout.strip(), "True", r.stderr)
+
+    @unittest.skipUnless(WINDOWS, "Windows PowerShell 5.1 only exists on Windows")
+    def test_powershell_finds_a_python_at_the_minimum_and_names_the_bootstrap_command(self):
+        r = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+                            f". '{SETUP / 'lib.ps1'}'; Find-FePython; Get-FeBootstrapCommand; "
+                            "Test-FeVersionAtLeast '3.9' '3.12'; Test-FeVersionAtLeast '3.12' '3.12'; "
+                            "Test-FeVersionAtLeast '3.15' '3.12'; Test-FeVersionAtLeast '4.0' '3.12'"],
+                           env=child_env(), capture_output=True, text=True, timeout=120)
+        lines = r.stdout.split("\n")
+        found = lines[0].strip()
+        self.assertTrue(found and Path(found).is_file(), r.stdout + r.stderr)
+        self.assertIn("bootstrap.ps1", lines[1])
+        self.assertEqual([x.strip() for x in lines[2:6]], ["False", "True", "True", "True"])
+
+    @unittest.skipUnless(WINDOWS, "Windows PowerShell 5.1 only exists on Windows")
+    def test_powershell_refuses_a_python_variable_below_the_minimum(self):
+        old = self.tmp / "old" / "oldpython.cmd"
+        old.parent.mkdir()
+        old.write_text("@echo off\r\necho 3 9\r\n")
+        r = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+                            f". '{SETUP / 'lib.ps1'}'; $p = Find-FePython; if ($p) {{ 'FOUND ' + $p }} else {{ 'NONE' }}"],
+                           env=child_env(PYTHON=str(old)), capture_output=True, text=True, timeout=120)
+        self.assertEqual(r.stdout.strip(), "NONE", r.stdout + r.stderr)
+        self.assertIn("below the 3.12", r.stderr)
+
 
 class GodotOpenTests(Scratch):
-    """The wrapper the Herdr buttons run, with a fake Godot that prints its arguments."""
+    """The wrapper the Herdr buttons run, with a fake Godot that prints its arguments. It runs from a tree of its own
+    (the wrapper files and tools/setup), so that whether this checkout has been imported (.godot/) does not matter: a
+    tree has the class cache, or not (a fresh clone). Every call of the fake Godot is also noted, one line each."""
+
+    def tree(self, imported: bool = True) -> Path:
+        tree = self.tmp / "tree"
+        (tree / "tools").mkdir(parents=True)
+        for name in ("godot_open.sh", "godot_open.ps1", "godot_open.cmd"):
+            shutil.copy2(ROOT / "tools" / name, tree / "tools" / name)
+        shutil.copytree(SETUP, tree / "tools" / "setup", ignore=shutil.ignore_patterns("__pycache__"))
+        if imported:
+            (tree / ".godot").mkdir()
+            (tree / ".godot" / "global_script_class_cache.cfg").write_text("")
+        return tree
+
+    def fake_godot(self, windows: bool = False) -> Path:
+        """Prints `ARGS <arguments>` and notes the same line in the file $FAKE_GODOT_LOG."""
+        if windows:
+            fake = self.bin / "fakegodot.cmd"
+            fake.write_text("@echo ARGS %*\r\n@echo %* >> \"%FAKE_GODOT_LOG%\"\r\n")
+            return fake
+        return write_exe(self.bin / "fakegodot", '#!/usr/bin/env bash\necho "ARGS $*"\necho "$*" >> "$FAKE_GODOT_LOG"\n')
+
+    def calls(self) -> list[str]:
+        log = self.tmp / "godot_calls.txt"
+        return [line.strip() for line in log.read_text().splitlines()] if log.exists() else []
+
+    def env(self, fake: Path, **over) -> dict:
+        return child_env(GODOT=str(fake), FAKE_GODOT_LOG=str(self.tmp / "godot_calls.txt"), **over)
 
     def test_bash_wrapper_edits_or_plays_this_checkout(self):
-        fake = write_exe(self.bin / "fakegodot", '#!/usr/bin/env bash\necho "ARGS $*"\n')
-        env = child_env(GODOT=str(fake))
+        tree = self.tree()
+        env = self.env(self.fake_godot())
         for args, flags in (([], ""), (["--editor"], "--editor ")):
-            r = subprocess.run([BASH, str(ROOT / "tools" / "godot_open.sh"), *args], env=env, capture_output=True, text=True,
+            r = subprocess.run([BASH, str(tree / "tools" / "godot_open.sh"), *args], env=env, capture_output=True, text=True,
                                timeout=60)
             self.assertEqual(r.returncode, 0, r.stderr)
             line = r.stdout.strip()
             self.assertTrue(line.startswith("ARGS " + flags + "--path "), line)
-            self.assertTrue(same(native(line.split("--path ", 1)[1], env), str(ROOT)), line)
+            self.assertTrue(same(native(line.split("--path ", 1)[1], env), str(tree)), line)
+        self.assertEqual(len(self.calls()), 2, "an imported checkout is not imported again")
 
-    def test_bash_wrapper_without_a_godot_fails_with_a_message(self):
+    def test_bash_wrapper_imports_a_fresh_clone_before_playing(self):
+        tree = self.tree(imported=False)
+        r = subprocess.run([BASH, str(tree / "tools" / "godot_open.sh")], env=self.env(self.fake_godot()), capture_output=True,
+                           text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("importing the project (first run)...", r.stdout)
+        calls = self.calls()
+        self.assertEqual(len(calls), 2, calls)
+        self.assertTrue(calls[0].startswith("--headless --path ") and calls[0].endswith(" --import"), calls[0])
+        self.assertTrue(calls[1].startswith("--path ") and "--import" not in calls[1], calls[1])
+        self.assertTrue(r.stdout.strip().endswith("ARGS " + calls[1]), r.stdout)
+
+    def test_bash_wrapper_goes_on_when_the_import_fails(self):
+        tree = self.tree(imported=False)
+        fake = write_exe(self.bin / "fakegodot", '#!/usr/bin/env bash\necho "$*" >> "$FAKE_GODOT_LOG"\n'
+                         '[[ " $* " == *" --import "* ]] && exit 3\necho "ARGS $*"\n')
+        r = subprocess.run([BASH, str(tree / "tools" / "godot_open.sh")], env=self.env(fake), capture_output=True, text=True,
+                           timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(len(self.calls()), 2)
+
+    def test_bash_wrapper_does_not_import_before_the_editor(self):
+        # The editor imports by itself on opening.
+        tree = self.tree(imported=False)
+        r = subprocess.run([BASH, str(tree / "tools" / "godot_open.sh"), "--editor"], env=self.env(self.fake_godot()),
+                           capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(len(self.calls()), 1, self.calls())
+        self.assertNotIn("importing", r.stdout)
+
+    def test_bash_wrapper_without_a_godot_fails_with_a_message_naming_the_bootstrap(self):
         if MACOS and list(Path("/Applications").glob("Godot*.app")):
             self.skipTest("this Mac has a Godot in /Applications")
-        r = subprocess.run([BASH, str(ROOT / "tools" / "godot_open.sh")], env=self.godot_env(), capture_output=True,
+        r = subprocess.run([BASH, str(self.tree() / "tools" / "godot_open.sh")], env=self.godot_env(), capture_output=True,
                            text=True, timeout=60)
         self.assertEqual(r.returncode, 2)
         self.assertIn("Godot binary not found", r.stderr)
+        self.assertIn("bootstrap.ps1" if WINDOWS else "tools/setup/bootstrap.sh", r.stderr)
 
     def test_the_cmd_file_hands_over_to_bash_in_a_posix_shell(self):
-        fake = write_exe(self.bin / "fakegodot", '#!/usr/bin/env bash\necho "ARGS $*"\n')
-        r = subprocess.run([BASH, str(ROOT / "tools" / "godot_open.cmd"), "--editor"], env=child_env(GODOT=str(fake)),
+        tree = self.tree()
+        r = subprocess.run([BASH, str(tree / "tools" / "godot_open.cmd"), "--editor"], env=self.env(self.fake_godot()),
                            capture_output=True, text=True, timeout=60)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertTrue(r.stdout.startswith("ARGS --editor --path "), r.stdout)
 
     @unittest.skipUnless(WINDOWS, "cmd.exe and Windows PowerShell only exist on Windows")
     def test_the_cmd_file_hands_over_to_powershell_in_cmd_exe(self):
-        fake = self.bin / "fakegodot.cmd"
-        fake.write_text("@echo ARGS %*\r\n")
+        tree = self.tree()
+        env = self.env(self.fake_godot(windows=True))
         for args, flags in (([], ""), (["--editor"], "--editor ")):
-            r = subprocess.run(["cmd", "/c", str(ROOT / "tools" / "godot_open.cmd"), *args], env=child_env(GODOT=str(fake)),
+            r = subprocess.run(["cmd", "/c", str(tree / "tools" / "godot_open.cmd"), *args], env=env,
                                capture_output=True, text=True, timeout=120)
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertTrue(r.stdout.strip().startswith("ARGS " + flags + "--path "), r.stdout)
+        self.assertEqual(len(self.calls()), 2, "an imported checkout is not imported again")
 
     @unittest.skipUnless(WINDOWS, "cmd.exe and Windows PowerShell only exist on Windows")
-    def test_the_cmd_file_without_a_godot_exits_2_in_cmd_exe(self):
-        r = subprocess.run(["cmd", "/c", str(ROOT / "tools" / "godot_open.cmd")], env=self.godot_env(), capture_output=True,
+    def test_powershell_imports_a_fresh_clone_before_playing_and_not_before_the_editor(self):
+        tree = self.tree(imported=False)
+        env = self.env(self.fake_godot(windows=True))
+        r = subprocess.run(["cmd", "/c", str(tree / "tools" / "godot_open.cmd")], env=env, capture_output=True, text=True,
+                           timeout=120)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("importing the project (first run)...", r.stdout)
+        calls = self.calls()
+        self.assertEqual(len(calls), 2, calls)
+        self.assertTrue(calls[0].startswith("--headless --path ") and calls[0].endswith(" --import"), calls[0])
+        self.assertTrue(calls[1].startswith("--path ") and "--import" not in calls[1], calls[1])
+        (self.tmp / "godot_calls.txt").unlink()
+        r = subprocess.run(["cmd", "/c", str(tree / "tools" / "godot_open.cmd"), "--editor"], env=env, capture_output=True,
                            text=True, timeout=120)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(len(self.calls()), 1, self.calls())
+        self.assertNotIn("importing", r.stdout)
+
+    @unittest.skipUnless(WINDOWS, "cmd.exe and Windows PowerShell only exist on Windows")
+    def test_the_cmd_file_without_a_godot_exits_2_in_cmd_exe_naming_the_bootstrap(self):
+        r = subprocess.run(["cmd", "/c", str(self.tree() / "tools" / "godot_open.cmd")], env=self.godot_env(),
+                           capture_output=True, text=True, timeout=120)
         self.assertEqual(r.returncode, 2)
         self.assertIn("Godot binary not found", r.stderr)
+        self.assertIn("tools\\setup\\bootstrap.ps1", r.stderr)
 
     def test_the_herdr_buttons_run_it(self):
         config = (ROOT / ".herdr" / "config.yaml").read_text()

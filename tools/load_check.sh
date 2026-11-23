@@ -3,7 +3,8 @@
 # engine error or warning in the log (parse errors, failed loads, runtime script errors, shutdown errors),
 # printing them; 0 when clean. Engine end-of-process leak lines are a NOTE unless --strict-exit.
 # --import first imports the project with the same Godot (writes each new script's .uid and the class cache; headless
-# runs never import), failing before the check when the import does; its progress_dialog noise is not a failure.
+# runs never import), failing before the check when the import does; its progress_dialog noise is not a failure. Without
+# the flag and with no class cache (a fresh clone) it imports too, and goes on when that import fails.
 # The dev command server stays off (GODOT_CMD_PORT=off, over any port the caller set): the check never drives it, and
 # a port another worktree's game or check holds would otherwise fail it on the server's "failed to listen" warning.
 #   tools/load_check.sh [--import] [--strict-exit] [--windowed]
@@ -23,6 +24,12 @@ for a in "$@"; do
   esac
 done
 out=$(mktemp -d "${TMPDIR:-/tmp}/load_check.XXXXXX")
+# A fresh clone has no class cache (.godot/ is untracked): without it every script that names a class_name fails to
+# parse, so import first (an import error does not fail here: the check below reports what does not load).
+if [[ -z "$IMPORT" && ! -f .godot/global_script_class_cache.cfg ]]; then
+  echo "importing the project (first run in this checkout)..." >&2
+  "$GODOT" --headless --path . --import >"$out/import.txt" 2>&1 || true
+fi
 if [[ -n "$IMPORT" ]]; then
   if ! "$GODOT" --headless --path . --import >"$out/import.txt" 2>&1; then
     tail -20 "$out/import.txt"

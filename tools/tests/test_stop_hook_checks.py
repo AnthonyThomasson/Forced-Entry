@@ -18,7 +18,7 @@ import subprocess
 import unittest
 from pathlib import Path
 
-from tools.coverage.tests.support import TempDir, clean_env, git
+from tools.coverage.tests.support import TempDir, clean_env, copy_setup, git
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "tools" / "stop_hook_checks.sh"
@@ -49,6 +49,7 @@ class StopHookRepo:
         git(root.parent, "init", "-q", root.name)
         (root / "tools").mkdir()
         shutil.copy2(SCRIPT, root / "tools" / "stop_hook_checks.sh")
+        copy_setup(root)  # the script sources tools/setup/lib.sh (fe_hash)
         write(root, "tools/lint.sh", FAKE_CHECK.format(name="lint"), executable=True)
         write(root, "tools/load_check.sh", FAKE_CHECK.format(name="load_check"), executable=True)
         write(root, "scenes/thing.gd", "extends Node\n")

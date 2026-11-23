@@ -231,7 +231,7 @@ fi
 
 # Per-checkout state kept in $TMPDIR: the previous run's merged report (for --failed), the measured wall-clock
 # ms per test (what --shard balances the parallel processes by) and the fingerprint of the last clean lint.
-KEY=$(printf %s "$LIVE" | shasum | cut -c1-8)
+KEY=$(printf %s "$LIVE" | fe_hash | cut -c1-8)
 LAST="${TMPDIR:-/tmp}/example_godot_last_report_$KEY.json"
 LAST_OUT="$LAST"   # where a run writes its merged report
 COSTS="${TMPDIR:-/tmp}/example_godot_costs_$KEY.json"
@@ -1115,8 +1115,8 @@ done
 # the rules in tools/lint_rules/ and what they scan (scenes/, tests/, addons/, project.godot). Any edit, new file or
 # new commit changes it, so the lint still runs before every first test run.
 lint_fingerprint() {
-  { git rev-parse HEAD; git diff HEAD; git ls-files --others --exclude-standard | while read -r f; do echo "$f"; shasum "$f"; done; } \
-    | shasum | cut -d' ' -f1
+  { git rev-parse HEAD; git diff HEAD; git ls-files --others --exclude-standard | while read -r f; do echo "$f"; fe_hash < "$f"; done; } \
+    | fe_hash
 }
 # With --changed --staged the lint covers what the commit holds (tools/lint_staged.sh: the staged scripts, or the
 # whole tree when a file that governs every script is staged). It may say nothing of the rest of the tree, so it never

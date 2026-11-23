@@ -392,10 +392,14 @@ static func boot_command(
 				"-Device", server_device,
 			]),
 		}
+	# Through /bin/bash, so the script needs no exec bit (a ZIP download or an exFAT copy loses it).
+	# boot.sh ends in `exec`, so this bash process becomes the server: its pid is the server's, as
+	# OS.kill and the stop scripts need.
 	return {
-		"program": project_dir.path_join("tools/von/boot.sh"),
+		"program": "/bin/bash",
 		"script": project_dir.path_join("tools/von/boot.sh"),
 		"args": PackedStringArray([
+			project_dir.path_join("tools/von/boot.sh"),
 			"--host", NpcDecisionTuning.SERVER_HOST,
 			"--port", str(server_port),
 			"--device", server_device,
@@ -440,7 +444,7 @@ func _launch() -> void:
 	var process := OS.execute_with_pipe(command["program"], command["args"])
 	if process.is_empty():
 		_give_up(
-			"[von] No decision server: could not run %s. NPCs hold steady." % command["program"],
+			"[von] No decision server: could not run %s. NPCs hold steady." % command["script"],
 		)
 		return
 	_pid = process["pid"]

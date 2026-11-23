@@ -47,6 +47,9 @@ class LoadCheckTree:
         for name in ("load_check.sh", "scan_godot_log.py"):
             shutil.copy2(ROOT / "tools" / name, self.root / "tools" / name)
         copy_setup(self.root)
+        self.cache = self.root / ".godot" / "global_script_class_cache.cfg"  # an imported checkout, not a fresh clone
+        self.cache.parent.mkdir()
+        self.cache.write_text("")
         self.godot = self.dir / "godot"
         self.godot.write_text(FAKE_GODOT)
         self.godot.chmod(0o755)
@@ -90,6 +93,32 @@ class LoadCheckTests(unittest.TestCase):
             self.assertEqual(calls[0].split(), ["--headless", "--path", ".", "--import"], "the import first")
             self.assertIn("--quit-after", calls[1], "then the check")
             self.assertIn("PASS", r.stdout)
+
+    def test_a_fresh_clone_with_no_class_cache_is_imported_first_without_the_flag(self):
+        with LoadCheckTree() as tree:
+            tree.cache.unlink()
+            r = tree.run()
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            calls = tree.godot_calls()
+            self.assertEqual(len(calls), 2, calls)
+            self.assertEqual(calls[0].split(), ["--headless", "--path", ".", "--import"], "the import first")
+            self.assertIn("--quit-after", calls[1], "then the check")
+            self.assertIn("importing the project", r.stderr)
+
+    def test_a_fresh_clone_whose_import_fails_still_gets_the_check(self):
+        # The import is only there so the class cache exists; what does not load is the check's to report.
+        with LoadCheckTree() as tree:
+            tree.cache.unlink()
+            r = tree.run(FAKE_IMPORT_FAIL="1")
+            self.assertEqual(len(tree.godot_calls()), 2, tree.godot_calls())
+            self.assertNotIn("import failed", r.stdout + r.stderr)
+
+    def test_a_fresh_clone_with_the_flag_imports_once(self):
+        with LoadCheckTree() as tree:
+            tree.cache.unlink()
+            r = tree.run("--import")
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertEqual(len(tree.godot_calls()), 2, tree.godot_calls())
 
     def test_a_failing_import_fails_with_a_message_before_the_check(self):
         with LoadCheckTree() as tree:

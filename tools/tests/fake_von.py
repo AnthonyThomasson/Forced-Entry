@@ -7,7 +7,7 @@ wheel with --no-index --no-deps.
 What the fake does, so the scripts can be driven end to end:
   von --version                           prints a version line and exits 0
   von serve --host H --port N --device D  writes served.json (its cwd and arguments) into its working directory, then
-                                          answers every GET with 200 on H:N until it is killed; `--device crash` exits 7
+                                          answers every GET with 200 on H:N until it is ended (SIGTERM, Ctrl+C and Ctrl+Break end it cleanly, with no traceback); `--device crash` exits 7
   hf download REPO --revision R --local-dir DIR
                                           writes the weight files into DIR (what `hf download` would leave there); with
                                           FAKE_HF_FAIL set it fails with exit 1 instead (the network is down)
@@ -36,7 +36,7 @@ WEIGHT_FILES = tuple(fe_env.manifest()["VON_WEIGHT_FILES"].strip().split(","))
 WINDOWS = sys.platform == "win32"
 
 SOURCE = '''
-import http.server, json, os, sys
+import http.server, json, os, signal, sys, threading
 
 def main():
     args = sys.argv[1:]
@@ -54,7 +54,26 @@ def main():
             def do_GET(self):
                 self.send_response(200); self.send_header("Content-Length", "2"); self.end_headers(); self.wfile.write(b"ok")
             def log_message(self, *a): pass
-        http.server.ThreadingHTTPServer((opts["--host"], int(opts["--port"])), Handler).serve_forever()
+        class Server(http.server.ThreadingHTTPServer):
+            daemon_threads = True
+            def process_request_thread(self, request, client_address):
+                try:
+                    super().process_request_thread(request, client_address)
+                except OSError:
+                    pass  # a client (or our own shutdown) closed the socket under the handler: not worth a traceback
+            def handle_error(self, request, client_address): pass
+        server = Server((opts["--host"], int(opts["--port"])), Handler)
+        def stop(*_):
+            # serve_forever runs in this thread and shutdown() waits for it to return: ask from another one.
+            threading.Thread(target=server.shutdown, daemon=True).start()
+        for name in ("SIGTERM", "SIGINT", "SIGBREAK"):
+            if hasattr(signal, name):
+                signal.signal(getattr(signal, name), stop)
+        try:
+            server.serve_forever()
+        finally:
+            server.server_close()
+        return 0
     return 2
 
 def hf_main():

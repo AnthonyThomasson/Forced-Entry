@@ -28,7 +28,7 @@ if [[ -z "${PROCTREE_NATIVE_PID:-}" && -r /proc/$pid/winpid ]]; then
   pid=$(cat "/proc/$pid/winpid")
 fi
 
-# The Python: tools/setup/lib.sh's lookup ($PYTHON, then python3 only if it really runs, then `py -3`, then python).
+# The Python: tools/setup/lib.sh's lookup (one at PYTHON_MIN or newer, a python3.12 from Homebrew included).
 source "$here/setup/lib.sh"
 fe_use_python || exit $?
 

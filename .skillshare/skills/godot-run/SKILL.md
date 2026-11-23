@@ -42,8 +42,8 @@ tools/gdstyle.sh fmt [paths]      # format scripts the way gdstyle wants them (g
   and `== gdstyle check ==` (`path:line:col: message [rule]`); each ends in `PASS` or `FAIL`, and any failing section fails
   the lint. `--list-rules`, `--rule=a,b` (those rules only, no engine or gdstyle pass), `--skip-rule=a,b` and `--no-gdstyle`
   select. Every `.gd` outside `addons/`, `.godot/`, `artifacts/` and the coverage tool's fixtures is held to it, `tools/` and
-  `sandboxes/` included. `tools/gdstyle.sh` pins the gdstyle version, fetches it on first use into
-  `~/.cache/forced-entry-gdstyle` and checks its sha256.
+  `sandboxes/` included. `tools/gdstyle.sh` pins the gdstyle version (`GDSTYLE_*` in `tools/setup/versions.env`),
+  fetches it on first use (the bootstrap's hooks step already did) into `<per-user root>/gdstyle` and checks its sha256.
 - A clean load only proves it parses. **Prefer a test** for behaviour (`tools/run_tests.sh --changed --summary` imports a
   fresh checkout itself). Drive the live game only to explore or for what a puppet cannot reach; N-match scoring is
   `tools/match.py`.

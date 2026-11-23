@@ -480,8 +480,10 @@ class ChecksumGateTests(BootstrapCase):
         handler = functools.partial(Quiet, directory=str(self.served))
         self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
-        self.addCleanup(self.server.shutdown)
+        # Cleanups run last-in first-out: shut the loop down, THEN close the socket under it (the other way round the
+        # serve_forever thread dies on a closed socket and prints "OSError: [WinError 10038]" on Windows).
         self.addCleanup(self.server.server_close)
+        self.addCleanup(self.server.shutdown)
 
     def point_godot_at_the_server(self, zip_name: str, sha_key: str, sha: str) -> None:
         with zipfile.ZipFile(self.served / zip_name, "w") as z:
@@ -604,10 +606,16 @@ $env:Path
 
 class HooksTests(BootstrapCase):
     """The hooks step in a throwaway git repo whose tools/install_hooks.sh is a stub that does what the real one does
-    to the repo (sets core.hooksPath, links a skill)."""
+    to the repo (sets core.hooksPath, links a skill), and whose tools/gdstyle.sh is a stub that does what the real one
+    does for `--cached` (exit 0 when its binary is cached) and `--fetch` (cache it): a marker file stands for the binary."""
 
     STUB = ('#!/usr/bin/env bash\nset -e\ncd "$(dirname "$0")/.."\n'
             'git config core.hooksPath .githooks\nfor d in .skillshare/skills/*/; do mkdir -p ".claude/skills/$(basename "$d")"; done\n')
+    GDSTYLE_STUB = ('#!/usr/bin/env bash\nmarker="$(dirname "$0")/../gdstyle_cached"\n'
+                    'case "$1" in\n'
+                    '  --cached) [[ -f "$marker" ]] ;;\n'
+                    '  --fetch) [[ -z "${FAKE_FETCH_FAIL:-}" ]] || { echo "no network" >&2; exit 2; }; : > "$marker"; echo "$marker" ;;\n'
+                    'esac\n')
     SKIP = "--skip=git,python,godot,skillshare,venv,weights"
 
     def setUp(self):
@@ -618,20 +626,49 @@ class HooksTests(BootstrapCase):
         stub = self.tree / "tools" / "install_hooks.sh"
         stub.write_text(self.STUB, newline="\n")
         stub.chmod(0o755)
+        gdstyle = self.tree / "tools" / "gdstyle.sh"
+        gdstyle.write_text(self.GDSTYLE_STUB, newline="\n")
+        gdstyle.chmod(0o755)
+        self.cached = self.tree / "gdstyle_cached"
 
     def test_hooks_are_installed_once_and_then_up_to_date(self):
         def check(r):
             subprocess.run(["git", "-C", str(self.tree), "config", "--unset", "core.hooksPath"], capture_output=True)
             shutil.rmtree(self.tree / ".claude", ignore_errors=True)
+            self.cached.unlink(missing_ok=True)
             check = r.run(["--check", "--skip=git,python,godot,skillshare,venv,weights"], self.env())
             self.assertEqual(check.returncode, 1, check.stdout)
             self.assertRegex(step_lines(check.stdout)["hooks"], r"^missing")
             run = r.run(["--skip=git,python,godot,skillshare,venv,weights"], self.env())
             self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
             self.assertRegex(step_lines(run.stdout)["hooks"], r"^installed")
+            self.assertTrue(self.cached.exists(), "the step fetches gdstyle, so the first lint works offline")
             again = r.run(["--skip=git,python,godot,skillshare,venv,weights"], self.env())
             self.assertRegex(step_lines(again.stdout)["hooks"], r"^up to date")
             self.assertIn("0 installed", again.stdout)
+        self.each(check)
+
+    def test_hooks_and_skills_done_but_gdstyle_not_cached_is_not_up_to_date(self):
+        def check(r):
+            self.assertEqual(r.run([self.SKIP], self.env()).returncode, 0)
+            self.cached.unlink()
+            out = r.run(["--check", self.SKIP], self.env())
+            self.assertEqual(out.returncode, 1, out.stdout)
+            self.assertRegex(step_lines(out.stdout)["hooks"], r"^missing .*gdstyle is not cached")
+            fixed = r.run([self.SKIP], self.env())
+            self.assertEqual(fixed.returncode, 0, fixed.stdout + fixed.stderr)
+            self.assertRegex(step_lines(fixed.stdout)["hooks"], r"^installed")
+            self.assertTrue(self.cached.exists())
+        self.each(check)
+
+    def test_a_gdstyle_fetch_that_fails_fails_the_step_and_names_it(self):
+        def check(r):
+            subprocess.run(["git", "-C", str(self.tree), "config", "--unset", "core.hooksPath"], capture_output=True)
+            shutil.rmtree(self.tree / ".claude", ignore_errors=True)
+            self.cached.unlink(missing_ok=True)
+            out = r.run([self.SKIP], self.env(FAKE_FETCH_FAIL="1"))
+            self.assertEqual(out.returncode, 1, out.stdout + out.stderr)
+            self.assertRegex(out.stdout, r"hooks: FAILED: .*gdstyle\.sh --fetch failed")
         self.each(check)
 
     def test_one_skill_not_linked_is_not_up_to_date(self):

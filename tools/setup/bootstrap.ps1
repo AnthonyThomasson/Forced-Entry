@@ -325,10 +325,18 @@ function Test-SkillsLinked {
     }
     return $true
 }
+# gdstyle (the lint's formatter) is cached under <fe home>\gdstyle by tools/gdstyle.sh; fetching it here means the first
+# lint works offline.
+function Test-GdstyleCached {
+    $bash = Find-GitBash
+    if (-not $bash) { return $false }
+    & $bash 'tools/gdstyle.sh' '--cached' 2>$null | Out-Null
+    return ($LASTEXITCODE -eq 0)
+}
 function Step-Hooks {
     $hooksPath = (& git config core.hooksPath 2>$null)
-    if ($hooksPath -eq '.githooks' -and (Test-SkillsLinked)) { Report-Ok 'hooks' 'core.hooksPath=.githooks, skills linked'; return }
-    if ($Check) { Report-Missing 'hooks' 'missing (tools/install_hooks.sh has not run in this checkout, or a skill is not linked)'; return }
+    if ($hooksPath -eq '.githooks' -and (Test-SkillsLinked) -and (Test-GdstyleCached)) { Report-Ok 'hooks' 'core.hooksPath=.githooks, skills linked, gdstyle cached'; return }
+    if ($Check) { Report-Missing 'hooks' 'missing (tools/install_hooks.sh has not run in this checkout, a skill is not linked, or gdstyle is not cached)'; return }
     $bash = Find-GitBash
     if (-not $bash) { Stop-Step 'hooks' 'Git Bash not found (the git step installs Git for Windows)' }
     # install_hooks.sh runs sync_skills.sh, which needs skillshare on the PATH: it may have just been put elsewhere.
@@ -337,7 +345,9 @@ function Step-Hooks {
     & $bash 'tools/install_hooks.sh'
     if ($LASTEXITCODE -ne 0) { Stop-Step 'hooks' "tools/install_hooks.sh failed (exit $LASTEXITCODE; see above)" }
     if (-not (Test-SkillsLinked)) { Stop-Step 'hooks' 'tools/install_hooks.sh finished but not every skill in .skillshare\skills is linked in .claude\skills' }
-    Report-Installed 'hooks' 'git hooks enabled, skills linked'
+    & $bash 'tools/gdstyle.sh' '--fetch' | Out-Null
+    if ($LASTEXITCODE -ne 0) { Stop-Step 'hooks' "tools/gdstyle.sh --fetch failed (exit $LASTEXITCODE; network? see above)" }
+    Report-Installed 'hooks' 'git hooks enabled, skills linked, gdstyle cached'
 }
 
 # ---- the Von venv ------------------------------------------------------------------------------------------------

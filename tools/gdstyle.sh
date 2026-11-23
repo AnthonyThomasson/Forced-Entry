@@ -1,27 +1,33 @@
 #!/usr/bin/env bash
-# Run gdstyle (https://github.com/atelico/gdstyle), pinned to v0.4.0, with the arguments given:
+# Run gdstyle (https://github.com/atelico/gdstyle), at the version pinned in tools/setup/versions.env (GDSTYLE_*), with
+# the arguments given:
 #   tools/gdstyle.sh fmt [--check] [PATH...]   format (or report what fmt would change)
 #   tools/gdstyle.sh check [PATH...]           lint; gdstyle.toml at the root holds the config
+#   tools/gdstyle.sh --fetch                   only make sure the binary is cached; print its path (the bootstrap's hooks
+#                                              step runs this, so the first lint works offline)
+#   tools/gdstyle.sh --cached                  print the cached binary's path and exit 0, or exit 1 when there is none
 # A `fmt` that writes (no --check) goes through tools/gdstyle_reflow.py, which fills each comment paragraph gdstyle
 # broke (it moves an over-long line's tail onto a line of its own) back to 100 columns.
-# The first run fetches this platform's release asset, checks its sha256 against the one pinned below, refuses to run
-# on a mismatch, and keeps the binary in a cache outside the tree; later runs reuse it. tools/lint.sh runs it.
+# The first run fetches this platform's release asset, checks its sha256 against the one pinned in versions.env, refuses
+# to run on a mismatch, and keeps the binary in a cache outside the tree (under the per-user root, tools/setup/lib.sh's
+# fe_home); later runs reuse it. tools/lint.sh runs it.
 # It runs in the caller's directory and exits with gdstyle's status (2 when no binary can be had).
-#   GDSTYLE_CACHE         the cache (default: ${XDG_CACHE_HOME:-~/.cache}/forced-entry-gdstyle)
-#   GDSTYLE_RELEASE_URL   where the assets are fetched from (default: the v0.4.0 release on GitHub)
+#   GDSTYLE_CACHE         the cache (default: <fe home>/gdstyle)
+#   GDSTYLE_RELEASE_URL   where the assets are fetched from (default: GDSTYLE_BASE_URL in versions.env)
 set -uo pipefail
 
-VERSION=0.4.0
-RELEASE_URL="${GDSTYLE_RELEASE_URL:-https://github.com/atelico/gdstyle/releases/download/v$VERSION}"
-CACHE="${GDSTYLE_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/forced-entry-gdstyle}"
+source "$(dirname "$0")/setup/lib.sh"
+VERSION="$(fe_manifest_get GDSTYLE_VERSION)"
+RELEASE_URL="${GDSTYLE_RELEASE_URL:-$(fe_manifest_get GDSTYLE_BASE_URL)}"
+CACHE="${GDSTYLE_CACHE:-$(fe_home)/gdstyle}"
 
-# The command-line assets v0.4.0 publishes, with their sha256.
+# The command-line assets the release publishes, with their sha256 (the manifest's GDSTYLE_<ARCH>_<OS>_SHA256).
 pinned_sha256() {
   case "$1" in
-    gdstyle-aarch64-apple-darwin.tar.gz) echo 0599c5860c99f147f91ed7233c4b5d085deb39a6e3604ea7576c0158f10ee83d ;;
-    gdstyle-x86_64-apple-darwin.tar.gz) echo c0b2b7075660ff6fc0193174116b8b2c6ba41321a1dd10b60d140cbb20389b8e ;;
-    gdstyle-x86_64-unknown-linux-gnu.tar.gz) echo 4ae7abf49468e751472eb79136e5e28e30bee9b6aaeb8e8286a6a3c06bd95499 ;;
-    gdstyle-x86_64-pc-windows-msvc.zip) echo 1601f481f4f181752d80a780f92f19822ac8031f06118ad0cb0cb7c9ed454ec8 ;;
+    gdstyle-aarch64-apple-darwin.tar.gz) fe_manifest_get GDSTYLE_AARCH64_MACOS_SHA256 ;;
+    gdstyle-x86_64-apple-darwin.tar.gz) fe_manifest_get GDSTYLE_X86_64_MACOS_SHA256 ;;
+    gdstyle-x86_64-unknown-linux-gnu.tar.gz) fe_manifest_get GDSTYLE_X86_64_LINUX_SHA256 ;;
+    gdstyle-x86_64-pc-windows-msvc.zip) fe_manifest_get GDSTYLE_X86_64_WINDOWS_SHA256 ;;
   esac
 }
 
@@ -41,21 +47,22 @@ sha=$( [[ -n "$asset" ]] && pinned_sha256 "$asset" )
 dir="$CACHE/v$VERSION/${asset%%.tar.gz}"; dir="${dir%%.zip}"
 binary="$dir/$exe"
 
-sha256_of() {
-  # sha256sum puts a backslash before the hash when the path holds one (a Windows path): drop it.
-  if command -v sha256sum >/dev/null; then sha256sum "$1"; else shasum -a 256 "$1"; fi | cut -d' ' -f1 | tr -d '\\'
-}
+sha256_of() { fe_hash_file 256 "$1"; }
 
 # Unpack the zip $1 into the folder $2. Git for Windows may ship no `unzip`: Python's zipfile does it then.
 unzip_to() {
   if command -v unzip >/dev/null 2>&1; then
     unzip -q -o "$1" -d "$2"
   else
-    source "$(dirname "$0")/setup/lib.sh"
     fe_use_python || return 1
     "$PYTHON" -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' "$(cygpath -w "$1")" "$(cygpath -w "$2")"
   fi
 }
+
+if [[ "${1:-}" == --cached ]]; then
+  [[ -x "$binary" ]] && { echo "$binary"; exit 0; }
+  exit 1
+fi
 
 if [[ ! -x "$binary" ]]; then
   mkdir -p "$dir" || fail "cannot create the cache $dir"
@@ -77,8 +84,12 @@ if [[ ! -x "$binary" ]]; then
   trap - EXIT
 fi
 
+if [[ "${1:-}" == --fetch ]]; then
+  echo "$binary"
+  exit 0
+fi
+
 if [[ "${1:-}" == fmt && " $* " != *" --check "* ]]; then
-  source "$(dirname "$0")/setup/lib.sh"
   fe_use_python || exit $?
   exec "$PYTHON" "$(cd "$(dirname "$0")" && pwd)/gdstyle_reflow.py" "$binary" "$@"
 fi

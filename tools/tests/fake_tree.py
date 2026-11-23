@@ -43,6 +43,14 @@ exit 0
 """
 
 
+def path_without_shasum() -> str:
+    """This process's PATH without a folder that holds `shasum`: in Git for Windows it is in /usr/bin/core_perl, which only
+    /etc/profile (a login Git Bash) puts on PATH, so a script started from PowerShell, cmd, VS Code or by git.exe has none.
+    (The file is looked up by name: shutil.which wants an extension on Windows, and `shasum` has none.)"""
+    kept = [d for d in os.environ.get("PATH", "").split(os.pathsep) if d and not os.path.exists(os.path.join(d, "shasum"))]
+    return os.pathsep.join(kept)
+
+
 class FakeTree(unittest.TestCase):
     """A throwaway tree around the wrapper: no test in it, the cases are the subclasses'."""
 
@@ -76,12 +84,16 @@ class FakeTree(unittest.TestCase):
         self.starts = self.tmp / "starts"
         self.lists = self.tmp / "lists"
 
+    def base_path(self) -> str:
+        """The PATH the wrapper runs with, after the fakes' folder (a subclass narrows it)."""
+        return os.environ["PATH"]
+
     def run_tests(self, *args, suite="perf/n_suite", **env_extra):
         env = {k: v for k, v in os.environ.items() if k not in ("GAME_TEST_JOBS", "GAME_TEST_CHANGED_FILES")}
         env.update(GODOT=str(self.fake), TMPDIR=str(self.state), FAKE_STARTS=str(self.starts), FAKE_LISTS=str(self.lists),
                    FAKE_SUITE=suite,
                    GAME_TEST_SLOT_DIR=str(self.state / "slots"), GAME_TEST_SLOT_POLL="0.05",
-                   PATH=f"{self.bin}{os.pathsep}{os.environ['PATH']}", GAME_TEST_QUIET_MINUTE="0.2", GAME_TEST_QUIET_POLL="0.05", **env_extra)
+                   PATH=f"{self.bin}{os.pathsep}{self.base_path()}", GAME_TEST_QUIET_MINUTE="0.2", GAME_TEST_QUIET_POLL="0.05", **env_extra)
         r = subprocess.run(["bash", str(self.repo / "tools" / "run_tests.sh"), "--no-lint", *args], cwd=self.repo, env=env,
                            capture_output=True, text=True, timeout=120)
         return r.returncode, r.stdout + r.stderr

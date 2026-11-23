@@ -94,6 +94,7 @@ public static class FeJob {
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern IntPtr CreateJobObject(IntPtr attrs, string name);
     [DllImport("kernel32.dll")] static extern bool SetInformationJobObject(IntPtr job, int cls, IntPtr info, uint len);
     [DllImport("kernel32.dll")] static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
+    [DllImport("kernel32.dll")] static extern IntPtr GetCurrentProcess();
     static IntPtr job = IntPtr.Zero;
     public static bool Adopt(IntPtr process) {
         if (job == IntPtr.Zero) {
@@ -110,16 +111,20 @@ public static class FeJob {
         }
         return AssignProcessToJobObject(job, process);
     }
+    // This very process (a pseudo handle). Every child it starts afterwards is in the job from its first instruction.
+    public static bool AdoptSelf() { return Adopt(GetCurrentProcess()); }
 }
 '@
 
 Set-Location -LiteralPath $vonHome
+# This script goes into the kill-on-close job BEFORE von.exe starts, so von.exe and any child it spawns at once are in it
+# from their first instruction (assigning von.exe after Start-Process returns leaves a window for a child to escape).
+# Best effort: a parent that is itself in a job that forbids nesting cannot bind it; say so, the server still runs.
+if (-not [FeJob]::AdoptSelf()) {
+    [Console]::Error.WriteLine('von: warning: the server could not be bound to this script, so ending this script will not end it')
+}
 $server = Start-Process -FilePath $von -ArgumentList 'serve', '--host', $BindHost, '--port', $Port, '--device', $Device `
     -WorkingDirectory $vonHome -NoNewWindow -PassThru
 $null = $server.Handle  # keeps the handle, so ExitCode is readable after the exit
-# Best effort: a parent that is itself in a job that forbids nesting cannot bind it; say so, the server still runs.
-if (-not [FeJob]::Adopt($server.Handle)) {
-    [Console]::Error.WriteLine('von: warning: the server could not be bound to this script, so ending this script will not end it')
-}
 $server.WaitForExit()
 exit $server.ExitCode

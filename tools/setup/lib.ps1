@@ -9,8 +9,10 @@
 #   Get-FeGodotDir [-Version V] <root>\godot\<V> (default: the manifest's GODOT_VERSION)
 #   Find-FeGodot                the Godot binary as a string, or $null: $env:GODOT; godot / godot4 on PATH; the install
 #                               folder above; %LOCALAPPDATA%\Programs, winget, Program Files, scoop
-#   Find-FePython               the Python as a string, or $null: $env:PYTHON; python3 only if it really runs (it is the
-#                               Microsoft Store stub otherwise); py -3; python
+#   Find-FePython               the Python (PYTHON_MIN or newer) as a string, or $null: $env:PYTHON (below the minimum, a
+#                               warning and $null); python3.14/3.13/3.12 on PATH; python3 only if it really runs and is
+#                               new enough (it is the Microsoft Store stub otherwise); py -3; python
+#   Get-FeBootstrapCommand      the command that runs the setup bootstrap
 
 $FeSetupDir = $PSScriptRoot
 
@@ -76,22 +78,60 @@ function Find-FeGodot {
     return (Find-FeGodotIn $folders)
 }
 
+# The command that installs and pins everything (what a "not found" message tells the user to run).
+function Get-FeBootstrapCommand { return 'powershell -NoProfile -ExecutionPolicy Bypass -File tools\setup\bootstrap.ps1' }
+
+# "MAJOR.MINOR" of the Python at $Exe, or $null when it does not run (the Microsoft Store stub).
+function Get-FePythonVersion {
+    param([string]$Exe)
+    # (No double quotes in the code: Windows PowerShell 5.1 drops them from a native command's arguments.)
+    $v = & $Exe -c 'import sys; print(*sys.version_info[:2])' 2>$null
+    if ($LASTEXITCODE -ne 0 -or -not $v) { return $null }
+    return (([string]($v | Select-Object -First 1)).Trim() -replace '\s+', '.')
+}
+
+# $Version ("3.9") is $Minimum ("3.12") or newer.
+function Test-FeVersionAtLeast {
+    param([string]$Version, [string]$Minimum)
+    if ($Version -notmatch '^(\d+)\.(\d+)$') { return $false }
+    $have = @([int]$Matches[1], [int]$Matches[2])
+    if ($Minimum -notmatch '^(\d+)\.(\d+)$') { return $true }
+    $want = @([int]$Matches[1], [int]$Matches[2])
+    if ($have[0] -ne $want[0]) { return ($have[0] -gt $want[0]) }
+    return ($have[1] -ge $want[1])
+}
+
+# The Python at PYTHON_MIN (versions.env) or newer, as a string, or $null: $env:PYTHON when it is that (below it, a
+# warning and $null); python3.14 / 3.13 / 3.12 on PATH; python3 only if it really runs and is new enough (it is the
+# Microsoft Store stub otherwise); py -3; python.
 function Find-FePython {
-    if ($env:PYTHON) { return $env:PYTHON }
-    $python3 = Get-Command python3 -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($python3) {
-        & $python3.Source -c 'import sys' 2>$null | Out-Null
-        if ($LASTEXITCODE -eq 0) { return $python3.Source }
+    $min = (Get-FeManifest)['PYTHON_MIN']
+    if ($env:PYTHON) {
+        $v = Get-FePythonVersion $env:PYTHON
+        if ($v -and (Test-FeVersionAtLeast $v $min)) { return $env:PYTHON }
+        if ($v) { [Console]::Error.WriteLine("warning: `$env:PYTHON ($env:PYTHON) is Python $v, below the $min the tools need; not using it") }
+        else { [Console]::Error.WriteLine("warning: `$env:PYTHON ($env:PYTHON) is not a Python that runs; not using it") }
+        return $null
+    }
+    foreach ($name in 'python3.14', 'python3.13', 'python3.12', 'python3') {
+        $cmd = Get-Command $name -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $cmd) { continue }
+        $v = Get-FePythonVersion $cmd.Source
+        if ($v -and (Test-FeVersionAtLeast $v $min)) { return $cmd.Source }
     }
     $py = Get-Command py -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($py) {
         $exe = & $py.Source -3 -c 'import sys; print(sys.executable)' 2>$null
-        if ($LASTEXITCODE -eq 0 -and $exe) { return ([string]$exe).Trim() }
+        if ($LASTEXITCODE -eq 0 -and $exe) {
+            $exe = ([string]$exe).Trim()
+            $v = Get-FePythonVersion $exe
+            if ($v -and (Test-FeVersionAtLeast $v $min)) { return $exe }
+        }
     }
     $python = Get-Command python -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($python) {
-        & $python.Source -c 'import sys' 2>$null | Out-Null
-        if ($LASTEXITCODE -eq 0) { return $python.Source }
+        $v = Get-FePythonVersion $python.Source
+        if ($v -and (Test-FeVersionAtLeast $v $min)) { return $python.Source }
     }
     return $null
 }

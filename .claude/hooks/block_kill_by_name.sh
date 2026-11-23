@@ -9,7 +9,8 @@
 set -uo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 
-# The Python: tools/setup/lib.sh's lookup ($PYTHON, then python3 only if it really runs, then `py -3`, then python).
+# The Python: tools/setup/lib.sh's lookup (one at PYTHON_MIN or newer: $PYTHON, python3.13/3.12, python3 only if it really
+# runs, `py -3`, python); an older one counts as none, and the coarse fallback below answers.
 # shellcheck source=../../tools/setup/lib.sh
 source "$here/../../tools/setup/lib.sh"
 if py=$(fe_find_python); then

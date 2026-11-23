@@ -9,14 +9,26 @@ A small top-down Godot 4.4 demo of squad tactics, organized into seventeen domai
 One command per OS installs and updates everything the game, Von and the dev tooling need, at the versions pinned in
 [`tools/setup/versions.env`](tools/setup/versions.env). Run it from the checkout.
 
+**Before you start.** On a Mac with no Homebrew, install it first (the official one-liner from <https://brew.sh>):
+
+```
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+then put it on your `PATH` for this shell with `eval "$(/opt/homebrew/bin/brew shellenv)"` (`/usr/local/bin/brew` on an
+Intel Mac; the installer prints the line to add to `~/.zprofile`). The bootstrap finds `brew` in both places even when
+the shell does not. Whichever machine, tell git who you are before your first commit, since the repo's hooks run on it:
+`git config --global user.name "Your Name"` and `git config --global user.email you@example.com`.
+
 **Windows** (Windows PowerShell 5.1 or newer, with `winget`; a machine with no Git yet first runs
-`winget install --id Git.Git -e`, opens a new terminal and clones the repository):
+`winget install --id Git.Git -e`, which may show a UAC prompt and needs an administrator, then you open a new terminal
+and clone the repository):
 
 ```
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\setup\bootstrap.ps1
 ```
 
-**Mac** (Homebrew for Python; `git` comes with the Xcode command line tools):
+**Mac** (Homebrew for Python, see above; `git` comes with the Xcode command line tools):
 
 ```
 tools/setup/bootstrap.sh
@@ -30,7 +42,7 @@ What it does, step by step (each is logged as `installed`, `upgraded` or `up to 
 | `python` | Python 3.12 through `winget` | `python@3.12` through `brew` |
 | `godot` | the standard Godot 4.4.1 (no .NET, no C# in this project) from the GitHub release, checked against the pinned SHA-512, in the per-user folder below | the same, or the Godot already in `/Applications` when it is exactly that version (mono or not) |
 | `skillshare` | one at or above the pinned version is kept where it is; otherwise the pinned release (checked against its pinned SHA-256) goes into `<per-user folder>\bin` | the same, into `<per-user folder>/bin` |
-| `hooks` | `tools/install_hooks.sh` through Git Bash: the git hooks and the skills links | the same |
+| `hooks` | `tools/install_hooks.sh` through Git Bash: the git hooks and the skills links; then the pinned gdstyle (the lint's formatter) into `<per-user folder>\gdstyle`, so the first lint works offline | the same, into `<per-user folder>/gdstyle` |
 | `venv` | a venv under the Von home with `von-sdk` at the pinned version (built from Python 3.12 even when a newer Python is installed) | the same |
 | `weights` | the Von weights at the pinned revision into `<von home>/checkpoints/von-1.2` (about 3 GB) | the same |
 
@@ -56,6 +68,12 @@ Options (the Windows spelling first): `-Check` / `--check` looks, installs nothi
 any step is missing or out of date; `-Skip a,b` / `--skip=a,b` leaves steps out (`git python godot skillshare hooks venv
 weights`). `GODOT` and `PYTHON` pick a Godot or a Python for every script (otherwise they look on `PATH`, in the per-user
 folder and in the usual install places); `FE_VON_PYTHON` builds the Von venv from a Python of your choice, whatever version.
+The dev tools (lint, the tool tests, the hooks) need Python 3.12 or newer (`PYTHON_MIN` in `versions.env`): a script skips
+an older `python3` (a fresh Mac's `/usr/bin/python3` is 3.9) and finds `python3.12` from Homebrew by itself, and a
+`PYTHON` below that is refused with a message.
+
+Optional: `jq`. The hook that tells you a session is waiting on you (`.claude/hooks/needs_you_hook.sh`, a Mac banner) needs
+it; macOS before 15 has none (`brew install jq`), and without it the hook does nothing and says nothing.
 
 ## Start Von by hand
 
@@ -77,3 +95,6 @@ Stop it with Ctrl+C, or by ending its process (`kill <pid>` on a Mac). On Window
 
 `tools/run_tests.sh` runs the game's tests, `tools/tool_tests.sh` the tool tests, `tools/lint.sh` the lint; `AGENTS.md`
 says when each runs on its own.
+
+The `tools/*.sh` scripts are bash scripts. On Windows run them from Git Bash, or from PowerShell through Git's bash:
+`& "$env:ProgramFiles\Git\bin\bash.exe" tools/run_tests.sh --list` (the same for `tools/lint.sh` and the rest).

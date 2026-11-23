@@ -63,13 +63,20 @@ func test_windows_without_a_system_root_finds_powershell_on_the_path() -> void:
 	assert_str(command["program"]).is_equal("powershell.exe")
 
 
-func test_a_mac_runs_the_bash_boot_script_itself_with_no_shell_in_between() -> void:
+func test_a_mac_runs_the_boot_script_through_bash_so_it_needs_no_exec_bit() -> void:
 	var command := Launcher.boot_command("macOS", "/Users/me/Forced-Entry", 8123, "mps")
-	assert_str(command["program"]).is_equal("/Users/me/Forced-Entry/tools/von/boot.sh")
+	assert_str(command["program"]).is_equal("/bin/bash")
 	assert_str(command["script"]).is_equal("/Users/me/Forced-Entry/tools/von/boot.sh")
 	assert_array(Array(command["args"])).is_equal([
+		"/Users/me/Forced-Entry/tools/von/boot.sh",
 		"--host", NpcDecisionTuning.SERVER_HOST, "--port", "8123", "--device", "mps",
 	])
+
+
+func test_linux_runs_it_the_same_way_as_a_mac() -> void:
+	var command := Launcher.boot_command("Linux", "/home/me/fe", 8000, "cpu")
+	assert_str(command["program"]).is_equal("/bin/bash")
+	assert_str(Array(command["args"])[0]).is_equal("/home/me/fe/tools/von/boot.sh")
 
 
 func test_a_von_line_from_the_boot_script_becomes_the_warning_naming_cause_and_fix() -> void:

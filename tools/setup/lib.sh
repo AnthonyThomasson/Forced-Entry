@@ -21,9 +21,17 @@
 #                              the usual per-OS places (macOS /Applications/Godot*.app, mono or not; Windows
 #                              %LOCALAPPDATA%\Programs, winget, Program Files, scoop)
 #   fe_use_godot               fe_find_godot, exported as $GODOT; on none, says so on stderr and returns 2
-#   fe_find_python             the Python: $PYTHON as it is; python3 only if it really runs (on Windows it is the
-#                              Microsoft Store stub); py -3; python. One executable (`py -3` is resolved to its python.exe)
+#   fe_find_python             the Python, at PYTHON_MIN (versions.env) or newer: $PYTHON when it is that (below it, a
+#                              warning and none); else python3.14 / python3.13 / python3.12 on PATH, then in
+#                              /opt/homebrew/bin and /usr/local/bin (a Homebrew `python@3.12` has only python3.12);
+#                              then python3 (PATH, then those folders) only if it really runs and is new enough (on
+#                              Windows it is the Microsoft Store stub; a fresh Mac's /usr/bin/python3 is 3.9); py -3;
+#                              python. One executable (`py -3` is resolved to its python.exe)
 #   fe_use_python              fe_find_python, exported as $PYTHON; on none, says so on stderr and returns 2
+#   fe_bootstrap_cmd           the command that runs the setup bootstrap on this OS
+#   fe_hash [ALGO]             stdin's digest in hex (ALGO 1, 256 or 512; default 1), with a tool that is in /usr/bin
+#                              on a Mac and in Git Bash's /usr/bin on Windows: `shasum` is not on PATH outside a login Git Bash
+#   fe_hash_file ALGO FILE     the same for a file
 # A caller under `set -e` writes `fe_use_godot || exit $?`.
 
 FE_SETUP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -123,42 +131,116 @@ fe_find_godot() {
 
 fe_use_godot() {
   GODOT="$(fe_find_godot)" || {
-    echo "Godot binary not found (set GODOT=/path/to/Godot, or run the setup bootstrap)" >&2
+    echo "Godot binary not found (set GODOT=/path/to/Godot, or run: $(fe_bootstrap_cmd))" >&2
     return 2
   }
   export GODOT
 }
 
+# The command that installs and pins everything on this OS (what a "not found" message tells the user to run).
+fe_bootstrap_cmd() {
+  if [[ "$(fe_os)" == windows ]]; then
+    echo 'powershell -NoProfile -ExecutionPolicy Bypass -File tools\setup\bootstrap.ps1'
+  else
+    echo tools/setup/bootstrap.sh
+  fi
+}
+
+# One digest tool, whichever of these the machine has: sha<N>sum is in /usr/bin on Windows (Git Bash) and Linux, shasum on
+# a Mac. `shasum` alone is not on PATH outside a login Git Bash (it lives in /usr/bin/core_perl, which only /etc/profile
+# adds), so a script run from PowerShell, cmd, VS Code or by git.exe cannot rely on it. The last resort is cksum
+# (POSIX, everywhere): a CRC, enough to tell one tree state from another.
+fe_hash() {
+  local algo="${1:-1}"
+  if command -v "sha${algo}sum" >/dev/null 2>&1; then
+    "sha${algo}sum"
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a "$algo"
+  else
+    cksum
+  fi | cut -d' ' -f1 | tr -d '\\'
+}
+fe_hash_file() { fe_hash "$1" < "$2"; }
+
+# "MAJOR.MINOR" of the Python $1 (a command name or a path); nothing when it does not run (the Microsoft Store stub).
+_fe_python_version() { "$1" -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null | tr -d '\r'; }
+
+# Version $1 is $2 or newer (both MAJOR.MINOR; an unreadable $1 is older).
+_fe_version_ge() {
+  local a="${1%%.*}" b="${1#*.}" c="${2%%.*}" d="${2#*.}"
+  [[ "$a" =~ ^[0-9]+$ && "$b" =~ ^[0-9]+$ ]] || return 1
+  (( 10#$a > 10#$c || (10#$a == 10#$c && 10#$b >= 10#$d) ))
+}
+
+fe_python_min() { fe_manifest_get PYTHON_MIN || echo 3.12; }
+
+# Prints $1 and succeeds when it is a Python that runs and is at least $2.
+_fe_python_try() {
+  local v
+  command -v "$1" >/dev/null 2>&1 || return 1
+  v="$(_fe_python_version "$1")"
+  [[ -n "$v" ]] && _fe_version_ge "$v" "$2" || return 1
+  printf '%s\n' "$1"
+}
+
+# The folders a Homebrew Python is in whether or not the shell has `brew shellenv` applied (a fresh Mac's PATH has no
+# /opt/homebrew/bin). FE_PYTHON_EXTRA_DIRS overrides the list (the tests empty it).
+_fe_python_dirs() { echo "${FE_PYTHON_EXTRA_DIRS-/opt/homebrew/bin /usr/local/bin}"; }
+
 fe_find_python() {
+  local min v exe c d
+  min="$(fe_python_min)"
   if [[ -n "${PYTHON:-}" ]]; then
-    printf '%s\n' "$PYTHON"
-    return 0
+    # An earlier fe_use_python in a parent script already checked this one.
+    [[ "${FE_PYTHON_CHECKED:-}" == "$PYTHON" ]] && { printf '%s\n' "$PYTHON"; return 0; }
+    v="$(_fe_python_version "$PYTHON")"
+    if [[ -n "$v" ]] && _fe_version_ge "$v" "$min"; then
+      printf '%s\n' "$PYTHON"
+      return 0
+    fi
+    if [[ -n "$v" ]]; then
+      echo "warning: \$PYTHON ($PYTHON) is Python $v, below the $min the tools need; not using it" >&2
+    else
+      echo "warning: \$PYTHON ($PYTHON) is not a Python that runs; not using it" >&2
+    fi
+    return 1
   fi
-  local exe
-  if command -v python3 >/dev/null 2>&1 && python3 -c 'import sys' >/dev/null 2>&1; then
-    echo python3
-    return 0
-  fi
+  # The versioned names first: a Homebrew `python@3.12` installs python3.12 only, and a bare python3 may be the old one.
+  for c in python3.14 python3.13 python3.12; do
+    _fe_python_try "$c" "$min" && return 0
+    for d in $(_fe_python_dirs); do
+      _fe_python_try "$d/$c" "$min" && return 0
+    done
+  done
+  _fe_python_try python3 "$min" && return 0
+  for d in $(_fe_python_dirs); do
+    _fe_python_try "$d/python3" "$min" && return 0
+  done
   if command -v py >/dev/null 2>&1; then
     exe="$(py -3 -c 'import sys; print(sys.executable)' 2>/dev/null | tr -d '\r')"
     if [[ -n "$exe" ]]; then
-      fe_posix_path "$exe"
-      return 0
+      exe="$(fe_posix_path "$exe")"
+      v="$(_fe_python_version "$exe")"
+      if [[ -n "$v" ]] && _fe_version_ge "$v" "$min"; then
+        printf '%s\n' "$exe"
+        return 0
+      fi
     fi
   fi
-  if command -v python >/dev/null 2>&1 && python -c 'import sys' >/dev/null 2>&1; then
-    echo python
-    return 0
-  fi
+  _fe_python_try python "$min" && return 0
   return 1
 }
 
 fe_use_python() {
-  PYTHON="$(fe_find_python)" || {
-    echo "Python not found (set PYTHON=/path/to/python, or run the setup bootstrap)" >&2
+  local found
+  found="$(fe_find_python)" || {
+    echo "Python >= $(fe_python_min) not found; run $(fe_bootstrap_cmd)" >&2
     return 2
   }
+  PYTHON="$found"
   export PYTHON
+  # What a script started from this one need not check again (it is a few launches of Python per script otherwise).
+  export FE_PYTHON_CHECKED="$PYTHON"
   # Windows Python ends every output line with CR LF; pysite/sitecustomize.py makes it write LF only, so what a
   # script captures from a tool has no stray CR. Know that PYTHONPATH is inherited: every child process of the script
   # (Python or not, a Von server started from it included) sees it; that a sitecustomize.py found through PYTHONPATH

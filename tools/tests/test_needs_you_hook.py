@@ -36,6 +36,19 @@ class NeedsYouHookTests(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("Which one? Options: A, B", r.stdout)
 
+    def test_without_jq_a_mac_exits_0_and_says_nothing(self):
+        """macOS before 15 has no jq and the bootstrap does not install it: the hook stays quiet, stderr too."""
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp, True)
+        fake_uname = tmp / "bin" / "uname"
+        fake_uname.parent.mkdir()
+        fake_uname.write_text("#!/usr/bin/env bash\necho Darwin\n", newline="\n")
+        fake_uname.chmod(0o755)
+        kept = [d for d in os.environ.get("PATH", "").split(os.pathsep) if d and not shutil.which("jq", path=d)]
+        env = dict(os.environ, NEEDS_YOU_DRY_RUN="1", TMPDIR=str(tmp), PATH=os.pathsep.join([str(fake_uname.parent)] + kept))
+        r = subprocess.run([BASH, str(HOOK)], input=json.dumps(QUESTION), env=env, capture_output=True, text=True, timeout=60)
+        self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
+
 
 if __name__ == "__main__":
     unittest.main()

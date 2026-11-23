@@ -8,13 +8,20 @@
 #
 # Mute the voice (keep the banner): "mute": true in .claude/hooks/needs_you.json of the main checkout, which every
 # worktree reads, so one switch quiets every agent; missing means unmuted. NEEDS_YOU_DRY_RUN=1 prints instead.
-# macOS only: on Windows the hook exits 0 at once and says nothing.
+# macOS only: on Windows the hook exits 0 at once and says nothing; so does a Mac without jq (optional: brew install jq).
 set -uo pipefail
 
 # Windows has neither osascript nor say (and Git Bash no jq): nothing to alert with, so it stays quiet, whatever the event.
 case "$(uname -s)" in
   MINGW* | MSYS* | CYGWIN*) cat >/dev/null; exit 0 ;;
 esac
+
+# jq reads the hook's JSON; macOS before 15 has none and the bootstrap does not install it (it is optional): no jq, no
+# alert, and no noise on stderr either.
+if ! command -v jq >/dev/null 2>&1; then
+  cat >/dev/null
+  exit 0
+fi
 
 input=$(cat)
 event=$(jq -r '.hook_event_name // empty' <<<"$input")

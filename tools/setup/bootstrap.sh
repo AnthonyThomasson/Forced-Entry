@@ -70,10 +70,7 @@ download() { # url dest
   curl -fL --retry 3 --retry-delay 2 -sS -o "$2.part" "$1" || { rm -f "$2.part"; return 1; }
   mv -f "$2.part" "$2"
 }
-checksum() { # algo(256|512) file
-  if command -v shasum >/dev/null 2>&1; then shasum -a "$1" "$2" | cut -d' ' -f1
-  else "sha$1"sum "$2" | cut -d' ' -f1; fi
-}
+checksum() { fe_hash_file "$1" "$2"; } # algo(256|512) file
 # A file passes only when there is a pinned sum AND a computed one and they are equal (two empty strings are not a match).
 checksum_ok() { # algo file pinned
   local sum
@@ -112,14 +109,26 @@ find_von_python() {
   fi
   return 1
 }
+# Homebrew: on PATH, or where its installer puts it (a fresh Mac's PATH has neither folder until `brew shellenv` runs).
+find_brew() {
+  local c
+  for c in "$(command -v brew 2>/dev/null)" /opt/homebrew/bin/brew /usr/local/bin/brew; do
+    [[ -n "$c" && -x "$c" ]] && { echo "$c"; return 0; }
+  done
+  return 1
+}
 step_python() {
-  local want py
+  local want py brew
   want="$(M VON_PYTHON)"
   if py="$(find_von_python)"; then ok python "$("$py" --version 2>&1) at $py"; return; fi
   [[ $CHECK -eq 1 ]] && { missing python "missing (Python $want for the Von venv)"; return; }
   [[ "$OS" == macos ]] || fail python "no Python $want: on Windows run tools/setup/bootstrap.ps1; Linux is not supported yet"
-  command -v brew >/dev/null 2>&1 || fail python "Homebrew is needed to install Python $want: https://brew.sh"
-  brew install "python@$want" || fail python "brew install python@$want failed"
+  brew="$(find_brew)" || fail python "Homebrew is needed to install Python $want: install it from https://brew.sh (README: Before you start), then run this again"
+  "$brew" install "python@$want" || fail python "brew install python@$want failed"
+  case ":$PATH:" in
+    *":$(dirname "$brew"):"*) ;;
+    *) NOTES+=("Homebrew is in $(dirname "$brew"), which is not on your PATH. To use brew and the Python it installed in a new shell: echo 'eval \"\$($brew shellenv)\"' >> ~/.zprofile") ;;
+  esac
   py="$(find_von_python)" || fail python "python@$want installed but no python$want found; open a new shell and re-run"
   installed python "$("$py" --version 2>&1) at $py"
 }
@@ -224,17 +233,21 @@ skills_linked() {
   done
   return 0
 }
+# gdstyle (the lint's formatter) is cached under <fe home>/gdstyle by tools/gdstyle.sh; fetching it here means the first
+# lint works offline.
+gdstyle_cached() { bash tools/gdstyle.sh --cached >/dev/null 2>&1; }
 step_hooks() {
   local ss
-  if [[ "$(git config core.hooksPath 2>/dev/null)" == .githooks ]] && skills_linked; then
-    ok hooks "core.hooksPath=.githooks, skills linked"; return
+  if [[ "$(git config core.hooksPath 2>/dev/null)" == .githooks ]] && skills_linked && gdstyle_cached; then
+    ok hooks "core.hooksPath=.githooks, skills linked, gdstyle cached"; return
   fi
-  [[ $CHECK -eq 1 ]] && { missing hooks "missing (tools/install_hooks.sh has not run in this checkout, or a skill is not linked)"; return; }
+  [[ $CHECK -eq 1 ]] && { missing hooks "missing (tools/install_hooks.sh has not run in this checkout, a skill is not linked, or gdstyle is not cached)"; return; }
   # install_hooks.sh runs sync_skills.sh, which needs skillshare on the PATH: it may have just been put elsewhere.
   if ss="$(find_skillshare)"; then PATH="$(dirname "$ss"):$PATH"; export PATH; fi
   bash tools/install_hooks.sh || fail hooks "tools/install_hooks.sh failed (see above)"
   skills_linked || fail hooks "tools/install_hooks.sh finished but not every skill in .skillshare/skills is linked in .claude/skills"
-  installed hooks "git hooks enabled, skills linked"
+  bash tools/gdstyle.sh --fetch >/dev/null || fail hooks "tools/gdstyle.sh --fetch failed (network? see above)"
+  installed hooks "git hooks enabled, skills linked, gdstyle cached"
 }
 
 # ---- the Von venv ------------------------------------------------------------------------------------------------

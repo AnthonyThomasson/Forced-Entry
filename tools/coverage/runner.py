@@ -343,12 +343,13 @@ def von_boot_script(copy) -> Path:
 
 def von_boot_command(copy, port: int) -> list[str]:
     """The command that starts the Von server of the copy's boot script for this OS, start-only (the script installs
-    nothing): Windows PowerShell 5.1 with -ExecutionPolicy Bypass on boot.ps1, else boot.sh itself."""
+    nothing): Windows PowerShell 5.1 with -ExecutionPolicy Bypass on boot.ps1, else /bin/bash on boot.sh (which needs
+    no exec bit then; it ends in exec, so the process is the server)."""
     if WINDOWS:
         shell = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
         return [str(shell) if shell.is_file() else "powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy",
                 "Bypass", "-File", str(von_boot_script(copy)), "-Port", str(port), "-BindHost", "127.0.0.1", "-Device", "cpu"]
-    return [str(von_boot_script(copy)), "--port", str(port), "--host", "127.0.0.1", "--device", "cpu"]
+    return ["/bin/bash", str(von_boot_script(copy)), "--port", str(port), "--host", "127.0.0.1", "--device", "cpu"]
 
 
 def von_line(log_path) -> str:
