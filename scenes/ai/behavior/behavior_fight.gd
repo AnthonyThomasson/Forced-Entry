@@ -163,7 +163,8 @@ func fights_in_place() -> bool:
 	return false
 
 
-## Engage: walk to the chosen spot (shooting on the way when a line opens), then fight from it —
+## Engage: walk to the chosen spot (shooting on the way when a line opens; by its waypoint first
+## when the flank's route bends round the target, `RunningLeaf.via`), then fight from it —
 ## peek-and-cover, or an ambush that holds the covered spot and fires the moment a line opens. Its
 ## confinement keeps where it fights (`hold_ground` against a contact where it may not act).
 func apply_engage(delta: float) -> void:
@@ -177,6 +178,12 @@ func apply_engage(delta: float) -> void:
 	behavior._character.movement.aim_point = engage_pos
 	hold_ground = _keeps_in(engage_pos)
 	if not task.arrived:
+		if task.via != Vector2.INF:
+			# The route offered bends round the target by this waypoint: walk it, not the plain one.
+			if not loco.reached(task.via):
+				loco.move_to(task.via)
+				return
+			task.via = Vector2.INF
 		task.arrived = loco.reached(task.point)
 		if not task.arrived:
 			loco.move_to(task.point)

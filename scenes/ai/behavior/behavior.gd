@@ -377,6 +377,7 @@ func _adopt(leaf: Dictionary) -> void:
 	errand.coverage.reset()
 	_watch.reset()
 	task.point = _loco.reachable(task.params["point"]) if task.params.has("point") else Vector2.ZERO
+	task.via = task.params.get("via", Vector2.INF)
 	errand.target_obj = null
 	_combat.throw.end()
 	grenades.throw_wait = -1.0

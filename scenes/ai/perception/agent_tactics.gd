@@ -385,38 +385,38 @@ func _route_crosses(path: PackedVector2Array, hostiles: Array) -> String:
 	return ""
 
 
-## The walk to the flank point `p` of `target` as B2, B3 and the exposure read it: the plain `path`,
-## unless that passes the target and no other hostile, then the route bent round the target
-## (`_bent_route`), when one clears every hostile. The walker steers round a body it meets (the
-## steering map carves it), so the shortest route through the target, as in a bare room where the
-## NPC, the target and the point behind it lie on one line, is no walk past it.
+## The walk to the flank point `p` of `target` as B2, B3 and the exposure read it, and the one the
+## NPC is sent on: `{ path, via }`. The plain `path` (no `via`: `Vector2.INF`), unless that passes
+## the target and no other hostile, then the route bent round the target (`_bent_route`) when one
+## clears every hostile; the goal walks by its `via` first, so the route checked is the route
+## walked.
 func _flank_walk(
 	ctx: Dictionary,
 	target: Dictionary,
 	path: PackedVector2Array,
 	p: Vector2,
-) -> PackedVector2Array:
+) -> Dictionary:
 	var others: Array = ctx["hostiles"].filter(
 		func(h: Dictionary) -> bool: return h["id"] != target["id"])
 	if _route_crosses(path, [target]) == "" or _route_crosses(path, others) != "":
-		return path
+		return { "path": path, "via": Vector2.INF }
 	var bent := _bent_route(ctx, target, p)
-	return path if bent.is_empty() else bent
+	return bent if not bent.is_empty() else { "path": path, "via": Vector2.INF }
 
 
-## The shortest walk from the NPC to `p` round `hostile` that passes no known hostile, or empty: the
-## route through a waypoint beside the hostile (to either side of it, at `BENT_CLEARANCES` times
-## `route_clearance` off it, the smallest that works), as a hole of that radius round it would make
-## the walker go. One that crosses no ally's line of fire to the hostile is preferred.
-func _bent_route(ctx: Dictionary, hostile: Dictionary, p: Vector2) -> PackedVector2Array:
+## The shortest walk from the NPC to `p` round `hostile` that passes no known hostile, or {}:
+## `{ path, via }`, through a waypoint beside the hostile (to either side, at `BENT_CLEARANCES`
+## times `route_clearance` off it, the smallest that works). One that crosses no ally's line of fire
+## to the hostile is preferred.
+func _bent_route(ctx: Dictionary, hostile: Dictionary, p: Vector2) -> Dictionary:
 	var self_pos: Vector2 = ctx["self_pos"]
 	var hpos: Vector2 = hostile["pos"]
 	var line := p - self_pos
 	if line.length() < 1.0:
-		return PackedVector2Array()
+		return {}
 	var beside := line.orthogonal().normalized()
 	for factor in BENT_CLEARANCES:
-		var best := PackedVector2Array()
+		var best := {}
 		var best_cost := INF
 		for way in [1.0, -1.0]:
 			var raw: Vector2 = hpos + beside * way * route_clearance * factor
@@ -424,6 +424,7 @@ func _bent_route(ctx: Dictionary, hostile: Dictionary, p: Vector2) -> PackedVect
 			if via.distance_to(raw) > SNAP_TOLERANCE:
 				continue
 			var bent := _route(ctx, via)
+			route_queries += 1
 			bent.append_array(NavBuilder.route(ctx["map"], via, p).slice(1))
 			if (bent[bent.size() - 1].distance_to(p) > SNAP_TOLERANCE
 					or _route_crosses(bent, ctx["hostiles"]) != ""):
@@ -432,11 +433,11 @@ func _bent_route(ctx: Dictionary, hostile: Dictionary, p: Vector2) -> PackedVect
 			if _ally_lane(p, hpos, ctx["allies"], bent) != "":
 				cost += BENT_LANE_COST
 			if cost < best_cost:
-				best = bent
+				best = { "path": bent, "via": via }
 				best_cost = cost
 		if not best.is_empty():
 			return best
-	return PackedVector2Array()
+	return {}
 
 
 ## The known hostile that would catch the NPC in the open, or "": one looking toward `p` (within
@@ -520,10 +521,11 @@ func flank_sides(ctx: Dictionary, target: Dictionary, front: float) -> Array:
 		var p = _flank_point(ctx, tpos, front, side, target.get("node"))
 		if p == null:
 			continue
-		var path := _flank_walk(ctx, target, _route(ctx, p), p)
+		var walk := _flank_walk(ctx, target, _route(ctx, p), p)
+		var path: PackedVector2Array = walk["path"]
 		var vel: Vector2 = target.get("vel", Vector2.ZERO)
 		# What standing at the side's point gives (as for every candidate), then the flank's own.
-		var a := { "side": side }
+		var a := { "side": side, "via": walk["via"] }
 		a.merge(_annotate(ctx, target, p, ex, path))
 		a.merge({
 			"route_exposed": _route_exposed(ctx, path, tpos, front),

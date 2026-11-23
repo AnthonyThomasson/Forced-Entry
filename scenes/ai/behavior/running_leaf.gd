@@ -22,6 +22,9 @@ var point := Vector2.ZERO
 var arrive_room := ""
 ## Whether the destination has been reached.
 var arrived := false
+## The waypoint a flank's walk goes by before `point` (the route offered bends round the target by
+## it), `Vector2.INF` once passed or when the leaf has none.
+var via := Vector2.INF
 ## A search/explore move that covers the room by sight on arrival (vs resolving at once).
 var look_around := false
 ## Seconds left on the current move/approach commitment (safety cap).
