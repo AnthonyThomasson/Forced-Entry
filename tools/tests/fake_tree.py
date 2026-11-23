@@ -95,7 +95,7 @@ class FakeTree(unittest.TestCase):
                    GAME_TEST_SLOT_DIR=str(self.state / "slots"), GAME_TEST_SLOT_POLL="0.05",
                    PATH=f"{self.bin}{os.pathsep}{self.base_path()}", GAME_TEST_QUIET_MINUTE="0.2", GAME_TEST_QUIET_POLL="0.05", **env_extra)
         r = subprocess.run(["bash", str(self.repo / "tools" / "run_tests.sh"), "--no-lint", *args], cwd=self.repo, env=env,
-                           capture_output=True, text=True, timeout=120)
+                           capture_output=True, text=True, timeout=600)  # a Windows process snapshot takes seconds
         return r.returncode, r.stdout + r.stderr
 
     def listed(self):
