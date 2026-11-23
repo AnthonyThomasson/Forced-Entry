@@ -21,6 +21,7 @@ extends GameTest
 ## keeps the agent's radius from each; every doorway of a wall is open on it.
 
 const PlanProbe := preload("res://tests/_general/plan_probe.gd")
+const Clearance := preload("res://tests/_navigation/route_clearance.gd")
 const Baseline := preload("res://tests/_navigation/bake_baseline.gd")
 const WallScript := preload("res://scenes/objects/wall/wall.gd")
 const SEED := 7
@@ -48,6 +49,9 @@ const ROUTE_SHORTER := 0.08
 ## 24 ms in the 2D baker's mesh).
 const POLYGONS_MOST := 1.6
 const POLYGONS_LEAST := 0.5
+## How near (px) to a wall a route may come: the agent's radius (measured 15.2 at the least: the
+## bake's 18 less half a cell's diagonal).
+const ROUTE_CLEARANCE := RADIUS
 ## What a pixel of area is: the summed areas of the same outlines agree to this.
 const AREA_EPSILON := 1.0
 ## The walls of a district's shells (a tower's outside: scenery with no walkable inside), whose
@@ -102,6 +106,7 @@ func run(t: TestContext) -> void:
 	_check_clearance(t, poly, walls["obstruction"])
 	var map := _map_of(poly, root.position)
 	_check_routes(t, map, record["routes"])
+	_check_route_clearance(t, map, record["routes"], walls["obstruction"], root.position)
 	_free_map(map)
 	var bare := _map_of(
 		NavSource.bake(NavSource.job(site, [], [], walls), root.position),
@@ -510,6 +515,29 @@ func _check_routes(t: TestContext, map: RID, routes: Array) -> void:
 				int(ROUTE_LONGER * 100.0), int(ROUTE_SHORTER * 100.0), routes.size(), missing,
 				longest * 100.0, shortest * 100.0,
 			],
+	)
+
+
+## The recorded routes keep the agent's radius off the walls, as the old map's did: a route 7%
+## shorter than the 2D baker's is the voxel baker's finer polygons (a search that follows the
+## floor), not a corner cut through a wall's radius.
+func _check_route_clearance(
+	t: TestContext,
+	map: RID,
+	routes: Array,
+	walls: Array,
+	frame: Vector2,
+) -> void:
+	var least := INF
+	for route: Array in routes:
+		var from := NavigationServer2D.map_get_closest_point(map, Vector2(route[0], route[1]))
+		var to := NavigationServer2D.map_get_closest_point(map, Vector2(route[2], route[3]))
+		var path := NavigationServer2D.map_get_path(map, from, to, true)
+		least = minf(least, Clearance.least_off_walls(path, walls, frame))
+	t.check(
+		least >= ROUTE_CLEARANCE,
+		"every recorded route keeps %.0f px off the walls (%.1f px at the least)"
+			% [ROUTE_CLEARANCE, least],
 	)
 
 
