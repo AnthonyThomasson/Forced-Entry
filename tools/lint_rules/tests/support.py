@@ -83,6 +83,11 @@ def section_of(output: str, name: str) -> str | None:
     return None
 
 
+# What a copy of the lint machinery needs from tools/: lint.sh and what it runs (lint_engine.py runs the engine, through
+# godot_slot.py's program lookup and proctree.py's tree kill).
+LINT_TOOLS = ("lint.sh", "lint_report.py", "lint_engine.py", "godot_slot.py", "proctree.py", "lint_gdstyle.py", "gdstyle.sh")
+
+
 FAKE_GODOT = """#!/usr/bin/env bash
 # Fake Godot for the lint.sh tests: records its arguments (one call per line) and prints the canned log.
 echo "$*" >> "$FAKE_GODOT_CALLS"
@@ -104,7 +109,7 @@ class LintTree:
         self.root = self.dir / "tree"
         tools = self.root / "tools"
         tools.mkdir(parents=True)
-        for name in ("lint.sh", "lint_report.py", "lint_gdstyle.py", "gdstyle.sh"):
+        for name in LINT_TOOLS:
             shutil.copy2(ROOT / "tools" / name, tools / name)
         copy_setup(self.root)
         shutil.copy2(ROOT / "gdstyle.toml", self.root / "gdstyle.toml")
@@ -158,8 +163,7 @@ class EngineLintTree:
         self.root = self.dir / "tree"
         tools = self.root / "tools"
         tools.mkdir(parents=True)
-        for name in ("lint.sh", "lint_report.py", "lint_gdstyle.py", "gdstyle.sh", "lint_scripts.gd",
-                     "lint_scripts.tscn"):
+        for name in (*LINT_TOOLS, "lint_scripts.gd", "lint_scripts.tscn"):
             shutil.copy2(ROOT / "tools" / name, tools / name)
         copy_setup(self.root)
         shutil.copy2(ROOT / "gdstyle.toml", self.root / "gdstyle.toml")

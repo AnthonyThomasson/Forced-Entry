@@ -15,8 +15,12 @@ fail with "not declared" / "could not find type" errors; when the log is full of
 """
 import os
 import re
-import subprocess
 import sys
+import tempfile
+from pathlib import Path
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # python -I leaves the script's folder off the path
+import lint_engine  # noqa: E402
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 HEADERS = ("SCRIPT ERROR:", "USER SCRIPT ERROR:", "ERROR:", "WARNING:", "SCRIPT WARNING:")
@@ -89,12 +93,15 @@ def division_sites(paths: list[str]) -> dict[str, list[tuple[int, int]]]:
     godot = os.environ.get("GODOT")
     if not godot or not paths:
         return {}
-    run = subprocess.run([godot, "--headless", "--debug", "--path", ".", "res://tools/lint_scripts.tscn", "--",
-                          "--divisions=" + ",".join(paths)], stdin=subprocess.DEVNULL, capture_output=True, text=True)
+    with tempfile.TemporaryDirectory(prefix="lint_div_") as tmp:  # bounded, as lint.sh's own engine pass is
+        log = Path(tmp) / "divisions.log"
+        lint_engine.run([godot, "--headless", "--debug", "--path", ".", "res://tools/lint_scripts.tscn", "--",
+                         "--divisions=" + ",".join(paths)], log)
+        text = log.read_text(encoding="utf-8", errors="replace") if log.exists() else ""
     sites: dict[str, list[tuple[int, int]]] = {}
     path = label = None
     counts: dict[str, int] = {}
-    for raw in (run.stdout + run.stderr).split("\n"):
+    for raw in text.split("\n"):
         line = ANSI.sub("", raw).strip()
         if line.startswith("LINT> "):
             path = line[6:]

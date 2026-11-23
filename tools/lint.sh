@@ -64,8 +64,14 @@ if [[ $engine -eq 1 ]]; then
   extra=(); [[ ${#only[@]} -gt 0 ]] && extra=(-- "--only=$(IFS=,; echo "${only[*]}")")
   out=$(mktemp -d "${TMPDIR:-/tmp}/lint.XXXXXX")
   # --debug is what makes the engine report analyzer warnings at all; stdin is closed so a script error does not
-  # park the process at the debugger prompt.
-  "$GODOT" --headless --debug --path . res://tools/lint_scripts.tscn ${extra[@]+"${extra[@]}"} </dev/null >"$out/lint.log" 2>&1
+  # park the process at the debugger prompt. tools/lint_engine.py runs it bounded (a parse error can leave Godot on
+  # Windows breaking at the same error for ever): stopped, with what it started, past $LINT_ENGINE_TIMEOUT seconds
+  # (900), when it only repeats a break, and when this script is interrupted.
+  "$PYTHON" tools/lint_engine.py "$out/lint.log" -- "$GODOT" --headless --debug --path . res://tools/lint_scripts.tscn \
+    ${extra[@]+"${extra[@]}"}
+  # The engine's own exit code is no verdict (the log is: LINT-DONE); only a stop (124) or no engine to run (127) fails.
+  code=$?
+  [[ $code -eq 124 || $code -eq 127 ]] && status=1
   report=$(GODOT="$GODOT" "$PYTHON" tools/lint_report.py "$out/lint.log" ${flags[@]+"${flags[@]}"}) || status=1
   [[ -n "$report" ]] && printf '== GDScript analyzer (engine) ==\n%s\n' "$report"
 fi

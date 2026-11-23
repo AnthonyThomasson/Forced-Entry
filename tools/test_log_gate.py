@@ -1392,6 +1392,11 @@ print("\n".join(rows))
 """
 
 
+# The Windows busy count reads the real process table (a Toolhelp snapshot, each engine's cpu time), not a `ps` on PATH.
+FAKE_PS_SKIP = ("these tests fake the POSIX `ps` command, which the Windows busy count does not run: covered by "
+                "test_godot_slot (an injected snapshot)")
+
+
 class QuietGateTests(unittest.TestCase):
     """`--quiet`: the perf tests wait for a quiet machine (a fake `uptime` and `ps` on PATH, a minute scaled down),
     run anyway on the timeout with their results marked `loaded`; every PERF line carries the load and the busy other
@@ -1448,7 +1453,7 @@ class QuietGateTests(unittest.TestCase):
                     if "=" in l and not l.startswith("#"))
         self.assertEqual(conf, {"max_load": "6", "timeout_min": "30", "busy_cpu": "50", "busy_sample_s": "2"})
 
-    @unittest.skipIf(WINDOWS, "fakes the POSIX `ps` command: the Windows busy count reads the real process table (a Toolhelp snapshot and each engine's cpu time), which a script on PATH cannot stand in for")
+    @unittest.skipIf(WINDOWS, FAKE_PS_SKIP)
     def test_it_waits_for_no_other_busy_godot_and_a_load_under_the_threshold_and_says_so_each_minute(self):
         proc = self.start("--domain=perf", "--quiet")
         time.sleep(1.0)
@@ -1467,7 +1472,7 @@ class QuietGateTests(unittest.TestCase):
         self.assertNotIn("loaded", out.replace("waiting", ""), "a quiet machine at last: nothing is marked")
         self.assertNotIn("loaded", results["perf/p"])
 
-    @unittest.skipIf(WINDOWS, "fakes the POSIX `ps` command: the Windows busy count reads the real process table (a Toolhelp snapshot and each engine's cpu time), which a script on PATH cannot stand in for")
+    @unittest.skipIf(WINDOWS, FAKE_PS_SKIP)
     def test_an_idle_editor_and_a_godot_mcp_server_do_not_hold_the_gate(self):
         self.set_machine(load="1.00", others=["4000001 idle", "4000002 mcp"])
         proc = self.start("--domain=perf", "--quiet=1")
@@ -1476,7 +1481,7 @@ class QuietGateTests(unittest.TestCase):
         self.assertNotIn("waiting for a quiet machine", out, "nothing busy runs: the gate clears at once")
         self.assertNotIn("loaded", results["perf/p"])
 
-    @unittest.skipIf(WINDOWS, "fakes the POSIX `ps` command: the Windows busy count reads the real process table (a Toolhelp snapshot and each engine's cpu time), which a script on PATH cannot stand in for")
+    @unittest.skipIf(WINDOWS, FAKE_PS_SKIP)
     def test_another_worktrees_busy_run_holds_the_gate_beside_an_idle_editor(self):
         self.set_machine(load="1.00", others=["4000001 idle", "4000002 mcp", "4000003"])
         proc = self.start("--domain=perf", "--quiet=1")
@@ -1484,7 +1489,7 @@ class QuietGateTests(unittest.TestCase):
         self.assertRegex(out, r"waiting for a quiet machine: load 1\.00.* 1 busy Godot")
         self.assertTrue(results["perf/p"]["loaded"], "the busy run never went away: the gate timed out\n" + out)
 
-    @unittest.skipIf(WINDOWS, "fakes the POSIX `ps` command: the Windows busy count reads the real process table (a Toolhelp snapshot and each engine's cpu time), which a script on PATH cannot stand in for")
+    @unittest.skipIf(WINDOWS, FAKE_PS_SKIP)
     def test_a_machine_whose_processes_cannot_be_read_is_no_quiet_machine(self):
         self.set_machine(load="1.00", others=[])
         proc = self.start("--domain=perf", "--quiet=1", FAKE_PS_FAIL="1")
@@ -1557,7 +1562,7 @@ class QuietGateTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, out)
         self.assertNotIn("waiting for a quiet machine", out)
 
-    @unittest.skipIf(WINDOWS, "fakes the POSIX `ps` command: the Windows busy count reads the real process table (a Toolhelp snapshot and each engine's cpu time), which a script on PATH cannot stand in for")
+    @unittest.skipIf(WINDOWS, FAKE_PS_SKIP)
     def test_a_perf_line_carries_the_load_and_the_busy_other_godot_processes(self):
         self.set_machine(load="9.00", others=[4000001, "4000002 idle", "4000003 mcp", 4000004])
         out, _ = self.finish(self.start("--domain=perf"))
@@ -1568,7 +1573,7 @@ class QuietGateTests(unittest.TestCase):
         self.assertIn("PERF perf/p frame 3.20 (budget 8.00) (load 0.50, 0 busy Godot)", out.splitlines(),
                       "the run's own engine is not another Godot")
 
-    @unittest.skipIf(WINDOWS, "fakes the POSIX `ps` command: the Windows busy count reads the real process table (a Toolhelp snapshot and each engine's cpu time), which a script on PATH cannot stand in for")
+    @unittest.skipIf(WINDOWS, FAKE_PS_SKIP)
     def test_a_shards_perf_line_is_annotated_when_it_is_produced(self):
         out, _ = self.finish(self.start("--jobs=2", "--id=a/x,b/y"))
         self.assertIn("PERF a/s0/2 frame 3.20 (budget 8.00) (load 9.00, 2 busy Godot)", out.splitlines())
@@ -1632,6 +1637,18 @@ class LintEngineTests(unittest.TestCase):
     def test_the_project_is_clean(self):
         code, out = self.lint()
         self.assertEqual(code, 0, out)
+
+    def test_a_script_with_a_parse_error_ends_the_lint_and_leaves_no_engine_running(self):
+        # Godot 4.4.1 on Windows broke at a parse error in the `--debug` engine pass again and again, for ever: lint.sh
+        # never returned and the engine stayed (tools/lint_engine.py now bounds the pass).
+        with tempfile.TemporaryDirectory(prefix="lint_probe_") as tmp:
+            copy = copy_checkout(Path(tmp))
+            (copy / self.PROBE).write_text("extends Node\n\n\nfunc f() -> void:\n\tprint(\n")
+            code, out = self.lint(self.PROBE, root=copy)
+            left = subprocess.run([sys.executable, "-I", str(ROOT / "tools" / "proctree.py"), "matching", "--project",
+                                   str(copy), "--name", "godot"], capture_output=True, text=True, timeout=300).stdout
+        self.assertEqual(code, 1, out)
+        self.assertEqual(left.strip(), "", "an engine of the lint is still running:\n" + left)
 
     def test_warnings_are_found_per_file_with_the_division_pinpointed(self):
         with tempfile.TemporaryDirectory(prefix="lint_probe_") as tmp:
@@ -1837,8 +1854,9 @@ class EngineTests(unittest.TestCase):
             self.assertEqual(code, 1, f"a logged {probe} fails the batch run\n" + out)
             self.assertIn(f"Logged {probe}: gate probe {probe}", out)
         if WINDOWS:
-            self.skipTest("Windows: the in-game runner reads its engine log through its own command line (/proc/self/cmdline or "
-                          "`ps`, scenes/testing/log_watch.gd), which it cannot read there; the batch half above passed")
+            self.skipTest("known gap on Windows: the in-game runner finds its engine log through its own command line "
+                          "(/proc/self/cmdline or `ps`), and scenes/testing/log_watch.gd has no own command line there; "
+                          "the batch half above passed")
         out = self.in_game("", headed)
         self.assertRegex(out, r"PASS\s+_harness/log_gate_probe", "in-game, no probe: PASS\n" + out)
         for probe in ("error", "warning"):

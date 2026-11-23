@@ -32,7 +32,8 @@ exit 0
 FILES = ("sandboxes/a_sandbox.gd", "sandboxes/b_sandbox.gd", "addons/plugin/p.gd",
          "tools/coverage/tests/fixtures/project/f.gd", "project.godot", "gdstyle.toml", "docs/notes.md",
          "tools/lint_rules/rules/a_rule.py", "tools/lint_rules/walk.py", "tools/lint_rules/tests/test_a_rule.py",
-         "tools/lint_rules/README.md", "tools/lint_report.py", "tools/lint_scripts.gd", "tools/lint_scripts.tscn")
+         "tools/lint_rules/README.md", "tools/lint_report.py", "tools/lint_engine.py", "tools/lint_scripts.gd",
+         "tools/lint_scripts.tscn")
 
 
 class Repo:
@@ -79,7 +80,7 @@ class LintStagedTests(unittest.TestCase):
 
     def test_a_staged_file_that_governs_every_script_lints_the_whole_tree(self):
         for governing in ("project.godot", "gdstyle.toml", "tools/lint_rules/rules/a_rule.py",
-                          "tools/lint_rules/walk.py", "tools/lint.sh", "tools/lint_report.py", "tools/lint_scripts.gd",
+                          "tools/lint_rules/walk.py", "tools/lint.sh", "tools/lint_report.py", "tools/lint_engine.py", "tools/lint_scripts.gd",
                           "tools/lint_scripts.tscn"):
             with self.subTest(governing=governing), TempDir("lint_staged_test.") as d:
                 repo = Repo(d / "repo")

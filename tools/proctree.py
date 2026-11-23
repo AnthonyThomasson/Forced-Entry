@@ -12,11 +12,18 @@ which can take minutes on a loaded machine.
       PID has no descendant.
   python3 tools/proctree.py kill-tree PID
       stop PID and everything under it.
-  python3 tools/proctree.py matching REGEX [--name REGEX]
+  python3 tools/proctree.py matching (REGEX | --project DIR) [--name REGEX]
       one line per process whose command line matches REGEX (a stand-in for `pgrep -f`, which Windows has not), `<pid>
       <ppid> <command line>`; none, exit 1, when nothing matches. This process and what it runs under never count.
-      --name limits the search to processes whose program matches it (case-insensitive), which on Windows are the only
-      ones whose command lines are read (that is the slow part): `matching "--path ${PWD##*/}( |$)" --name godot`.
+      --project DIR matches the Godot started on exactly that folder (`--path DIR`, either slash, quoted or not; not
+      `DIR-main`, not a subfolder, not another folder of the same name) instead of a REGEX: the finish skill's way
+      to find the editors and games of one worktree. A relative `--path .` is not found.
+      --name limits the search to the processes whose program matches it (case-insensitive) and is a speed-up, on
+      Windows above all, where only those processes' command lines are read (the slow part). What --name is matched
+      against differs: on POSIX the whole command line (`ps` gives no program name apart from it), on Windows the
+      executable's name alone (`Godot_v4.4.1-stable_win64.exe`). So give a word that is in both, unanchored: `--name
+      godot`, never `--name ^godot`, which on POSIX would have to start the whole command line.
+      `matching --project "$PWD" --name godot`.
   python3 tools/proctree.py stop-matching PID [--match REGEX]
       stop only the branches of PID's descendants that hold a process whose command line matches REGEX (default
       VON_SERVER, a `von serve`): each branch from PID's direct child on down, so the shell or boot script that started
@@ -384,6 +391,31 @@ def matching(procs: Dict[int, Proc], pattern: str, name: Optional[str] = None) -
     return sorted((procs[p] for p in wanted if regex.search(procs[p].cmd)), key=lambda proc: proc.pid)
 
 
+def project_pattern(directory: str) -> str:
+    """A regex for the command line of a Godot started on the project folder `directory`: `--path <directory>`, the
+    folder given with `/` or `\\` (the same folder either way), with or without a closing slash or quotes, and nothing
+    more of a path after it (so `<directory>-main`, another folder of the same name and a subfolder do not match). Case
+    is ignored on Windows. A relative `--path .` cannot be told from any other and never matches."""
+    full = os.path.abspath(directory)
+    parts = [re.escape(part) for part in re.split(r"[\\/]+", full) if part]
+    lead = "" if WINDOWS else r"[\\/]"  # a POSIX path starts at the root; a Windows one with its drive letter
+    body = lead + r"[\\/]+".join(parts)
+    return ("(?i)" if WINDOWS else "") + r"(?:^|\s)--path\s+[\"']?" + body + r"[\\/]*[\"']?(?:\s|$)"
+
+
+def matching_args(rest: List[str]) -> Optional[tuple]:
+    """`(regex, name)` from the words after `matching`: `REGEX` or `--project DIR`, then optionally `--name REGEX`; None
+    when they are neither."""
+    name = None
+    if len(rest) >= 2 and rest[-2] == "--name":
+        rest, name = rest[:-2], rest[-1]
+    if len(rest) == 1 and rest[0] != "--project":
+        return rest[0], name
+    if len(rest) == 2 and rest[0] == "--project":
+        return project_pattern(rest[1]), name
+    return None
+
+
 def parse_pid(text: str) -> int:
     if not text.isdigit() or int(text) < 2:
         raise ValueError(f"not a pid: {text!r}")
@@ -392,10 +424,11 @@ def parse_pid(text: str) -> int:
 
 def main(argv: List[str]) -> int:
     usage = ("usage: proctree.py descendants PID | kill-tree PID | stop-matching PID [--match REGEX]"
-             " | matching REGEX [--name REGEX]")
+             " | matching (REGEX | --project DIR) [--name REGEX]")
     try:
-        if argv[:1] == ["matching"] and (len(argv) == 2 or (len(argv) == 4 and argv[2] == "--name")):
-            found = matching(snapshot(), argv[1], argv[3] if len(argv) == 4 else None)
+        wanted = matching_args(argv[1:]) if argv[:1] == ["matching"] else None
+        if wanted:
+            found = matching(snapshot(), *wanted)
             for p in found:
                 print(p.pid, p.ppid, p.cmd)
             return 0 if found else 1

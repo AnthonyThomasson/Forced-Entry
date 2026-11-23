@@ -14,7 +14,7 @@
 #     --domain=perf`). tools/run_tests.sh runs the lint of what the commit holds before its first test.
 #   - Otherwise, a staged script the lint holds to its rules (a .gd outside addons/ and the coverage tool's fixtures:
 #     sandboxes/, tools/ ...), a file of the gdstyle pass (gdstyle.toml, tools/gdstyle.sh, tools/lint_gdstyle.py) or
-#     of the lint itself (tools/lint.sh, lint_report.py, lint_scripts.gd / .tscn, the code of tools/lint_rules/ but
+#     of the lint itself (tools/lint.sh, lint_report.py, lint_engine.py, lint_scripts.gd / .tscn, the code of tools/lint_rules/ but
 #     its tests): the lint of what the commit holds, silent when it passes: `tools/lint_staged.sh --quiet`,
 #     tools/lint.sh on the staged scripts (added, copied, modified or renamed, not deleted), or on the whole tree when
 #     a gdstyle or lint file is staged (it governs every script).

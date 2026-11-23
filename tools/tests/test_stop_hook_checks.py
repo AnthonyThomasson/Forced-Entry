@@ -65,6 +65,7 @@ class StopHookRepo:
         write(root, "tools/lint_rules/runner.py", "VALUE = 1\n")
         write(root, "tools/lint_rules/rules/some_rule.py", "VALUE = 1\n")
         write(root, "tools/lint_report.py", "VALUE = 1\n")
+        write(root, "tools/lint_engine.py", "VALUE = 1\n")
         write(root, "tools/lint_scripts.tscn", "[gd_scene format=3]\n")
         write(root, "tools/lint_scripts.gd", "extends SceneTree\n")
         write(root, "tools/scan_godot_log.py", "VALUE = 1\n")
@@ -166,7 +167,7 @@ class StopHookChecksTests(unittest.TestCase):
 
     def test_a_change_only_to_the_lint_tooling_or_the_load_check_runs_the_lint_and_the_load_check(self):
         for rel in ("tools/lint.sh", "tools/lint_rules/runner.py", "tools/lint_rules/rules/some_rule.py",
-                    "tools/lint_report.py", "tools/lint_scripts.tscn", "tools/lint_scripts.gd", "tools/load_check.sh",
+                    "tools/lint_report.py", "tools/lint_engine.py", "tools/lint_scripts.tscn", "tools/lint_scripts.gd", "tools/load_check.sh",
                     "tools/scan_godot_log.py"):
             with self.subTest(rel=rel):
                 self.assert_checks_run_for(rel)

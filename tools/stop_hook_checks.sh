@@ -8,8 +8,8 @@
 # What the lint reads: scenes/ tests/ addons/ sandboxes/ and project.godot (addons/ because a lint rule,
 # coverage_isolation, checks it), every other .gd (tools/gdunit_discover.gd, tools/coverage/probe.gd ...) but the
 # coverage tool's fixture project, which the lint leaves out, the gdstyle pass's own files, and the lint and the load
-# check themselves (tools/lint.sh, tools/lint_rules/, tools/lint_report.py, tools/lint_scripts.gd / .tscn,
-# tools/load_check.sh and the log scan it runs, tools/scan_godot_log.py). Wired in .claude/settings.json.
+# check themselves (tools/lint.sh, tools/lint_rules/, tools/lint_report.py, tools/lint_engine.py,
+# tools/lint_scripts.gd / .tscn, tools/load_check.sh and the log scan it runs, tools/scan_godot_log.py). Wired in .claude/settings.json.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 source tools/setup/lib.sh   # fe_hash: `shasum` is not on PATH outside a login Git Bash
@@ -20,7 +20,7 @@ fi
 
 paths=(scenes tests addons sandboxes project.godot '*.gd' ':(exclude)tools/coverage/tests/fixtures'
   gdstyle.toml tools/gdstyle.sh tools/lint_gdstyle.py
-  tools/lint.sh tools/lint_rules tools/lint_report.py tools/lint_scripts.tscn tools/load_check.sh tools/scan_godot_log.py)
+  tools/lint.sh tools/lint_rules tools/lint_report.py tools/lint_engine.py tools/lint_scripts.tscn tools/load_check.sh tools/scan_godot_log.py)
 fingerprint=$( { git diff HEAD -- "${paths[@]}"; git ls-files --others --exclude-standard -- "${paths[@]}" \
   | while read -r f; do echo "$f"; fe_hash < "$f"; done; } | fe_hash )
 changed=$( { git diff --name-only HEAD -- "${paths[@]}"; git ls-files --others --exclude-standard -- "${paths[@]}"; } | head -1 )
