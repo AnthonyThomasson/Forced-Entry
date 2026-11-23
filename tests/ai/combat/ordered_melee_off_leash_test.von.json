@@ -22,11 +22,11 @@
 			],
 			"pick": "melee",
 			"probabilities": {
-				"advance": 0.4215,
-				"melee": 0.5785
+				"advance": 0.4353,
+				"melee": 0.5647
 			},
 			"question": "How should you fight gunman? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYour leader ordered you to defend the arena.\nYou are in the arena, inside the house, holding a Fists. You are hurt.\nYour pistol is empty. You are out of spare magazines.\nCurrent activity: COMBAT - gunman - ADVANCE - rush them (reached it, for 1s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at gunman from where you stand. You are exposed to their fire. They are aiming at you.\ngunman — HOSTILE (attacked you) — in sight — point-blank, east of you, in the arena — standing still — aiming at you — holding a Pistol.\nFlanks on gunman (you are on their front): their left side — route passes gunman, clear shot, in the open, short hidden route; their right side — route passes gunman, clear shot, in the open, short hidden route; behind them — route passes gunman, clear shot, in the open, short hidden route.\nYou are being hit, from the east!\nDecided so far: COMBAT → gunman."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYour leader ordered you to defend the arena.\nYou are in the arena, inside the house, holding a Fists. You are hurt.\nYour pistol is empty. You are out of spare magazines.\nCurrent activity: COMBAT - gunman - ADVANCE - rush them (reached it, for 1s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at gunman from where you stand. You are exposed to their fire. They are aiming at you.\ngunman — HOSTILE (attacked you) — in sight — point-blank, east of you, in the arena — standing still — aiming at you — holding a Pistol.\nFlanks on gunman (you are on their front): their left side — free, clear shot, in the open, short hidden route; their right side — free, clear shot, in the open, short hidden route; behind them — route passes gunman, clear shot, in the open, short hidden route.\nYou are being hit, from the east!\nDecided so far: COMBAT → gunman."
 		}
 	],
 	"version": 1

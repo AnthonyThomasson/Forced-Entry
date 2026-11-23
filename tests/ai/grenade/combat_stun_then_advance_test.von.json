@@ -7,11 +7,11 @@
 			],
 			"pick": "grenade",
 			"probabilities": {
-				"advance": 0.3661,
-				"grenade": 0.6339
+				"advance": 0.3771,
+				"grenade": 0.6229
 			},
 			"question": "How should you fight h? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the hallway, inside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded. You carry a stun grenade.\nKnown hostiles: 1 (0 in sight). Allies near you: none.\nYou are behind cover from h (the sofa): your line to them is blocked. You can throw a stun grenade onto their spot.\nh — HOSTILE (seen) — last seen just now — in pistol range, east of you, in the hallway — was standing still — holding a Unarmed.\nFlanks on h (you are on their front): their left side — free, line blocked, cover, long hidden route; their right side — free, line blocked, cover, long hidden route; behind them — route passes h, line blocked, cover, long hidden route.\nDecided so far: COMBAT → h."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the hallway, inside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded. You carry a stun grenade.\nKnown hostiles: 1 (0 in sight). Allies near you: none.\nYou are behind cover from h (the sofa): your line to them is blocked. You can throw a stun grenade onto their spot.\nh — HOSTILE (seen) — last seen just now — in pistol range, east of you, in the hallway — was standing still — holding a Unarmed.\nFlanks on h (you are on their front): their left side — free, line blocked, cover, long hidden route; their right side — free, line blocked, cover, long hidden route; behind them — free, line blocked, cover, long hidden route.\nDecided so far: COMBAT → h."
 		},
 		{
 			"options": [
@@ -58,12 +58,12 @@
 			],
 			"pick": "advance",
 			"probabilities": {
-				"advance": 0.6198,
-				"engage": 0.193,
-				"melee": 0.1872
+				"advance": 0.6332,
+				"engage": 0.1838,
+				"melee": 0.183
 			},
 			"question": "How should you fight h? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the hallway, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: COMBAT - h - ADVANCE - close to them (reached it, for 0s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at h from where you stand. You are exposed to their fire. h is blinded by a flash and cannot see you.\nh — HOSTILE (seen) — in sight — point-blank, north-east of you, in the hallway — standing still — crouched low — blinded by a flash — holding a Unarmed — looks badly wounded.\nFlanks on h (you are on their left side): their right side — free, line blocked, cover, long hidden route; behind them — route passes h, line blocked, cover, long hidden route.\nDecided so far: COMBAT → h."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the hallway, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: COMBAT - h - ADVANCE - close to them (reached it, for 0s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at h from where you stand. You are exposed to their fire. h is blinded by a flash and cannot see you.\nh — HOSTILE (seen) — in sight — point-blank, north-east of you, in the hallway — standing still — crouched low — blinded by a flash — holding a Unarmed — looks badly wounded.\nFlanks on h (you are on their left side): their right side — free, line blocked, cover, long hidden route; behind them — free, line blocked, cover, long hidden route.\nDecided so far: COMBAT → h."
 		},
 		{
 			"options": [
@@ -98,34 +98,19 @@
 		{
 			"options": [
 				"You have a clear shot at h, and you are not badly wounded (from where you stand; they look badly wounded)",
-				"h is point-blank, right next to you (they are point-blank and hold a Unarmed)",
-				"h looks badly wounded, is unarmed, or is moving away from you (they are point-blank, standing still, holding a Unarmed, looks badly wounded)"
-			],
-			"pick": "advance",
-			"probabilities": {
-				"advance": 0.5548,
-				"engage": 0.2328,
-				"melee": 0.2124
-			},
-			"question": "How should you fight h? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the hallway, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: COMBAT - h - ADVANCE - rush them (reached it, for 0s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at h from where you stand. You are exposed to their fire.\nh — HOSTILE (seen) — in sight — point-blank, north-east of you, in the hallway — standing still — crouched low — holding a Unarmed — looks badly wounded.\nFlanks on h (you are on their left side): their right side — free, line blocked, cover, long hidden route; behind them — route passes h, line blocked, cover, long hidden route.\nDecided so far: COMBAT → h."
-		},
-		{
-			"options": [
-				"You have a clear shot at h, and you are not badly wounded (from where you stand; they look badly wounded)",
 				"Your pistol is nearly empty or empty, and you carry spare magazines",
 				"h is point-blank, right next to you (they are point-blank and hold a Unarmed)",
 				"h looks badly wounded, is unarmed, or is moving away from you (they are point-blank, standing still, holding a Unarmed, looks badly wounded)"
 			],
 			"pick": "advance",
 			"probabilities": {
-				"advance": 0.2793,
-				"engage": 0.254,
-				"melee": 0.2549,
-				"reload": 0.2119
+				"advance": 0.2736,
+				"engage": 0.2585,
+				"melee": 0.2576,
+				"reload": 0.2103
 			},
 			"question": "How should you fight h? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the hallway, inside the house, holding a Pistol. You are unhurt.\nYour pistol is nearly empty. You carry spare magazines.\nCurrent activity: COMBAT - h - ADVANCE - rush them (reached it, for 0s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at h from where you stand. You are exposed to their fire.\nh — HOSTILE (seen) — in sight — point-blank, north-east of you, in the hallway — standing still — crouched low — holding a Unarmed — looks badly wounded.\nFlanks on h (you are on their left side): their right side — free, line blocked, cover, long hidden route; behind them — route passes h, line blocked, cover, long hidden route.\nDecided so far: COMBAT → h."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the hallway, inside the house, holding a Pistol. You are unhurt.\nYour pistol is nearly empty. You carry spare magazines.\nCurrent activity: COMBAT - h - ADVANCE - rush them (reached it, for 0s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at h from where you stand. You are exposed to their fire.\nh — HOSTILE (seen) — in sight — point-blank, north-east of you, in the hallway — standing still — crouched low — holding a Unarmed — looks badly wounded.\nFlanks on h (you are on their left side): their right side — free, line blocked, cover, long hidden route; behind them — free, line blocked, cover, long hidden route.\nDecided so far: COMBAT → h."
 		}
 	],
 	"version": 1

@@ -121,13 +121,13 @@
 			],
 			"pick": "engage",
 			"probabilities": {
-				"advance": 0.2689,
-				"engage": 0.4075,
-				"flank": 0.1839,
-				"retreat": 0.1398
+				"advance": 0.2717,
+				"engage": 0.4009,
+				"flank": 0.1835,
+				"retreat": 0.144
 			},
 			"question": "How should you fight d? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the kitchen, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: SEARCH - STUN ENTRY - the doorway to the south-west (taking a corner, for 5s).\nKnown hostiles: 1 (1 in sight). Allies near you: a.\nYou have a clear shot at d from where you stand. You are exposed to their fire. They are aiming at you.\nd — HOSTILE (attacked you) — in sight — close, in pistol range, north of you, in the kitchen — standing still — aiming at you — crouched low — holding a Pistol — looks hurt.\na (ally) — in sight — north of you, in the kitchen — on d's front — moving south, toward you — looks badly wounded.\na (radio, just now): COMBAT - LOCATE - toward the shots; under fire.\nFlanks on d (you are on their front): their left side — free, line blocked, cover, short hidden route; their right side — free, clear shot, in the open, short hidden route; behind them — route passes d, line blocked, cover, medium hidden route.\nYou are under fire: shots are landing near you, from the north-west!\nDecided so far: COMBAT → d."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the kitchen, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: SEARCH - STUN ENTRY - the doorway to the south-west (taking a corner, for 5s).\nKnown hostiles: 1 (1 in sight). Allies near you: a.\nYou have a clear shot at d from where you stand. You are exposed to their fire. They are aiming at you.\nd — HOSTILE (attacked you) — in sight — close, in pistol range, north of you, in the kitchen — standing still — aiming at you — crouched low — holding a Pistol — looks hurt.\na (ally) — in sight — north of you, in the kitchen — on d's front — moving south, toward you — looks badly wounded.\na (radio, just now): COMBAT - LOCATE - toward the shots; under fire.\nFlanks on d (you are on their front): their left side — free, line blocked, cover, short hidden route; their right side — free, clear shot, in the open, short hidden route; behind them — free, line blocked, cover, medium hidden route.\nYou are under fire: shots are landing near you, from the north-west!\nDecided so far: COMBAT → d."
 		},
 		{
 			"options": [

@@ -23,12 +23,12 @@
 			],
 			"pick": "engage",
 			"probabilities": {
-				"advance": 0.262,
-				"engage": 0.5218,
-				"retreat": 0.2162
+				"advance": 0.2906,
+				"engage": 0.4863,
+				"retreat": 0.2231
 			},
 			"question": "How should you fight thrower? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the hallway, inside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded.\nKnown hostiles: 1 (1 in sight). Allies near you: d3, d4, d5.\nYou have a clear shot at thrower over the cabinet from where you stand. You are exposed to their fire.\nthrower — HOSTILE (trespassing) — in sight — in pistol range, east of you, in the hallway — standing still — facing away from you — holding a Pistol.\nd3 (ally) — in sight — east of you, in the hallway — on thrower's behind them — standing still.\nd4 (ally) — in sight — east of you, in the hallway — on thrower's behind them — standing still.\nd5 (ally) — in sight — east of you, in the hallway — on thrower's behind them — standing still.\nFlanks on thrower (you are on behind them): their left side — route passes thrower, line blocked, cover, medium hidden route; their right side — route passes thrower, line blocked, cover, long hidden route.\nDecided so far: COMBAT → thrower."
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the hallway, inside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded.\nKnown hostiles: 1 (1 in sight). Allies near you: d3, d4, d5.\nYou have a clear shot at thrower over the cabinet from where you stand. You are exposed to their fire.\nthrower — HOSTILE (trespassing) — in sight — in pistol range, east of you, in the hallway — standing still — facing away from you — holding a Pistol.\nd3 (ally) — in sight — east of you, in the hallway — on thrower's behind them — standing still.\nd4 (ally) — in sight — east of you, in the hallway — on thrower's behind them — standing still.\nd5 (ally) — in sight — east of you, in the hallway — on thrower's behind them — standing still.\nFlanks on thrower (you are on behind them): their left side — route passes thrower, line blocked, cover, medium hidden route; their right side — free, line blocked, cover, long hidden route.\nDecided so far: COMBAT → thrower."
 		},
 		{
 			"options": [

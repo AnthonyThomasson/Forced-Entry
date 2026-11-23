@@ -93,11 +93,9 @@ const PILLAR := {
 	"art_opts": { "height": 96.0 },
 }
 ## A long low barrier (a 30 px rail: a standing body sees and shoots over it, gaze-and-fire W2, but
-## cannot walk through it), for a test whose shortest walk to the far side of the target must bend
-## round the target for a real reason. The NPC, the target and its far-side points lie on one line,
-## so with nothing in the way the shortest route runs through the target and B2 drops it
-## (`route_clearance` 120 px); the rail stands in front of the target with its south end well off
-## the line, so the shortest route clears the target.
+## cannot walk through it), for a test whose walk to the far side of the target must go round the
+## rail's south end, not round the target on its own: the rail stands in front of the target with
+## its south end well off the line from the NPC, so the shortest route bends south.
 const RAIL := {
 	"name": "Rail",
 	"shape": "rect",

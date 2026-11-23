@@ -29,8 +29,14 @@ Tests: `flank_sides_target_facing_npc`, `flank_sides_target_facing_away`.
 
 **B2. Never walk a flank route past a hostile.** A route that passes within `route_clearance` of the target
 or another known hostile is dropped as `crosses`. Walking away from someone close by is not passing them.
-Why: the NPC would walk into their fire. Tests: `flank_rear_route_crosses_target`,
-`flank_route_passes_second_hostile`.
+The route checked is the walk to the point as the NPC would take it, which bends round the target: where the
+shortest route runs through the target (in a bare room the NPC, the target and the point behind it lie on one
+line) it is replaced by the shortest route through a waypoint beside the target, 1.15 to 2.2 times
+`route_clearance` off it, that passes no known hostile (and, if there is one, crosses no ally's line of fire, B3).
+So a rear flank is still offered in an open room with the target facing the NPC; it is dropped when no such
+route exists (the living room's furniture and walls, a guard in the way). A second hostile is never bent
+round: a route that passes it is dropped as it stands. Why: the NPC would walk into their fire.
+Tests: `flank_rear_route_crosses_target`, `flank_route_passes_second_hostile`, `flank_rear_bends_round_target`.
 
 **B3. Do not flank across a friend's line of fire.** A side whose point lies in an ally's line of fire to
 the target, or whose route crosses that line, is not offered. Only allies the NPC can see count: it

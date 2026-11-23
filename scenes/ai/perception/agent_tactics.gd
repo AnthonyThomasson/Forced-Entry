@@ -32,6 +32,12 @@ const TAKEN := 32.0
 ## How far (px) from an ally lies the spot beside it that the NPC falls back to: a body clear of it
 ## (the stack's spacing).
 const BESIDE_ALLY := 44.0
+## How far past `route_clearance` a flank route is bent round the target it would pass (B2), as
+## factors of it: the first that clears is taken.
+const BENT_CLEARANCES := [1.15, 1.6, 2.2]
+## What (px of walk) a bent route that crosses an ally's line of fire costs more than one that does
+## not.
+const BENT_LANE_COST := 1000.0
 ## The snapshot cache's buckets of kept fire lines (by target), standing and ducked.
 const LINES := "fire_lines"
 const DUCKED_LINES := "fire_lines_ducked"
@@ -379,6 +385,60 @@ func _route_crosses(path: PackedVector2Array, hostiles: Array) -> String:
 	return ""
 
 
+## The walk to the flank point `p` of `target` as B2, B3 and the exposure read it: the plain `path`,
+## unless that passes the target and no other hostile, then the route bent round the target
+## (`_bent_route`), when one clears every hostile. The walker steers round a body it meets (the
+## steering map carves it), so the shortest route through the target, as in a bare room where the
+## NPC, the target and the point behind it lie on one line, is no walk past it.
+func _flank_walk(
+	ctx: Dictionary,
+	target: Dictionary,
+	path: PackedVector2Array,
+	p: Vector2,
+) -> PackedVector2Array:
+	var others: Array = ctx["hostiles"].filter(
+		func(h: Dictionary) -> bool: return h["id"] != target["id"])
+	if _route_crosses(path, [target]) == "" or _route_crosses(path, others) != "":
+		return path
+	var bent := _bent_route(ctx, target, p)
+	return path if bent.is_empty() else bent
+
+
+## The shortest walk from the NPC to `p` round `hostile` that passes no known hostile, or empty: the
+## route through a waypoint beside the hostile (to either side of it, at `BENT_CLEARANCES` times
+## `route_clearance` off it, the smallest that works), as a hole of that radius round it would make
+## the walker go. One that crosses no ally's line of fire to the hostile is preferred.
+func _bent_route(ctx: Dictionary, hostile: Dictionary, p: Vector2) -> PackedVector2Array:
+	var self_pos: Vector2 = ctx["self_pos"]
+	var hpos: Vector2 = hostile["pos"]
+	var line := p - self_pos
+	if line.length() < 1.0:
+		return PackedVector2Array()
+	var beside := line.orthogonal().normalized()
+	for factor in BENT_CLEARANCES:
+		var best := PackedVector2Array()
+		var best_cost := INF
+		for way in [1.0, -1.0]:
+			var raw: Vector2 = hpos + beside * way * route_clearance * factor
+			var via := NavBuilder.snap(ctx["map"], raw)
+			if via.distance_to(raw) > SNAP_TOLERANCE:
+				continue
+			var bent := _route(ctx, via)
+			bent.append_array(NavBuilder.route(ctx["map"], via, p).slice(1))
+			if (bent[bent.size() - 1].distance_to(p) > SNAP_TOLERANCE
+					or _route_crosses(bent, ctx["hostiles"]) != ""):
+				continue
+			var cost := NavBuilder.path_length(bent)
+			if _ally_lane(p, hpos, ctx["allies"], bent) != "":
+				cost += BENT_LANE_COST
+			if cost < best_cost:
+				best = bent
+				best_cost = cost
+		if not best.is_empty():
+			return best
+	return PackedVector2Array()
+
+
 ## The known hostile that would catch the NPC in the open, or "": one looking toward `p` (within
 ## `watch_arc` of its front, from `ctx.fronts`) with a clear line to it in reach and no cover within
 ## a step of `p` against it. With a `path`, also one looking along the route there while the NPC is
@@ -460,7 +520,7 @@ func flank_sides(ctx: Dictionary, target: Dictionary, front: float) -> Array:
 		var p = _flank_point(ctx, tpos, front, side, target.get("node"))
 		if p == null:
 			continue
-		var path := _route(ctx, p)
+		var path := _flank_walk(ctx, target, _route(ctx, p), p)
 		var vel: Vector2 = target.get("vel", Vector2.ZERO)
 		# What standing at the side's point gives (as for every candidate), then the flank's own.
 		var a := { "side": side }
