@@ -119,6 +119,49 @@ func test_a_pane_is_read_once_and_stays_looked_through() -> void:
 	assert_dict(_ray(space, 0.0, SEE_OVER, 200.0, SEE_OVER)).is_empty()
 
 
+func test_a_retwinned_piece_names_its_new_twin_and_is_read_afresh() -> void:
+	# What is kept on a twin goes with it: after `TwinSpace.retwin` the exclude list names the new
+	# twin's rid, a glass piece is still looked through, and a piece whose surface changed before
+	# the retwin is read as it now is.
+	var glass := _glass(Vector2(100.0, 0.0), Vector2(10.0, 200.0))
+	var space := await _space3()
+	var old_twin: Object = TwinSpace.twin_for(glass)
+	var old_rid := _rid(glass)
+	assert_array(SightRay.exclude_shared(glass)).is_equal([old_rid])
+	assert_bool(SightRay.looks_through(old_twin)).is_true()
+	TwinSpace.retwin(glass)
+	var new_twin: Object = TwinSpace.twin_for(glass)
+	assert_bool(new_twin != old_twin).override_failure_message(
+		"a retwin builds another twin",
+	).is_true()
+	var new_rid := _rid(glass)
+	assert_bool(new_rid != old_rid).is_true()
+	assert_array(SightRay.exclude_shared(glass)).override_failure_message(
+		"the exclude list names the new twin's rid",
+	).is_equal([new_rid])
+	assert_bool(SightRay.looks_through(new_twin)).is_true()
+	glass.transparent = false
+	TwinSpace.retwin(glass)
+	assert_bool(SightRay.looks_through(TwinSpace.twin_for(glass))).override_failure_message(
+		"a surface changed before the retwin is read as it is",
+	).is_false()
+	space = await _space3()
+	assert_bool(_ray(space, 0.0, SEE_OVER, 200.0, SEE_OVER).is_empty()).is_false()
+
+
+func test_a_null_or_freed_twin_is_not_looked_through_and_a_hit_is_returned_as_before() -> void:
+	var wall := _piece(Vector2(100.0, 0.0), Vector2(20.0, 200.0), 96.0)
+	var space := await _space3()
+	assert_bool(SightRay.looks_through(null)).is_false()
+	var twin: Node3D = TwinSpace.twin_for(wall)
+	var gone := Node3D.new()
+	gone.free()
+	assert_bool(SightRay.looks_through(gone)).is_false()
+	assert_bool(SightRay.looks_through(twin)).is_false()
+	var struck := _ray(space, 0.0, SEE_OVER, 300.0, SEE_OVER)
+	assert_object(TwinSpace.owner_of(struck["collider"])).is_same(wall)
+
+
 func test_the_space_beside_a_world_is_the_twin_space_of_that_world() -> void:
 	await _space()
 	var world := get_viewport().world_2d

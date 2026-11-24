@@ -322,6 +322,9 @@ func _glass(t: TestContext) -> void:
 	door.look.material = "glass"
 	door.look.style = "panes"
 	door.look.broken = true
+	# The twin keeps whether sight looks through it for its life (`SightRay.looks_through`): a door
+	# made glass while standing gets its twin again.
+	TwinSpace.retwin(door)
 	await t.frames(10)
 	await _sweep(t, "glass", door.global_position)
 	door.take_damage(10_000.0)

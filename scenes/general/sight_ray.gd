@@ -251,9 +251,12 @@ static func _centre(heights: PackedFloat32Array) -> float:
 
 ## Whether the surface of the 2D body a twin stands for says it is `transparent`: a pane, which
 ## sight looks through however tall. Read once per twin and kept on it (`THROUGH_META`): a piece's
-## `transparent` does not change for its life (`ViewShapes` reads it the same way), and a ray that
+## `transparent` does not change for its twin's life (`ViewShapes` reads it the same way; a piece
+## whose look is changed is `TwinSpace.retwin`ned, which gives it a new twin), and a ray that
 ## strikes a blocker asks this of every one it meets.
-static func looks_through(twin: Object) -> bool:
+static func looks_through(twin: Variant) -> bool:
+	if not is_instance_valid(twin):
+		return false  # A twin freed (or none) is nothing to look through.
 	var known: Variant = twin.get_meta(THROUGH_META, -1)
 	if known is bool:
 		return known
