@@ -9,6 +9,7 @@ extends GameTest
 
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 const Cone := preload("res://scenes/vision/view_cone.gd")
+const Job := preload("res://scenes/vision/view_cone_job.gd")
 const EYE_AT := Vector2(0, 0)
 const RING := 12
 const RING_RADIUS := 300.0
@@ -51,7 +52,10 @@ func run(t: TestContext) -> void:
 		var facing := Vector2.RIGHT.rotated(deg_to_rad(degrees))
 		var cone := Cone.new()
 		cone.begin(space, EYE_AT + Vector2(rng.randf(), rng.randf()) * 7.0, facing, [], sight)
-		cone.step(1)
+		# one item a step: the query, then the hits chunk by chunk, until the rays come next
+		var job: Variant = cone.get("_job")
+		while job.stage == Job.Stage.CORNERS or job.stage == Job.Stage.HITS:
+			cone.step(1)
 		if cone.get("_build").found.is_empty():
 			missed.append("%.5f" % degrees)
 	t.expect_eq(

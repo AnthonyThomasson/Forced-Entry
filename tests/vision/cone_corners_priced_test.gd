@@ -127,7 +127,7 @@ func _start_of_a_cone(at: Vector2, facing: Vector2) -> void:
 	var done := cone.step(VisionSliceConfig.slice_units)
 	var ray := cone.get("_ray") as CountingRay
 	var shapes := cone.get("_shapes") as CountingShapes
-	var corners := shapes.asked * VisionSliceConfig.cost_shape
+	var corners := _corner_units(shapes.asked, shapes.folds)
 	var slice := VisionSliceConfig.slice_units
 	var cast_rays := corners < slice
 	if not done and (cone.work_units() < slice or (ray.casts > 0) != cast_rays):
@@ -154,20 +154,30 @@ func _start_of_a_pipeline(at: Vector2, facing: Vector2) -> void:
 	var pipeline := Pipeline.new(cone, watch)
 	pipeline.tick(space, at, facing, [], _sight)
 	(cone.get("_ray") as CountingRay).casts = 0
-	(cone.get("_shapes") as CountingShapes).asked = 0
+	var counting := cone.get("_shapes") as CountingShapes
+	counting.asked = 0
+	counting.folds = 0
 	var moved := at + Vector2(MOVE, 0.0)
 	var published := pipeline.published
 	var started := pipeline.started
 	pipeline.tick(space, moved, facing, [], _sight)
 	var casts: int = (cone.get("_ray") as CountingRay).casts
-	var asked: int = (cone.get("_shapes") as CountingShapes).asked
 	if (
 		pipeline.started != started + 1
-		or (pipeline.published == published and (casts > 0) != _rays_due(asked))
+		or (
+			pipeline.published == published
+			and (casts > 0) != _rays_due(counting.asked, counting.folds)
+		)
 	):
 		_failures.append(
 			"pipeline at %s: %d starts, %d publishes, %d casts in the start tick (%d queries)"
-			% [at, pipeline.started - started, pipeline.published - published, casts, asked]
+			% [
+				at,
+				pipeline.started - started,
+				pipeline.published - published,
+				casts,
+				counting.asked,
+			]
 		)
 	var ticks := 1
 	while pipeline.published == published and ticks < MAX_TICKS:
@@ -179,8 +189,14 @@ func _start_of_a_pipeline(at: Vector2, facing: Vector2) -> void:
 
 
 ## Whether a start step that asked the region `asked` times has room for rays after the corners.
-func _rays_due(asked: int) -> bool:
-	return asked * VisionSliceConfig.cost_shape < VisionSliceConfig.slice_units
+func _rays_due(asked: int, folds: int) -> bool:
+	return _corner_units(asked, folds) < VisionSliceConfig.slice_units
+
+
+## The units of the corners of a read that asked the region `asked` times and folded its hits in
+## `folds` chunks.
+func _corner_units(asked: int, folds: int) -> int:
+	return asked * VisionSliceConfig.cost_shape + folds * VisionSliceConfig.cost_hits
 
 
 ## A cone whose ray and shapes count what they are asked.
@@ -199,6 +215,13 @@ class CountingShapes:
 	extends Shapes
 
 	var asked := 0
+	var folds := 0
+
+	func fold_corners(
+		hits: Array[Dictionary], start: int, stop: int, seen: Dictionary, found: Array
+	) -> void:
+		folds += 1
+		super(hits, start, stop, seen, found)
 
 	func _shapes_in_reach(space: PhysicsDirectSpaceState3D) -> Array[Dictionary]:
 		var hits := super(space)

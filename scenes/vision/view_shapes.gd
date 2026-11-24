@@ -73,7 +73,8 @@ static func _before(a: Vector2, b: Vector2) -> bool:
 
 ## The distinct corners, in world space, of every blocking shape within `reach` of `from`, or, with
 ## a `region` (world-space points, the hull of what the rays can pass through), of those that touch
-## it.
+## it. A job does this in two steps (`read_hits`, then `fold_corners` a chunk of hits at a time);
+## this is the two at once.
 func corners(
 	space: PhysicsDirectSpaceState3D,
 	from: Vector2,
@@ -81,6 +82,22 @@ func corners(
 	exclude: Array,
 	region := PackedVector2Array(),
 ) -> Array:
+	var hits := read_hits(space, from, reach, exclude, region)
+	var seen := {}
+	var found: Array = []
+	fold_corners(hits, 0, hits.size(), seen, found)
+	return found
+
+
+## The shapes the region (or, with none, the column of `reach` about `from`) touches: the shape
+## query alone, asked again while it comes back full.
+func read_hits(
+	space: PhysicsDirectSpaceState3D,
+	from: Vector2,
+	reach: float,
+	exclude: Array,
+	region := PackedVector2Array(),
+) -> Array[Dictionary]:
 	var level := see_over + SightRay.LEVEL_OVER
 	if region.is_empty():
 		_column.radius = reach * RenderConfig.unit
@@ -97,19 +114,32 @@ func corners(
 		_query.transform = Transform3D(Basis.IDENTITY, PlanSpace.lift(from, level))
 	_query.exclude = exclude
 	_probe.exclude = exclude
-	var seen := {}
-	var found: Array = []
-	for hit in _shapes_in_reach(space):
-		if SightRay.looks_through(hit["collider"]):
+	return _shapes_in_reach(space)
+
+
+## Fold the corners of `hits[start]` up to `stop` (exclusive) into `found`, the distinct ones in
+## the order first met: `seen` maps a corner's half-pixel cell to its place in `found`, and of two
+## corners in one cell the lesser (`_before`) stays. `seen` and `found` carry across the chunks of
+## one job, which fold to the same corners as one `corners` read.
+func fold_corners(
+	hits: Array[Dictionary], start: int, stop: int, seen: Dictionary, found: Array
+) -> void:
+	for i in range(start, stop):
+		var hit := hits[i]
+		var collider: Object = hit["collider"]
+		if SightRay.looks_through(collider):
 			continue
-		for point in polygon_of(hit["collider"], hit["shape"]):
-			var key := Vector2i((point * 2.0).round())
-			if not seen.has(key):
-				seen[key] = found.size()
+		var entry := _entry_of(collider, hit["shape"])
+		var polygon: PackedVector2Array = entry[2]
+		var keys: PackedInt64Array = entry[3]
+		for k in polygon.size():
+			var point := polygon[k]
+			var place: int = seen.get(keys[k], -1)
+			if place < 0:
+				seen[keys[k]] = found.size()
 				found.append(point)
-			elif _before(point, found[seen[key]]):
-				found[seen[key]] = point
-	return found
+			elif _before(point, found[place]):
+				found[place] = point
 
 
 ## Every blocking shape the query column touches. The physics query returns at most as many as it is
@@ -128,6 +158,18 @@ func _shapes_in_reach(space: PhysicsDirectSpaceState3D) -> Array[Dictionary]:
 ## The floor polygon of shape `index` of the twin `collider` (empty for a shape with no extent: a
 ## plane or a concave mesh). A shape is checked against its twin once a rebuild.
 func polygon_of(collider: Object, index: int) -> PackedVector2Array:
+	return _entry_of(collider, index)[2]
+
+
+## The entry of a shape with no polygon (a plane, a concave mesh, no body).
+static func _no_entry() -> Array:
+	return [null, null, PackedVector2Array(), PackedInt64Array()]
+
+
+## What is kept of shape `index` of `collider`: `[transform, shape, polygon, keys]`, `keys` being
+## the half-pixel cell of each corner of the polygon (`corners`' dedupe), made once with it. Checked
+## against the body once a rebuild, then served from the memo.
+func _entry_of(collider: Object, index: int) -> Array:
 	var id := collider.get_instance_id()
 	var in_memo: Variant = _memo.get(id)
 	if in_memo == null:
@@ -137,24 +179,24 @@ func polygon_of(collider: Object, index: int) -> PackedVector2Array:
 	if held != null:
 		memo_hits += 1
 		return held
-	var polygon := _validated_polygon(collider, id, index)
-	in_memo[index] = polygon
-	return polygon
+	var entry := _validated_entry(collider, id, index)
+	in_memo[index] = entry
+	return entry
 
 
-## The polygon of a shape: the kept one while its transform and shape resource are those it was
-## made from, else one made now and kept.
-func _validated_polygon(collider: Object, id: int, index: int) -> PackedVector2Array:
+## The entry of a shape: the kept one while its transform and shape resource are those it was made
+## from, else one made now and kept.
+func _validated_entry(collider: Object, id: int, index: int) -> Array:
 	validations += 1
 	if not collider is CollisionObject3D:
-		return PackedVector2Array()
+		return _no_entry()
 	var body := collider as CollisionObject3D
 	var owner_id := body.shape_find_owner(index)
 	if owner_id < 0:
-		return PackedVector2Array()
+		return _no_entry()
 	var shape := _shape_at(body, owner_id, index)
 	if shape == null:
-		return PackedVector2Array()
+		return _no_entry()
 	var transform := body.global_transform * body.shape_owner_get_transform(owner_id)
 	var by_shape: Variant = _polygons.get(id)
 	if by_shape == null:
@@ -163,11 +205,16 @@ func _validated_polygon(collider: Object, id: int, index: int) -> PackedVector2A
 	var entry: Variant = by_shape.get(index)
 	if entry != null and entry[0] == transform and is_same(entry[1], shape):
 		polygon_reuses += 1
-		return entry[2]
+		return entry
 	_watch_polygon_shape(collider, shape)
 	var polygon := TwinShapes.footprint_of(shape, transform)
-	by_shape[index] = [transform, shape, polygon]
-	return polygon
+	var keys := PackedInt64Array()
+	for point in polygon:
+		var cell := Vector2i((point * 2.0).round())
+		keys.append((cell.x << 32) + cell.y)
+	entry = [transform, shape, polygon, keys]
+	by_shape[index] = entry
+	return entry
 
 
 ## The shape resource of shape `index`, which belongs to the owner `owner_id` of `body`.

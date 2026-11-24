@@ -12,6 +12,9 @@ var previous := {}
 var previous_distance := 0.0
 ## The corners of the shapes about the eye, and those of them the eye sees.
 var found: Array = []
+## The shapes the corners' query hit, and the corner cells met so far (`ViewShapes.fold_corners`).
+var hits: Array[Dictionary] = []
+var seen := {}
 var visible: Array = []
 ## The rays of the sweep in hand, each `[angle, direction, fan index]`, sorted by angle.
 var rays: Array = []
@@ -28,6 +31,8 @@ func clear() -> void:
 	previous = {}
 	previous_distance = 0.0
 	found = []
+	hits = []
+	seen = {}
 	visible = []
 	rays = []
 	cone = PackedVector2Array()

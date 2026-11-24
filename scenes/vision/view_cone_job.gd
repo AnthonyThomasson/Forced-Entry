@@ -7,6 +7,7 @@ extends RefCounted
 ## The stages of a job, in order; `DONE` when none is in flight.
 enum Stage {
 	CORNERS,
+	HITS,
 	FAN,
 	VISIBLE,
 	BUBBLE,

@@ -136,6 +136,8 @@ func step(units: int) -> bool:
 		match _job.stage:
 			Job.Stage.CORNERS:
 				_read_corners()
+			Job.Stage.HITS:
+				_run_hits(until)
 			Job.Stage.FAN:
 				_run_fan(until)
 			Job.Stage.VISIBLE:
@@ -147,12 +149,48 @@ func step(units: int) -> bool:
 	return _job.stage == Job.Stage.DONE
 
 
-## Stage 1: the shapes about the eye, in one piece (a shape query, asked again while it is full).
+## Stage 1: the shapes about the eye, as the region's shape query alone (asked again while it is
+## full): its hits are folded into corners by `_run_hits`, a chunk of them a piece of work, so the
+## frame a job starts in is not the whole of the corners.
 func _read_corners() -> void:
 	var asked := _shapes.queries
-	_build.found = _shapes.corners(_space, _from, _reach, _job.exclude, _region(_from, _job.facing))
+	_build.hits = _shapes.read_hits(
+		_space,
+		_from,
+		_reach,
+		_job.exclude,
+		_region(_from, _job.facing),
+	)
 	_job.work += (_shapes.queries - asked) * VisionSliceConfig.cost_shape
+	_job.index = 0
+	_job.stage = Job.Stage.HITS
+	if _build.hits.is_empty():
+		_corners_done()
+
+
+## Stage 1b: fold the hits into the corners, `VisionSliceConfig.hit_chunk` of them for each
+## `cost_hits` units, until the work reaches `until` or the last hit is folded.
+func _run_hits(until: int) -> void:
+	var hits := _build.hits
+	var chunk := VisionSliceConfig.hit_chunk
+	var work := _job.work
+	var index := _job.index
+	while index < hits.size() and work < until:
+		var stop := mini(index + chunk, hits.size())
+		_shapes.fold_corners(hits, index, stop, _build.seen, _build.found)
+		work += VisionSliceConfig.cost_hits
+		index = stop
+	_job.work = work
+	_job.index = index
+	if index >= hits.size():
+		_corners_done()
+
+
+## The corners are all read: the rays come next.
+func _corners_done() -> void:
 	_build.corners_read = _build.found.size()
+	_build.hits = []
+	_build.seen = {}
 	# The rays are level at the eye's height: a piece lower than it is under the ray, so each ray
 	# meets the first blocker in one cast.
 	_ray.leave_out(_job.exclude)

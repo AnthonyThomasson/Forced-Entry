@@ -188,6 +188,7 @@ func _check_counts(cone: Cone, what: String, at: Vector2) -> void:
 	var want := (
 		ray.casts * VisionSliceConfig.cost_cast
 		+ shapes.asked * VisionSliceConfig.cost_shape
+		+ shapes.folds * VisionSliceConfig.cost_hits
 		+ shapes.probes * VisionSliceConfig.cost_probe
 	)
 	if cone.work_units() != want:
@@ -249,6 +250,7 @@ class CountingShapes:
 
 	var asked := 0
 	var probes := 0
+	var folds := 0
 
 	func _shapes_in_reach(space: PhysicsDirectSpaceState3D) -> Array[Dictionary]:
 		var hits := super(space)
@@ -258,6 +260,12 @@ class CountingShapes:
 			cap *= GROWTH
 			asked += 1
 		return hits
+
+	func fold_corners(
+		hits: Array[Dictionary], start: int, stop: int, seen: Dictionary, found: Array
+	) -> void:
+		folds += 1
+		super(hits, start, stop, seen, found)
 
 	func far_exit(space: PhysicsDirectSpaceState3D, hit: Dictionary, dir: Vector2) -> float:
 		probes += 1
