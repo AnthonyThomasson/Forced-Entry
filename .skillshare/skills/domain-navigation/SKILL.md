@@ -22,7 +22,7 @@ A leaf: it builds the maps; everyone else pathfinds. Takes a plain `rooms` array
 | `nav_bake.gd` (`NavBake`), `nav_bake_config.gd` (`NavBakeConfig`) | `NavBake`: one planning bake's worker thread and its landing on a fixed `GameClock` frame (not `Engine.get_physics_frames()`, which runs through a pause). `NavBakeConfig`: that count by kind of bake (`district_frames`, `avoid_frames`, `ring_frames`, `house_frames`, `tile_frames`: a steering burst's landing). |
 | `nav_tiles.gd` (`NavTiles`), `nav_tile_bake.gd`, `nav_tile_burst.gd`, `nav_seams.gd`, `nav_settle.gd` | A district's steering tiles (each baked on a worker thread), the wall cache. `NavTileBake`: a bake in flight. `NavTileBurst`: a tick's tiles started a frame each, landed together. `NavSeams`: border welds. `NavSettle`: settling under 0.1 px is no change. |
 | `nav_ring.gd` (`NavRing`) | A district's planning ring: a small map of the match building. |
-| `nav_ready.gd`, `nav_snaps.gd`, `nav_plan.gd` | `NavReady`: does a map answer yet. `NavSnaps`: what `snap` learned. `NavPlan`: queries. |
+| `nav_ready.gd`, `nav_snaps.gd`, `nav_plan.gd`, `nav_world.gd` | `NavReady`: does a map answer yet. `NavSnaps`: what `snap` learned. `NavPlan`: queries. `NavWorld`: a node's map. |
 | `nav_routes.gd` (`NavRoutes`) | The exact route answers remembered between planning-map re-bakes, and `iterations(map)`. |
 | `nav_union.gd` (`NavUnion`) | Fuses overlapping footprints. |
 | `nav_merge.gd` (`NavMerge`) | Merges the baker's polygons where their union is convex (`baker.md`). |
@@ -86,7 +86,7 @@ before a bake, when the map is valid but has never synchronized. `NavBuilder.rea
 map is live with the previous mesh and takes the new house a frame later on a worker thread; a query in between answers from the
 old mesh (`map_force_update` does not change that) and a room's centre snaps to a corner nowhere near the house (issue #49). So
 `build` records each region with a probe point and `ready` stays false until a query at the probe is answered by
-that region. `tests/ai/perception/room_zones_inside_their_rooms_test.gd` pins it; the match builder's stage waits on it
+that region. `navigation/map_with_old_mesh_is_not_ready` pins it; the match builder's stage waits on it
 (`wait_nav`: planning and steering map) before any NPC is placed (`tests/general/match_nav_ready_before_spawn_test.gd`).
 
 `snap(map, p)` returns `p` until then, else the closest navmesh point (a room's centre is often inside furniture), kept per map iteration: the server scans every polygon of the map for it, so a point asked again while the map stands is answered from what was learned (a re-bake starts afresh; `navigation/snap_follows_a_rebake`, `perf/nav_snap_repeat_stress`);

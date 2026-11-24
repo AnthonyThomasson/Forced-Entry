@@ -43,7 +43,7 @@ const Stall := preload("res://scenes/ai/behavior/locomotion/loco_stall.gd")
 const Doors := preload("res://scenes/ai/behavior/locomotion/loco_doors.gd")
 const DoorLeaves := preload("res://scenes/ai/behavior/locomotion/loco_door_leaves.gd")
 const Aim := preload("res://scenes/ai/behavior/locomotion/loco_aim.gd")
-## The walk's agent in plan terms: the one seam of the nav's 3D (`NavigationAgent3D`).
+## The walk's agent in plan terms: the walk's seam to the nav's 3D (`NavigationAgent3D`).
 const Agent := preload("res://scenes/ai/behavior/locomotion/loco_agent.gd")
 ## The walk's last-leg rule (`PASS_CLEARANCE`), held once with the doorway geometry that predicts
 ## it (`AgentEntry.slot_reach`).

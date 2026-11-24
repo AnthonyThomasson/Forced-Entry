@@ -230,8 +230,7 @@ wait for its twin (`TwinSpace.PARK_SPREAD`) or move the twin. Still 2D in the ba
 Every sim root is a plain `Node2D` plan handle: a wall, a floor, a piece, a door, a vehicle and a character. None is a physics body or holds a 2D
 shape, layer or area. The twin space is the only physics space; `ViewWatch` and `TwinSpace` read handles only (no `CollisionObject2D`,
 `PhysicsLayers.SOLID` is gone, so are `TwinShapes.lift_body` and `WallMesh.follows_shapes`); the 2D allocation pad is gone from the padding switch.
-**What stays of 2D is `World2D` and `NavigationServer2D`**, until nav3d (done in nav3d-b: the nav is `NavigationServer3D`'s on the twin world's map, `World2D` is only the key that finds it): the AI passes `World2D` / `navigation_map` and `TwinSpace` keys its registry by
-the `World2D` (`find_world_2d`, `space_in`). The AI's reads of `navigation_map` (locomotion, stacks, entry geometry) are nav3d's.
+**What stays of 2D is `World2D`**, the key a reader that holds the sim's world and no node finds its twin space by (`TwinWorlds.standing_in` / `world_in`, `TwinSpace.space_in`: the AI's team code passes the `World2D` it stands in). The navigation is no 2D any more (nav3d-b, ADR 0016): regions, maps and queries are `NavigationServer3D`'s on the twin world's map (`NavWorld.map_of(node)` / `map_in(world)`), and nothing reads a `World2D`'s `navigation_map`.
 
 It is proven, not asserted: (1) `general/no_2d_space_reads_suite` scans every script under `scenes/` for a 2D body, shape, area, ray, query or
 server (a comment is not code); (2) `general/no_2d_physics_node_in_a_district_match_test` and `..._a_house_match_test` walk the tree of a built district match and of a house match
