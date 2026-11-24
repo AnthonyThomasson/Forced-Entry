@@ -30,8 +30,9 @@ class FakeOrders:
 
 
 ## A snapshot being built: START, a run of pieces per hostile (`run`: one HOSTILE piece, or the
-## kinds a real hostile's analysis runs), `ambush` AMBUSH pieces, FINISH (the kinds of
-## `SnapshotBuild.Piece`: 0, 1, 4, 2, then DONE = 3; a real hostile's run is 1, 5, 6, 6, 7).
+## kinds a real hostile's analysis runs), `ambush` AMBUSH pieces, RETREAT when a hostile is known
+## (a real build runs it before the finish, whenever there is a threat), FINISH (the kinds of
+## `SnapshotBuild.Piece`: 0, 1, 4, 8, 2, then DONE = 3; a real hostile's run is 1, 5, 6, 6, 7).
 class FakeBuild:
 	extends RefCounted
 	var perception: RefCounted
@@ -69,7 +70,9 @@ class FakeBuild:
 				piece = 1 if _taken < hostiles else _after_hostiles()
 			4:
 				_chunks += 1
-				piece = 4 if _chunks < ambush else 2
+				piece = 4 if _chunks < ambush else _before_finish()
+			8:
+				piece = 2
 			2:
 				_result = {
 					"facts": { "build": number },
@@ -85,7 +88,11 @@ class FakeBuild:
 		return _result
 
 	func _after_hostiles() -> int:
-		return 4 if ambush > 0 else 2
+		return 4 if ambush > 0 else _before_finish()
+
+	## RETREAT (kind 8) ahead of the finish when there is a hostile to fall back from.
+	func _before_finish() -> int:
+		return 8 if hostiles > 0 else 2
 
 	## The demand's throw search (this fake is its snapshot's demand): `perception.search` as the
 	## next throw search, once, or none.

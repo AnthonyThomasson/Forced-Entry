@@ -15,6 +15,9 @@ const Registry := preload("res://scenes/ui/overlays/overlay_registry.gd")
 const NPC_AT := Vector2(100, 250)
 const HOSTILE_AT := Vector2(520, 250)
 
+## The defender's own speed, put back when the frag is thrown.
+var _defender_speed := 0.0
+
 
 func describe() -> Dictionary:
 	return {
@@ -46,15 +49,16 @@ func configure(s: TestSetup) -> void:
 	GrenadeAi.hostile(s, &"h", HOSTILE_AT, NPC_AT)
 	s.actor(&"d", &"defender", Vector2(600, 330), { "facing": Vector2.LEFT })
 	s.show_overlays(["show_grenades"])
-	# A roomy pool: the decision lands in the frame it is claimed, as the scenario needs (the
-	# defender stays near the landing and evades, instead of walking off on an earlier decision's
-	# build). The restore is the harness's.
-	s.set_static(DecisionBudget, "per_frame", 30)
 
 
 func run(t: TestContext) -> void:
 	var n := t.actor(&"n")
 	Probe.arm(n, 0, 1)
+	# The defender stands where it is until the frag is thrown, and then looks at it fly: a decision
+	# of its own, landing whenever the pool serves it, may have it investigating the gunfire,
+	# walking and facing away from the landing it is to see and run from.
+	_defender_speed = t.actor(&"d").movement.speed
+	t.actor(&"d").movement.speed = 0.0
 	if not await Hiding.duck_after_seen(t, [&"h", &"d"], &"n"):
 		return
 	t.check(
@@ -123,6 +127,8 @@ func _check_planned_throw(t: TestContext, n: Node, nb: Node) -> bool:
 func _check_live_grenade(t: TestContext, nb: Node) -> bool:
 	if not t.require(await t.until(func(): return t.happened(&"throw"), 6.0), "the invader throws"):
 		return false
+	t.actor(&"d").movement.speed = _defender_speed
+	t.actor(&"d").facing = Vector2.LEFT  # toward the throw, whatever its decision had it facing
 	await t.frames(10)
 	var own: Array = GrenadeAi.grenades(nb).get("known", [])
 	if t.check(not own.is_empty(), "the thrower knows the live grenade"):

@@ -51,9 +51,6 @@ func configure(s: TestSetup) -> void:
 		30,
 	)
 	s.switch(&"ai.hostile_on_trespass", false)
-	# A roomy pool: the decision lands within a frame or two, as the scenario needs (the throw is
-	# planned, then the lob blocked, between the claim and the walk). The restore is the harness's.
-	s.set_static(DecisionBudget, "per_frame", 8)
 	s.actor(&"i", &"invader", START, { "facing": Vector2.RIGHT })
 	GrenadeAi.hostile(s, &"h", HOSTILE, START)
 
@@ -69,13 +66,12 @@ func run(t: TestContext) -> void:
 	):
 		return
 	var brain := t.controller(&"i", &"debug_state")
-	if not t.require(
-			await t.until(
-				func(): return brain.debug_state().get("decision", {}).get("pending", false),
-				10.0,
-			),
-			"the NPC asked Von (the snapshot is made)",
-	):
+	# Von has been asked the level that offers GRENADE (its answer is 30 frames away): the snapshot
+	# is made, however many frames the build took, and the lob is blocked while the answer is in
+	# flight.
+	var offered := func() -> bool:
+		return DecisionStub.requests.any(func(r): return (r["options"] as Array).has(&"grenade"))
+	if not t.require(await t.until(offered, 10.0), "Von was asked with GRENADE on offer"):
 		return
 	await _block_the_lob(t)
 	var seen: Array = []

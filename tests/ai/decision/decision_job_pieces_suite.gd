@@ -119,8 +119,9 @@ func test_an_event_during_a_build_is_not_weighed_by_it_and_does_not_restart_it()
 		_job.advance()
 	assert_int(_planner.begun).is_equal(1)  # premise: the walk has begun
 	assert_int(_perception.builds.size()).is_equal(1)  # one build, not begun again for the event
-	# Its start, its two hostiles and its finish: the three more spotted since were never weighed.
-	assert_int(_perception.builds[0].steps).is_equal(4)
+	# Its start, its two hostiles, the retreat spots and its finish: the three more spotted since
+	# were never weighed.
+	assert_int(_perception.builds[0].steps).is_equal(5)
 	assert_str(_planner.snapshot["confinement"].label).is_equal("the house")
 
 

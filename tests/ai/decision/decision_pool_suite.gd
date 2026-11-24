@@ -14,7 +14,8 @@ const EntryPosts := preload("res://scenes/ai/perception/entry/entry_posts.gd")
 ## The build pieces' prices (`Fakes.PIECE_PRICES`).
 const PIECE_PRICES := Fakes.PIECE_PRICES
 ## The kinds of the pieces of one hostile's analysis (`SnapshotBuild.Piece`): the rings, the spots,
-## a flank for each of two sides, the rest.
+## a flank for each of two sides, the rest. The retreat spots (kind 8) run after them, before the
+## finish, whenever a hostile is known (the fake build does the same).
 const ANALYSIS := [1, 5, 6, 6, 7]
 
 ## The base of the frame the last test started on; each test starts on a frame of its own. An
@@ -65,15 +66,18 @@ func _new_job() -> RefCounted:
 
 
 ## The pool a frame's decision work is held to (#194): four units, about two milliseconds, and no
-## decision with a hostile (a start, the hostile's five pieces, a finish) fits one frame, so the
-## first frames of a fight spread their builds instead of holding one lump; no piece is dearer than
-## the pool less the start's unit, so a start and the dearest piece fit one frame.
+## decision with a hostile (a start, the hostile's five pieces, the retreat spots, a finish) fits
+## one frame, so the first frames of a fight spread their builds instead of holding one lump; no
+## piece is dearer than the pool less the start's unit, so a start and the dearest piece fit one
+## frame.
 func test_the_shipped_pool_never_lets_one_frame_run_a_whole_decision() -> void:
 	var analysis: int = (
 		_shipped["cost_hostile"] + _shipped["cost_spots"] + 2 * _shipped["cost_flanks"]
 		+ _shipped["cost_rest"]
 	)
-	var whole: int = _shipped["cost_start"] + analysis + _shipped["cost_finish"]
+	var whole: int = (
+		_shipped["cost_start"] + analysis + _shipped["cost_retreat"] + _shipped["cost_finish"]
+	)
 	assert_int(_shipped["per_frame"]).is_equal(4)
 	assert_bool(whole > _shipped["per_frame"]).is_true()
 	for price in PIECE_PRICES:
@@ -100,14 +104,15 @@ func _frames_to_land(hostiles: int, chunks := 0) -> int:
 	return frames
 
 
-func test_one_hostile_lands_its_build_in_three_frames() -> void:
-	# start, rings | spots, two flanks | rest, finish
-	assert_int(_frames_to_land(1)).is_equal(3)
+func test_one_hostile_lands_its_build_in_four_frames() -> void:
+	# start, rings (3) | spots, flank (4) | flank, rest (3) | retreat, finish (4)
+	assert_int(_frames_to_land(1)).is_equal(4)
 
 
-func test_two_hostiles_land_their_build_in_six_frames() -> void:
-	# start, rings | spots, flank | flank, rest | rings | spots, flank | flank, rest, finish
-	assert_int(_frames_to_land(2)).is_equal(6)
+func test_two_hostiles_land_their_build_in_seven_frames() -> void:
+	# start, rings | spots, flank | flank, rest | rings | spots, flank | flank, rest | retreat,
+	# finish: a piece that does not fit what is left of a frame waits for the next
+	assert_int(_frames_to_land(2)).is_equal(7)
 
 
 func test_an_ambush_build_lands_in_the_frames_its_chunks_price() -> void:
@@ -116,9 +121,11 @@ func test_an_ambush_build_lands_in_the_frames_its_chunks_price() -> void:
 	)
 	var chunks: int = int(offsets / float(EntryPosts.AMBUSH_CHUNK))
 	assert_int(chunks).is_equal(20)  # premise: 80 offsets, 4 a piece
-	# A hostile's analysis (9 units after the start's), the 20 chunks and the finish: 31 units in
-	# all, four a frame: the last frame holds the final chunk and the finish.
-	assert_int(_frames_to_land(1, chunks)).is_equal(8)
+	# A hostile's analysis (9 units after the start's), the 20 chunks, the retreat spots (3) and the
+	# finish: 34 units, four a frame, but the retreat (3) does not fit what the last chunks leave,
+	# so it and the finish take a frame of their own: start, rings | spots, flank | flank, rest,
+	# a chunk | 4 chunks a frame for four frames | the last three | retreat, finish.
+	assert_int(_frames_to_land(1, chunks)).is_equal(9)
 
 
 func test_at_most_one_decision_starts_in_a_frame_whatever_the_pool_holds() -> void:

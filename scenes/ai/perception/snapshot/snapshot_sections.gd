@@ -30,8 +30,9 @@ func bind(character: Node) -> void:
 	_character = character
 
 
-## Where the NPC is, whether it is free, what it holds and how hurt it is.
-func situation_text(rooms: Array) -> String:
+## Where the NPC is, whether it is free, what it holds and how hurt it is (`dmg`, the damage it
+## has taken: the build's start read it).
+func situation_text(rooms: Array, dmg: float) -> String:
 	var room := HouseRooms.at(_character.global_position, rooms)
 	var where := (("in the %s, inside the house" % _v.room_name(room["type"]))
 			if not room.is_empty()
@@ -42,7 +43,7 @@ func situation_text(rooms: Array) -> String:
 	return "You are %s, holding a %s.%s%s You are %s." % [
 		where, _character.inventory.current_item().display_name, busy,
 		_v.own_posture_text(_character.movement.posture()),
-		_v.health_band(_character.damage_taken()),
+		_v.health_band(dmg),
 	]
 
 

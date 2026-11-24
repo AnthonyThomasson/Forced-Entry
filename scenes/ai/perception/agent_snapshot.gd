@@ -160,8 +160,11 @@ func _start_build(staged: SnapshotBuild) -> void:
 	var ctx := _context(knowledge["contacts"], knowledge["callouts"])
 	ctx["engaged_id"] = int(knowledge.get("engaged_id", 0))
 	staged.ctx = ctx
+	# The damage taken is read here once: the RETREAT piece, the facts and the situation line all
+	# use it, whatever lands on the NPC before the build ends.
 	staged.parts = {
 		"per_target": {}, "per_sections": {}, "analyses": {}, "targets": {}, "half": {},
+		"dmg": _character.damage_taken(),
 	}
 	staged.analysed = _analysed_ids(ctx)
 	staged.piece = SnapshotBuild.Piece.HOSTILE
@@ -266,7 +269,7 @@ func _retreat_piece(staged: SnapshotBuild) -> void:
 	_own_scratch(staged)
 	var ctx := staged.ctx
 	staged.parts["retreat"] = _options.retreat_group(
-		ctx, ctx["hostiles"], staged.knowledge["known_rooms"], _character.damage_taken()
+		ctx, ctx["hostiles"], staged.knowledge["known_rooms"], staged.parts["dmg"]
 	)
 	staged.piece = SnapshotBuild.Piece.FINISH
 
@@ -383,7 +386,7 @@ func _rest_piece(staged: SnapshotBuild, t: Dictionary, pin: Dictionary) -> void:
 
 
 ## A copy of contact `t` with its hostile read once: the eye its posture sets and the twin rid to
-## leave out of a ray, which the geometry of both halves of its analysis reads instead of the node.
+## leave out of a ray, which the geometry of every piece of its analysis reads instead of the node.
 func _pinned(t: Dictionary) -> Dictionary:
 	var pin := t.duplicate()
 	pin["eye"] = AgentCover.eye_of(t.get("node"))
@@ -513,18 +516,18 @@ func _target_sections(ctx: Dictionary, t: Dictionary, a: Dictionary) -> Dictiona
 
 
 ## What the whole decision shares beyond the hostiles: whether the stack has a stun (`stun_stack`),
-## the damage taken (`dmg`), the gun it fights with (`gun`) and its rounds (`ammo`, -1 without one).
+## the gun it fights with (`gun`) and its rounds (`ammo`, -1 without one); the damage taken (`dmg`)
+## was read by the START.
 ## The doorways to enter by, the leads, the throws and the other groups the walk reads rarely are
 ## `demand`'s.
 func _shared(ctx: Dictionary, knowledge: Dictionary) -> Dictionary:
 	var carried: Array = knowledge["carried_grenades"]
 	var stun_stack: bool = (carried.has(&"stun")
 			or ctx["callouts"].any(func(c): return int(StackClaim.decode(c).get("stuns", 0)) > 0))
-	var dmg: float = _character.damage_taken()
 	# Rounds in the gun it fights with (-1 without one): the AI shoots, reloads and plans around it.
 	var gun: int = _character.inventory.gun_slot()
 	var ammo: int = _character.ammo.rounds(gun) if gun >= 0 else -1
-	return { "stun_stack": stun_stack, "dmg": dmg, "gun": gun, "ammo": ammo }
+	return { "stun_stack": stun_stack, "gun": gun, "ammo": ammo }
 
 
 ## The named facts a `requires` or an entry rule gates on, from the context and the `parts` worked
@@ -581,7 +584,7 @@ func _state_sections(
 			break
 	return {
 		"goal": fill_goal(goal),
-		"situation": _sections.situation_text(rooms),
+		"situation": _sections.situation_text(rooms, parts["dmg"]),
 		"loadout": _sections.loadout_text(
 			parts["gun"],
 			parts["ammo"],

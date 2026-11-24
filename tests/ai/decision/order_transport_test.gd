@@ -116,19 +116,17 @@ func _check_replaced(t: TestContext, a: Node, b: Node, boss: Node) -> void:
 		"a newer order replaces the old one (a's running order: %s %s)"
 			% [OrderBrain.primitive(a), str(OrderBrain.params(a))],
 	)
-	# Judged once b is on its order again: a decision of its own (it re-decides on its cadence, a
-	# build taking a few frames) may have it mid-walk to a cover or a lead at this instant, which is
-	# the order held, not lost.
+	# The order b holds is judged at once (the facts' `ordered` and the held order's room, whatever
+	# b's running leaf is: a reaction of its own may have it mid-walk to a cover or a lead); only
+	# that it is on the walk to the order again waits.
+	t.check(OrderBrain.ordered(b), "the other recipient still decides with `ordered`")
 	t.check(
-		await t.until(
-			func():
-				return (
-					OrderBrain.on_order(b)
-					and String(OrderBrain.params(b).get("room", "")) == "kitchen"
-				),
-			10.0,
-		),
-		"the other recipient keeps the first order (%s)" % str(OrderBrain.params(b)),
+		String(OrderBrain.held(b).get("room", "")) == "kitchen",
+		"the other recipient keeps the first order (%s)" % str(OrderBrain.held(b)),
+	)
+	t.check(
+		await t.until(func(): return OrderBrain.on_order(b), 10.0),
+		"... and walks it (act %s)" % b.current_act(),
 	)
 
 
