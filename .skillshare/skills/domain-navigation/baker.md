@@ -4,11 +4,11 @@ Side file of `domain-navigation` (`SKILL.md`). ADR 0016: [the nav mesh is baked 
 
 **Every bake** (`NavSource.bake_polygon`; planning, re-bake, steering tiles, ring and avoid maps alike): the walkable
   outlines are the floor of a plan-space 3D world, each obstruction outline a projected obstruction standing on it, baked by `NavigationServer3D`
-  on `NavSource.CELL_SIZE` (4 px) cells laid on the world's grid (the map's `2d/default_cell_size` is 4 as well). The agent radius is taken off in the plan (obstructions grown,
+  on `NavSource.CELL_SIZE` (4 px) cells laid on the world's grid (the map's `3d/default_cell_size` is 4 as well, `[navigation]` of `project.godot`, with cell height 2, edge margin 1 and link radius 4: the engine insists a mesh match its map). The agent radius is taken off in the plan (obstructions grown,
   the floor shrunk), not by the baker's own erosion, which rounds the radius up to whole cells and closes a 40 px doorway; so a mesh edge stands up
   to half a cell's diagonal (2.8 px) nearer an obstruction than the radius. Every vertex lies on a cell, so no weld is needed. Tiles' borders: `NavSeams`.
   Tests: `furniture_beside_wall_bakes_clean_test.gd`, `character_beside_wall_bakes_clean_test.gd`, `district_seed_35_bakes_clean_test.gd` (no "Attempted to merge a
-  navigation mesh polygon edge"). The regions, maps and queries (`ready`, `snap`, `route`) are `NavigationServer2D`'s still, on a map the 3D baker's cell size matches (nav3d-b moves them).
+  navigation mesh polygon edge"). The regions (`NavigationRegion3D` at `(house.x, 0, house.y)`), maps (the twin world's: `NavWorld.map_of`) and queries (`ready`, `snap`, `route`) are `NavigationServer3D`'s too: a plan point `(x, y)` is the floor's `(x, 0, y)` (`NavPlan.lift`, `plan_of`, `plan_path`), the mesh is built from the plan-space `NavigationPolygon` of the bake by `NavPlan.assign`, on the main thread per landing.
 
 - **A mesh edge is nearer than the radius.** An edge stands up to half a cell's diagonal (2.8 px) closer to an obstruction than the agent radius, and a route is the true shortest path over the mesh: an AI test whose set-up needs a route to bend gives it a reason (`tests/_ai/flank_maps.gd` `RAIL`, `FENCE`, the reach probe's `ROUTE_REACH`, each says why).
 - **Tile borders** are held by `NavSeams` (`district-tiles-and-avoid.md`): a tile is baked with a border and its neighbours' border cells closed.

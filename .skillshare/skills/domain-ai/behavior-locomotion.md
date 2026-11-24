@@ -1,6 +1,6 @@
 # AI locomotion: pathing, bodies and doorway views
 
-The behaviour sub-domain's pathing layer: `scenes/ai/behavior/locomotion.gd` (`Locomotion`, a `Node` child of `Behavior` owning the `NavigationAgent2D`) and its parts in `locomotion/`: `crowd` (`loco_crowd.gd`: the known bodies a walk minds, the holds), `give_way` (`loco_give_way.gd`), `stall` (`loco_stall.gd`: stuck-overlay samples), `doors` (`loco_doors.gd`: the walk round the doorway views), `leaves` (`loco_door_leaves.gd`: house doors, `behavior-doors.md`) and `aim` (`loco_aim.gd`: sets the agent's goal, `behavior-aim.md`). Entered from `behavior.md`; constants live in those files.
+The behaviour pathing layer: `scenes/ai/behavior/locomotion.gd` (`Locomotion`, a `Node` child of `Behavior`, owning the `NavigationAgent3D`, `loco_agent.gd`) its parts in `locomotion/`: `crowd` (`loco_crowd.gd`: the known bodies a walk minds, the holds), `give_way` (`loco_give_way.gd`), `stall` (`loco_stall.gd`: stuck-overlay samples), `doors` (`loco_doors.gd`: the walk round the doorway views), `leaves` (`loco_door_leaves.gd`: house doors, `behavior-doors.md`) and `aim` (`loco_aim.gd`: sets the agent's goal, `behavior-aim.md`). Entered from `behavior.md`; constants live in those files.
 
 ## Pathing
 

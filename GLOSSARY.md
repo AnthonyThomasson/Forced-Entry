@@ -117,7 +117,7 @@ twin each physics frame (only when it moved); mapped back by `TwinSpace.owner_of
 _Avoid_: mirror (the old registry that followed the 2D bodies with meshes of its own; it is gone: a mesh is carried on the twin), shadow, proxy (the old stand-in box; there is none)
 
 **Twin space**:
-The 3D physics space of the twins (Jolt), the only physics space: no 2D physics is left (`World2D` stays only for `NavigationServer2D`
+The 3D physics space of the twins (Jolt), the only physics space: no 2D physics is left (`World2D` is read only to find the twin world, whose navigation map the nav is on
 until nav3d). Built by `MatchBuilder.stage` for every match and test world, headless too. Gameplay reads it: a 3D ray for a bullet, a
 fragment, a sight line.
 

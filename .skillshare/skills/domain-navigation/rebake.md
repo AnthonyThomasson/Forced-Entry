@@ -61,5 +61,5 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
 - **Between re-bakes bulldozing is the behaviour** (and for non-solid decor, never carved): a piece just shoved is run over by the
   character's push physics until the next re-bake routes round its new position.
 
-Any `NavigationAgent2D` pathfinds against the map automatically; the AI's locomotion sets `target_position` and steers at
+Any `NavigationAgent3D` pathfinds against the map automatically; the AI's locomotion sets `target_position` and steers at
 `get_next_path_position()`, and leaves the agent's RVO avoidance off.

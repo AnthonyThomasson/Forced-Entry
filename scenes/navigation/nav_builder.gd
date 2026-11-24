@@ -4,11 +4,11 @@ extends RefCounted
 ## maps for the global NavigationServer3D. A bake is the walkable footprint (the rooms grown by
 ## `BOUNDS_PAD`, or a district's explicit `bounds`) minus the walls' twin footprints, so doorways
 ## stay open, minus a hole per solid furniture twin, so paths route around furniture and
-## through another doorway when the near one is blocked. Any NavigationAgent2D pathfinds against
+## through another doorway when the near one is blocked. Any NavigationAgent3D pathfinds against
 ## the map. The maps: the PLANNING map (furniture only, what the AI plans and measures
 ## with: routes, flank and entry geometry, snapping a point to open floor), a STEERING map of its
 ## own that is also carved by every living character at rest (`character_holes`; what a
-## NavigationAgent2D walks, since carving characters into the planning map would bend every route
+## NavigationAgent3D walks, since carving characters into the planning map would bend every route
 ## weighed against a hostile), and, for a district, 512 px steering tiles (`NavTiles`) and a small
 ## planning ring of the match building (`NavRing`). Imports nothing from other domains: it reads a
 ## plain `rooms` array and a Node, and recognises furniture (the group `TwinSpace.PIECES`) and
@@ -203,7 +203,7 @@ static func steering_regions(region: NavigationRegion3D) -> Array[NavigationRegi
 
 
 ## The steering map that goes with the world's navigation map `planning_map`, the one a
-## NavigationAgent2D should walk (`agent.set_navigation_map`): paths on it route around the
+## NavigationAgent3D should walk (`agent.set_navigation_map`): paths on it route around the
 ## characters at rest. Invalid (keep the planning map) when no steering region is on it, so an agent
 ## in a world that never baked one walks the plain map. Named from the moment `build` has added the
 ## steering region, before the map has synchronized (whether it answers yet is `ready`, which

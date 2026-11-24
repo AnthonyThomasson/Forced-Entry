@@ -6,7 +6,7 @@ description: Use when editing scenes/navigation/ or working on nav baking, furni
 # Navigation domain (`scenes/navigation/`)
 
 A leaf: it builds the maps; everyone else pathfinds. Takes a plain `rooms` array and a Node and depends only on Godot's
-`NavigationServer3D` (the baker, ADR 0016) and `NavigationServer2D` (regions, maps, queries). Interface 9. Tests: `tests/navigation/`.
+`NavigationServer3D` (the baker, regions, maps, queries; ADR 0016). Interface 9. Tests: `tests/navigation/`.
 
 | File | Role |
 |---|---|
@@ -30,11 +30,10 @@ A leaf: it builds the maps; everyone else pathfinds. Takes a plain `rooms` array
 
 ## Baking
 
-`NavBuilder.build(house, rooms, parent, agent_radius, bounds)` bakes one `NavigationRegion2D`: the house footprint (the `rooms` rects grown by
+`NavBuilder.build(house, rooms, parent, agent_radius, bounds)` bakes one `NavigationRegion3D`: the house footprint (the `rooms` rects grown by
 `BOUNDS_PAD`, so a walkable **outdoor ring** lets an outside NPC path round to the front entrance) minus the plan footprints of the house's **wall twins**
 (so doorways stay open), minus a **hole per solid piece's twin** so paths route
-round furniture and through another doorway when the near one is blocked (a piece sealing the only route leaves the far side
-unreachable: the AI's cue to shove through). The bake runs in the house's local frame and the region is offset by `house.position`.
+round furniture and through another doorway when the near one is blocked (a sealed route leaves the far side unreachable: the AI's cue to shove through). The bake runs in the house's local frame and the region is offset by `house.position`.
 `MatchBuilder.stage` calls it once after the house and its twin space are made (default radius `NavBuilder.AGENT_RADIUS`).
 
 - **Doors are left out of every bake** (interface 9, `docs/adr/0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md`). A house `Door`
@@ -54,7 +53,7 @@ unreachable: the AI's cue to shove through). The bake runs in the house's local 
 - **The bake reads the 3D twins, not the 2D colliders** (`twins.md`): a wall's and a piece's or character's footprint is the plan polygon of its twin's shapes,
   grown by `OBSTACLE_MARGIN` for a hole, a round one the bake's own 10-sided polygon. Overlapping footprints are fused (skipped for outlines whose boxes are apart:
   `tests/navigation/furniture_union_fast_path_test.gd`) and every outline is snapped to whole pixels.
-- **Every bake is the grid baker's** (ADR 0016, `NavSource.bake_polygon`, `baker.md`): `NavigationServer3D` on 4 px cells from the footprints projected onto a plan-space floor; no `NavWeld`. Queries are 3D (`NavPlan`); regions and maps stay 2D for now.
+- **Every bake is the grid baker's** (ADR 0016, `NavSource.bake_polygon`, `baker.md`): `NavigationServer3D` on 4 px cells from the footprints projected onto a plan-space floor; no `NavWeld`. Regions, maps and queries are 3D: a plan point is the floor's `(x, 0, y)` (`NavPlan`); a region sits on the twin world's map (`NavWorld.map_of`).
 
 ## The steering map: characters at rest are holes too
 
@@ -67,9 +66,9 @@ These holes live in a **second map**: `build` adds a child region `NavSteering` 
 (`steering_map(planning_map)`, made on first use, freed with its last region). `steering_map` names the map from NavBuilder's own
 count, so it is valid the moment `build` returns, before the server takes the region in; whether it answers queries yet is `ready`
 (`tests/navigation/steering_map_named_once_built_test.gd`). The world's own map stays furniture-only because the AI **plans** on
-it (flank, fire and retreat spots, route length and exposure, entry slots, search coverage) and a body's hole would bend all of
-them. Only a `NavigationAgent2D` walks the steering map, chosen per walk by the AI's `Locomotion` (`domain-ai` (`behavior-locomotion.md`)).
-The map carves every body at rest, seen or not; which bodies a walk accounts for is the walker's business.
+it (spots, routes, entry slots, coverage) and a body's hole would bend all of
+them. Only a `NavigationAgent3D` walks the steering map, chosen per walk by the AI's `Locomotion` (`domain-ai` (`behavior-locomotion.md`)).
+The map carves every body at rest; which a walk accounts for is the walker's business.
 
 ## A district's tiles, planning ring and the avoid maps
 
@@ -105,4 +104,4 @@ drops its entries. The per-map and whole-cache bounds start full caches afresh (
 
 A draw-only world-space `Node2D` (the map is global, not per NPC) drawing the furniture holes as filled polygons with outlines,
 and the characters' holes in another colour. `MatchBuilder.stage` builds it; `setup(house)` remembers the house; the holes are snapshotted (only while `show_holes` is on) via `NavBuilder.furniture_holes(house)`, the same selection and footprint helpers the bake uses, so it cannot drift from what was
-carved; `show_holes` toggles it (`MatchBuilder.set_overlay`, the toggle bar's "Navigation holes"; with Debug on).
+carved; `show_holes` toggles it (`MatchBuilder.set_overlay`, the toggle bar's "Navigation holes", with Debug on).

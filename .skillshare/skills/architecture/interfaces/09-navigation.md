@@ -1,9 +1,9 @@
 9. **Main / Testing (through `MatchBuilder`) / AI → Navigation** (leaf: builds the map, everyone else just pathfinds)
-   - `NavBuilder.build(house, rooms, parent, agent_radius = NavBuilder.AGENT_RADIUS, bounds = Rect2()) -> NavigationRegion2D` — bakes one
+   - `NavBuilder.build(house, rooms, parent, agent_radius = NavBuilder.AGENT_RADIUS, bounds = Rect2()) -> NavigationRegion3D` — bakes one
 	 region whose walkable area is the house footprint plus an outdoor ring (or, with a `bounds` rect, that rect: a district's streets out
 	 to where its shells begin (they stand past it, off the map), `WorldGen.district_bounds`; `house` is then the district root and `rooms` every tower's), minus the plan footprints of the house's **wall twins** (interface 29; doorways stay open, a lintel is no obstruction) **and each
 	 solid piece's twin** (anchored pieces too; walk-over decor has none).
-	 **Baked by `NavigationServer3D`, 4 px cells** (ADR 0016); regions, maps, queries stay 2D until nav3d-b.
+	 **All 3D** (ADR 0016, nav3d-b; `domain-navigation` (`baker.md`)): `NavigationServer3D`, 4 px cells; the region is a `NavigationRegion3D` at `(house.x, 0, house.y)` on the navigation map of the twin space's `World3D`: `NavWorld.map_of(node) -> RID`, `NavWorld.map_in(world: World2D) -> RID` (replacing `get_world_2d().navigation_map`). A plan point `(x, y)` is the floor's `(x, 0, y)` (`NavPlan`), so every signature here stays on plan `Vector2`s.
 	 **Doors are left out of every bake** (planning, steering and avoid maps): the bodies of the group `doors` (interface 24: a leaf is no wall's
 	 shape) are left out of the parse, so paths cross a doorway as if open and
 	 the walker opens the door (ADR 0010). **A door at its open stop** (within
@@ -11,7 +11,7 @@
 	 doorway stays open past it and a path goes round the leaf in the room it swings into. `NavBuilder.leaf_in_map(door) -> bool` tells
 	 whether a door's leaf is in the map so (any other door: a clean gap or opened, DR14).
    - **Re-bake** is the Navigation domain's own: `nav_updater.gd` (built by `MatchBuilder.stage`) re-carves the furniture holes in place at
-	 the pieces' **current** positions, only when a piece has moved, the planning bake on a worker thread, landing on a fixed physics frame (`NavBakeConfig`). The steering re-bake lands in the tick's frame (a held walker looks for a way round a body on a timer) in a house; a district's due tiles are baked on threads, started a frame each, and land together `tile_frames` after the last; a district's planning re-bake is a job of `NavGather` steps over 7 physics frames into a second buffer nothing reads, swapped in whole by `NavRebake`'s swap when complete, so a read during it sees the previous map. Landings are later than the 2D baker's (planning 36 frames, 14 before; the ambush guard 50); bringing them down is open work.
+	 the pieces' **current** positions, only when a piece has moved, the planning bake on a worker thread, landing on a fixed physics frame (`NavBakeConfig`). The steering re-bake lands in the tick's frame in a house; a district's due tiles are baked on threads, started a frame each, and land together `tile_frames` after the last; a district's planning re-bake is a job of `NavGather` steps, swapped in whole when complete (`domain-navigation` (`rebake.md`)).
 	 `NavBuilder.rebake` / `rebake_async` / `rebake_steering` are test-facing seams, not this surface (`domain-navigation`): `rebake_async`,
 	 `NavRebake.planning` and `swap` return `Array[NavBake]` (`was_late`); the perf probe reads `NavBake.started_total` /
 	 `late_total` / `landed_total`, `NavTiles.baked_total` / `threaded_total`, `NavBuilder.avoid_starts` / `avoid_rebakes`. A bake lands on a `GameClock` frame.
@@ -22,18 +22,17 @@
 	 a body at rest by it to match the carve), `NavBuilder.steering_map(planning_map) -> RID` (a map of its own holding the furniture *and*
 	 those holes; named from the frame `build` returns, before it has synchronized (`ready` tells when it answers); invalid with none), `steering_region(region)` and `steering_regions(region)` (re-baked by `nav_updater.gd` too). A lone house's steering map is the one
 	 region; a district's (a `bounds` was given) is a grid of 512 px tiles (`nav_tiles.gd`), each baked from what reaches it and re-baked only
-	 when that changes, so a character stopping re-bakes the tile it stands in, not the district. A district parses a tower's walls again only when a piece moves or a character stops near it: a wall shot up elsewhere stays in the map until then (accepted; `domain-navigation` (`district-tiles-and-avoid.md`)). The world's own map stays furniture-only because the AI
-	 plans on it; the AI's `Locomotion` puts its `NavigationAgent2D` on the steering map for a walk round a body at rest it knows of (what
+	 when that changes, so a character stopping re-bakes the tile it stands in, not the district. A wall shot up elsewhere stays in a district's map until a piece moves or a character stops near it (accepted; `domain-navigation`). The world's own map stays furniture-only because the AI
+	 plans on it; the AI's `Locomotion` puts its `NavigationAgent3D` on the steering map for a walk round a body at rest it knows of (what
 	 a walker accounts for is the AI's rule, `domain-ai` (`behavior-locomotion.md`)).
    - **Map queries**, what the AI asks of a baked map: `NavBuilder.ready(map) -> bool` (valid, synchronized at least once and has taken in
 	 every region `build` put on it, so a map still showing the previous navmesh counts as unbaked), `snap(map, p) -> Vector2` (`p` on the
 	 navmesh; unchanged before the bake), `snap_within(map, p, rect, from) -> Vector2` (the same kept inside `rect`, a room, on floor a
 	 route from `from` reaches: `p` stepped toward its centre, then toward `from`, until its snap lands in it and is reached, so a point
 	 by a thin wall never snaps to the far side, nor into a pocket furniture walls off; the entry's corners), `route(map, from, to) -> PackedVector2Array` (the navigated waypoints; a straight segment before
-	 the bake or with no path), `path_length(path) -> float`, `iterations(map) -> Array` (`[district, ring]` iteration ids, -1 without a ring: equal to an earlier read while neither took a re-bake in; the lead-walk memo keys on it). A repeat of an exact `(map, from, to)` `route` is answered from a bounded cache a re-bake starts afresh (`NavRoutes`). Every user goes through these (AI, the routes overlay, squad follow spots, `PlayerStack`, the match builder's wait): the "is
-	 the map baked yet" rule lives in one place.
+	 the bake or with no path), `path_length(path) -> float`, `iterations(map) -> Array` (`[district, ring]` iteration ids, -1 without a ring: equal to an earlier read while neither took a re-bake in; the lead-walk memo keys on it). A repeat of an exact `(map, from, to)` `route` is answered from a bounded cache a re-bake starts afresh (`NavRoutes`). Every user goes through these (AI, routes overlay, squad follow spots, `PlayerStack`, the match builder's wait).
    - **A district's planning ring**, the AI's planning map in a district: `NavBuilder.plan_ring(region, house, focus, agent_radius = NavBuilder.AGENT_RADIUS)`
-	 (`MatchBuilder.stage` calls it for a district; `focus`: the rooms of the match's building) adds `NavRing`, a small map of that
+	 (`MatchBuilder.stage` calls it for a district; `focus`: the match building's rooms) adds `NavRing`, a small map of that
 	 building and its outdoor ring (`BOUNDS_PAD`), because the server scans every polygon of a map for a query; baked from the same walls
 	 and furniture as the world's map and re-baked with it. **The AI does not
 	 know of it**: `snap`, `snap_within` and `route` take the world map as ever and answer from the ring when every point they weigh lies well
@@ -42,13 +41,13 @@
 	 `NavRing.region_of` / `map_of` / `map_for`: tests.
    - **Avoid maps**, for a walk that keeps out of some floor (the AI's doorway views, E18):
 	 `NavBuilder.avoid_map(region, key, holes) -> RID` (`region`: the planning region `build` returned, found from a world map by
-	 `NavBuilder.planning_region(planning_map) -> NavigationRegion2D`; `holes`: world-space polygons; `key` names the set): a map of its own
+	 `NavBuilder.planning_region(planning_map) -> NavigationRegion3D`; `holes`: world-space polygons; `key` names the set): a map of its own
 	 with the planning bake plus those holes, baked on a worker thread, landed on a fixed frame, cached by `key` (re-baked when the planning bake has been redone),
 	 freed by the next ask for another set once nobody has asked for `avoid_idle_frames` (1200), and with its world; `ready` as any
 	 map. The world's and the steering map are untouched. `Locomotion` walks it and `AgentDoorViews.walk_route` measures on it.
 
    `MatchBuilder.stage` (interface 23) calls `build` once after the house is built (then builds the
    `nav_debug.gd` overlay, the `nav_updater.gd` re-baker, ticking after the wait), then, with the spec's `wait_nav` (default on), waits until both maps are
-   `ready`. A `NavigationAgent2D` then pathfinds against the global map (the AI sets `target_position` and steers at
-   `get_next_path_position()`). RVO avoidance is off: shoved furniture is re-carved by the periodic re-bake, and between re-bakes (and for
-   non-solid decor, never carved) a displaced piece is simply bulldozed by the character's push physics.
+   `ready`. A `NavigationAgent3D` (the NPC's, on its `NavAnchor`, kept at `(x, 0, y)` by `Locomotion`: `loco_agent.gd`) then pathfinds against the world's map (the AI sets `target_position` and steers at
+   `get_next_path_position()`). RVO avoidance is off: shoved furniture is re-carved by the periodic re-bake, and in between (and for
+   non-solid decor) a displaced piece is bulldozed by the character's push physics.

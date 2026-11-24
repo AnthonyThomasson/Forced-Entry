@@ -4,7 +4,7 @@ extends Node2D
 ## entry team). Each subclass declares its own `@export var show_<x>` toggle(s) (found by property
 ## name, the names in the UI's OverlayRegistry), overrides `_on()` to report them and `_paint()` to
 ## draw, and reads only the sibling GoalController's public getters and exports (the agent overlay
-## also the NavigationAgent2D's path) — it senses nothing and feeds nothing back. The base finds the
+## also the NavigationAgent3D's path) — it senses nothing and feeds nothing back. The base finds the
 ## controller and character, runs PROCESS_MODE_ALWAYS so it keeps drawing while the tree is paused,
 ## redraws every frame only while `_on()` is true and paints only while the NPC is alive.
 ##
