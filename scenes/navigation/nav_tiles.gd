@@ -114,7 +114,7 @@ static func rebake(
 	_bake_together(gathered)
 	var baked: Array = []
 	for held in gathered:
-		_assign(held.tile, held.poly, held.walls, held.holes)
+		_assign(held.tile, held.poly, held.walls, held.holes, held.seams)
 		baked.append(held.tile)
 	NavSeams.weld(baked)
 	baked_total += baked.size()
@@ -196,7 +196,7 @@ static func land(held: Array) -> void:
 		if not is_instance_valid(bake.tile):
 			continue
 		if bake.tile.is_inside_tree():
-			_assign(bake.tile, bake.poly, bake.walls, bake.holes)
+			_assign(bake.tile, bake.poly, bake.walls, bake.holes, bake.seams)
 			landed.append(bake.tile)
 	NavSeams.weld(landed)
 
@@ -268,6 +268,7 @@ static func _gathered(
 	held.poly = nav_poly
 	held.walls = walls
 	held.holes = holes
+	held.rect = tile.get_meta(RECT_META)
 	held.source = job["source"]
 	held.origin = site.house.position
 	return held
@@ -307,8 +308,9 @@ static func _assign(
 	poly: NavigationPolygon,
 	walls: Dictionary,
 	holes: Array,
+	seams := {},
 ) -> void:
-	NavSeams.take(tile, poly)
+	NavSeams.take(tile, poly, seams)
 	NavPlan.assign(tile, poly)
 	tile.set_meta(WALLS_META, walls["obstruction"])
 	tile.set_meta(HOLES_META, holes)

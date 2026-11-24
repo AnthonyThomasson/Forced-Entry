@@ -51,17 +51,27 @@ static var rounds_exhausted_total := 0
 static var unsplit_total := 0
 
 
-## The polygon `poly`, just baked for `tile`, is what `tile` was baked to: kept raw, with its
-## border's vertices read off (`weld` then splits it against the neighbours').
-static func take(tile: NavigationRegion3D, poly: NavigationPolygon) -> void:
-	var rect: Rect2 = tile.get_meta(NavTiles.RECT_META)
+## What `take` reads off a baked polygon `poly` of a tile over `rect`: its vertices on a border put
+## exactly on it (`poly` is edited), then `{ edges, points }`, the border's walkable stretches and
+## vertices (`EDGES_META`, `POINTS_META`). It reads nothing but its arguments, so the bake's worker
+## makes it (`NavTileBake.run`) and the landing frame only keeps it.
+static func read(poly: NavigationPolygon, rect: Rect2) -> Dictionary:
 	_snap_to_borders(poly, rect)
+	return { "edges": _border_edges(poly, rect), "points": _border_points(poly, rect) }
+
+
+## The polygon `poly`, just baked for `tile`, is what `tile` was baked to: kept raw, with its
+## border's vertices read off (`read`, made here when the caller has not made it: `seen`; `weld`
+## then splits it against the neighbours').
+static func take(tile: NavigationRegion3D, poly: NavigationPolygon, seen := {}) -> void:
+	if seen.is_empty():
+		seen = read(poly, tile.get_meta(NavTiles.RECT_META))
 	tile.set_meta(BASE_META, poly)
-	tile.set_meta(EDGES_META, _border_edges(poly, rect))
-	tile.set_meta(NOW_META, tile.get_meta(EDGES_META))
+	tile.set_meta(EDGES_META, seen["edges"])
+	tile.set_meta(NOW_META, seen["edges"])
 	tile.set_meta(CLOSED_META, _no_stretches())
 	tile.set_meta(RAW_META, poly)
-	tile.set_meta(POINTS_META, _border_points(poly, rect))
+	tile.set_meta(POINTS_META, seen["points"])
 	tile.set_meta(SPLIT_META, _none())
 
 

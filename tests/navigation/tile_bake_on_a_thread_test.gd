@@ -62,6 +62,17 @@ func run(t: TestContext) -> void:
 	NavTiles.land([held])
 	t.expect_eq(held.task, -1, "landing joined the task")
 	t.check(NavPlan.polygon_of(tile) != polygon, "the tile took a polygon when the burst landed")
+	t.check(not held.seams.is_empty(), "the worker read the tile's border seams (NavSeams.read)")
+	t.expect_eq(
+		held.seams,
+		NavSeams.read(held.poly, tile.get_meta(NavTiles.RECT_META)),
+		"the seams the worker read are the ones a read on the main thread makes",
+	)
+	t.expect_eq(
+		tile.get_meta(NavSeams.EDGES_META),
+		held.seams["edges"],
+		"the landing kept the worker's reading, not one of its own",
+	)
 	var again := _on_main_thread(tile, site, held.walls, held.holes)
 	var poly := held.poly
 	t.expect_eq(poly.vertices, again.vertices, "the threaded bake's vertices are the main thread's")
