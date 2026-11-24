@@ -140,6 +140,16 @@ func creeping() -> int:
 	return _watch.creeping()
 
 
+## How many of those are within reach of a ray (a creeper behind the viewer is none of them).
+func creeping_in_reach() -> int:
+	return _watch.creeping_in_reach()
+
+
+## Whether the view's watch hears the twin space it was built beside (a test's read).
+func hears_twins() -> bool:
+	return _watch.hears_twins()
+
+
 ## The most (px) any blocker stands off the snapshot of the cone's job.
 func creep_lag() -> float:
 	return _watch.lag()

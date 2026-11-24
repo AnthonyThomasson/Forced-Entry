@@ -74,6 +74,9 @@ const MIRROR_SCALE := 60.0
 ## A scaled solid's `far`, beyond even the bound `ViewWatch` keeps for a scale that stretches one
 ## axis only (the largest scale on both: 18 400 px for a 14 by 60 shape scaled 200 times).
 const FAR_SCALED := 25_000.0
+## The most share (%) of a world's frames in which a blocker in reach creeps: the frames the
+## checker's sliver bound, not the exact check, holds the cone to (2 % measured: 12 of 613).
+const CREEP_SHARE_PCT := 10
 ## The frames a far solid creeps before it moves into reach.
 const FAR_FRAMES := 30
 const REACH_FRAMES := 60
@@ -118,6 +121,7 @@ func run(t: TestContext) -> void:
 	var view := Probe.view(t)
 	if not t.require(view != null, "the world has a view"):
 		return
+	t.check(view.hears_twins(), "the view's watch hears the twin space of a staged match")
 	var eye := t.actor(&"eye")
 	if not t.require(await Probe.place(t, eye, EYE_AT, Vector2.RIGHT), "the viewer faces east"):
 		return
@@ -673,6 +677,14 @@ func _check_whole(t: TestContext, checker: Checker, where: String, settles := tr
 		checker.wrong() == 0,
 		"%s: %d frames held a cone other than a fresh rebuild's: %s"
 		% [where, checker.wrong(), checker.report()],
+	)
+	# The sliver bound (`Checker.SLIVER`) only loosens the check on frames a blocker in reach
+	# creeps: a change that makes everything creep would pass on that bound, so the share is held
+	# small.
+	t.check(
+		checker.age.creep_frames * 100 <= checker.frames * CREEP_SHARE_PCT,
+		"%s: %d of %d frames had a blocker in reach creeping (at most %d %%)"
+		% [where, checker.age.creep_frames, checker.frames, CREEP_SHARE_PCT],
 	)
 	t.check(
 		checker.longest_wait <= REBUILD_EVERY,

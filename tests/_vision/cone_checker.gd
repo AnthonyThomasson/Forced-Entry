@@ -17,9 +17,9 @@ const Probe := preload("res://tests/_vision/vision_probe.gd")
 const Age := preload("res://tests/_vision/cone_age.gd")
 ## The most differences kept for the report.
 const KEPT := 6
-## The most area (px^2) a cone may differ from the live world's by while a blocker creeps: a sliver
-## 0.0004 rad wide at 500 px is 0.2 px by 160 px.
-const SLIVER := 64.0
+## The most area (px^2) a cone may differ from the live world's by while a blocker in reach creeps:
+## a sliver 0.0004 rad wide at 500 px is 0.2 px by 160 px. The measured worst is 12.6 px^2.
+const SLIVER := 20.0
 ## The frames a view is settled before its cone is held to the live pose's reference.
 const SETTLED := 2
 
@@ -65,6 +65,7 @@ func _physics_process(_delta: float) -> void:
 	if differs:
 		changed += 1
 	var reason := ""
+	age.creep_frames += int(view.creeping_in_reach() > 0)
 	if published_now:
 		reason = _reference_differs(pose)
 	elif differs and _last_published >= 0:
@@ -108,7 +109,7 @@ func _reference_differs(pose: Dictionary) -> String:
 		viewer.sight(),
 	)
 	var differs := Probe.polygons_differ(view.cone(), view.bubble(), _plain.cone, _plain.bubble)
-	if differs != "" and view.creeping() > 0:
+	if differs != "" and view.creeping_in_reach() > 0:
 		return _creep_explains(differs)
 	return differs
 
@@ -117,8 +118,10 @@ func _reference_differs(pose: Dictionary) -> String:
 ## `ViewWatch.STILL_PX` since is where it was for the job (the view's bound, held by
 ## `vision/view_watch_creep_suite`): the reference, built in the live world, may differ from it by
 ## a sliver where a corner's side ray (0.0002 rad) grazes the creeping blocker and flips between
-## hit and miss. Then the two polygons may differ in no more than `SLIVER` px of area; any other
-## difference is the view's.
+## hit and miss. Only a creeper in reach of a ray can (`creeping_in_reach`: one behind the viewer
+## loosens nothing). Then the two polygons may differ in no more than `SLIVER` px of area; any
+## other difference is the view's. The job reads the live space each slice, so no exact check
+## against the held snapshot can be built: the sliver bound is the check.
 func _creep_explains(differs: String) -> String:
 	var area := 0.0
 	for pair in [[view.cone(), _plain.cone], [view.bubble(), _plain.bubble]]:
@@ -126,7 +129,11 @@ func _creep_explains(differs: String) -> String:
 			area += absf(_area_of(piece))
 	if area <= SLIVER:
 		return ""
-	return "%s (and %.1f px^2 apart with %d blockers creeping)" % [differs, area, view.creeping()]
+	return "%s (and %.1f px^2 apart with %d creeping in reach)" % [
+		differs,
+		area,
+		view.creeping_in_reach(),
+	]
 
 
 ## The area of a polygon.

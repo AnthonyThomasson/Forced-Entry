@@ -14,6 +14,9 @@ var max_age := 0
 var foreign := 0
 ## The cone of each publish.
 var real_cones: Array[PackedVector2Array] = []
+## Frames a blocker in reach crept (`PlayerView.creeping_in_reach()`): where the checker's sliver
+## bound, not the exact check, held the cone.
+var creep_frames := 0
 ## The age in the last frame (-1: a pose the viewer never stood at).
 var age := 0
 

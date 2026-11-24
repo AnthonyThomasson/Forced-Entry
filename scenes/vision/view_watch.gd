@@ -32,12 +32,13 @@ const SOLID := 1
 const LYING := 2
 ## The fields of `_key`.
 const KEY_SIZE := 11
-## A blocker that moved no more than this (px) from where the job snapshot it is where it was: the
-## move of its origin plus its extent's turn. Settling bodies creep 0.0005 to 0.003 px a frame for
-## dozens of frames, and each creep restarted the job (the third restart in a row a whole build,
-## 8 to 10 ms). The move is measured from the snapshot (`built`), not from the last frame, so
-## creeps add up and a held pose never lags the live one by more than this. The engine's own hit
-## noise is 0.02 px.
+## A blocker that moved no more than this (px) from where the job's snapshot has it is where it was:
+## the move of its origin plus its extent's turn. Settling bodies creep 0.0005 to 0.003 px a frame
+## for dozens of frames, and each creep restarted the job (the third restart in a row a whole
+## build, 8 to 10 ms). The move is measured from the snapshot (`built`), not from the last frame,
+## so creeps add up and a held pose lags the job's snapshot by at most this (the job reads the
+## live space each slice, so the snapshot is the bound's yardstick, not "the live world"). The
+## engine's own hit noise is 0.02 px.
 const STILL_PX := 0.05
 
 ## Whether the cone must be rebuilt now: set by anything that signals a change, cleared by the
@@ -346,13 +347,17 @@ func _blockers_moved() -> bool:
 	return false
 
 
-## Whether the blocker `entry` is, as `now`, where the job snapshot it (`STILL_PX`).
+## Whether the blocker `entry` is, as `now`, where the job's snapshot has it (`STILL_PX`).
 func _stood(entry: Array, now: Transform2D) -> bool:
 	return _lag_of(entry, now) <= STILL_PX
 
 
 ## How far (px) the blocker `entry` as `now` is from the snapshot: its origin's move and the move of
-## the farthest point of it by the turn of its axes; unbounded while its extent is.
+## the farthest point of it by the turn of its axes; unbounded while its extent is. The turn is
+## `max(|dx|, |dy|)` of the axes' change, which is exact for a rigid rotation only (both axes move
+## by the same chord); a body that scaled or sheared would need `|dx| + |dy|`. No plan handle does:
+## a twin's plan transform is an origin and a heading (`TwinSpace.plan_transform`), a door turns on
+## its hinge and a wall is cut, not scaled.
 func _lag_of(entry: Array, now: Transform2D) -> float:
 	var then: Transform2D = entry[1]
 	if now == then:
@@ -376,12 +381,31 @@ func lag() -> float:
 ## How many watched blockers are off the snapshot but within `STILL_PX` of it: the cone built from
 ## the snapshot is the live world's only to that (a test's read).
 func creeping() -> int:
+	return _count_creeping(false)
+
+
+## How many of those are in reach (`_within_reach`, before the creep or after it): only they can be
+## in a ray, so only they can make the cone differ from the live world's (a test's read; a creeper
+## behind the viewer explains nothing).
+func creeping_in_reach() -> int:
+	return _count_creeping(true)
+
+
+## How many blockers are off the snapshot by under `STILL_PX`, all or only those in reach.
+func _count_creeping(in_reach_only: bool) -> int:
 	var count := 0
 	for id in _blockers:
 		var entry: Array = _blockers[id]
 		var now: Transform2D = (entry[0] as Node2D).global_transform
-		count += int(now != entry[1] and _stood(entry, now))
+		if now != entry[1] and _stood(entry, now):
+			count += int(not in_reach_only or _moved_within_reach(entry, now))
 	return count
+
+
+## Whether the watch hears the twin space (it was attached with one): it then asks the colliders
+## with no twin only when the space twins a body (a test's read).
+func hears_twins() -> bool:
+	return _twins != null and is_instance_valid(_twins)
 
 
 ## Whether the blocker `entry`, moved from the transform it has to `now`, was within reach before

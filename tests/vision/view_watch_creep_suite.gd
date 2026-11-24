@@ -1,10 +1,10 @@
 extends UnitSuite
 ## Native unit suite for `ViewWatch.STILL_PX` (`docs/player-vision.md` V1): a blocker that moved no
-## more than 0.05 px from where the job snapshot it is where it was (settling bodies creep 0.0005
-## to 0.003 px a frame, and each creep restarted the job). Held to: a creeping blocker's snapshot
-## never lags the live one by more than `STILL_PX`; a blocker that moves that much or more restarts
-## the job (`world_changed`) and starts one (`stale`); creeps add up. The seam is the one of
-## `view_watch_handles_suite.gd`: a plan handle with a twin in the tree, the eye still.
+## more than 0.05 px from where the job's snapshot has it is where it was (settling bodies creep
+## 0.0005 to 0.003 px a frame, and each creep restarted the job). Held to: a creeping blocker's
+## snapshot never lags the live one by more than `STILL_PX`; a blocker that moves that much or more
+## restarts the job (`world_changed`) and starts one (`stale`); creeps add up. The seam is the one
+## of `view_watch_handles_suite.gd`: a plan handle with a twin in the tree, the eye still.
 
 const Watch := preload("res://scenes/vision/view_watch.gd")
 ## Where the handle stands: out of reach of the world's origin, where other tests' bodies are, and

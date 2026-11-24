@@ -62,3 +62,38 @@ func test_a_twin_that_comes_is_sorted_again_when_the_twin_space_says_so() -> voi
 	var backstops := ceili(float(FRAMES) / VisionConfig.rebuild_every)
 	assert_int(_creep(watch, piece)).is_less_equal(backstops + 1)
 	watch.detach()
+
+
+## A body twinned again (`retwinned`) is asked again as a twinned one is.
+func test_a_retwinned_body_is_sorted_again_when_the_twin_space_says_so() -> void:
+	var space: TwinSpace = auto_free(TwinSpace.new())
+	var watch := Watch.new()
+	watch.attach(get_tree(), [], space)
+	assert_bool(watch.hears_twins()).is_true()
+	var piece: Node2D = auto_free(Node2D.new())
+	piece.add_to_group(TwinSpace.BODIES)
+	piece.position = ORIGIN + Vector2(300.0, 0.0)
+	add_child(piece)
+	_settle(watch)
+	assert_int(_creep(watch, piece)).is_equal(FRAMES)  # no twin yet
+	var twin: Node3D = auto_free(Node3D.new())
+	twin.add_child(TwinShapes.box(Rect2(-7.0, -30.0, 14.0, 60.0), Transform2D.IDENTITY, 0.0, 20.0))
+	piece.set_meta(TwinSpace.TWIN_META, twin)
+	space.retwinned.emit(piece, null)
+	_settle(watch)
+	var backstops := ceili(float(FRAMES) / VisionConfig.rebuild_every)
+	assert_int(_creep(watch, piece)).is_less_equal(backstops + 1)
+	watch.detach()
+
+
+## A watch detached hears the twin space no more: a later emit is no error and changes nothing.
+func test_a_detached_watch_does_not_hear_the_twin_space() -> void:
+	var space: TwinSpace = auto_free(TwinSpace.new())
+	var watch := Watch.new()
+	watch.attach(get_tree(), [], space)
+	watch.detach()
+	assert_bool(watch.hears_twins()).is_false()
+	space.twinned.emit(null, null)
+	space.retwinned.emit(null, null)
+	assert_bool(space.twinned.is_connected(watch._on_twin_news)).is_false()
+	assert_bool(space.retwinned.is_connected(watch._on_twin_news)).is_false()
