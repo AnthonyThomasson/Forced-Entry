@@ -130,7 +130,7 @@ func request(forced: bool) -> bool:
 	if pending() and not forced:
 		return false
 	if (not Roster.may_start()
-			or not Budget.take(Budget.cost_start, Roster.owed(get_instance_id(), true))):
+			or not Budget.take(DecisionPrices.cost_start, Roster.owed(get_instance_id(), true))):
 		return false
 	cancel()
 	Roster.began(get_instance_id())
@@ -363,9 +363,9 @@ func _run_steps(prices: Callable, done_kind: int) -> bool:
 			cost = 0
 		if not _take(cost):
 			return false
-		var worked := GrenadeArc.work
+		var worked := ThrowSpots.work()
 		_steps.step()
-		Budget.charge(GrenadeArc.work - worked, cost)
+		Budget.charge(ThrowSpots.work() - worked, cost)
 	return true
 
 
@@ -379,16 +379,7 @@ func _on_piece_ready() -> void:
 ## every kind is priced explicitly, so a piece added without a price is found at once and not run
 ## as if it cost a start.
 func cost_of(kind: int) -> int:
-	match kind:
-		SnapshotBuild.Piece.START:
-			return Budget.cost_start
-		SnapshotBuild.Piece.HOSTILE:
-			return Budget.cost_hostile
-		SnapshotBuild.Piece.AMBUSH:
-			return Budget.cost_ambush
-		SnapshotBuild.Piece.FINISH:
-			return Budget.cost_finish
-	return -1
+	return DecisionPrices.of_piece(kind)
 
 
 ## What a group build step of `kind` (`GroupBuild.Kind`) costs, or -1 for an unknown kind: a unit of

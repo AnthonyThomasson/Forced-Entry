@@ -12,7 +12,7 @@ An option group is built in steps (`GroupBuild`, `snapshot/group_build.gd`): **u
 |---|---|---|
 | `leads` | one per lost hostile (its route, and a moving one's heading), one per point heard (gunfire, then footsteps), the shots' origin (under fire, no hostile known), the allies' combat calls together | drop a lead checked since, sort by age, cap, `lead_pos`, summary |
 | `entries` | one per doorway (`_entry_pick`: geometry, the slot claimed, the route) | sort (a suspect room first, then nearest), cap, wording |
-| a hostile's `grenade_throws` / the shots' | one per grenade kind carried, each ahead of by scan units (`SnapshotThrows._scanned`: a block of `ThrowSpots.block_size` 48 raw throw-spot candidates, ended early once the arc planner has done `ThrowSpots.block_work` 16 of work (`GrenadeArc.work`, a count of planner questions asked, memo hits included), each candidate through the cheap tests asking the planner, a unit that returns true runs again first (`GroupBuild.step`); the shots' unit goes aim by aim) | summary |
+| a hostile's `grenade_throws` / the shots' | one per grenade kind carried, each ahead of by scan units (`SnapshotThrows._scanned`: a block of `ThrowSpots.block_size` 48 raw throw-spot candidates, ended early once it has done `ThrowSpots.block_work` 20 of `ThrowSpots.work()` (a count: planner questions asked, memo hits included, and a quarter of the raw candidates tested); the throw spot itself is stepped, `SnapshotThrows._wayed`: the rank, then a route a step, each candidate through the cheap tests asking the planner, a unit that returns true runs again first (`GroupBuild.step`); the shots' unit goes aim by aim) | summary |
 
 ## The pieces (`DecisionJob`)
 

@@ -514,32 +514,43 @@ func _looking_at(hpos: Vector2, front: float, p: Vector2, half: float) -> bool:
 ## each annotated — `crosses` names a known hostile the route there passes. `ctx` = { space, map,
 ## self_pos, exclude, hostiles, allies, callouts, fronts, covered_from }.
 func flank_sides(ctx: Dictionary, target: Dictionary, front: float) -> Array:
+	var out: Array = []
+	for side in flank_sides_to_try(ctx, target, front):
+		var a: Variant = flank_side(ctx, target, front, side)
+		if a != null:
+			out.append(a)
+	return out
+
+
+## The sides `flank_sides` tries, in order: every side of the target but the one this NPC is on.
+func flank_sides_to_try(ctx: Dictionary, target: Dictionary, front: float) -> Array:
+	var own_side := side_of(target["pos"], front, ctx["self_pos"])
+	return SIDES.keys().filter(func(side): return side != own_side)
+
+
+## The flanking spot on `side` of `target`, annotated (see `flank_sides`), or null when the side has
+## no reachable point.
+func flank_side(ctx: Dictionary, target: Dictionary, front: float, side: String) -> Variant:
 	var tpos: Vector2 = target["pos"]
 	var ex: Array = ctx["exclude"] + body_rid(target)
-	var own_side := side_of(tpos, front, ctx["self_pos"])
-	var out: Array = []
-	for side in SIDES:
-		if side == own_side:
-			continue
-		var p = _flank_point(ctx, tpos, front, side, target.get("node"))
-		if p == null:
-			continue
-		var walk := _flank_walk(ctx, target, _route(ctx, p), p)
-		var path: PackedVector2Array = walk["path"]
-		var vel: Vector2 = target.get("vel", Vector2.ZERO)
-		# What standing at the side's point gives (as for every candidate), then the flank's own.
-		var a := { "side": side, "via": walk["via"] }
-		a.merge(_annotate(ctx, target, p, ex, path))
-		a.merge({
-			"route_exposed": _route_exposed(ctx, path, tpos, front),
-			"crosses": _route_crosses(path, ctx["hostiles"]),
-			"held_by": side_holder(target, front, side, ctx["allies"], ctx["callouts"]),
-			"heading_toward": vel.length() >= still_speed
-				and absf(vel.angle_to(p - tpos)) < PI / 3.0,
-			"ally_lane": _ally_lane(p, tpos, ctx["allies"], path),
-		}, true)
-		out.append(a)
-	return out
+	var p = _flank_point(ctx, tpos, front, side, target.get("node"))
+	if p == null:
+		return null
+	var walk := _flank_walk(ctx, target, _route(ctx, p), p)
+	var path: PackedVector2Array = walk["path"]
+	var vel: Vector2 = target.get("vel", Vector2.ZERO)
+	# What standing at the side's point gives (as for every candidate), then the flank's own.
+	var a := { "side": side, "via": walk["via"] }
+	a.merge(_annotate(ctx, target, p, ex, path))
+	a.merge({
+		"route_exposed": _route_exposed(ctx, path, tpos, front),
+		"crosses": _route_crosses(path, ctx["hostiles"]),
+		"held_by": side_holder(target, front, side, ctx["allies"], ctx["callouts"]),
+		"heading_toward": vel.length() >= still_speed
+			and absf(vel.angle_to(p - tpos)) < PI / 3.0,
+		"ally_lane": _ally_lane(p, tpos, ctx["allies"], path),
+	}, true)
+	return a
 
 
 ## A reachable point on `side` of a target: sampled across `flank_arc` at full then shorter range,

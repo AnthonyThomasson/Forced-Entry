@@ -16,6 +16,16 @@ const AgentCover := preload("res://scenes/ai/perception/agent_cover.gd")
 ## around the target (cover close by first, then the shortest step). `here` is never screened:
 ## staying put is not a move.
 func fire_positions(tactics: RefCounted, ctx: Dictionary, target: Dictionary) -> Dictionary:
+	var work := begin(tactics, ctx, target)
+	spots_step(tactics, ctx, target, work)
+	return work["out"]
+
+
+## The first step of `fire_positions` (the snapshot's RINGS piece): `here` and the candidate rings
+## (`_fire_rings`: the rays of the whole search). `{ out, fire, cover, ex }`: `out` holds `here`
+## and, once `spots_step` has run, `spots` and `ambush`; `fire` and `cover` are the candidates and
+## `ex` the bodies a ray leaves out.
+func begin(tactics: RefCounted, ctx: Dictionary, target: Dictionary) -> Dictionary:
 	var tpos: Vector2 = target["pos"]
 	var self_pos: Vector2 = ctx["self_pos"]
 	var ex: Array = ctx["exclude"] + tactics.body_rid(target)
@@ -24,9 +34,17 @@ func fire_positions(tactics: RefCounted, ctx: Dictionary, target: Dictionary) ->
 			and not tactics._shot_blocked(ctx, self_pos, tpos, target.get("node"))):
 		out["here"] = tactics._annotate(ctx, target, self_pos, ex)
 	var rings := _fire_rings(tactics, ctx, target, ex)
-	out["spots"] = _sector_spots(tactics, ctx, target, rings["fire"], ex)
-	out["ambush"] = _ambush_from(tactics, ctx, target, rings["cover"], ex)
-	return out
+	return { "out": out, "fire": rings["fire"], "cover": rings["cover"], "ex": ex }
+
+
+## The second step of `fire_positions` (the snapshot's SPOTS piece): the spots and the ambush spot
+## from the candidates `begin` made (`work`, which it completes: `work["out"]` is the answer).
+func spots_step(
+	tactics: RefCounted, ctx: Dictionary, target: Dictionary, work: Dictionary
+) -> void:
+	var out: Dictionary = work["out"]
+	out["spots"] = _sector_spots(tactics, ctx, target, work["fire"], work["ex"])
+	out["ambush"] = _ambush_from(tactics, ctx, target, work["cover"], work["ex"])
 
 
 ## The candidate spots to fight from `target` (`{ pos, node }`): `fire`, the points with a clear

@@ -46,6 +46,10 @@ func configure(s: TestSetup) -> void:
 	GrenadeAi.hostile(s, &"h", HOSTILE_AT, NPC_AT)
 	s.actor(&"d", &"defender", Vector2(600, 330), { "facing": Vector2.LEFT })
 	s.show_overlays(["show_grenades"])
+	# A roomy pool: the decision lands in the frame it is claimed, as the scenario needs (the
+	# defender stays near the landing and evades, instead of walking off on an earlier decision's
+	# build). The restore is the harness's.
+	s.set_static(DecisionBudget, "per_frame", 30)
 
 
 func run(t: TestContext) -> void:

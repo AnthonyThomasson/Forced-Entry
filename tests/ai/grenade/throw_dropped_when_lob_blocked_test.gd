@@ -51,6 +51,9 @@ func configure(s: TestSetup) -> void:
 		30,
 	)
 	s.switch(&"ai.hostile_on_trespass", false)
+	# A roomy pool: the decision lands within a frame or two, as the scenario needs (the throw is
+	# planned, then the lob blocked, between the claim and the walk). The restore is the harness's.
+	s.set_static(DecisionBudget, "per_frame", 8)
 	s.actor(&"i", &"invader", START, { "facing": Vector2.RIGHT })
 	GrenadeAi.hostile(s, &"h", HOSTILE, START)
 

@@ -7,7 +7,7 @@ extends RefCounted
 
 const TARGET := Vector2(900, 60)
 ## The most frames the younger one is watched for after the older one is gone.
-const WATCH_FRAMES := 12
+const WATCH_FRAMES := 30
 
 
 ## Two invaders, `elder` first in the tree, and the trespasser, with every piece priced.
@@ -17,8 +17,12 @@ static func configure(s: TestSetup) -> void:
 	s.switch(&"ai.callouts", false)
 	s.switch(&"ai.territory", false)
 	s.set_static(DecisionBudget, "per_frame", 1)
-	s.set_static(DecisionBudget, "cost_hostile", 1)
-	s.set_static(DecisionBudget, "cost_finish", 1)
+	s.set_static(DecisionPrices, "cost_hostile", 1)
+	s.set_static(DecisionPrices, "cost_spots", 1)
+	s.set_static(DecisionPrices, "cost_flanks", 1)
+	s.set_static(DecisionPrices, "cost_rest", 1)
+	s.set_static(DecisionPrices, "cost_retreat", 1)
+	s.set_static(DecisionPrices, "cost_finish", 1)
 	s.set_static(DecisionBudget, "cost_refusal", 1)
 	s.set_static(DecisionBudget, "cost_level", 1)
 	for i in 2:

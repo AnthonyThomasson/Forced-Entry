@@ -7,9 +7,14 @@ extends RefCounted
 const Builds := preload("res://tests/_ai/job_build_fakes.gd")
 const Budget := preload("res://scenes/ai/decision/decision_budget.gd")
 const ThrowSpots := preload("res://scenes/ai/perception/throw_spots.gd")
+## The build pieces' prices (`DecisionPrices`), by name.
+const PIECE_PRICES := [
+	"cost_start", "cost_hostile", "cost_spots", "cost_flanks", "cost_rest", "cost_ambush",
+	"cost_retreat", "cost_finish",
+]
 ## The pool and prices of `DecisionBudget`, by name (and the throw scan's block, `throw_block`).
 const PRICES := [
-	"per_frame", "cost_start", "cost_hostile", "cost_ambush", "cost_finish", "cost_refusal",
+	"per_frame", "cost_refusal",
 	"cost_level", "cost_throw_block", "cost_throw_rank", "cost_throw_route", "cost_group_unit",
 	"work_unit",
 ]
@@ -21,6 +26,9 @@ static func prices() -> Dictionary:
 	var out := {}
 	for name: String in PRICES:
 		out[name] = budget.get(name)
+	var pieces: Object = DecisionPrices
+	for name: String in PIECE_PRICES:
+		out[name] = pieces.get(name)
 	out["throw_block"] = ThrowSpots.block_size
 	return out
 
@@ -31,6 +39,9 @@ static func set_prices(values: Dictionary) -> void:
 	for name: String in values:
 		if name == "throw_block":
 			ThrowSpots.block_size = values[name]
+		elif PIECE_PRICES.has(name):
+			var pieces: Object = DecisionPrices
+			pieces.set(name, values[name])
 		else:
 			budget.set(name, values[name])
 
@@ -40,7 +51,8 @@ static func set_prices(values: Dictionary) -> void:
 ## pieces by hand starts from, then prices the pieces it means to).
 static func whole_prices() -> void:
 	set_prices({
-		"per_frame": 1, "cost_start": 1, "cost_hostile": 0, "cost_ambush": 0, "cost_finish": 0,
+		"per_frame": 1, "cost_start": 1, "cost_hostile": 0, "cost_spots": 0, "cost_flanks": 0,
+		"cost_rest": 0, "cost_ambush": 0, "cost_retreat": 0, "cost_finish": 0,
 		"cost_refusal": 0, "cost_level": 0, "cost_throw_block": 0, "cost_throw_rank": 0,
 		"cost_throw_route": 0, "throw_block": 16, "cost_group_unit": 0,
 	})
@@ -53,6 +65,8 @@ class FakePerception:
 	var confinement := Builds.FakeConfinement.new()
 	var orders := Builds.FakeOrders.new()
 	var hostiles := 2
+	## The kinds of the pieces of each hostile's analysis (`Builds.FakeBuild.run`).
+	var run: Array = [1]
 	## AMBUSH pieces each build holds (an ambush order's ranking in chunks).
 	var ambush := 0
 	var order_options: Array = []
@@ -80,6 +94,7 @@ class FakePerception:
 		var b := Builds.FakeBuild.new()
 		b.perception = self
 		b.hostiles = hostiles
+		b.run = run
 		b.ambush = ambush
 		b.number = builds.size() + 1
 		builds.append(b)

@@ -59,8 +59,9 @@ const WINDUP := 1.0
 ## held off is decided (Von answers in about 1 s). 2.2: the thrower evades the burst for 1.6 s
 ## first, so its COMBAT order comes 1.97 s after the release on the old nav mesh and 2.03 s on the
 ## 4 px one (the walk out is a few frames longer), against the 2.0 s the bar was set at; 2.2 is
-## that need plus about 0.15 s of noise.
-const FIGHT := 2.2
+## that need plus about 0.15 s of noise. A decision lands over three or four frames at the shipped
+## prices (two of them here: the evade, then the fight), 2.22 s, so 2.5.
+const FIGHT := 2.5
 ## The thrower's view cone (the NPC's `fov_degrees`, 110) as a half-angle.
 const HALF_FOV := deg_to_rad(55.0)
 

@@ -46,13 +46,13 @@
 			],
 			"pick": "engage",
 			"probabilities": {
-				"advance": 0.17,
-				"engage": 0.5379,
-				"flank": 0.1751,
-				"retreat": 0.117
+				"advance": 0.1695,
+				"engage": 0.5408,
+				"flank": 0.1745,
+				"retreat": 0.1152
 			},
 			"question": "How should you fight inv? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the hallway, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: INVESTIGATE - footsteps to the north-east (en route, for 1s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at inv from where you stand. You are exposed to their fire.\ninv — HOSTILE (trespassing) — in sight — close, in pistol range, north-west of you, in the kitchen — standing still — facing away from you — holding a Unarmed.\nFlanks on inv (you are on behind them): their left side — free, line blocked, cover, short hidden route; their right side — free, clear shot, in the open, short hidden route.\nDecided so far: COMBAT → inv."
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the kitchen, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: INVESTIGATE - footsteps to the north-east (en route, for 1s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at inv from where you stand. You are exposed to their fire.\ninv — HOSTILE (trespassing) — in sight — close, in pistol range, north-west of you, in the kitchen — standing still — facing away from you — holding a Unarmed.\nFlanks on inv (you are on behind them): their left side — free, line blocked, cover, short hidden route; their right side — free, clear shot, in the open, short hidden route.\nDecided so far: COMBAT → inv."
 		},
 		{
 			"options": [

@@ -125,6 +125,8 @@ func advance_build(staged: SnapshotBuild) -> void:
 			_hostile_piece(staged)
 		SnapshotBuild.Piece.AMBUSH:
 			_ambush_piece(staged)
+		SnapshotBuild.Piece.RETREAT:
+			_retreat_piece(staged)
 		SnapshotBuild.Piece.FINISH:
 			_finish_build(staged)
 
@@ -205,13 +207,13 @@ func _context(known: Array, callouts: Array) -> Dictionary:
 	return ctx
 
 
-## One HOSTILE piece: half of the analysis of the next hostile given full analysis (`_analyse_step`:
-## two pieces a hostile, so no frame holds all of its geometry), with the cheap `line` entries of
-## the listed hostiles ahead of it in the contacts' nearest-first order (and, after the last
-## analysed one, of those that follow it). Per hostile the build gathers the combat geometry
-## (`analyses`), the option groups (`per_target`) and the sections that follow from it
-## (`per_sections`), each by hostile id; `targets` holds each hostile given full analysis with its
-## geometry, for what `demand` builds of it later (its grenade throws and its exposure).
+## One HOSTILE-run piece: a step of the analysis of the next hostile given full analysis
+## (`_analyse_step`: a run of pieces a hostile, so no frame holds all of its geometry), with the
+## cheap `line` entries of the listed hostiles ahead of it in the contacts' nearest-first order
+## (and, after the last analysed one, of those that follow it). Per hostile the build gathers the
+## combat geometry (`analyses`), the option groups (`per_target`) and the sections that follow from
+## it (`per_sections`), each by hostile id; `targets` holds each hostile given full analysis with
+## its geometry, for what `demand` builds of it later (its grenade throws and its exposure).
 func _hostile_piece(staged: SnapshotBuild) -> void:
 	_own_scratch(staged)
 	var ctx := staged.ctx
@@ -238,10 +240,10 @@ func _hostile_piece(staged: SnapshotBuild) -> void:
 
 
 ## What follows the hostiles: the ambush ranking when the order is an ambush whose posts are not
-## ranked yet, else the finish.
+## ranked yet, else the retreat spots and the finish.
 func _after_hostiles(staged: SnapshotBuild) -> void:
 	staged.ambush_work = _orders.ambush_work(staged.ctx, staged.knowledge["order"], staged.rooms)
-	staged.piece = SnapshotBuild.Piece.FINISH
+	_before_finish(staged)
 	if not NavBuilder.ready(staged.ctx["map"]):
 		# Nothing is kept on an unbaked map: a ranking in chunks would be made again by the option.
 		staged.ambush_work = {}
@@ -249,8 +251,28 @@ func _after_hostiles(staged: SnapshotBuild) -> void:
 		staged.piece = SnapshotBuild.Piece.AMBUSH
 
 
-## The AMBUSH piece: a chunk of the ambush ranking the finish's order option reads; the finish
-## when the ranking is done.
+## What runs before the finish: the RETREAT piece when there is a threat to fall back from (a
+## hostile known, or fire it came from), else the finish itself.
+func _before_finish(staged: SnapshotBuild) -> void:
+	var threat: bool = not staged.ctx["hostiles"].is_empty() or _memory.under_fire()
+	staged.piece = SnapshotBuild.Piece.RETREAT if threat else SnapshotBuild.Piece.FINISH
+
+
+## The RETREAT piece: where to fall back to (the retreat group of the finish's option groups, the
+## heaviest of them: the rings of cover spots round the NPC, the known rooms, a spot beside each
+## ally, each with its route and exposure), worked out ahead of the finish so the finish is not a
+## frame's lump.
+func _retreat_piece(staged: SnapshotBuild) -> void:
+	_own_scratch(staged)
+	var ctx := staged.ctx
+	staged.parts["retreat"] = _options.retreat_group(
+		ctx, ctx["hostiles"], staged.knowledge["known_rooms"], _character.damage_taken()
+	)
+	staged.piece = SnapshotBuild.Piece.FINISH
+
+
+## The AMBUSH piece: a chunk of the ambush ranking the finish's order option reads; the retreat
+## spots, or the finish, when the ranking is done.
 func _ambush_piece(staged: SnapshotBuild) -> void:
 	_own_scratch(staged)
 	_orders.ambush_step(staged.ambush_work, staged.ctx)
@@ -259,10 +281,10 @@ func _ambush_piece(staged: SnapshotBuild) -> void:
 		var order: Dictionary = staged.knowledge["order"]
 		staged.ambush_work = _orders.ambush_work(staged.ctx, order, staged.rooms)
 		if staged.ambush_work.is_empty():
-			staged.piece = SnapshotBuild.Piece.FINISH
+			_before_finish(staged)
 	elif staged.ambush_work.has("ranking"):
 		staged.ambush_work = {}
-		staged.piece = SnapshotBuild.Piece.FINISH
+		_before_finish(staged)
 
 
 ## Whether a hostile given full analysis is yet to come in the contacts' order.
@@ -274,31 +296,79 @@ func _analysed_ahead(staged: SnapshotBuild) -> bool:
 	return false
 
 
-## Half of the full analysis of hostile `t` (a HOSTILE piece): its line of fire and fire positions
-## (`parts["half"]` holds it), then the rest of its geometry, option groups and
-## sections, into `staged.parts`. Whether the hostile is done: the second half ends it. Both halves
-## read the hostile through one pinned copy (`_pinned`), so a hostile that ducks or is freed between
-## the two pieces is the hostile the first half saw.
+## One step of the full analysis of hostile `t` (a HOSTILE, SPOTS, FLANKS or REST piece, in that
+## order: `parts["half"]["next"]` says which is next and holds what the steps so far made): its
+## line of fire and the rings of fire spots (HOSTILE), its fire spots and ambush spot (SPOTS), the
+## flank on one side of it each (FLANKS), then its advance positions, option groups and sections
+## into `staged.parts` (REST), so no frame holds all of its geometry. Whether the hostile is done:
+## the REST piece ends it. Every step reads the hostile through one pinned copy (`_pinned`), so a
+## hostile that ducks or is freed between the pieces is the hostile the first saw.
 func _analyse_step(staged: SnapshotBuild, t: Dictionary) -> bool:
+	var half: Dictionary = staged.parts["half"]
+	if half.is_empty():
+		_rings_piece(staged, t)
+		return false
+	var pin: Dictionary = half["pin"]
+	pin["node"] = pin["node"] if is_instance_valid(pin["node"]) else null  # Freed since the first.
+	match half["next"]:
+		SnapshotBuild.Piece.SPOTS:
+			_spots_piece(staged, pin)
+		SnapshotBuild.Piece.FLANKS:
+			_flank_piece(staged, pin)
+		_:
+			_rest_piece(staged, t, pin)
+			return true
+	return false
+
+
+## The HOSTILE piece of hostile `t`: read it once, its line of fire and the rings of fire spots.
+func _rings_piece(staged: SnapshotBuild, t: Dictionary) -> void:
+	var ctx := staged.ctx
+	var pinned := _pinned(t)
+	var front: float = ctx["fronts"][t["id"]]
+	staged.parts["half"] = {
+		"pin": pinned,
+		"next": SnapshotBuild.Piece.SPOTS,
+		"a": {
+			"front": front,
+			"own_side": _tactics.side_of(t["pos"], front, ctx["self_pos"]),
+			"line": _line(ctx, pinned),
+		},
+	}
+	staged.parts["half"]["fire"] = _tactics.fire_spots.begin(_tactics, ctx, pinned)
+
+
+## The SPOTS piece: the fire spots and the ambush spot, and the sides a flank is tried on.
+func _spots_piece(staged: SnapshotBuild, pin: Dictionary) -> void:
+	var half: Dictionary = staged.parts["half"]
+	var a: Dictionary = half["a"]
+	_tactics.fire_spots.spots_step(_tactics, staged.ctx, pin, half["fire"])
+	a["fire"] = half["fire"]["out"]
+	half.erase("fire")
+	a["flanks"] = []
+	half["sides"] = _tactics.flank_sides_to_try(staged.ctx, pin, a["front"])
+	half["next"] = (
+		SnapshotBuild.Piece.FLANKS if not half["sides"].is_empty() else SnapshotBuild.Piece.REST
+	)
+
+
+## A FLANKS piece: the flank on the next side (none when the side has no reachable point).
+func _flank_piece(staged: SnapshotBuild, pin: Dictionary) -> void:
+	var half: Dictionary = staged.parts["half"]
+	var a: Dictionary = half["a"]
+	var side: String = (half["sides"] as Array).pop_front()
+	var flank: Variant = _tactics.flank_side(staged.ctx, pin, a["front"], side)
+	if flank != null:
+		a["flanks"].append(flank)
+	if (half["sides"] as Array).is_empty():
+		half["next"] = SnapshotBuild.Piece.REST
+
+
+## The REST piece: the hostile's advance positions, its option groups and its sections.
+func _rest_piece(staged: SnapshotBuild, t: Dictionary, pin: Dictionary) -> void:
 	var ctx := staged.ctx
 	var parts := staged.parts
-	if parts["half"].is_empty():
-		var pinned := _pinned(t)
-		var front: float = ctx["fronts"][t["id"]]
-		parts["half"] = {
-			"pin": pinned,
-			"a": {
-				"front": front,
-				"own_side": _tactics.side_of(t["pos"], front, ctx["self_pos"]),
-				"line": _line(ctx, pinned),
-				"fire": _tactics.fire_spots.fire_positions(_tactics, ctx, pinned),
-			},
-		}
-		return false
 	var a: Dictionary = parts["half"]["a"]
-	var pin: Dictionary = parts["half"]["pin"]
-	pin["node"] = pin["node"] if is_instance_valid(pin["node"]) else null  # Freed since half one.
-	a["flanks"] = _tactics.flank_sides(ctx, pin, a["front"])
 	a["advance"] = _tactics.advance_positions(ctx, pin)
 	parts["half"] = {}
 	parts["analyses"][t["id"]] = a
@@ -310,7 +380,6 @@ func _analyse_step(staged: SnapshotBuild, t: Dictionary) -> bool:
 		"melee": _options.melee_group(ctx["self_pos"], t),
 	}
 	parts["per_sections"][t["id"]] = _target_sections(ctx, t, a)
-	return true
 
 
 ## A copy of contact `t` with its hostile read once: the eye its posture sets and the twin rid to
@@ -540,10 +609,18 @@ func _option_groups(ctx: Dictionary, parts: Dictionary, knowledge: Dictionary) -
 		"threat": { "summary": _sections.threat_summary(self_pos, hostiles) },
 		"hostiles": _options.hostile_group(ctx, hostiles, parts["analyses"]),
 		"reload": _options.reload_group(parts["gun"]),
-		"retreat_positions": _options.retreat_group(ctx, hostiles, known_rooms, parts["dmg"]),
+		"retreat_positions": _retreat(ctx, parts, known_rooms),
 		"shooter": _options.shooter_group(ctx, hostiles),
 		"order": _orders.group(ctx, knowledge["order"], rooms),
 	}
+
+
+## The retreat group: the RETREAT piece's when it ran, else made now (a build with no threat to fall
+## back from, or one made whole).
+func _retreat(ctx: Dictionary, parts: Dictionary, known_rooms: Array) -> Dictionary:
+	if parts.has("retreat"):
+		return parts["retreat"]
+	return _options.retreat_group(ctx, ctx["hostiles"], known_rooms, parts["dmg"])
 
 
 ## The line of fire to hostile `t`, also computed for hostiles outside the full-analysis cap:

@@ -54,6 +54,7 @@ func run(t: TestContext) -> void:
 	var start: int = brain.debug_state()["decisions"]
 	var seen: int = start
 	var wrong := 0
+	var landing := false
 	var next_shot := t.time + 1.0
 	var end := t.time + WINDOW
 	while t.time < end:
@@ -63,6 +64,12 @@ func run(t: TestContext) -> void:
 		var n: int = brain.debug_state()["decisions"]
 		if n != seen:
 			seen = n
+			landing = true
+		# The zones a decision offers are read where it lands, the NPC where the build saw it (a
+		# build takes a few frames now, in which it may have walked on from an earlier decision's
+		# point).
+		if landing and not brain.debug_state()["decision"]["pending"]:
+			landing = false
 			wrong += _wrong_zones(brain, inv)
 		await t.frames(1)
 	t.check(

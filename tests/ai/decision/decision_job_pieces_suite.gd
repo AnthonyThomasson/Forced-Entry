@@ -89,7 +89,7 @@ func test_a_throw_search_costing_nothing_runs_whole_before_the_walk_in_the_claim
 
 
 func test_the_walked_route_memo_is_held_only_while_pieces_run_together() -> void:
-	DecisionBudget.cost_hostile = 1
+	DecisionPrices.cost_hostile = 1
 	assert_bool(_job.request(false)).is_true()
 	_job.advance()  # the start, and a build left half-built for a frame
 	assert_object(_job.get("_walks")).is_null()  # nothing kept to the next frame
@@ -103,7 +103,7 @@ func test_the_walked_route_memo_is_held_only_while_pieces_run_together() -> void
 
 
 func test_an_event_during_a_build_is_not_weighed_by_it_and_does_not_restart_it() -> void:
-	DecisionBudget.cost_hostile = 1
+	DecisionPrices.cost_hostile = 1
 	_perception.confinement.label = "the house"
 	assert_bool(_job.request(false)).is_true()
 	_job.advance()

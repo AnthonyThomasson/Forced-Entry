@@ -79,13 +79,14 @@ func begin_grenade_group(ctx: Dictionary, t: Dictionary, a: Dictionary) -> RefCo
 
 
 ## A unit of `begin_grenade_group` ahead of a kind's throw: the throw spot candidates the throw is
-## made from, scanned a block a step (`_scanned`) so a whole scan is not one frame's work. True
-## while there is more to scan (the unit runs again first); the throw unit then reads what was
-## scanned.
+## made from, scanned a block a step (`_scanned`) and the spot chosen from them a rank pass and a
+## route a step (`_wayed`), so neither is one frame's work. True while there is more to do (the
+## unit runs again first); the throw unit then reads what was worked out.
 func _scan_unit(ctx: Dictionary, spot: Vector2, kind: StringName, scans: Dictionary) -> bool:
 	var held := _held_room(ctx, spot)
 	var keep_out := Rect2() if held.is_empty() else held["rect"] as Rect2
-	return not _scanned(ctx, spot, kind, keep_out, scans)
+	return not (_scanned(ctx, spot, kind, keep_out, scans)
+			and _wayed(ctx, spot, kind, keep_out, scans))
 
 
 ## Work one block of the scan of the throw spot candidates for a throw of `kind` onto `spot` (each
@@ -113,6 +114,40 @@ func _scanned(
 		return false
 	points[key] = scan.points
 	scans.erase(key)
+	return true
+
+
+## One step of the throw spot to throw a kind onto `spot` from, `_throw_way`'s work in steps (kept
+## in `scans`, as the scan is): the rank pass of the candidates, then one route of the first
+## `ThrowSpots.ROUTES` ranked, the last choosing the spot (`ThrowSpots.pick`) into the decision's
+## memo. Whether the way is worked out (a lob clear from where the NPC stands needs none, nor does
+## a way the decision holds): when not, the unit runs again.
+func _wayed(
+	ctx: Dictionary, spot: Vector2, kind: StringName, keep_out: Rect2, scans: Dictionary
+) -> bool:
+	var key := _throw_key(ctx, kind, spot, keep_out)
+	var spots: Dictionary = memo_of(ctx)["spots"]
+	if (spots.has(key)
+			or _throw.can_lob(ctx["space"], ctx["self_pos"], spot, know["character_rids"], kind)):
+		return true
+	var held: Variant = scans.get(["way", key])
+	var aim := _throw_aim(ctx, kind, spot, keep_out)
+	if held == null:
+		var ranked: Array = _tactics.throws.ranked_spots(
+			_tactics, ctx, aim, know["character_rids"], _candidates(ctx, aim, key)
+		)
+		held = { "ranked": ranked.slice(0, ThrowSpots.ROUTES), "walkable": [] }
+		scans[["way", key]] = held
+	elif not (held["ranked"] as Array).is_empty():
+		var walk: Dictionary = _tactics.throws.walk_one(
+			_tactics, ctx, (held["ranked"] as Array).pop_front(), aim.route
+		)
+		if not walk.is_empty():
+			held["walkable"].append(walk)
+	if not (held["ranked"] as Array).is_empty():
+		return false
+	spots[key] = ThrowSpots.pick(held["walkable"])
+	scans.erase(["way", key])
 	return true
 
 
@@ -201,7 +236,9 @@ func _shots_unit(
 	if at[0] >= aims.size():
 		return false
 	var aim: Dictionary = aims[at[0]]
-	if aim["walk"] and not _scanned(ctx, aim["spot"], kind, aim["room"]["rect"], scans):
+	var rect: Rect2 = aim["room"]["rect"]
+	if aim["walk"] and not (_scanned(ctx, aim["spot"], kind, rect, scans)
+			and _wayed(ctx, aim["spot"], kind, rect, scans)):
 		return true
 	var option := _throw_option(ctx, kind, aim["spot"], aim["room"]["rect"], aim["walk"])
 	if option.is_empty():

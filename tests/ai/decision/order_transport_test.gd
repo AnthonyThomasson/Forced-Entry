@@ -116,8 +116,18 @@ func _check_replaced(t: TestContext, a: Node, b: Node, boss: Node) -> void:
 		"a newer order replaces the old one (a's running order: %s %s)"
 			% [OrderBrain.primitive(a), str(OrderBrain.params(a))],
 	)
+	# Judged once b is on its order again: a decision of its own (it re-decides on its cadence, a
+	# build taking a few frames) may have it mid-walk to a cover or a lead at this instant, which is
+	# the order held, not lost.
 	t.check(
-		OrderBrain.on_order(b) and String(OrderBrain.params(b).get("room", "")) == "kitchen",
+		await t.until(
+			func():
+				return (
+					OrderBrain.on_order(b)
+					and String(OrderBrain.params(b).get("room", "")) == "kitchen"
+				),
+			10.0,
+		),
 		"the other recipient keeps the first order (%s)" % str(OrderBrain.params(b)),
 	)
 
@@ -140,6 +150,6 @@ func _check_cancelled(t: TestContext, a: Node, b: Node, boss: Node) -> void:
 	)
 	t.check(not OrderBrain.ordered(a), "and the recipient decides without `ordered`")
 	t.check(
-		OrderBrain.on_order(b),
+		await t.until(func(): return OrderBrain.on_order(b), 10.0),
 		"the cancel named only one recipient: the other is still on its order",
 	)

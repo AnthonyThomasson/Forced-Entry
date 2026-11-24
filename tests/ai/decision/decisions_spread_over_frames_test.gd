@@ -3,11 +3,11 @@ extends GameTest
 ## not all in one (`DecisionBudget`): eight invaders spawned together all see a hostile from their
 ## first frame; at most one of them starts a decision each frame (a choice that is done on arrival,
 ## like firing from where it stands, is decided again on the next), every one of them has decided
-## within two frames apiece (none starves), and with the pool raised to all eight they go on
+## within four frames apiece (none starves), and with the pool raised to all eight they go on
 ## deciding at their cadence (the starts are still one a frame, whatever the pool holds).
 
 const COUNT := 8
-const SPREAD_FRAMES := 2 * COUNT + 4
+const SPREAD_FRAMES := 4 * COUNT + 4
 const TARGET := Vector2(900, 60)
 
 
@@ -15,7 +15,7 @@ func describe() -> Dictionary:
 	return {
 		"name": "Decisions are spread over frames",
 		"description": "Eight invaders spawned together start at most one decision per frame and "
-			+ "all decide within two frames apiece; with the pool raised they keep deciding at "
+			+ "all decide within four frames apiece; with the pool raised they keep deciding at "
 			+ "their cadence, still one start a frame.",
 		"tags": ["ai", "decision", "scripted"],
 		"timeout": 12.0,

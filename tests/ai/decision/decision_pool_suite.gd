@@ -11,6 +11,11 @@ const Fakes := preload("res://tests/_ai/job_fakes.gd")
 const Builds := preload("res://tests/_ai/job_build_fakes.gd")
 const ThrowSpots := preload("res://scenes/ai/perception/throw_spots.gd")
 const EntryPosts := preload("res://scenes/ai/perception/entry/entry_posts.gd")
+## The build pieces' prices (`Fakes.PIECE_PRICES`).
+const PIECE_PRICES := Fakes.PIECE_PRICES
+## The kinds of the pieces of one hostile's analysis (`SnapshotBuild.Piece`): the rings, the spots,
+## a flank for each of two sides, the rest.
+const ANALYSIS := [1, 5, 6, 6, 7]
 
 ## The base of the frame the last test started on; each test starts on a frame of its own. An
 ## instance var, not a `static var`: one in a suite script crashes the 4.4.1 Windows engine at exit
@@ -59,23 +64,31 @@ func _new_job() -> RefCounted:
 	return job
 
 
-## The pool a frame's decision work is held to (#194): three units, and no decision with a hostile
-## (a start, the hostile's two pieces, a finish) fits one frame, so the first frames of a fight
-## spread their builds instead of holding one lump; no piece but a lob is dearer than two units.
+## The pool a frame's decision work is held to (#194): four units, about two milliseconds, and no
+## decision with a hostile (a start, the hostile's five pieces, a finish) fits one frame, so the
+## first frames of a fight spread their builds instead of holding one lump; no piece is dearer than
+## the pool less the start's unit, so a start and the dearest piece fit one frame.
 func test_the_shipped_pool_never_lets_one_frame_run_a_whole_decision() -> void:
-	var whole: int = _shipped["cost_start"] + 2 * _shipped["cost_hostile"] + _shipped["cost_finish"]
-	assert_int(_shipped["per_frame"]).is_equal(3)
+	var analysis: int = (
+		_shipped["cost_hostile"] + _shipped["cost_spots"] + 2 * _shipped["cost_flanks"]
+		+ _shipped["cost_rest"]
+	)
+	var whole: int = _shipped["cost_start"] + analysis + _shipped["cost_finish"]
+	assert_int(_shipped["per_frame"]).is_equal(4)
 	assert_bool(whole > _shipped["per_frame"]).is_true()
-	assert_bool(_shipped["cost_hostile"] <= 1 and _shipped["cost_ambush"] <= 1).is_true()
-	assert_bool(ThrowSpots.block_work <= 16).is_true()
+	for price in PIECE_PRICES:
+		assert_bool(_shipped[price] <= _shipped["per_frame"] - _shipped["cost_start"]).is_true()
+	assert_bool(ThrowSpots.block_work <= 24).is_true()
 
 
 ## The frames a decision's build takes to land at the shipped prices (the planner begins its walk),
 ## counted from the frame it is claimed (frame 1): the cadence the docs' frame counts rest on
-## (`decision-prices.md`). A hostile is two pieces, an ambush's ranking `chunks` more.
-func _frames_to_land(hostile_pieces: int, chunks := 0) -> int:
+## (`decision-prices.md`). Each hostile is a run of pieces (`ANALYSIS`), an ambush's ranking
+## `chunks` more.
+func _frames_to_land(hostiles: int, chunks := 0) -> int:
 	Fakes.set_prices(_shipped)
-	_perception.hostiles = hostile_pieces
+	_perception.hostiles = hostiles
+	_perception.run = ANALYSIS
 	_perception.ambush = chunks
 	assert_bool(_job.request(false)).is_true()
 	var frames := 1
@@ -87,12 +100,14 @@ func _frames_to_land(hostile_pieces: int, chunks := 0) -> int:
 	return frames
 
 
-func test_one_hostile_lands_its_build_in_two_frames() -> void:
-	assert_int(_frames_to_land(2)).is_equal(2)  # start, two halves | finish
+func test_one_hostile_lands_its_build_in_three_frames() -> void:
+	# start, rings | spots, two flanks | rest, finish
+	assert_int(_frames_to_land(1)).is_equal(3)
 
 
-func test_two_hostiles_land_their_build_in_two_frames() -> void:
-	assert_int(_frames_to_land(4)).is_equal(2)  # start, two halves | two halves, finish
+func test_two_hostiles_land_their_build_in_six_frames() -> void:
+	# start, rings | spots, flank | flank, rest | rings | spots, flank | flank, rest, finish
+	assert_int(_frames_to_land(2)).is_equal(6)
 
 
 func test_an_ambush_build_lands_in_the_frames_its_chunks_price() -> void:
@@ -101,8 +116,9 @@ func test_an_ambush_build_lands_in_the_frames_its_chunks_price() -> void:
 	)
 	var chunks: int = int(offsets / float(EntryPosts.AMBUSH_CHUNK))
 	assert_int(chunks).is_equal(20)  # premise: 80 offsets, 4 a piece
-	# A start, a hostile's two halves, the 20 chunks and a finish: 24 units, three a frame.
-	assert_int(_frames_to_land(2, chunks)).is_equal(8)
+	# A hostile's analysis (9 units after the start's), the 20 chunks and the finish: 31 units in
+	# all, four a frame: the last frame holds the final chunk and the finish.
+	assert_int(_frames_to_land(1, chunks)).is_equal(8)
 
 
 func test_at_most_one_decision_starts_in_a_frame_whatever_the_pool_holds() -> void:
@@ -116,8 +132,8 @@ func test_at_most_one_decision_starts_in_a_frame_whatever_the_pool_holds() -> vo
 
 func test_the_pool_is_served_oldest_claim_first_whatever_the_tree_order() -> void:
 	DecisionBudget.per_frame = 3
-	DecisionBudget.cost_hostile = 2
-	DecisionBudget.cost_finish = 2
+	DecisionPrices.cost_hostile = 2
+	DecisionPrices.cost_finish = 2
 	_perception.hostiles = 1
 	assert_bool(_job.request(false)).is_true()  # the oldest: start, hostile, finish
 	_job.advance()
@@ -150,7 +166,7 @@ func test_the_pool_is_served_oldest_claim_first_whatever_the_tree_order() -> voi
 
 func test_a_job_that_never_runs_again_holds_no_one_up_once_released() -> void:
 	DecisionBudget.per_frame = 1
-	DecisionBudget.cost_hostile = 1
+	DecisionPrices.cost_hostile = 1
 	_perception.hostiles = 1
 	assert_bool(_job.request(false)).is_true()
 	_job.advance()  # the start ran, its hostile piece waits for a frame: it needs a unit next
@@ -164,7 +180,7 @@ func test_a_job_that_never_runs_again_holds_no_one_up_once_released() -> void:
 
 func test_a_job_whose_npc_does_not_think_owes_the_pool_nothing() -> void:
 	DecisionBudget.per_frame = 1
-	DecisionBudget.cost_hostile = 1
+	DecisionPrices.cost_hostile = 1
 	_perception.hostiles = 1
 	assert_bool(_job.request(false)).is_true()
 	_job.advance()
@@ -177,7 +193,7 @@ func test_a_job_whose_npc_does_not_think_owes_the_pool_nothing() -> void:
 
 func test_a_job_the_pool_had_forgotten_takes_its_place_again_when_it_runs() -> void:
 	DecisionBudget.per_frame = 2
-	DecisionBudget.cost_hostile = 2
+	DecisionPrices.cost_hostile = 2
 	_perception.hostiles = 2
 	assert_bool(_job.request(false)).is_true()
 	_job.advance()

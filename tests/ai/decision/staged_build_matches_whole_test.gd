@@ -17,6 +17,10 @@ const Walk := preload("res://tests/_ai/snapshot_walk_probe.gd")
 const START := 0
 const HOSTILE := 1
 const FINISH := 2
+const SPOTS := 5
+const FLANKS := 6
+const REST := 7
+const RETREAT := 8
 ## What the scripted Von answers in the fight: COMBAT, then ENGAGE.
 const FIGHT := [{ "pick": "combat" }, { "pick": "engage" }]
 ## Where the invader stands: the back garden, outside the kitchen's back door.
@@ -82,8 +86,13 @@ func _compare(
 	var stepped: Dictionary = both["stepped"]
 	var expected: Array = [START]
 	for i in hostiles:
-		expected.append(HOSTILE)  # two pieces a hostile: its line and fire, then the rest
-		expected.append(HOSTILE)
+		# A run of pieces a hostile: its line and the fire rings, its fire spots, a flank for each
+		# of the two sides it is tried on, the rest.
+		expected.append_array([HOSTILE, SPOTS, FLANKS, FLANKS, REST])
+	# With a hostile known there is a threat to fall back from: its retreat spots, ahead of the
+	# finish.
+	if hostiles > 0:
+		expected.append(RETREAT)
 	expected.append(FINISH)
 	t.expect_eq(both["kinds"], expected, "%s: the pieces a build runs, in order" % label)
 	var walked_whole := await Walk.walk(t, brain, whole)
@@ -117,7 +126,7 @@ func _build_both(t: TestContext, brain: Node) -> Dictionary:
 		"key": "old", "type": "kitchen", "rect": Rect2(here - Vector2(50, 50), Vector2(100, 100)),
 	}]
 	var olds: Array = []
-	for i in 8:
+	for i in 24:  # more than a build has pieces
 		olds.append(perception.sense(goal, "", 0))
 		olds[i]["demand"].rooms = old_rooms
 	var whole: Dictionary = perception.sense(goal, "digging in", 0)

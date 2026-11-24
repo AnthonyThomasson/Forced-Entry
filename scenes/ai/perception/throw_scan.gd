@@ -69,7 +69,7 @@ func done() -> bool:
 
 
 ## Run the next step: at most `block` raw candidates (and, but for a whole scan, only as many as
-## the arc planner's work `ThrowSpots.block_work` allows), the rank pass, or one route.
+## the work `ThrowSpots.block_work` allows), the rank pass, or one route.
 func step(block: int) -> void:
 	_tactics.throws.scan_step(_tactics, self, block)
 

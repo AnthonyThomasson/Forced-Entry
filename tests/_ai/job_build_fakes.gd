@@ -29,24 +29,28 @@ class FakeOrders:
 		ended.append([id, why])
 
 
-## A snapshot being built: START, one HOSTILE piece per hostile, `ambush` AMBUSH pieces, FINISH (the
-## kinds of `SnapshotBuild.Piece`: 0, 1, 4, 2, then DONE = 3).
+## A snapshot being built: START, a run of pieces per hostile (`run`: one HOSTILE piece, or the
+## kinds a real hostile's analysis runs), `ambush` AMBUSH pieces, FINISH (the kinds of
+## `SnapshotBuild.Piece`: 0, 1, 4, 2, then DONE = 3; a real hostile's run is 1, 5, 6, 6, 7).
 class FakeBuild:
 	extends RefCounted
 	var perception: RefCounted
 	var number := 0
 	var hostiles := 0
+	## The kinds of the pieces of one hostile's analysis, in order.
+	var run: Array = [1]
 	## AMBUSH pieces between the hostiles and the finish.
 	var ambush := 0
 	var piece := 0
 	var steps := 0
 	var _taken := 0
+	var _at := 0
 	var _chunks := 0
 	var _confinement: FakeConfinement
 	var _result := {}
 
 	func next_piece() -> int:
-		return piece
+		return run[_at] if piece == 1 else piece
 
 	func done() -> bool:
 		return piece == 3
@@ -58,7 +62,10 @@ class FakeBuild:
 				_confinement = perception.confinement.copy()
 				piece = 1 if hostiles > 0 else _after_hostiles()
 			1:
-				_taken += 1
+				_at += 1
+				if _at >= run.size():
+					_at = 0
+					_taken += 1
 				piece = 1 if _taken < hostiles else _after_hostiles()
 			4:
 				_chunks += 1
