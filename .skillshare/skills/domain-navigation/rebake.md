@@ -9,9 +9,9 @@ one gathered and baked off the frame, below; a tick while it is in flight leaves
 the baseline is set from what the bake carved when it lands, so a move during a bake is caught by the next tick); a character that
 stopped, set off, appeared or died re-bakes the steering region in place. An at-rest scene costs the compare.
 
-- **A district's planning gather is sliced** (`nav_gather.gd`, `navigation/sliced_rebake_matches_whole`): the tick re-bakes the steering
+- **A district's planning gather is sliced** (`nav_gather.gd`; `sliced_rebake_matches_whole`): the tick re-bakes the steering
   tiles at once and starts a `NavGather`, whose steps run one a physics frame from the updater's `_physics_process` (the walls' parse, the
-  furniture holes fused in `FUSE_STEPS` (4) chunks, the district's job, the ring's: seven steps, so seven frames after the tick's own and the swap in the last, under the 8-frame cap). The jobs are a second
+  furniture holes fused on a worker thread (started by the first step, joined `FUSE_STEPS` (4) frames on), the district's job, the ring's: seven steps, so seven frames from the tick's own, the swap in the last). The jobs are a second
   buffer nothing reads: until the last step the region's polygon, the map's iteration and the remembered source (`NavSource.remember`) are
   the previous bake's. The last step `NavRebake.swap`s it in whole (the source is remembered, the planning and ring bakes go to a worker thread (`NavBake`), landing on their fixed frame, a
   `done` once both land: the baseline is set then), so the swap is the one moment a finished re-bake shows (the `remember` version counts
@@ -34,7 +34,7 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
   picks the count from `NavBakeConfig`, a district's planning bake `district_frames` 36 (a 120 to 140 ms thread; `perf/ambush_order_stress` sets 50, its headless frames being 3 ms), its avoid
   maps `avoid_frames` 22 (the AI waits for a chain of them), the planning ring `ring_frames` 7
   (a 14 ms thread, an `urgent` job: a high-priority task, so busy normal threads do not queue it), a lone house's bakes `house_frames` 3.
-  Later than the 2D baker's (planning 14 frames before, avoid 12): open work.
+  Later than the 2D baker's (planning 14, avoid 12): open work.
   Remeasure when a bake or a frame changes. A region freed meanwhile is left
   alone and `landed` still called; a game closing finishes every bake in flight (`NavBake._finish_all`).
 - **A map syncs on the main thread** (`project.godot`, `navigation/world/map_use_async_iterations` off; `navigation/map_syncs_without_a_thread`): the server's

@@ -53,9 +53,13 @@ func _ready() -> void:
 	set_physics_process(false)
 
 
-## A world torn down with a burst under way: its threads are waited for, none is left running.
+## A world torn down with a burst or a gather under way: its threads are waited for, none is left
+## running.
 func _exit_tree() -> void:
 	_burst.clear()
+	if _gather != null:
+		_gather.abandon()
+		_gather = null
 
 
 ## One physics frame of the updater's work: the next due steering tile is started baking on a
@@ -65,6 +69,8 @@ func _exit_tree() -> void:
 func _physics_process(_delta: float) -> void:
 	if not _alive():
 		_burst.clear()
+		if _gather != null:
+			_gather.abandon()
 		_gather = null
 		_baking = false
 	elif _burst.pending():
