@@ -5,7 +5,7 @@ The helper is `tests/_vision/vision_probe.gd` (`const Probe`; not a test): it re
 publishes (`cone()`, `bubble()`, `sees(point)`, `viewer()`, `ground` and its viewports and painters), keeps the spec's numbers as consts (`FOV`,
 `REACH`, `BUBBLE`, `SEE_OVER`, the visibility bits), and builds the shared two-room layout (`building`), a world of the test's own
 (`build_world` / `drop_world`) and the sight rule cast directly (`blocker`, `in_sight`), which the cone tests judge the polygon by.
-It also holds the points the sees tests ask (`WALL_CONE`, `OUTSIDE`, shared with General's `seen_area_rect_suite`) and `reached_by`,
+It also holds the points the sees tests ask (`WALL_CONE`, `OUTSIDE`, shared with General's `seen_area_suite`) and `reached_by`,
 which says whether `SeenArea` reaches a point by a disc or by a box. Beside it: `changing_body.gd` (a solid that can say `changed`, as
 a door does), `physics_mover.gd` and `cone_checker.gd`. `vision/view_watch_suite` is a native suite of `ViewWatch`'s rule at its own
 seam (bodies in the tree, `stale` asked each frame), beside the simulation tests that hold the cone itself.

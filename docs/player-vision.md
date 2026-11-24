@@ -191,8 +191,8 @@ With no view (Watch, Endless, the switch off, the view lifted) the area is empty
 what the world does: a character wholly outside the cone and bubble keeps its pose, aim, hands, footsteps and ragdoll running
 (gameplay reads those, never what is drawn), so a hit lands on it as it would unviewed. Tests: `vision/unseen_keeps_running` (the
 same walker, out of the cone behind the viewer, shot three times in two worlds built from one declaration, one viewed and one
-not: the same hits at the same places, for the same damage, on shoulders turned the same way), `general/seen_area_suite` and
-`general/seen_area_rect_suite` (native: the disc and box tests over polygons laid out by hand, an L-shaped polygon, no area set),
+not: the same hits at the same places, for the same damage, on shoulders turned the same way), `general/seen_area_suite`
+(native: the disc and box tests over polygons laid out by hand, an L-shaped polygon, no area set),
 `vision/view_sees_suite` (native: `sees` at a cone the engine's point-in-polygon gets wrong, the bubble, no polygon),
 `vision/death_lifts_view` (the area cleared on a lift), `art/mirror_hides_unseen_movers` (hidden outside, shown in the cone).
 

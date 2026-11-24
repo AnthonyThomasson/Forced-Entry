@@ -248,7 +248,7 @@ frag), and the burst has its look: a flash, a fireball puff and smoke, with a sc
 a drawn disc: the lighting's stun flash (`docs/lighting.md` L9), far brighter than a frag's, shadowed by the walls and the furniture, held
 at full brightness for an instant and faded over 0.7 s. The player's own whiteout above is unchanged.
 Tests: `ui/stun_screen_whiteout`, `audio/grenade_sounds`, `general/camera_shakes_on_explosion`, `physics/explosion_fx`,
-`lighting/stun_flash_light`.
+`lighting/light_3d_stun_flash`.
 
 ### AI
 

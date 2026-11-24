@@ -6,6 +6,10 @@ Issue #194 moves the simulation from 2D to 3D so height matters in gameplay. It 
 class at a time, and the 2D space and its mirror (ADR 0013) are deleted last. Every step ends playable with the suite green. This ADR
 records the two decisions that make that possible (D3 staging, D4 plan space) and how the direction reverses.
 
+**Status (end of #194):** the plan was carried out. Every sim root is a `Node2D` plan handle, the twin space is the only physics space ("No 2D physics is left", below) and the
+nav is baked and queried in 3D ([ADR 0016](0016-the-nav-mesh-is-baked-by-the-3d-baker-from-projected-plan-footprints.md)). The sections keep the order the work happened in, so
+the early ones describe a staging that is over (a twin nothing read, a 2D truth); the last ones say what stands.
+
 ## The twin space (D3)
 
 A **twin** is a 3D body that stands for one solid 2D body: a wall, a floor slab, a piece of furniture (a box per part of
@@ -212,7 +216,7 @@ The bake's source moved off the 2D colliders. `NavSource.walls_of` takes the pla
 `NavHoles` / `NavPieces` cut a piece's or a character's hole from the hull of its twin's footprints, grown by the obstacle margin (corners
 mitred), instead of its `CollisionShape2D`s. The bake projects at the plan and never by an agent's height: a wall's lintel over a doorway (84 to
 96 px, in the wall's twin) is left out (`grounded`: a shape whose underside is over the floor), so a doorway stays open. The twin space is made
-before the bake (`MatchBuilder.stage`). `NavigationServer2D` stays until nav3d; a house with no twin space bakes no walls and no holes.
+before the bake (`MatchBuilder.stage`). `NavigationServer2D` stayed until nav3d (ADR 0016); a house with no twin space bakes no walls and no holes.
 
 It is not the same outline, and the new bake was measured against the old one read from the 2D colliders (a district, seed 7, and a house). The old test and its 2D reference went with the colliders in del2d-c2; what they measured is recorded (`tests/_navigation/bake_baseline.gd`, taken at b2777f4b) and `navigation/bake_matches_recorded_colliders` (+ `_house`) reproduces it from the twins, and checks the walls against each `Wall`'s own outlines (the same outlines, the navmesh's clearance from them, every doorway open). The walls are the same outlines (341 holes and as
 many walls in the district, each wall within a pixel). A round piece or character is the bake's own 10-sided polygon (`NavHoles.CIRCLE_SEGMENTS`),

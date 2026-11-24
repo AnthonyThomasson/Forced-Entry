@@ -51,4 +51,4 @@
     - `PlanSpace` (`general/plan_space.gd`, static holder): the plan-space helper. A `Vector2` in the AI, world generation, navigation and most tests means plan space, the floor
 	  plan `(x, y)` = `(x, z)` on the 3D ground; `PlanSpace.lift(plan, height := 0.0) -> Vector3` is `(x, height, y) * RenderConfig.unit`, `plan_of(point) -> Vector2` and
 	  `height_of(point) -> float` undo it; `lift_transform(xf: Transform2D, height := 0.0) -> Transform3D` lifts a body's 2D transform (a turn of `a` is a turn of `-a` about up; a local `(x, y)` is the local `(x, 0, y)`) and
-	  `plan_transform(xf3) -> Transform2D` undoes it. It is the mapping of the mirror, the camera rig and the twin space (`MeshKinds.lift`, `CameraRig`, `TwinSpace`, 29), written once. Test: `tests/general/plan_space_test.gd`.
+	  `plan_transform(xf3) -> Transform2D` undoes it. It is the mapping of the mirror, the camera rig and the twin space (`MeshCarrier`, `CameraRig`, `TwinSpace`, 29), written once. Test: `tests/general/plan_space_test.gd`.
