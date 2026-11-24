@@ -120,6 +120,13 @@ func held_time() -> float:
 	return held_for if loco._way == loco.Way.HELD else 0.0
 
 
+## Seconds until a held walk re-plans (`check_held`), 0 or less once it is due: what an entry reads
+## to ask for the map its verdict on the slot is read from just before it is needed
+## (`EntryApproach.tick_approach`). Meaningful while the walk is held.
+func replan_in() -> float:
+	return _replan_at - held_for
+
+
 ## True once each time a held walk has re-planned and found no way through (the body seals the only
 ## way and the destination is not taken, or no free spot is near it): the caller's cue to re-decide.
 ## The walk stays held meanwhile.

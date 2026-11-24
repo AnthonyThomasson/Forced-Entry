@@ -32,6 +32,10 @@ const HELD_BY_FORMING_CAP := 3.0
 ## How long ago (s) a body at rest out of sight may have been seen for a hold's verdict on the slot
 ## to count it (`_standing_bodies`).
 const SEEN_FRESH := 0.5
+## How long (s) before a held walk re-plans the entry asks for the map its verdict on the slot is
+## read from (`tick_approach`): the bake of an avoid map lands `NavBakeConfig.avoid_frames` (22
+## frames, 0.37 s) after its ask, and a margin.
+const WARM_LEAD := 0.6
 ## Most seconds one entry spends topping its gun off before the crossing (a reload that will not
 ## start is not waited on forever).
 const TOP_OFF_CAP := 8.0
@@ -343,9 +347,10 @@ func tick_approach(entry: Entry, team: Array, delta: float) -> void:
 		return
 	if _end_forming_wait(entry):
 		return
-	if world.loco.crowd.held_time() > 0.0:
-		# Held: the map the verdict on the slot is read from is asked for now, so it is baked by the
-		# re-plan.
+	if world.loco.crowd.held_time() > 0.0 and world.loco.crowd.replan_in() <= WARM_LEAD:
+		# Held, and the re-plan near: the map the verdict on the slot is read from is asked for now,
+		# so it is baked by the re-plan (not before: the bodies it carves move on, and each set
+		# asked for is a district-size bake).
 		_slot_sealed(entry, state.member.point)
 	if not team.is_empty() and entry.grenade.due(entry, team, delta):
 		# The rest of the stack is in place: the thrower goes straight to throw, rather than into

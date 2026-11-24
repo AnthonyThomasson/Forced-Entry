@@ -27,6 +27,7 @@ const StackLayout := preload("res://scenes/ai/perception/stack/stack_layout.gd")
 const EntrySlots := preload("res://scenes/ai/perception/entry/entry_slots.gd")
 const EntryPosts := preload("res://scenes/ai/perception/entry/entry_posts.gd")
 const EntryLayouts := preload("res://scenes/ai/perception/entry/entry_layouts.gd")
+const EntryBodyMaps := preload("res://scenes/ai/perception/entry/entry_body_maps.gd")
 ## How far (px) outside the threshold the "entry point" is that a corner is judged hard or soft
 ## from.
 const ENTRY_POINT_DEPTH := 24.0
@@ -38,8 +39,6 @@ const SHORT_ROOM_CAPACITY := 2
 ## A body's radius (px): a slot against the wall stands clear of the doorway's opening by it, one on
 ## the open floor off its axis.
 const SLOT_BODY := 14.0
-## Sides of the polygon a body is carved as (`slot_reach`).
-const BODY_SEGMENTS := 10
 ## The walk's last-leg rule, held here once for the walk and for `slot_reach`'s prediction of it:
 ## a route round bodies at rest that ends short of its goal still reaches it by a last leg walked
 ## plain, at most `LAST_LEG` long (px; behaviour's locomotion crowd reads it), passing no body
@@ -49,6 +48,8 @@ const LAST_LEG := 64.0
 const PASS_CLEARANCE := 32.0
 ## The step (px) a side's wall is walked along in.
 const SLOT_STEP := 4.0
+## How far (px) off a route a body may stand and still shape a way round it (`slot_reach`).
+const BODY_CORRIDOR := 64.0
 
 ## The sight sense (sight rays over low cover): the perception hands in its own.
 var vision: RefCounted = AgentVision.new()
@@ -157,10 +158,12 @@ func slot_reach(from: Vector2, to: Vector2, map: RID, bodies: Array) -> int:
 	var region := NavBuilder.planning_region(map)
 	if region == null or not NavBuilder.ready(map):
 		return 1
-	var carved := _bodies_map(region, bodies)
+	var plain := NavBuilder.route(map, from, to)
+	var near := bodies if plain.size() < 2 else _bodies_near(bodies, plain)
+	var carved := map if near.is_empty() else _bodies_map(region, near)
 	if not carved.is_valid() or not NavBuilder.ready(carved):
 		return -1
-	var path := NavBuilder.route(carved, from, to)
+	var path := plain if near.is_empty() else NavBuilder.route(carved, from, to)
 	if path.is_empty():
 		return 0
 	var end := path[path.size() - 1]
@@ -170,21 +173,24 @@ func slot_reach(from: Vector2, to: Vector2, map: RID, bodies: Array) -> int:
 	return 1 if _last_leg_clear(map, end, goal, bodies) else 0
 
 
-## The avoid map (`NavBuilder.avoid_map`) of planning region `region` with a body carved at each of
-## `bodies` (a `BODY_SEGMENTS`-gon of `SLOT_BODY` and `NavBuilder.OBSTACLE_MARGIN`), keyed by the
-## bodies on a `SLOT_STEP` grid (`slot_reach`).
-func _bodies_map(region: NavigationRegion3D, bodies: Array) -> RID:
-	var keys: Array = []
-	var holes: Array = []
+## The bodies of `bodies` within `BODY_CORRIDOR` of the route `path`: the only ones a carved way
+## round could be held by.
+func _bodies_near(bodies: Array, path: PackedVector2Array) -> Array:
+	var out: Array = []
 	for b: Vector2 in bodies:
-		keys.append("%d,%d" % [int(b.x / SLOT_STEP), int(b.y / SLOT_STEP)])
-		var hole := PackedVector2Array()
-		for i in BODY_SEGMENTS:
-			hole.append(b + Vector2.from_angle(TAU * i / BODY_SEGMENTS) * (SLOT_BODY
-					+ NavBuilder.OBSTACLE_MARGIN))
-		holes.append(hole)
-	keys.sort()
-	return NavBuilder.avoid_map(region, "bodies:" + ";".join(keys), holes)
+		for i in range(1, path.size()):
+			if (Geometry2D.get_closest_point_to_segment(b, path[i - 1], path[i]).distance_to(b)
+					<= BODY_CORRIDOR):
+				out.append(b)
+				break
+	return out
+
+
+## The avoid map (`NavBuilder.avoid_map`) of planning region `region` with a body carved at each of
+## `bodies` (a polygon of `SLOT_BODY` and `NavBuilder.OBSTACLE_MARGIN`): one kept for
+## the same bodies within `EntryBodyMaps.TOLERANCE` (`slot_reach`).
+func _bodies_map(region: NavigationRegion3D, bodies: Array) -> RID:
+	return EntryBodyMaps.of(region, bodies, SLOT_BODY + NavBuilder.OBSTACLE_MARGIN)
 
 
 ## How close (px) a walk may pass a body it now stands `stands_off` px from: `PASS_CLEARANCE`, or

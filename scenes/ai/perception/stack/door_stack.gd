@@ -25,11 +25,26 @@ const StackLayout := preload("res://scenes/ai/perception/stack/stack_layout.gd")
 var geometry := {}
 ## The claims on the doorway, lowest slot first (shared with the ledger: never changed here).
 var team: Array = []
+## The reads kept for a member (`_kept_read`): key -> `[me, read]`.
+var _kept := {}
 
 
 func _init(g := {}, claims: Array = []) -> void:
 	geometry = g
 	team = claims
+
+
+## The read `key` of member `me`, kept while `me` is the same dictionary (the entry keeps its own
+## while what it is built from stands, `EntryClaim.me`): a doorway's stack stands across frames
+## (`ClaimLedger.stack`) and its claims are never changed, so what it works out of them for one
+## member does not change either. A read is a value to read, never to change.
+func _kept_read(key: StringName, me: Dictionary, fresh: Callable) -> Variant:
+	var kept: Array = _kept.get(key, [])
+	if not kept.is_empty() and is_same(kept[0], me):
+		return kept[1]
+	var out: Variant = fresh.call(me)
+	_kept[key] = [me, out]
+	return out
 
 
 ## The slot member `me` holds (`me.slot`, 0: it is claiming now), or the first one free for it,
@@ -68,6 +83,11 @@ func settle(me: Dictionary) -> Dictionary:
 ## Where every member stands in its slot (`{ id, slot, side, point, me? }`, `me` marked): the
 ## claims, with the move-up rewrite, and `me`'s own, each laid among them all as `settle` lays it.
 func points(me: Dictionary) -> Array:
+	return _kept_read(&"points", me, _points)
+
+
+## `points`, worked out.
+func _points(me: Dictionary) -> Array:
 	var members: Array = _moved_up(me) + [_member(me).merged({ "me": true }, true)]
 	return members.map(
 		func(m): return m.merged({
@@ -120,6 +140,11 @@ func layout(me := {}) -> Array:
 ## The members in the order they cross (E6, E19: `StackLayout.crossing_order`), `me` among them when
 ## given (marked `me`).
 func crossing(me := {}) -> Array:
+	return _kept_read(&"crossing", me, _crossing)
+
+
+## `crossing`, worked out.
+func _crossing(me := {}) -> Array:
 	var members := team
 	if not me.is_empty():
 		members = members + [_member(me).merged({ "me": true }, true)]
@@ -157,6 +182,11 @@ func going_in() -> bool:
 ## that does; `me` (its `stuns` / `frags`) among them. Never the human, which throws nothing for the
 ## stack.
 func thrower(kind: StringName, me := {}) -> int:
+	return _kept_read(&"thrower_frag" if kind == &"frag" else &"thrower", me, _thrower.bind(kind))
+
+
+## `thrower`, worked out.
+func _thrower(me: Dictionary, kind: StringName) -> int:
 	var key := "frags" if kind == &"frag" else "stuns"
 	var carriers: Array = []
 	for m in team:
@@ -177,6 +207,11 @@ func thrower(kind: StringName, me := {}) -> int:
 ## room it goes into, `into`), else the lowest slot's of the claims that carry one (an unordered
 ## member that joins an ordered stack follows it, D10). {} for a stack nobody was ordered to.
 func order_claim(me := {}) -> Dictionary:
+	return _kept_read(&"order_claim", me, _order_claim)
+
+
+## `order_claim`, worked out.
+func _order_claim(me := {}) -> Dictionary:
 	if str(me.get("order_id", "")) != "":
 		return {
 			"order_id": str(me["order_id"]), "order_bang": bool(me.get("order_bang", false)),
@@ -205,6 +240,11 @@ func released(order_id: String, into: String, since: int) -> bool:
 ## joins it follows it, as D10): `order_id` "", `since` the frame its joins were posted on. {} for a
 ## stack that holds for nobody: no hold, an AI leader's rally, an independent stack.
 func hold(me: Dictionary) -> Dictionary:
+	return _kept_read(&"hold", me, _hold)
+
+
+## `hold`, worked out.
+func _hold(me: Dictionary) -> Dictionary:
 	var ordered := order_claim(me)
 	if not ordered.is_empty():
 		if not bool(ordered.get("order_hold", false)):
@@ -223,6 +263,11 @@ func hold(me: Dictionary) -> Dictionary:
 ## `me` has not latched it (`order_go`) and no claim says it came (`released`). Nobody in a held
 ## stack slices the pie, listens, calls a bang or crosses.
 func held(me: Dictionary) -> bool:
+	return _kept_read(&"held", me, _held)
+
+
+## `held`, worked out.
+func _held(me: Dictionary) -> bool:
 	if bool(me.get("order_go", false)):
 		return false
 	var go := hold(me)
@@ -237,6 +282,11 @@ func held(me: Dictionary) -> bool:
 ## stack's is its first claimer's (E17): `stun` while every claim says bang and none gave it up,
 ## else `quiet`. "" with nobody claiming and no order nor rally: the member goes its own way.
 func mode(me: Dictionary) -> String:
+	return _kept_read(&"mode", me, _mode)
+
+
+## `mode`, worked out.
+func _mode(me: Dictionary) -> String:
 	var ordered := order_claim(me)
 	if not ordered.is_empty():
 		var id := str(ordered["order_id"])

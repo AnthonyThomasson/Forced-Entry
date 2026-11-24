@@ -93,7 +93,10 @@ at a free spot beside it, test `ai/movement/npc_dest_taken_stops_nearby`): its p
 standing in the way at body width, teammates of this stack still at `claim` (on their way) left out: no route on the plan map that ends at
 the slot, or short of it by a last stretch walked straight and clear of those bodies, as a walk goes into a slot between two taken ones
 (`approach._slot_sealed`, `AgentPerception.entry.slot_reach`). So a member walks round by another way (out by the hall and in) rather than give
-its slot up. A walk round the bodies that ends short of the slot and walks the rest straight, held there, keeps looking for a way round:
+its slot up. Only the bodies within `AgentEntry.BODY_CORRIDOR` (64 px) of the plain route to the slot are carved (a body further off cannot be met by it: none near, and the plain map answers), and
+one avoid map stands for every set of bodies that stand within `EntryBodyMaps.TOLERANCE` (4 px) of the same bodies of a kept one (a body swaying, one seen twice, an ally asking about the same stack),
+so a hold bakes a district-size map only when the bodies about its way really are another set. The map is asked for in the last `EntryApproach.WARM_LEAD` (0.6 s) before the held walk re-plans
+(`crowd.replan_in`), where the verdict is read, not from the first frame of the hold: the bodies it carves move on, and each set asked for is a bake. Test: `slot_reach_shares_body_maps`. A walk round the bodies that ends short of the slot and walks the rest straight, held there, keeps looking for a way round:
 one that ends at the slot, or another last stretch clear of every body at rest it knows of (`Locomotion`, test
 `ai/entry/entry_last_leg_sealed_goes_round`). One the stack itself keeps
 from its slot takes the back of the stack (the slots go by arrival), and with no slot left gives the claim up (`abort`) and re-decides; a

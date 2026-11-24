@@ -49,6 +49,13 @@ var _move_up_clock := 0.0
 var _moved_for := {}
 ## How far past its slot the approach in hand arrives from (`approach_lead`).
 var lead := APPROACH_LEAD
+## The claim `me` kept, the member's fields and the terms it was built on.
+var _me := {}
+var _me_fields := []
+var _me_terms := {}
+## What `sync` last wrote the terms from, and the terms it wrote.
+var _sync_from := []
+var _sync_terms := {}
 
 
 ## Built once by the entry, on its `state` and `world`.
@@ -139,22 +146,48 @@ func ask_side(entry: Entry, n: int) -> void:
 
 
 ## This NPC's own claim as it stands, as a `DoorStack` reads a member asking about itself
-## (`StackMember.me`), its terms brought up to date first (`sync`).
+## (`StackMember.me`), its terms brought up to date first (`sync`). Kept while the member's fields
+## and terms stand: an entry step asks for it a dozen times, and the dictionary is read only, as
+## every `DoorStack` read of it is.
 func me(entry: Entry) -> Dictionary:
 	sync(entry)
-	return state.member.me()
+	var member := state.member
+	var fields := [
+		member.id, member.slot, member.side, member.want, member.claim_frame, member.claim_pos,
+		member.move_up, member.step, member.crossed_frame,
+	]
+	if fields != _me_fields or not is_same(member.terms, _me_terms):
+		_me = member.me()
+		_me_fields = fields
+		_me_terms = member.terms
+	return _me
 
 
 ## Bring the member up to date with what the entry's parts hold: the frame its crossing began on,
 ## and its terms: the room it goes into, the grenades it carries for the stack, the order it stacks
-## under (its go latched) and whether it is a join.
+## under (its go latched) and whether it is a join. Left alone while those stand as they were
+## (`_sync_from`) and the terms are the ones it wrote.
 func sync(entry: Entry) -> void:
-	state.member.id = world.self_id
-	state.member.crossed_frame = entry.readiness.crossed_frame
-	state.member.terms = {
+	var member := state.member
+	var orders: RefCounted = entry.orders
+	var from := [
+		world.self_id, entry.readiness.crossed_frame, state.into, entry.grenade.stuns,
+		entry.grenade.frags, entry.readiness.released, orders.id, orders.join, orders.bang,
+		orders.mode, orders.hold, orders.side, orders.frame,
+	]
+	if (from == _sync_from
+			and is_same(member.terms, _sync_terms)
+			and member.id == world.self_id
+			and member.crossed_frame == entry.readiness.crossed_frame):
+		return
+	member.id = world.self_id
+	member.crossed_frame = entry.readiness.crossed_frame
+	member.terms = {
 		"into": state.into, "stuns": entry.grenade.stuns, "frags": entry.grenade.frags,
 	}
-	state.member.terms.merge(entry.orders.terms(entry))
+	member.terms.merge(entry.orders.terms(entry))
+	_sync_from = from
+	_sync_terms = member.terms
 
 
 ## Read the doorway's stack for this tick (`stack`): a pass-by joins no stack, so it hears none.
