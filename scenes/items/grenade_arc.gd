@@ -92,9 +92,11 @@ static var _sweeps := {}
 ## How many plans have been made since the process began: a running total a test reads to see what
 ## a build asked (`tests/ai/decision/throw_groups_built_before_the_walk_test.gd`).
 static var plans := 0
-## The planner's work since the process began, in about 50 us each: an arc swept (`_strike`) or a
-## cast held level (`_level_cast`). What a plan cost, counted and never timed: the AI prices its
-## throw-spot scan by it (`ThrowSpots.block_work`), a test reads what a question took.
+## The planner's work since the process began, in about 50 us each (before a plan remembered a
+## sweep): an arc swept (`_strike`) or a cast held level (`_level_cast`). A lob the plan has already
+## swept counts again when it is asked again, so what a plan is worth to the AI does not shrink with
+## what it remembers. What a plan cost, counted and never timed: the AI prices its throw-spot scan
+## by it (`ThrowSpots.block_work`), a test reads what a question took.
 static var work := 0
 
 
@@ -103,6 +105,7 @@ static var work := 0
 ## which strikes what is in the way. A `course.apex` of 0 or more allows only that arc.
 static func plan(course: GrenadeCourse) -> GrenadeLaunch:
 	plans += 1
+	course.made.clear()
 	var sweep := _sweep(course)
 	if _walled(course, sweep):
 		return _blocked(course, _top_arc(course))
@@ -113,7 +116,7 @@ static func plan(course: GrenadeCourse) -> GrenadeLaunch:
 	if _faced(course, sweep, arcs):
 		return _blocked(course, arcs[arcs.size() - 1])
 	var fit := Fit.new()
-	while fit.step == 0 or (not fit.spent() and fit.step <= _longest(course, arcs)):
+	while fit.step == 0 or _lobs_left(course, fit, arcs):
 		for arc: Arc in arcs:
 			var launch := _try(course, sweep, fit, arc)
 			if launch != null:
@@ -122,6 +125,16 @@ static func plan(course: GrenadeCourse) -> GrenadeLaunch:
 	if not fit.best.is_empty():
 		return _launch(course, fit.best["arc"], fit.best["reach"], true, fit.best["rest"])
 	return _blocked(course, arcs[arcs.size() - 1])
+
+
+## Whether the search `fit` has a longer lob to try: the budget is not spent and some arc can still
+## be lobbed this many steps farther (worked out the first time it is asked).
+static func _lobs_left(course: GrenadeCourse, fit: Fit, arcs: Array[Arc]) -> bool:
+	if fit.spent():
+		return false
+	if fit.longest < 0:
+		fit.longest = _longest(course, arcs)
+	return fit.step <= fit.longest
 
 
 ## The throw along the flattest arc when it clears, for a question that does not fly it (the usual
@@ -294,6 +307,9 @@ static func _arcs(course: GrenadeCourse) -> Array[Arc]:
 ## speed under gravity, how far the arm throws it (`cap`) and where it first touches down so that it
 ## comes to rest at the aim (`reach`; `capped` when it cannot get there).
 static func _arc(course: GrenadeCourse, apex: float) -> Arc:
+	var made: Variant = course.made.get(apex)
+	if made != null:
+		return made
 	var g := GrenadeConfig.gravity
 	var floor_y := GrenadeConfig.radius + SmallFlight.GROUND_GAP
 	var top := maxf(apex, maxf(course.release, floor_y + 1.0))
@@ -306,6 +322,9 @@ static func _arc(course: GrenadeCourse, apex: float) -> Arc:
 	)
 	var aim := course.from.distance_to(course.to)
 	var arc := Arc.new()
+	arc.keep = float(course.row.get("restitution", 0.35))
+	arc.friction = float(course.row.get("friction", 520.0))
+	arc.dir = _direction(course)
 	arc.apex = top
 	arc.rise = rise
 	arc.time = time
@@ -314,9 +333,10 @@ static func _arc(course: GrenadeCourse, apex: float) -> Arc:
 	arc.reach = cap
 	arc.capped = true
 	arc.farthest = minf(cap, aim + LOB_BEYOND)
-	if _comes_to_rest(course.row, arc, cap) >= aim:
+	if _comes_to_rest(arc, cap) >= aim:
 		arc.capped = false
 		arc.reach = -1.0
+	course.made[apex] = arc
 	return arc
 
 
@@ -324,17 +344,17 @@ static func _arc(course: GrenadeCourse, apex: float) -> Arc:
 ## asked for (a blocked lob never needs it).
 static func _reach(course: GrenadeCourse, arc: Arc) -> float:
 	if arc.reach < 0.0:
-		arc.reach = _solve(course.row, arc, course.from.distance_to(course.to))
+		arc.reach = _solve(arc, course.from.distance_to(course.to))
 	return arc.reach
 
 
 ## Where an arc first touches down so that it comes to rest `aim` px from the hand (bisected).
-static func _solve(row: Dictionary, arc: Arc, aim: float) -> float:
+static func _solve(arc: Arc, aim: float) -> float:
 	var low := 0.0
 	var high := minf(arc.cap, aim)
 	for _i in SOLVE_STEPS:
 		var mid := (low + high) * 0.5
-		if _comes_to_rest(row, arc, mid) < aim:
+		if _comes_to_rest(arc, mid) < aim:
 			low = mid
 		else:
 			high = mid
@@ -343,20 +363,21 @@ static func _solve(row: Dictionary, arc: Arc, aim: float) -> float:
 
 ## How far (px) from the hand an arc of `arc` that first touches down `reach` out comes to rest,
 ## over a flat floor: through the bounces and the skid, with no queries.
-static func _comes_to_rest(row: Dictionary, arc: Arc, reach: float) -> float:
+static func _comes_to_rest(arc: Arc, reach: float) -> float:
 	var g := GrenadeConfig.gravity
-	var keep := float(row.get("restitution", 0.35))
+	var keep := arc.keep
+	var min_hop := GrenadeConfig.min_hop_speed
 	var along := reach / arc.time
 	var down: float = arc.vdown
 	var far := reach
 	for _bounce in 8:
-		if down > GrenadeConfig.min_hop_speed and down * keep > g * PLAN_DELTA:
+		if down > min_hop and down * keep > g * PLAN_DELTA:
 			along *= keep
 			down *= keep
 			far += along * 2.0 * down / g
 		else:
 			break
-	return far + along * along / (2.0 * float(row.get("friction", 520.0)))
+	return far + along * along / (2.0 * arc.friction)
 
 
 ## How many `FIT_STEP`s the farthest arc can be lobbed beyond where it was solved to touch
@@ -440,18 +461,35 @@ static func _strike(
 	if course.space == null:
 		return null
 	work += 1
-	var time: float = arc.time
-	var along := reach / time
-	var direction := _direction(course)
-	var before := _point(course, direction, along, arc, 0.0)
-	var first := _point(course, direction, along, arc, time / SEGMENTS)
-	if _starts_into(course, query, before, first - before):
+	if arc.struck.has(reach):
+		return arc.struck[reach]
+	var found: Variant = _swept(course, query, arc, reach)
+	arc.struck[reach] = found
+	return found
+
+
+## `_strike`'s sweep: the casts along the arc's `SEGMENTS` chords from the hand, to the first one
+## stopped.
+static func _swept(
+	course: GrenadeCourse,
+	query: PhysicsShapeQueryParameters3D,
+	arc: Arc,
+	reach: float,
+) -> Variant:
+	var along := reach / arc.time
+	var points := _chords(course, arc, along)
+	var before := points[0]
+	var after := points[1]
+	if _starts_into(course, query, before, after - before):
 		return _spot(before)
+	var near := true
 	for i in SEGMENTS:
-		var at := time * float(i + 1) / SEGMENTS
-		var after := _point(course, direction, along, arc, at)
-		var started := time * float(i) / SEGMENTS
-		query.exclude = course.passed if along * started < THROWER_CLEAR else NOBODY
+		after = points[i + 1]
+		# `_starts_into` left the thrower's twin passed; once the grenade is `THROWER_CLEAR` out it
+		# is no more (`Arc.times` rise, so it is never passed again).
+		if near and along * arc.times[i] >= THROWER_CLEAR:
+			query.exclude = NOBODY
+			near = false
 		query.transform = Transform3D(Basis(), before)
 		query.motion = after - before
 		var res := course.space.cast_motion(query)
@@ -462,6 +500,29 @@ static func _strike(
 			return _spot(stopped)
 		before = after
 	return null
+
+
+## The ends of the chords of `arc` thrown `along` px/s across the floor, the hand first
+## (`SEGMENTS + 1` points): `from + direction * along * time` over the arc's height then.
+static func _chords(course: GrenadeCourse, arc: Arc, along: float) -> PackedVector3Array:
+	if arc.times.is_empty():
+		_tabulate(course, arc)
+	var across := arc.dir * along
+	var unit := RenderConfig.unit
+	var points := PackedVector3Array()
+	for i in SEGMENTS + 1:
+		var at := course.from + across * arc.times[i]
+		points.append(Vector3(at.x, arc.heights[i], at.y) * unit)
+	return points
+
+
+## The times (s) the arc's chords end at, from the release (`SEGMENTS + 1` of them), and its height
+## at each.
+static func _tabulate(course: GrenadeCourse, arc: Arc) -> void:
+	for i in SEGMENTS + 1:
+		var at: float = arc.time * float(i) / SEGMENTS
+		arc.times.append(at)
+		arc.heights.append(_height(course, arc, at))
 
 
 ## Whether a strike at `stopped`, on the way from `before` to `after`, is a landing: on the way
@@ -563,18 +624,6 @@ static func _struck(
 	return true
 
 
-## The 3D point of the arc `time` s after the release.
-static func _point(
-	course: GrenadeCourse,
-	direction: Vector2,
-	along: float,
-	arc: Arc,
-	time: float,
-) -> Vector3:
-	var height := _height(course, arc, time)
-	return PlanSpace.lift(course.from + direction * along * time, height)
-
-
 ## The height (px) of the centre of `arc` `time` s after the release: the floor's once it is down.
 static func _height(course: GrenadeCourse, arc: Arc, time: float) -> float:
 	if time >= arc.time:
@@ -590,7 +639,7 @@ static func _direction(course: GrenadeCourse) -> Vector2:
 
 ## Where `arc` first touching down `reach` out rests, flown over the floor (`rest_of`).
 static func _rest(course: GrenadeCourse, arc: Arc, reach: float) -> Vector2:
-	var far := _comes_to_rest(course.row, arc, reach)
+	var far := _comes_to_rest(arc, reach)
 	var direction := _direction(course)
 	if _skid_clear(course, reach, far):
 		return course.from + direction * far
@@ -651,6 +700,15 @@ class Arc:
 	var reach := -1.0
 	var capped := false
 	var farthest := 0.0
+	## The way across the floor (unit) and the row's `restitution` and `friction`, read once.
+	var dir := Vector2.RIGHT
+	var keep := 0.0
+	var friction := 0.0
+	## The times and heights its sweep's chords end at (`_tabulate`), and what each lob of it (by
+	## reach) was found to strike, kept for the plan (`_strike`).
+	var times := PackedFloat64Array()
+	var heights := PackedFloat64Array()
+	var struck := {}
 
 
 ## The search of `plan` through the arcs and how far each is lobbed: how many `FIT_STEP`s farther
@@ -662,6 +720,8 @@ class Fit:
 	var tries := 0
 	var best: Dictionary = {}
 	var best_off := INF
+	## How many steps the farthest arc can be lobbed (`_longest`), -1 until asked.
+	var longest := -1
 	## The apexes whose arc was struck early on its way: lobbing it farther strikes it again.
 	var early := {}
 

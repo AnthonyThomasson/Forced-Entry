@@ -34,3 +34,6 @@ var top: float = -1.0
 ## The underside of the roof over the hand or the aim, the lower (px; `INF`: none): worked out with
 ## `top`.
 var roof: float = INF
+## The arcs the planner made for this plan, by the apex asked for (`GrenadeArc._arc`): kept for the
+## one `plan` and cleared at the next, so the planner works each out and sweeps each lob once.
+var made: Dictionary = {}

@@ -105,7 +105,12 @@ of the aim: a grenade that would touch down short of a sofa and skid into it is 
 over the sofa, to touch down past it and roll on; a rest short of the aim is counted twice (the grenade the cover stopped is the worse miss than
 one that rolled on). One that no arc brings near is thrown on the arc that rests nearest, and one with **no clear arc at all** on the highest, and
 strikes what is in the way (`ok` is false). The AI asks the same question without flying the skid (`GrenadeArc.clear`, G17), so a throw it judges
-clear is one the flight then makes. Real limits follow: under a roof a lob can come down only so steeply, so a target within about 50 px
+clear is one the flight then makes. **What a plan costs** (#194, perf-arc): a plan is mostly casts, and a failing one (nearly every plan the AI's throw-spot search asks: 95 % in the vision guard's window)
+sweeps the same lob more than once, so a plan works each arc out once (its flight time, the heights its five chords end at, its reach, what it rests as) and sweeps each lob (an arc at a reach) once:
+the flat arc `_flattest` tries, the arcs `_faced` compares and the first step of the search are the same sweeps. `GrenadeArc.work` is the price the AI's search is charged by and it is **not** the
+casts made: a sweep answered from what the plan already found still counts one, so a cheaper plan is no less work and the AI's budgets, block sizes and cadence stay what they were. The plan's answer,
+its `top` and `roof` and its `work` are the planner's of before the cut for every input. Test: `items/grenade_arc_matches_reference` (four thousand throws generated in the perf guards' district, planned by
+`GrenadeArc` and by `tests/_items/grenade_arc_reference.gd`, a frozen copy of the planner before the cut: every launch field, the course's top and roof and the work equal). Real limits follow: under a roof a lob can come down only so steeply, so a target within about 50 px
 behind a 31 px desk, or in the lee of a 78 px wardrobe far from the thrower, is out of a throw's reach indoors; in the open the same target is reached.
 Tests: `items/grenade_bounces_off_wall`, `items/grenade_bounces_in_3d` (a wall struck in the air, the floor, rest on it), `items/grenade_lobs_over_furniture`
 (a desk and a wardrobe: over them and landing at the aim), `items/grenade_lands_on_furniture` (aimed at a desk, it rests on top), `items/grenade_lobbed_over_cover`,
