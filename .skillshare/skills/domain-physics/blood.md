@@ -49,7 +49,7 @@ under it `BloodPrintConfig.footprints_enabled`, `BloodSmearConfig.enabled`, `Blo
 
 - `Physics.bleed_out(parent, source, exclude)` (`BloodSpawner.bleed`) starts a `BloodPool` where the dead body's blood leaves it
   (`blood_origin()`: the trunk's middle once fallen). A `BloodFlow` flood-fill claims `bleed_out_cells` grid cells up front
-  (a batch per frame), cheapest-first with noisy cost. Its frontier heap orders by (cost, first insertion sequence), leaving stale
+  (`BloodPool.FLOW_CLAIMS_PER_FRAME` a physics frame for all the pools together, an even share each), cheapest-first with noisy cost. Its frontier heap orders by (cost, first insertion sequence), leaving stale
   entries on a cost decrease, so claims match the old linear dictionary scan even on ties; one square and query-parameter object are
   reused for blocked-cell tests (`blood_flow_heap_matches_scan_test.gd`). Cells a wall or a piece stands on (the twin space, on the floor) never fill, so the
   puddle wraps walls and furniture and runs under a table's top. A front sweeps through flow-cost over `bleed_out_duration`.
