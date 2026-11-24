@@ -2,7 +2,8 @@
 
 Every match and test world is lit at **dusk** with real lights and shadows: no light is baked into any art. The game is drawn in 3D
 and these are its lights. Behaviours L1 to L11 are the spec, each with its tests named under it, following the convention of
-`docs/grenades.md`. (The "2D" this file compares with is the look of the earlier 2D render, which the 3D one matches.) The tests are
+`docs/grenades.md`. (The "2D" this file compares with is the look of the earlier 2D render, which no longer exists: the 3D one was tuned to match it, and the
+numbers say what it does now.) The tests are
 in `tests/lighting/` (`tools/run_tests.sh --domain=lighting`), through `tests/_lighting/lighting_3d_probe.gd` and the data reads of
 `tests/_lighting/lighting_probe.gd`, which keep the plan's numbers as their own consts and read the game only through the published
 names below, so a test checks this file and not the code. The code is the Lighting domain (`scenes/lighting/`, skill
@@ -15,8 +16,8 @@ All distances are px and times seconds. The numbers are the Lighting holders' (`
 
 The game is drawn in 3D (`architecture` interface 27, #193): a near top-down orthographic camera over meshes that wear the
 2D painters' flat art, shaded by Art's toon light (`toon_common.gdshaderinc`). The Lighting domain's 3D side is
-`WorldLighting3D` (`scenes/lighting/world_lighting_3d.gd`), which Main builds in the 3D view's world (the twins', interface 29) after it mirrors the
-match (`Main._view3d.light_world`): it reads the 2D world the sim runs in, duck-typed (Objects' floors
+`WorldLighting3D` (`scenes/lighting/world_lighting_3d.gd`), which Main builds in the 3D view's world (the twins', interface 29) once the
+match is built (`Main._view3d.light_world`): it reads the 2D world the sim runs in, duck-typed (Objects' floors
 (`is_street()`, `size`), a piece's `get_lights()`, the rooms), and builds the lights of the 3D world. Its numbers are
 `Lighting3DConfig` (the sun, the heights, the pools) and `LightingCostConfig` (the cost caps), over the dusk's colours and energies
 in `LightingConfig`.
