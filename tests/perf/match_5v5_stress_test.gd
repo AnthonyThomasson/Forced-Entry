@@ -19,9 +19,9 @@ extends GameTest
 ## 6.44, p95 15.88 and 13.09, max 26.01 and 17.98 ms against 16.7, 20 and 33.4.
 ## #203: the numbers above are seed 7's fight, another fight than this guard plays now (not a
 ## baseline to read a change by, nor a sign of the guard getting faster or slower). The match plays
-## one fight per seed, seed 2 now (`perf_probe.gd`), contact at 7.7 s, no late
-## nav bake; four runs (load 6 to 7.5, not `--quiet`): avg 6.69 to 6.91, p95 14.04 to 15.20, max
-## 27.38 to 28.61 ms.
+## one fight per seed, seed 23 now (`perf_probe.gd`), contact at 6.5 s, no late
+## nav bake (one of 20 in one of four plays); two runs alone at #194 perf-final (load 4 to 6, not
+## `--quiet`): avg 7.73 and 7.00, p95 13.12 and 12.14, max 15.90 and 15.65 ms.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const PER_SIDE := 5

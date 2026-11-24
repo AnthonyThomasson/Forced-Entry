@@ -37,9 +37,9 @@ extends GameTest
 ## budget is the standard's, p95 is `P95_MS`, the worst frame `MAX_MS`, and the test is neither
 ## skipped nor tagged. #203: the numbers above are seed 7's fight, another fight than this guard
 ## plays now (not a baseline to read a change by, nor a sign of the guard getting faster or slower).
-## The match plays one fight per seed, seed 2 now (`perf_probe.gd`), contact at 8.1 s every
-## run; four runs (load 5 to 6, not `--quiet`): avg 9.96 to 12.50, p95 19.78 to 22.39, max 28.33 to
-## 35.63 ms.
+## The match plays one fight per seed, seed 23 now (`perf_probe.gd`), contact at 21.4 s every
+## run; two runs alone at #194 perf-final (load 4 to 6, not `--quiet`): avg 7.06 and 7.06, p95 11.71
+## and 11.75, max 27.53 and 25.92 ms (this guard's own budgets: p95 25, max 37).
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")

@@ -22,7 +22,7 @@ extends GameTest
 ## the test is neither skipped nor tagged.
 ## #203: the numbers above are seed 7's fight, another fight than this guard plays now (not a
 ## baseline to read a change by, nor a sign of the guard getting faster or slower). The match plays
-## one fight per seed, seed 2 now (`perf_probe.gd`).
+## one fight per seed, seed 23 now (`perf_probe.gd`).
 ## Where the viewed invader stands decides what the window shows of it, and the guard means the
 ## view of an invader while it fights, alive (the premise below). The match's nine invaders start
 ## in a pack in the street, the defenders in the house to the south. Placed 40 px east of each:
