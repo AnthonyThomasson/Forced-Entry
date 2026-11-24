@@ -16,7 +16,10 @@ const STRAIGHT := 0.01
 
 
 ## `polygons` (each a ring of indexes into `vertices`) with neighbours merged where the union is
-## convex: the same floor in fewer polygons.
+## convex: the same floor in fewer polygons. It runs on a worker thread (`NavSource.bake_polygon`),
+## where a GDScript call and a dictionary write are dear, so it keeps each ring's turning (`sides`)
+## instead of reading it again for every neighbour tried, and a merge rewrites only what it
+## changes in `owner`: the shared edge goes, the union's edges are written over the two rings'.
 static func merged(
 	vertices: PackedVector2Array,
 	polygons: Array[PackedInt32Array],
@@ -24,10 +27,13 @@ static func merged(
 	var rings: Array[PackedInt32Array] = polygons.duplicate()
 	var count := vertices.size()
 	var owner := {}
+	var sides := PackedFloat32Array()
+	sides.resize(rings.size())
 	for p in rings.size():
 		_register(owner, rings[p], p, count)
+		sides[p] = _side(vertices, rings[p])
 	for p in rings.size():
-		while not rings[p].is_empty() and _grow(vertices, rings, p, owner):
+		while not rings[p].is_empty() and _grow(vertices, rings, sides, p, owner):
 			pass
 	var result: Array[PackedInt32Array] = []
 	for ring in rings:
@@ -40,22 +46,21 @@ static func merged(
 ## and the place the edge has in it (`p << 8 | place`).
 static func _register(owner: Dictionary, ring: PackedInt32Array, p: int, count: int) -> void:
 	var n := ring.size()
+	var tag := p << 8
+	var from := ring[n - 1]
 	for i in n:
-		owner[ring[i] * count + ring[(i + 1) % n]] = (p << 8) | i
-
-
-## Forget the edges of `ring`.
-static func _forget(owner: Dictionary, ring: PackedInt32Array, count: int) -> void:
-	var n := ring.size()
-	for i in n:
-		owner.erase(ring[i] * count + ring[(i + 1) % n])
+		# The edge from the vertex before `i` to vertex `i` is ring edge `i - 1`.
+		var to := ring[i]
+		owner[from * count + to] = tag | ((i + n - 1) % n)
+		from = to
 
 
 ## Ring `p` merged with the first neighbour whose union with it is acceptable (the neighbour is
-## gone, `owner` is made anew for the merged ring); whether one was.
+## gone, `owner` follows the merged ring); whether one was.
 static func _grow(
 	vertices: PackedVector2Array,
 	rings: Array[PackedInt32Array],
+	sides: PackedFloat32Array,
 	p: int,
 	owner: Dictionary,
 ) -> bool:
@@ -68,43 +73,53 @@ static func _grow(
 		if found < 0:
 			continue
 		var q := found >> 8
-		var union := _union(vertices, ring, i, rings[q], found & 255)
+		var union := _union(vertices, ring, rings[q], Vector2i(i, found & 255), sides[p])
 		if union.is_empty():
 			continue
-		_forget(owner, ring, count)
-		_forget(owner, rings[q], count)
+		# The shared edge is in neither ring now; every other edge of the two is the union's, at
+		# its place in it.
+		owner.erase(ring[i] * count + ring[(i + 1) % n])
+		owner.erase(ring[(i + 1) % n] * count + ring[i])
 		rings[p] = union
 		rings[q] = PackedInt32Array()
+		sides[p] = _side(vertices, union)
 		_register(owner, union, p, count)
 		return true
 	return false
 
 
-## The ring `a` and `b` make across their shared edge (`a`'s edge `i`, `b`'s edge `j`), or an empty
-## one when it is not convex or has more than `MAX_CORNERS` corners.
+## The ring `a` and `b` make across their shared edge (`a`'s edge `edges.x`, `b`'s edge `edges.y`;
+## `side` is `a`'s turning, `_side`), or an empty one when it is not convex or has more than
+## `MAX_CORNERS` corners.
 static func _union(
 	vertices: PackedVector2Array,
 	a: PackedInt32Array,
-	i: int,
 	b: PackedInt32Array,
-	j: int,
+	edges: Vector2i,
+	side: float,
 ) -> PackedInt32Array:
+	var i := edges.x
+	var j := edges.y
 	var na := a.size()
 	var nb := b.size()
 	if na + nb - 2 > MAX_CORNERS:
 		return PackedInt32Array()
-	var side := _side(vertices, a)
 	# The two corners the edge's ends become: a's before one, b's after it, and b's before the
 	# other, a's after it.
 	if not _turns(vertices, a[(i + na - 1) % na], a[i], b[(j + 2) % nb], side):
 		return PackedInt32Array()
 	if not _turns(vertices, b[(j + nb - 1) % nb], a[(i + 1) % na], a[(i + 2) % na], side):
 		return PackedInt32Array()
-	var ring := PackedInt32Array()
-	for k in na:
-		ring.append(a[(i + 1 + k) % na])
-	for k in nb - 2:
-		ring.append(b[(j + 2 + k) % nb])
+	# `a` from its edge's end round to the edge's start, then `b` from the corner past the edge's
+	# start (`b`'s edge `j` ends at `a`'s start of edge `i`) round to the one before it.
+	var ring := a.slice(i + 1)
+	ring.append_array(a.slice(0, i + 1))
+	var first := (j + 2) % nb
+	if first + nb - 2 <= nb:
+		ring.append_array(b.slice(first, first + nb - 2))
+	else:
+		ring.append_array(b.slice(first))
+		ring.append_array(b.slice(0, nb - 2 - (nb - first)))
 	if _fan_start(vertices, ring) < 0:
 		return PackedInt32Array()
 	return ring

@@ -65,9 +65,13 @@ static func iteration(map: RID) -> int:
 ## frame, as the bake leaves them): vertices lifted to (x, 0, y), on the cell size and height of
 ## the maps. The polygon stays on the region (`polygon_of`) for what reads a region's plan geometry
 ## (`NavSeams`, `NavTiles.probe_of`). A new mesh each time, so the server takes it in afresh.
-static func assign(region: NavigationRegion3D, poly: NavigationPolygon) -> void:
+## `mesh` is `mesh_of(poly)` when the caller made it already (a bake's worker thread did, so the
+## landing frame is only the assignment); null makes it here.
+static func assign(
+	region: NavigationRegion3D, poly: NavigationPolygon, mesh: NavigationMesh = null
+) -> void:
 	region.set_meta(POLYGON_META, poly)
-	region.navigation_mesh = mesh_of(poly)
+	region.navigation_mesh = mesh if mesh != null else mesh_of(poly)
 
 
 ## The plan-space polygon last `assign`ed to `region`; null before one.

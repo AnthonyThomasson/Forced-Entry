@@ -298,7 +298,7 @@ static func _on_steering_region_exited(planning_map: RID) -> void:
 static func _steering_map_for(planning_map: RID) -> RID:
 	if _steering_maps.has(planning_map):
 		return _steering_maps[planning_map]
-	var map := NavSource.new_map(false)
+	var map := NavSource.new_map()
 	_steering_maps[planning_map] = map
 	return map
 

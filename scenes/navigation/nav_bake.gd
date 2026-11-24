@@ -48,6 +48,10 @@ var _due := -1
 ## How many frames the bake lands after its start (`start`'s `frames`).
 var _frames := 0
 var _poly: NavigationPolygon
+## The navmesh of `_poly`, made by the worker once it has baked (`NavPlan.mesh_of`; one element,
+## held in an array the worker fills and the landing reads after waiting for it), so the landing
+## frame only assigns it.
+var _mesh: Array[NavigationMesh] = []
 var _region_ref: WeakRef
 var _landed: Callable
 var _tree: SceneTree
@@ -91,8 +95,10 @@ static func start(
 	var source: NavigationMeshSourceGeometryData2D = job["source"]
 	var poly := bake._poly
 	var urgent: bool = job.get("urgent", false)
+	var made := bake._mesh
 	bake._task = WorkerThreadPool.add_task(func() -> void:
-		NavSource.bake_polygon(poly, source, origin), urgent, "nav bake")
+		NavSource.bake_polygon(poly, source, origin)
+		made.append(NavPlan.mesh_of(poly)), urgent, "nav bake")
 	if bake._tree == null:
 		bake._land()
 		return bake
@@ -135,5 +141,5 @@ func _land() -> void:
 	landed_total += 1
 	var target := _region_ref.get_ref() as NavigationRegion3D
 	if target != null:
-		NavPlan.assign(target, _poly)
+		NavPlan.assign(target, _poly, _mesh[0] if not _mesh.is_empty() else null)
 	_landed.call()

@@ -293,34 +293,31 @@ static func remember(region: NavigationRegion3D, baked: Dictionary) -> void:
 	})
 
 
-## A new active map on the bake's cell (`tune_map`). `edge_connections` is whether the map runs the
-## server's edge-connection pass (the project's setting by default): it joins free edges of
-## different regions within a pixel, which rebuilds the whole map's links on every change
-## (`steering-edge-connections.md`).
-static func new_map(edge_connections := true) -> RID:
+## A new active map on the bake's cell (`tune_map`).
+static func new_map() -> RID:
 	var map := NavigationServer3D.map_create()
 	tune_map(map)
-	NavigationServer3D.map_set_use_edge_connections(
-		map,
-		(
-			edge_connections
-			and bool(ProjectSettings.get_setting("navigation/3d/use_edge_connections", true))
-		),
-	)
 	NavigationServer3D.map_set_active(map, true)
 	return map
 
 
 ## Put `map` on the cell size and height a bake's mesh is made in (the server refuses a navmesh
-## baked with another cell size) and the edge and link margins the plan's px units want. A map of
-## the world's own (a twin space's, a viewport's) is made with the project's `3d/default_*`
-## settings, which agree with these, but a map is only as the constants say once it is told, so
-## `NavBuilder.build` tells each planning map it adds a region to.
+## baked with another cell size) and the edge and link margins the plan's px units want, and turn
+## its edge-connection pass off. The pass joins free edges of different regions within a pixel and
+## rebuilds the whole map's links on every change (`steering-edge-connections.md`); no map of ours
+## has a second region to join: a planning, ring or avoid map holds one region baked in one go, a
+## steering map's tiles are welded (`NavSeams`). A district's mesh took 4.4 ms to synchronise on a
+## landing with it and 1.1 ms without, the same routes either way
+## (`navigation/planning_routes_match_edge_connections`). A map of the world's own (a twin space's,
+## a viewport's) is made with the project's `3d/default_*` settings, which agree with these, but a
+## map is only as the constants say once it is told, so `NavBuilder.build` tells each planning map
+## it adds a region to.
 static func tune_map(map: RID) -> void:
 	NavigationServer3D.map_set_cell_size(map, CELL_SIZE)
 	NavigationServer3D.map_set_cell_height(map, CELL_HEIGHT)
 	NavigationServer3D.map_set_edge_connection_margin(map, EDGE_MARGIN)
 	NavigationServer3D.map_set_link_connection_radius(map, LINK_RADIUS)
+	NavigationServer3D.map_set_use_edge_connections(map, false)
 
 
 ## An empty polygon to bake into, with the bake's agent radius (plus the wall margin).
