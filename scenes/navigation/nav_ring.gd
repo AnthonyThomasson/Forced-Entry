@@ -130,6 +130,24 @@ static func job(
 	furniture: Array,
 	walls: Dictionary,
 ) -> Dictionary:
+	var reach := reach_of(region, site, furniture, walls)
+	if reach.is_empty():
+		return {}
+	var baked := NavSource.job(reach["site"], reach["holes"], [], reach["walls"])
+	baked["urgent"] = true
+	return baked
+
+
+## What the ring's job is made of, gathered (the cheap part of `job`, on the main thread): `{ site,
+## walls, holes }`, the ring's own site, the walls that reach it and the footprints of the
+## furniture that does, `holes` still to be fused (`job` fuses them in the call; `NavGather` has a
+## worker fuse them: `finish`). {} when the region has no ring.
+static func reach_of(
+	region: NavigationRegion3D,
+	site: NavSite,
+	furniture: Array,
+	walls: Dictionary,
+) -> Dictionary:
 	var kept: Dictionary = region.get_meta(META, {})
 	if kept.is_empty():
 		return {}
@@ -139,8 +157,21 @@ static func job(
 		walls["obstruction"] if not walls.is_empty()
 		else NavTiles.walls_reaching(region, ring, reaches)
 	)
-	var reached := NavSource.walls(NavTiles.bin(outlines, reaches, Vector2.ZERO)[0])
-	var holes: Array = NavTiles.bin(furniture, reaches, ring.house.position)[0]
-	var baked := NavSource.job(ring, holes, [], reached)
+	return {
+		"site": ring,
+		"walls": NavSource.walls(NavTiles.bin(outlines, reaches, Vector2.ZERO)[0]),
+		"holes": NavTiles.bin(furniture, reaches, ring.house.position)[0],
+	}
+
+
+## The ring's job (as `job` makes it) from `reach` (`reach_of`) and its holes fused and prepared
+## (`NavFuse.prepared`). {} when `reach` is.
+static func finish(reach: Dictionary, prepared: Array) -> Dictionary:
+	if reach.is_empty():
+		return {}
+	var baked := NavSource.base(reach["site"], reach["walls"])
+	if baked.is_empty():
+		return {}
+	NavSource.add_prepared(baked["source"], prepared)
 	baked["urgent"] = true
 	return baked

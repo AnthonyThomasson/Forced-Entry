@@ -135,8 +135,22 @@ static func local_outlines(origin: Vector2, footprints: Array) -> Array:
 ## Add `fused` (the fused `local_outlines`) to `source` as obstruction outlines: snapped to whole
 ## pixels and simplified.
 static func finish_holes(source: NavigationMeshSourceGeometryData2D, fused: Array) -> void:
+	add_prepared(source, prepared_holes(fused))
+
+
+## `fused` as `finish_holes` adds it: snapped to whole pixels and simplified. It reads nothing but
+## its argument, so a worker makes it (`NavFuse`).
+static func prepared_holes(fused: Array) -> Array:
+	var out: Array = []
 	for outline in on_grid(fused):
-		source.add_obstruction_outline(simplified(outline))
+		out.append(simplified(outline))
+	return out
+
+
+## Add `prepared` (`prepared_holes`) to `source` as obstruction outlines.
+static func add_prepared(source: NavigationMeshSourceGeometryData2D, prepared: Array) -> void:
+	for outline: PackedVector2Array in prepared:
+		source.add_obstruction_outline(outline)
 
 
 ## Bake a gathered job (`job`) at once; `origin` is the region's offset (the bake's grid is laid on

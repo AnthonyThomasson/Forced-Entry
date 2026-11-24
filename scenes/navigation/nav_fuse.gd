@@ -19,16 +19,22 @@ static var _orphans: Array[int] = []
 
 ## The fusion the outlines were fed to; read its `result()` after `join`.
 var fusion := NavUnion.new()
+## The fusion as the source takes it (`NavSource.prepared_holes`), made with it; read after `join`.
+var prepared: Array = []
 var _outlines: Array = []
+var _origin := Vector2.ZERO
 var _task := -1
 var _mutex := Mutex.new()
 var _claimed := false
 
 
-## Start fusing `outlines` on a high-priority worker (so it does not queue behind the bakes in
-## flight). With `on_worker` false none is queued: the test seam of a thread that never starts.
-func start(outlines: Array, on_worker := true) -> void:
+## Start fusing `outlines` (closed polygons, `origin` taken off each point first: the footprints of
+## the world in the frame of the bake, `NavSource.local_outlines`) on a high-priority worker (so it
+## does not queue behind the bakes in flight), and preparing the fusion for the source
+## (`prepared`). With `on_worker` false none is queued: the test seam of a thread that never starts.
+func start(outlines: Array, on_worker := true, origin := Vector2.ZERO) -> void:
 	_outlines = outlines
+	_origin = origin
 	if on_worker:
 		_task = WorkerThreadPool.add_task(_run, true, "nav gather fuse")
 
@@ -39,7 +45,7 @@ func start(outlines: Array, on_worker := true) -> void:
 func join() -> Found:
 	var found := Found.DONE
 	if _take():
-		fusion.add_all(_outlines)
+		_fuse()
 		found = Found.INLINE
 		_orphan()
 	elif _task >= 0:
@@ -71,7 +77,13 @@ static func reap() -> void:
 ## The worker's task: fuse, unless a `join` has.
 func _run() -> void:
 	if _take():
-		fusion.add_all(_outlines)
+		_fuse()
+
+
+## Fuse the outlines and prepare the result: the work of whoever claimed it.
+func _fuse() -> void:
+	fusion.add_all(NavSource.local_outlines(_origin, _outlines))
+	prepared = NavSource.prepared_holes(fusion.result())
 
 
 ## Claim the fusing; false when the worker (or a call) has it.
