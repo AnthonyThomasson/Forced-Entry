@@ -9,6 +9,8 @@ const RawTwins := preload("res://tests/_vision/raw_twins.gd")
 const ORIGIN := Vector2(60_000.0, 60_000.0)
 const FACING := Vector2.RIGHT
 const SOLID_SIZE := Vector2(14.0, 60.0)
+## A top between the standing eye (69.4) and the ducking one (32).
+const BETWEEN := 50.0
 
 
 func _sight(eye_height := 69.4) -> Dictionary:
@@ -61,3 +63,55 @@ func test_a_new_eye_height_is_a_rebuild_and_measures_no_body_again() -> void:
 	# the solid is still watched after both sorts: moving it is a rebuild
 	near.position += Vector2(0.0, 30.0)
 	assert_bool(watch.stale(ORIGIN, FACING, _sight())).is_true()
+
+
+## A solid whose top lies between the two eye heights: 50 px is looked over standing (69.4) and
+## blocks ducking (32).
+func test_a_solid_between_the_eye_heights_is_a_blocker_only_when_the_viewer_ducks() -> void:
+	var watch := Watch.new()
+	watch.attach(get_tree(), [])
+	var low := _solid(Vector2(300.0, 0.0))
+	TwinSpace.twin_for(low).set_meta(&"top", BETWEEN)
+	_settled(watch, _sight())
+	var measured := watch.measured()
+	# looked over: its moving costs no rebuild
+	low.position += Vector2(0.0, 30.0)
+	assert_bool(watch.stale(ORIGIN, FACING, _sight())).is_false()
+	# the duck: it blocks, and is measured once when the build looks at it
+	assert_bool(watch.stale(ORIGIN, FACING, _sight(32.0))).is_true()
+	_settled(watch, _sight(32.0))
+	assert_int(watch.measured()).is_equal(measured + 1)
+	low.position += Vector2(0.0, 30.0)
+	assert_bool(watch.stale(ORIGIN, FACING, _sight(32.0))).is_true()
+	_settled(watch, _sight(32.0))
+	# standing again: looked over once more, moving it rebuilds nothing
+	assert_bool(watch.stale(ORIGIN, FACING, _sight())).is_true()
+	_settled(watch, _sight())
+	low.position += Vector2(0.0, 30.0)
+	assert_bool(watch.stale(ORIGIN, FACING, _sight())).is_false()
+	watch.detach()
+
+
+## A body twinned again (`retwinned`: a door knocked down) is sorted again by the top its new twin
+## has: the kept top and the blocker entry are dropped, and it is classified as a new body is.
+func test_a_retwinned_solid_is_sorted_again_by_its_new_top() -> void:
+	var space: TwinSpace = auto_free(TwinSpace.new())
+	var watch := Watch.new()
+	watch.attach(get_tree(), [], space)
+	var solid := _solid(Vector2(300.0, 0.0))
+	_settled(watch, _sight())
+	# a blocker (96 px) whose new twin is low: looked over, moving it rebuilds nothing
+	TwinSpace.twin_for(solid).set_meta(&"top", BETWEEN)
+	space.retwinned.emit(solid, null)
+	assert_bool(watch.stale(ORIGIN, FACING, _sight())).is_true()  # it left the rays: a rebuild
+	_settled(watch, _sight())
+	solid.position += Vector2(0.0, 30.0)
+	assert_bool(watch.stale(ORIGIN, FACING, _sight())).is_false()
+	# a low one whose new twin is tall: a blocker, moving it is a rebuild
+	TwinSpace.twin_for(solid).set_meta(&"top", RawTwins.HEIGHT)
+	space.retwinned.emit(solid, null)
+	assert_bool(watch.stale(ORIGIN, FACING, _sight())).is_true()
+	_settled(watch, _sight())
+	solid.position += Vector2(0.0, 30.0)
+	assert_bool(watch.stale(ORIGIN, FACING, _sight())).is_true()
+	watch.detach()

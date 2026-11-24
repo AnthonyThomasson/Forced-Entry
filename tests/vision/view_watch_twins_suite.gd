@@ -96,4 +96,4 @@ func test_a_detached_watch_does_not_hear_the_twin_space() -> void:
 	space.twinned.emit(null, null)
 	space.retwinned.emit(null, null)
 	assert_bool(space.twinned.is_connected(watch._on_twin_news)).is_false()
-	assert_bool(space.retwinned.is_connected(watch._on_twin_news)).is_false()
+	assert_bool(space.retwinned.is_connected(watch._on_retwinned)).is_false()

@@ -21,7 +21,9 @@ extends RefCounted
 ## - `VisionConfig.rebuild_every` frames since the last rebuild: the backstop.
 ##
 ## A piece's top (and a door's `transparent`) is read once and does not change for its life
-## (`ViewShapes`), so it is not watched. Reads the world duck-typed through nodes and signals.
+## (`ViewShapes`), so it is not watched, unless the twin space twins its body again (`retwinned`: a
+## door knocked down): its kept top and blocker entry are dropped and it is sorted again.
+## Reads the world duck-typed through nodes and signals.
 ## A frame that rebuilds nothing measures no shape and builds no Array: the key is compared field by
 ## field and the extents are kept.
 
@@ -89,7 +91,7 @@ func attach(tree: SceneTree, left_out: Array, twins: TwinSpace = null) -> void:
 	if twins != null:
 		_twins = twins
 		twins.twinned.connect(_on_twin_news)
-		twins.retwinned.connect(_on_twin_news)
+		twins.retwinned.connect(_on_retwinned)
 
 
 ## Stop watching: forget everything and let go of the tree.
@@ -98,7 +100,7 @@ func detach() -> void:
 		_tree.node_added.disconnect(_on_node_added)
 	if is_instance_valid(_twins):
 		_twins.twinned.disconnect(_on_twin_news)
-		_twins.retwinned.disconnect(_on_twin_news)
+		_twins.retwinned.disconnect(_on_retwinned)
 	_twins = null
 	_blockers.clear()
 	_known.clear()
@@ -301,6 +303,25 @@ func _add_blocker(body: Node2D) -> void:
 ## The twin space twinned a body: the untwinned are asked again at the next check.
 func _on_twin_news(_body: Node2D, _twin: Node3D = null) -> void:
 	_twin_news = true
+
+
+## The twin space twinned `body` again (a door knocked down): its top may differ, so what is kept of
+## it (its top, its blocker entry) is dropped and it is sorted again at the next check, as a body
+## that had no twin is (`_sort_again_with_twin`). A blocker within reach is a rebuild, as is one
+## that comes (`_add_blocker`).
+func _on_retwinned(body: Node2D, _old: Node3D = null) -> void:
+	_twin_news = true
+	if not is_instance_valid(body):
+		return
+	var id := body.get_instance_id()
+	if not _known.has(id):
+		return
+	if _blockers.has(id):
+		_mark_near(body)
+		_blockers.erase(id)
+	_known.erase(id)
+	_untwinned.erase(id)
+	_pending.append(body)
 
 
 ## Sort again each collider that was sorted with no twin and has one now.

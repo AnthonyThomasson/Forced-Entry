@@ -126,9 +126,12 @@ func fold_corners(
 ) -> void:
 	for i in range(start, stop):
 		var hit := hits[i]
-		var collider: Object = hit["collider"]
-		if SightRay.looks_through(collider):
+		var held: Variant = hit["collider"]
+		# a hit is held across ticks: its body may be freed since (a glass door's twin, retwinned),
+		# and a freed one that did not block gives no corner
+		if not is_instance_valid(held) or SightRay.looks_through(held):
 			continue
+		var collider: Object = held
 		var entry := _entry_of(collider, hit["shape"])
 		var polygon: PackedVector2Array = entry[2]
 		var keys: PackedInt64Array = entry[3]
