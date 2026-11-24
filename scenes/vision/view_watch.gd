@@ -63,20 +63,34 @@ var _sector := Sector.new()
 var _moved_then := false
 ## How many times a blocker's extent was measured (a test's read of the cost).
 var _measured := 0
+## Whether the twin space (`TwinSpace`) twinned or re-twinned a body since the untwinned were last
+## asked; with no twin space heard (`_twins`) the untwinned are asked each check.
+var _twin_news := true
+var _twins: TwinSpace
 
 
-## Start watching `tree`, leaving the bodies in `left_out` (instance ids) out.
-func attach(tree: SceneTree, left_out: Array) -> void:
+## Start watching `tree`, leaving the bodies in `left_out` (instance ids) out. Given the `twins` of
+## the world, the colliders sorted before their twin came (hundreds: the rugs and mats no builder
+## twins never will be) are asked again when it twins a body, not on each check.
+func attach(tree: SceneTree, left_out: Array, twins: TwinSpace = null) -> void:
 	_tree = tree
 	_left_out = left_out
 	tree.node_added.connect(_on_node_added)
 	_pending.append_array(_colliders())
+	if twins != null:
+		_twins = twins
+		twins.twinned.connect(_on_twin_news)
+		twins.retwinned.connect(_on_twin_news)
 
 
 ## Stop watching: forget everything and let go of the tree.
 func detach() -> void:
 	if _tree != null and _tree.node_added.is_connected(_on_node_added):
 		_tree.node_added.disconnect(_on_node_added)
+	if is_instance_valid(_twins):
+		_twins.twinned.disconnect(_on_twin_news)
+		_twins.retwinned.disconnect(_on_twin_news)
+	_twins = null
 	_blockers.clear()
 	_known.clear()
 	_untwinned.clear()
@@ -239,8 +253,17 @@ func _classify(body: Node2D) -> void:
 	_mark_near(body)
 
 
+## The twin space twinned a body: the untwinned are asked again at the next check.
+func _on_twin_news(_body: Node2D, _twin: Node3D = null) -> void:
+	_twin_news = true
+
+
 ## Sort again each collider that was sorted with no twin and has one now.
 func _sort_again_with_twin() -> void:
+	if is_instance_valid(_twins):
+		if not _twin_news:
+			return
+		_twin_news = false
 	for id: int in _untwinned.keys():
 		var body := _untwinned[id] as Node2D
 		if not is_instance_valid(body):
@@ -304,10 +327,12 @@ func _blockers_moved() -> bool:
 	for id in _blockers:
 		var entry: Array = _blockers[id]
 		var body: Node2D = entry[0]
+		var now: Transform2D = body.global_transform
 		var then: Transform2D = entry[1]
-		if body.global_transform == then and _layer_of(entry) == entry[2]:
+		# The common frame, where nothing moved: no call but the body's own transform.
+		if now == then and (entry[4] == null or _layer_of(entry) == entry[2]):
 			continue
-		if _moved_within_reach(entry, body.global_transform):
+		if _moved_within_reach(entry, now):
 			return true
 	return false
 

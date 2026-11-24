@@ -56,7 +56,7 @@ read through `character.sight()`: any character can be the viewer.
   whatever the eye's height, so its moving costs no rebuild); and every `rebuild_every` (10) frames, the
   backstop for a change it cannot see. `stale` asks all of it for the next job; `world_changed` all but the eye and facing, each
   tick of a job in flight (`cone-job.md`). The job length is the lag (V1). A low piece is in no ray, so it is not watched. A frame that rebuilds nothing measures no
-  shape and builds no Array for the key (`vision/view_watch_suite` holds the first): keep it so.
+  shape and builds no Array for the key (`vision/view_watch_suite` holds the first): keep it so. The watch hears the twin space (`attach(tree, left_out, twins)`) and asks the colliders sorted with no twin only when it twins a body (`vision/view_watch_twins_suite`).
 - **A rebuild keeps what a plain one would re-read (#192; the polygon is vertex for vertex the reference's, `vision/cone_same_after_savings`).**
   `ViewShapes` keeps a non-character shape's world polygon across rebuilds, keyed by collider and shape index with the transform and
   shape resource it was made from: a move or a replaced shape misses, a dent, re-cut or in-place shape edit clears all of them

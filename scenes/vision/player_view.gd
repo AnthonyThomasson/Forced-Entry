@@ -49,7 +49,7 @@ func _notification(what: int) -> void:
 
 
 func _ready() -> void:
-	_watch.attach(get_tree(), [_viewer.get_instance_id()])
+	_watch.attach(get_tree(), [_viewer.get_instance_id()], TwinSpace.of_world(get_parent()))
 	process_priority = PRIORITY
 	ground = Ground.new()
 	ground.name = "Ground"
