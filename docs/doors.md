@@ -84,7 +84,7 @@ same per seed).
 
 ## DR5. What a door blocks
 
-A standing door (shut, ajar or open) is a solid leaf in the world: a body on the solid layer that stops characters like a wall
+A standing door (shut, ajar or open) is a solid leaf in the world: a 3D body in the twin space (`DoorBody` on `PhysicsLayers.TWIN_WORLD`; the `Door` is a plan handle with no 2D shape) that stops characters like a wall
 (`tests/objects/door_blocks_test.gd`: a puppet walking into a shut door stops at it; a shut door never moves for a walker, an ajar or open
 one turns away from the body, DR10), is struck by rounds at every height (a full-height wall of the twin space)
 and lets them through by its material's `penetration` by the usual rule (a hollow door slows a pistol round by 9%, a steel one by
