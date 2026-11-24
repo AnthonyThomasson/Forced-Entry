@@ -177,7 +177,8 @@ func test_the_pool_is_served_oldest_claim_first_whatever_the_tree_order() -> voi
 func test_the_reasons_rank_attacked_and_new_hostile_first() -> void:
 	var rank := DecisionBudget.Roster.rank_of
 	assert_int(rank.call("attacked")).is_equal(rank.call("hostile belief changed"))
-	# A hostile seen again and the engaged one lost are changes of the hostile belief too.
+	# The engaged one lost is a change of the hostile belief too; "sight returned" is the NPC's own
+	# blindness ending: rank 0 because an NPC just unblinded must decide again at once.
 	assert_int(rank.call("sight returned")).is_equal(rank.call("hostile belief changed"))
 	assert_int(rank.call("lost the engaged contact")).is_equal(rank.call("hostile belief changed"))
 	var order := ["attacked", "ordered", "task resolved", "follows its leader", "way blocked"]
@@ -220,10 +221,10 @@ func test_an_urgent_claim_is_served_before_an_older_routine_one() -> void:
 
 
 ## A job's rank ages, in frames (`DecisionRoster.AGE_FRAMES`): a routine job (rank 5) stands behind
-## a stream of attacked claims for at most five steps of 30 frames, then it ranks with them and is
-## older than every one of them, so it is served first. The bound: no job waits more than
-## 6 x 30 frames behind a stream of better ones.
-func test_a_job_never_waits_more_than_six_ageing_steps_behind_a_stream_of_better_ones() -> void:
+## a stream of attacked claims for five steps of 30 frames (150, `OTHER_RANK` x `AGE_FRAMES`), then
+## it ranks with them and is older than every one of them, so it is served first and its own build
+## (a few frames) follows: it lands after 150 frames and within 180.
+func test_a_job_reaches_the_best_rank_after_five_ageing_steps_behind_better_ones() -> void:
 	DecisionBudget.per_frame = 3
 	DecisionPrices.cost_hostile = 2
 	DecisionPrices.cost_finish = 2
@@ -243,8 +244,9 @@ func test_a_job_never_waits_more_than_six_ageing_steps_behind_a_stream_of_better
 		_frame += 1
 		frames += 1
 	assert_int(_planner.begun).is_equal(1)
-	assert_bool(frames <= 6 * DecisionBudget.Roster.AGE_FRAMES).is_true()
-	assert_bool(frames > 5 * DecisionBudget.Roster.AGE_FRAMES).is_true()  # premise: it did wait
+	var ageing: int = DecisionBudget.Roster.OTHER_RANK * DecisionBudget.Roster.AGE_FRAMES
+	assert_bool(frames > ageing).is_true()  # premise: it did wait out the ageing
+	assert_bool(frames <= ageing + DecisionBudget.Roster.AGE_FRAMES).is_true()  # then its own build
 
 
 ## What a job owes the pool is judged at its aged rank: a worse-ranked job in flight owes nothing to

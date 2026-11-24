@@ -2,12 +2,16 @@ extends GameTest
 ## An NPC with no engaged contact analyses ONE hostile, the nearest (#194 perf-decide2, "cheaper
 ## decisions"): the second analysed hostile is for the NPC that is fighting one (its engaged
 ## contact keeps its slot and the nearest other takes the second, `analyses_engaged_and_nearest`).
+## The one slot goes to the nearest hostile IN SIGHT: a remembered one that is nearer by its last
+## known spot but out of sight does not take it from a farther one the NPC sees now.
 ## Four hostiles are in sight and none engaged: the build runs a start, one run of pieces for the
 ## nearest, the retreat spots and the finish; all four are still listed with their line.
 
 const NPC := Vector2(150, 250)
 ## Nearest first, left to right.
 const SPOTS := [Vector2(300, 100), Vector2(400, 100), Vector2(500, 100), Vector2(600, 100)]
+## Behind the NPC, outside its cone.
+const BEHIND := Vector2(20, 250)
 const Piece := preload("res://scenes/ai/perception/snapshot/snapshot_build.gd").Piece
 
 
@@ -65,3 +69,48 @@ func run(t: TestContext) -> void:
 		for o in snap["options"]["hostiles"]["options"]:
 			listed.append(o["bind"]["target_id"])
 		t.expect_eq(listed, ids, "all four hostiles are listed, nearest first")
+	_engaged_after_the_start(t, brain, ids)
+	await _nearest_out_of_sight(t, brain, ids)
+
+
+## The build's start fixes who is analysed: the NPC engaging another hostile after it (the
+## behaviour's engaged contact) does not move the build's pieces or its snapshot.
+func _engaged_after_the_start(t: TestContext, brain: Node, ids: Array) -> void:
+	var perception: Node = brain.get("_perception")
+	var staged = perception.begin_sense(brain.get("goal"), "", 0)
+	staged.step()  # the START
+	brain.get("_behavior").fight.engage_id = ids[3]
+	while not staged.done():
+		staged.step()
+	brain.get("_behavior").fight.engage_id = 0
+	t.expect_eq(
+		(staged.result()["sections_per_target"] as Dictionary).keys(), [ids[0]],
+		"engaging the farthest hostile after the start leaves the build as it began",
+	)
+
+
+## The nearest steps behind the NPC, out of its sight: it stays known at its last spot, still the
+## nearest by it. The slot goes to the nearest one that is in sight now.
+func _nearest_out_of_sight(t: TestContext, brain: Node, ids: Array) -> void:
+	t.actor(&"h0").global_position = BEHIND
+	var perception: Node = brain.get("_perception")
+	var pos: Vector2 = t.actor(&"d").global_position
+	var hostiles := func() -> Array:
+		return perception.contacts.known(pos).filter(func(c): return c["hostile"])
+	var hidden := func() -> bool:
+		for c in hostiles.call():
+			if c["id"] == ids[0]:
+				return not c["visible"]
+		return false
+	if not t.require(await t.until(hidden, 3.0), "set-up: the nearest hostile is out of sight"):
+		return
+	var known: Array = hostiles.call()
+	t.require(
+		known.size() == SPOTS.size() and known[0]["id"] == ids[0],
+		"set-up: it is still known, and still the nearest by its last known spot",
+	)
+	var later: Dictionary = perception.sense(brain.get("goal"), "", 0)
+	t.expect_eq(
+		(later["sections_per_target"] as Dictionary).keys(), [ids[1]],
+		"the nearest hostile in sight is the one analysed, not the nearer remembered one",
+	)

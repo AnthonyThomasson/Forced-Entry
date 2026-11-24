@@ -25,16 +25,18 @@ extends RefCounted
 ## a rank, after the older ones; so under fire an NPC's decision is not queued behind the routine
 ## ones begun before it. A rank ages, in frames, never by a clock: a job's effective rank is its
 ## reason's rank less one for every `AGE_FRAMES` frames since its claim (`_aged`, never below 0).
-## That is the starvation bound: a stream of better claims holds a job back for at most
-## `OTHER_RANK` x `AGE_FRAMES` frames (150), then it ranks with them and, begun before every one
-## of them, is served first. A routine decision and an ordered one (rank 1: it waited 122 frames in
-## the opening before) alike.
+## That is the starvation bound: a stream of better claims holds a job back until it reaches rank 0,
+## at the worst `OTHER_RANK` x `AGE_FRAMES` (150) frames after its claim; there it ranks with them
+## and, begun before every one of them, is served first, and its own build (a few frames) follows.
+## A routine decision and an ordered one (rank 1: it waited 122 frames in the opening before) alike.
 ##
 ## At most one decision begins in a physics frame whatever the pool holds (`may_start`).
 
 ## The rank of a forced decision's reason: 0 is served first. Reasons not named here (and "cadence")
-## rank `OTHER_RANK`. A hostile seen again and the engaged contact lost are a change of the hostile
-## belief too (`goal_controller.gd`'s salient key): they rank with it.
+## rank `OTHER_RANK`. The engaged contact lost is a change of the hostile belief too
+## (`goal_controller.gd`'s salient key): it ranks with it. "sight returned" is the NPC's own
+## blindness ending (`npc_reflexes.gd`), not a hostile seen again: rank 0 because an NPC just
+## unblinded must decide again at once.
 const REASON_RANK := {
 	"attacked": 0,
 	"hostile belief changed": 0,

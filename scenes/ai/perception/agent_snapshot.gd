@@ -490,7 +490,9 @@ func _primary_section(snapshot: Dictionary, ctx: Dictionary, name: String) -> St
 ## The ids of the hostiles that get full analysis (fire, flank, advance and melee options, and
 ## sections): the engaged one when known, then the nearest others, at most the smaller of
 ## `max_analysed_targets` and `max_options_per_level` in all; an NPC with no engaged hostile
-## analyses one, the nearest (the second slot is for the one that is fighting).
+## analyses one (the second slot is for the one that is fighting): the nearest in sight now, else
+## the nearest by its last known spot. A remembered hostile behind a wall does not take the slot
+## from a farther one in plain view (the one that shoots it is the one the decision is about).
 func _analysed_ids(ctx: Dictionary) -> Array:
 	var cap := mini(
 		vocab.tuning.decision.max_analysed_targets, vocab.tuning.decision.max_options_per_level
@@ -501,6 +503,9 @@ func _analysed_ids(ctx: Dictionary) -> Array:
 		selected.append(engaged_id)
 	else:
 		cap = mini(cap, 1)
+		var seen_now: Array = ctx["hostiles"].filter(func(t): return t["visible"])
+		if not seen_now.is_empty():
+			selected.append(seen_now[0]["id"])
 	for t in ctx["hostiles"]:
 		if selected.size() >= cap:
 			break
