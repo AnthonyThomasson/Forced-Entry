@@ -31,4 +31,16 @@ Cadence decisions are one or two a window: nearly every decision is forced (a ne
 | dropped claims (claimed, then cancelled) | 4 of 95, then 9 of 85 | 2 of 39, then 2 of 20 |
 | units per landed decision, pool use | 10.8 of 3, then 13.6 of 4 | 4.8, then 17.9 |
 
-**Why claims drop.** Every drop is an interrupt by design, none a better-ranked wish re-claiming over its own job: an order taken since a build began restarts it (`overtaken_by_order`), or a forced decision starts at another node than the job in flight (`stale`: a walk that began at the root while the NPC came under fire, a new hostile in a build begun at the root). A job in flight longer is exposed to more of them, so the count follows the claim-to-land time, not a waste: the cure is a build that is shorter. The reuse of a hostile's analysis (step 1c) is not made yet.
+**Why claims drop.** Every drop is an interrupt by design, none a better-ranked wish re-claiming over its own job: an order taken since a build began restarts it (`overtaken_by_order`), or a forced decision starts at another node than the job in flight (`stale`: a walk that began at the root while the NPC came under fire, a new hostile in a build begun at the root). A job in flight longer is exposed to more of them, so the count follows the claim-to-land time, not a waste: the cure is a build that is shorter.
+
+**Step 1c, measured and not made (round 4).** A hostile's analysis kept for the NPC's next decision (stamp: hostile, NPC and others within 6 px, front 0.05 rad, eye, side, nav iterations, doors; 12 frames) was built and probed: 0 of 43 analyses in the seed 23 opening reused. An NPC's decisions are 15 to 210 frames apart (the belief interval alone is 30), by then it has moved (0 to 99 px), the other hostiles known differ and the nav iterations turned. Ignoring all but the hostile, the NPC and the side, 4 of 43 hit, at ages 15 to 42: about 20 of 700 units, for stale spots. Dropped, nothing committed.
+
+**Pool size, measured (round 4; probe on seeds 23, 5, 11, 17, 31 pooled, wish to land median / p95, decisions an NPC a second, units per decision; the fights diverge with the pool, so one seed alone says little).**
+
+| pool | opening | stress |
+|---|---|---|
+| 4 (now) | 7 / 107, 0.58, 15 | 7 / 203, 0.36, 16 |
+| 5 | 5 / 143, 0.56, 20 | 9.5 / 170, 0.35, 31 |
+| 6 | 7 / 52, 0.63, 20 | 16 / 156, 0.43, 36 |
+
+5 is no better than 4. 6 cuts the opening's tail (seed 23: 10.5 / 73 / 90 to 10 / 46 / 58) but the stress median doubles, a frame may spend 3 ms on decisions instead of 2, and 19 ai tests' Von recordings stop matching (re-record). Not shipped: `per_frame` stays 4.
