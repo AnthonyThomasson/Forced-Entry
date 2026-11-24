@@ -30,8 +30,8 @@ static var late_total := 0
 static var landed_total := 0
 ## The bakes between their start and their landing.
 static var _flying: Array[NavBake] = []
-## The `GameClock` frame the last bake was taken in on: a landing due on that frame waits for the
-## next (`_on_physics_frame`).
+## The `GameClock` frame the last landing was taken in on, a bake's or a burst's: a landing due on
+## that frame waits for the next (`_on_physics_frame`, `landing_taken`).
 static var _landed_frame := -1
 ## Whether the root window's exit has been hooked to finish the bakes (`_finish_all`).
 static var _exit_hooked := false
@@ -121,9 +121,21 @@ static func _finish_all() -> void:
 func _on_physics_frame() -> void:
 	if _due < 0:
 		_due = GameClock.frame() + _frames - 1  # this is already the step after the start
-	if GameClock.frame() >= _due and _landed_frame != GameClock.frame():
-		_landed_frame = GameClock.frame()
+	if GameClock.frame() >= _due and not landing_taken():
+		take_landing()
 		_land()
+
+
+## Whether a landing (a bake's, or a steering burst's: `NavTileBurst`) has taken this `GameClock`
+## frame: each assigns polygons and so makes its map synchronise, and the frame that holds two
+## pays both. A landing due on a frame that is taken waits for the next.
+static func landing_taken() -> bool:
+	return _landed_frame == GameClock.frame()
+
+
+## Take this `GameClock` frame for a landing.
+static func take_landing() -> void:
+	_landed_frame = GameClock.frame()
 
 
 ## Wait for the thread (it is not, but when it is late), then take its polygon in.

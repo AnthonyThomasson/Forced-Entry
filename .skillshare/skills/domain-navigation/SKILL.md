@@ -5,7 +5,7 @@ description: Use when editing scenes/navigation/ or working on nav baking, furni
 
 # Navigation domain (`scenes/navigation/`)
 
-A leaf: it builds the maps; everyone else pathfinds. Takes a plain `rooms` array and a Node and depends only on Godot's
+A leaf: it builds the maps; all else pathfinds. Takes a plain `rooms` array and a Node and depends only on Godot's
 `NavigationServer3D` (the baker, regions, maps, queries; ADR 0016). Interface 9. Tests: `tests/navigation/`.
 
 | File | Role |
@@ -13,7 +13,7 @@ A leaf: it builds the maps; everyone else pathfinds. Takes a plain `rooms` array
 | `nav_builder.gd` (`NavBuilder`) | All static: bake, re-bake, the holes, the steering and avoid maps, `ready` / `snap` / `route` / `path_length` / `iterations`. NavBuilder is at 20 public methods, the `max-public-methods` cap: the next one needs a split. |
 | `nav_site.gd` (`NavSite`) | The source geometry's inputs: the house, its rooms, the agent radius and a district's explicit `bounds`. |
 | `nav_leaves.gd` (`NavLeaves`) | All static: the house doors (`doors_of`, by the group) and the hole an open leaf leaves (`hole`). |
-| `nav_updater.gd` | Script-only Node that re-bakes on an interval. |
+| `nav_updater.gd`, `nav_tick.gd`, `nav_due.gd` | Re-bakes on an interval (a script-only Node); a district's tick in steps: `tick.md`. |
 | `nav_twins.gd` (`NavTwins`) | All static: what a bake reads of a body's 3D twin (`twins.md`): its shapes and their plan footprints. |
 | `nav_holes.gd` (`NavHoles`), `nav_pieces.gd` (`NavPieces`) | `NavHoles`: a body's footprint (`cut`, `hull_of`: the hull of its twin's footprints, grown), the furniture's (`furniture`) and the reference that cuts every piece afresh (`plain`). `NavPieces`: one tracker per house, the pieces and the hull each was last cut to. |
 | `nav_gather.gd` (`NavGather`), `nav_fuse.gd` | A district's planning re-bake gathered a step a physics frame, swapped in whole (`NavRebake.swap`); `NavFuse`: its fusing on a worker, inline if none began. |
@@ -45,7 +45,7 @@ round furniture and through another doorway when the near one is blocked (a seal
   re-bake, the updater's move check and the overlay take it) once the door stands within `NavLeaves.OPEN_SLACK` (10°) of `open_angle` and
   not down, read through interface 24. The hole is a strip
   as thick as the leaf (`leaf_size.y`), not the grown leaf: the bake's 18 px clearance off it is what a body needs (the 4 px cells put a
-  mesh edge up to 3 px nearer, so a thinner strip left a walker pressed against the leaf; `navigation/door_open_leaf_hole_is_the_leaf_thick`),
+  mesh edge up to 3 px nearer; `navigation/door_open_leaf_hole_is_the_leaf_thick`),
   and the grown footprint sealed a 48 px doorway. A leaf further shut stands across its doorway's mouth, where no carve leaves the
   way open (sealed up to 75°), so it is left out, as is one with under `MIN_PASS` (4 px) of way past it. `NavBuilder.leaf_in_map(door)` is that rule for the AI. Tests:
   `tests/navigation/door_open_leaf_carved_test.gd`,

@@ -22,7 +22,7 @@ enum Phase {
 ## Pieces scanned and cut a frame, outlines binned and tiles checked a frame (work counts, not
 ## times: the steps are the same on any machine).
 const SCAN := 500
-const CUTS := 64
+const CUTS := 32
 const OUTLINES := 400
 const TILES := 16
 

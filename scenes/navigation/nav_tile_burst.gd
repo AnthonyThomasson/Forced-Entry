@@ -45,7 +45,10 @@ func tiles_in_play() -> Array[NavigationRegion3D]:
 
 ## Start the first of the tiles still to bake (on a worker thread) and hold it, on a `GameClock`
 ## frame none was started on yet; the frame `NavBakeConfig.tile_frames` after the last one was
-## started lands the burst. Nothing to land (every tile was up to date): the burst ends at once.
+## started lands the burst, on a frame no bake landed on (`NavBake.landing_taken`: one landing a
+## frame, the bake's first, as its signal runs before the updater's step; a burst that finds it
+## taken lands on the next frame). Nothing to land (every tile was up to date): the burst ends at
+## once.
 func step(region: NavigationRegion3D, site: NavSite) -> void:
 	if GameClock.frame() == _frame:
 		return
@@ -58,7 +61,10 @@ func step(region: NavigationRegion3D, site: NavSite) -> void:
 			_held.append(held)
 		if tiles.is_empty():
 			_land_at = _frame + NavBakeConfig.tile_frames
-	if tiles.is_empty() and (_held.is_empty() or _frame >= _land_at):
+	if tiles.is_empty() and _held.is_empty():
+		land()
+	elif tiles.is_empty() and _frame >= _land_at and not NavBake.landing_taken():
+		NavBake.take_landing()  # one landing a frame: a bake's due on this frame lands first
 		land()
 
 
