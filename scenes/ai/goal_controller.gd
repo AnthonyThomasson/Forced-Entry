@@ -577,7 +577,7 @@ func _maybe_interrupt() -> void:
 ## job answers the frame's budget: refused, the wish (`forced`, its reason, the elapsed timer) stays
 ## and is asked again next frame.
 func _request() -> void:
-	if not _job.request(_cadence.forced):
+	if not _job.request(_cadence.forced, _cadence.force_reason if _cadence.forced else "cadence"):
 		return
 	_cadence.decisions += 1
 	_cadence.decision_reason = _cadence.force_reason if _cadence.forced else "cadence"

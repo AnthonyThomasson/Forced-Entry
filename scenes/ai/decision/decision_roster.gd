@@ -19,10 +19,29 @@ extends RefCounted
 ## after the ones before it, each wish being asked again every frame. The roster orders the pool
 ## between jobs in flight, not the starts (a known limit, `decision-job.md`).
 ##
+## The order is not the claim's alone: a forced decision's reason ranks it (`rank_of`). A job in
+## flight is served after the jobs of a better rank (attacked and a new hostile, then an order, a
+## task resolved, following, a way blocked, any other reason, a cadence decision last) and, within
+## a rank, after the older ones; so under fire an NPC's decision is not queued behind the routine
+## ones begun before it. The starvation bound is the one the ranks give: a job waits for the older
+## jobs of its own rank and for the better-ranked ones that are in flight meanwhile.
+##
 ## At most one decision begins in a physics frame whatever the pool holds (`may_start`).
 
-## job id -> `{ seq, cost, frame }`: the claim's order, what the next piece costs and the frame
-## the job last had its turn.
+## The rank of a forced decision's reason: 0 is served first. Reasons not named here (and "cadence")
+## rank `OTHER_RANK`.
+const REASON_RANK := {
+	"attacked": 0,
+	"hostile belief changed": 0,
+	"ordered": 1,
+	"task resolved": 2,
+	"follows its leader": 3,
+	"way blocked": 4,
+}
+const OTHER_RANK := 5
+
+## job id -> `{ seq, rank, cost, frame }`: the claim's order, its reason's rank, what the next piece
+## costs and the frame the job last had its turn.
 static var _entries := {}
 ## The claim counter.
 static var _seq := 0
@@ -30,6 +49,11 @@ static var _seq := 0
 static var _start_frame := -1
 ## How many decisions have begun (`began` calls) since the last `reset`.
 static var _claims := 0
+
+
+## The rank of a decision begun for `reason` (`REASON_RANK`).
+static func rank_of(reason: String) -> int:
+	return REASON_RANK.get(reason, OTHER_RANK)
 
 
 ## Whether no decision has begun in this physics frame yet.
@@ -40,14 +64,14 @@ static func may_start() -> bool:
 ## A decision began in this physics frame: `job` is the youngest claim now, with nothing yet to
 ## pay for (its start is paid by the claim). The jobs that have not had a turn for three frames
 ## (their NPC freed) are forgotten.
-static func began(job: int) -> void:
+static func began(job: int, rank := OTHER_RANK) -> void:
 	_start_frame = DecisionBudget.frame()
 	_claims += 1
 	for id in _entries.keys():
 		if _entries[id]["frame"] < _start_frame - 2:
 			_entries.erase(id)
 	_seq += 1
-	_entries[job] = { "seq": _seq, "cost": 0, "frame": _start_frame }
+	_entries[job] = { "seq": _seq, "rank": rank, "cost": 0, "frame": _start_frame }
 
 
 ## `job`'s turn in this frame ended: its next piece costs `cost` (0: nothing to run, as a walk that
@@ -56,7 +80,9 @@ static func began(job: int) -> void:
 static func note(job: int, cost: int) -> void:
 	if not _entries.has(job):
 		_seq += 1
-		_entries[job] = { "seq": _seq, "cost": cost, "frame": DecisionBudget.frame() }
+		_entries[job] = {
+			"seq": _seq, "rank": OTHER_RANK, "cost": cost, "frame": DecisionBudget.frame(),
+		}
 		return
 	var entry: Dictionary = _entries[job]
 	entry["cost"] = cost
@@ -68,18 +94,20 @@ static func leave(job: int) -> void:
 	_entries.erase(job)
 
 
-## What the jobs older than `job` (than a new claim by it, with `fresh`) that have not had their
-## turn in this frame still need: what a piece of `job` must leave in the pool for them. Its own
-## entry owes nothing.
-static func owed(job: int, fresh := false) -> int:
+## What the jobs ahead of `job` (of a better rank, or of its rank and older; or, for a new claim by
+## it, `fresh`, of `rank`'s rank or better) that have not had their turn in this frame still need:
+## what a piece of `job` must leave in the pool for them. Its own entry owes nothing.
+static func owed(job: int, fresh := false, rank := OTHER_RANK) -> int:
 	var frame := DecisionBudget.frame()
 	var mine: Dictionary = _entries.get(job, {})
+	var my_rank: int = rank if fresh else mine.get("rank", OTHER_RANK)
 	var behind: int = _seq + 1 if fresh else mine.get("seq", _seq + 1)
 	var total := 0
 	for id in _entries:
 		var entry: Dictionary = _entries[id]
-		if id != job and entry["seq"] < behind and entry["frame"] < frame and (
-				entry["frame"] >= frame - 2):
+		var same_rank_older: bool = entry["rank"] == my_rank and entry["seq"] < behind
+		var ahead: bool = entry["rank"] < my_rank or same_rank_older
+		if id != job and ahead and entry["frame"] < frame and entry["frame"] >= frame - 2:
 			total += entry["cost"]
 	return total
 

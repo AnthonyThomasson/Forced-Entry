@@ -125,15 +125,19 @@ func overtaken_by_order() -> bool:
 ## first piece runs on the next `advance`); the caller then books the decision. Refused (the pool
 ## is spent, or a decision already began this frame), nothing changes: the job in flight carries on
 ## and the wish stands for the caller to ask again next frame. A cadence wish (`forced` false)
-## never claims over a job in flight.
-func request(forced: bool) -> bool:
+## never claims over a job in flight. `reason` ranks the claim in the pool's order
+## (`decision_roster.gd`).
+func request(forced: bool, reason := "cadence") -> bool:
 	if pending() and not forced:
 		return false
+	var rank := Roster.rank_of(reason)
 	if (not Roster.may_start()
-			or not Budget.take(DecisionPrices.cost_start, Roster.owed(get_instance_id(), true))):
+			or not Budget.take(
+				DecisionPrices.cost_start, Roster.owed(get_instance_id(), true, rank)
+			)):
 		return false
 	cancel()
-	Roster.began(get_instance_id())
+	Roster.began(get_instance_id(), rank)
 	_stage = Stage.CLAIMED
 	return true
 

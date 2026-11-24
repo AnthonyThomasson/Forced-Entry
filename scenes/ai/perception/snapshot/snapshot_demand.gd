@@ -209,18 +209,26 @@ func _lead_outside() -> bool:
 ## run to its end (`throw_search`).
 func _grenade_ready() -> bool:
 	var search := throw_search(ThrowScan.WHOLE)
+	if search == null:
+		return facts.get("grenade_ready", false)
 	while not search.done():
 		search.step()
 	return search.found
 
 
 ## The `grenade_ready` search in steps of `block` raw candidates (`ThrowSearch`), or null when the
-## fact is already worked out. What is already built answers from it (a group's options); the rest
-## by the search of each source in the order of the one-shot's: the shots' origin, then each hostile
-## given full analysis. Its answer goes into the snapshot's facts as it ends. The decision job runs
-## it as the throw piece (`decision-job.md`).
+## fact is already worked out, or the NPC carries no grenade (the fact is false at once). What is
+## already built answers from it (a group's options); the rest by the search of each source in the
+## order of the one-shot's: the shots' origin, then each hostile given full analysis. Its answer
+## goes into the snapshot's facts as it ends. The decision job runs it as the throw piece
+## (`decision-job.md`).
 func throw_search(block: int) -> RefCounted:
 	if facts.has("grenade_ready"):
+		return null
+	if (know.get("carried_grenades", []) as Array).is_empty():
+		# No grenade in the pack, no throw to make: false, without the scan, the rank and the
+		# routes.
+		facts["grenade_ready"] = false
 		return null
 	SnapshotCounts.note("grenade_ready")
 	var plan: Array = []

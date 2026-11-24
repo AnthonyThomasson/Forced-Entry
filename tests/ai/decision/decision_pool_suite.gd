@@ -171,6 +171,51 @@ func test_the_pool_is_served_oldest_claim_first_whatever_the_tree_order() -> voi
 	assert_bool(newest.request(false)).is_true()
 
 
+## The order the pool serves forced decisions in (`DecisionRoster.rank_of`): attacked and a new
+## hostile first, then an order, a task resolved, following, a way blocked, and any other reason
+## (a cadence decision last).
+func test_the_reasons_rank_attacked_and_new_hostile_first() -> void:
+	var rank := DecisionBudget.Roster.rank_of
+	assert_int(rank.call("attacked")).is_equal(rank.call("hostile belief changed"))
+	var order := ["attacked", "ordered", "task resolved", "follows its leader", "way blocked"]
+	for i in range(1, order.size()):
+		assert_bool(rank.call(order[i - 1]) < rank.call(order[i])).is_true()
+	assert_bool(rank.call("way blocked") < rank.call("sight returned")).is_true()
+	assert_int(rank.call("cadence")).is_equal(rank.call("sight returned"))
+
+
+## An urgent claim is served before an older routine job: the older one's next piece no longer
+## holds back what the younger one's needs, so under fire a decision does not queue behind the
+## routine ones begun before it.
+func test_an_urgent_claim_is_served_before_an_older_routine_one() -> void:
+	DecisionBudget.per_frame = 3
+	DecisionPrices.cost_hostile = 2
+	DecisionPrices.cost_finish = 2
+	_perception.hostiles = 1
+	assert_bool(_job.request(true, "way blocked")).is_true()
+	_job.advance()  # its start and hostile ran; its finish (2) waits for a fresh frame
+	var routine: Builds.FakeBuild = _perception.builds[0]
+	assert_int(routine.piece).is_equal(2)  # premise
+	_frame += 1
+	var urgent := _new_job()
+	urgent.perception.hostiles = 1
+	assert_bool(urgent.request(true, "attacked")).is_true()
+	urgent.advance()
+	var hurried: Builds.FakeBuild = urgent.perception.builds[0]
+	assert_int(hurried.piece).is_equal(2)  # its hostile ran, on the pool the older finish needed
+	_job.advance()
+	assert_int(_planner.begun).is_equal(0)  # the older job waits behind it
+	# It lands first; the older job is served once it is out of the way.
+	_frame += 1
+	urgent.advance()
+	assert_int(urgent.planner.begun).is_equal(1)
+	_job.advance()
+	assert_int(_planner.begun).is_equal(0)  # the pool is spent on the urgent one's finish
+	_frame += 1
+	_job.advance()
+	assert_int(_planner.begun).is_equal(1)
+
+
 func test_a_job_that_never_runs_again_holds_no_one_up_once_released() -> void:
 	DecisionBudget.per_frame = 1
 	DecisionPrices.cost_hostile = 1
