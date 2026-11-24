@@ -128,7 +128,16 @@ const SMOOTH_MAX_MS := 33.4
 ## 15.2 to 22.3 at the tip, with at most 3 rigid bodies awake after it at the base and none at the
 ## tip. Not tuned, no budget loosened: perf3d re-picks the 10v10 seeds (at least 24 a side) and the
 ## `match_npc_vision` premise.
-const MATCH_SEED := 2
+## #194 perf3d re-pick (2026-11-24, was 2): at the 3D tip the first contact comes in the match's
+## first second (a sighting through a window over real heights; seed 2 contacted at 7.1 s before
+## the 3D world, 3.1 s with it). Over seeds 1 to 32 (one play each, load 3 to 6, alone, at
+## b3ca278b; `perf3d-sweep/`) the first contact reads 0 to 0.5 s on 15 seeds, 0.5 to 1 s on 7, 1 to
+## 3 s on 3, 3 to 6 s on 3, 6 to 10 s on 3 and 17 s on one: the median is 0.525 s. The rule that
+## picks the seed: the contact time nearest that median, the viewed invader living through the
+## `match_npc_vision` window, the contact inside the opening window: seed 23 (contact 0.50 s).
+## Seed 2 is a 7.1 s outlier of the 3D fight and its viewed invader dies in the window. Not a pick
+## by passing (opening passes on 2 of 32 seeds, stress 5, vision 0): the guards' budgets stand.
+const MATCH_SEED := 23
 const MATCH_PLAN := "garage_home"
 ## Test seconds a match guard's warm-up runs before it waits for contact (`warm_until_contact`).
 const MATCH_WARMUP_S := 6.0
