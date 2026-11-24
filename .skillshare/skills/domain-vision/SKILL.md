@@ -83,7 +83,7 @@ read through `character.sight()`: any character can be the viewer.
   the `rebuild_every` backstop bounds the stale cone should either ever change (a tipped piece, #194 D14). A collider with no twin yet
   (a body twins a frame after it joins) blocks like a wall and is asked again, not kept. A feature that changes either in play must tell
   `ViewShapes` and `ViewWatch`. The viewer's own posture changes what it looks over (`sight()["eye_height"]`): `ViewWatch` sorts every
-  collider again when it changes, and the cone is rebuilt. A living character in the cone that the eye sees no point of is hidden by Art's
+  collider again when it changes (from the tops it kept, not a read of the tree: 16 ms the other way), and the cone is rebuilt. A living character in the cone that the eye sees no point of is hidden by Art's
   mirror (`SeenArea.hides`, set by `_publish_area`), not by the cone.
 - **A headless run draws no pixels**: a test holds what the masks are told (sizes, transforms, clear modes, the polygons the
   painters hold, `ToonMask`'s rects) and the pixels are read in a window (`vision/vision_mask_3d_windowed`, one test at a time).

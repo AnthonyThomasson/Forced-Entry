@@ -189,6 +189,9 @@ func built(eye: Vector2, facing: Vector2, sight: Dictionary) -> void:
 		var entry: Array = _blockers[id]
 		var body: Node2D = entry[0]
 		var now := body.global_transform
+		# Where it was and standing as it was: nothing to take.
+		if now == entry[1] and (entry[4] == null or _layer_of(entry) == entry[2]):
+			continue
 		var moved: bool = not _stood(entry, now, _reach.still) or _layer_of(entry) != entry[2]
 		if moved and _moved_within_reach(entry, now):
 			_moved_then = true

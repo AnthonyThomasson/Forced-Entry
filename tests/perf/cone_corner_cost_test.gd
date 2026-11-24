@@ -16,6 +16,7 @@ extends GameTest
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 const Cone := preload("res://scenes/vision/view_cone.gd")
+const Job := preload("res://scenes/vision/view_cone_job.gd")
 const PER_SIDE := 10
 const GRID := 9
 const FACINGS := 3
@@ -77,11 +78,13 @@ func run(t: TestContext) -> void:
 		]
 	)
 	t.trace("cone corners in units", ratio)
-	var price := float(VisionSliceConfig.cost_shape)
+	var price := _median(reads["corner_units"])
 	t.check(
 		price * PRICE_SLACK >= ratio and price <= ratio * PRICE_SLACK,
-		"cost_shape %d is not within %.0fx of the corners' measured %.0f units"
-		% [VisionSliceConfig.cost_shape, PRICE_SLACK, ratio],
+		(
+			"the corners' price (cost_shape %d, cost_hits %d a chunk: %.0f units) is not "
+			+ "within %.0fx of their measured %.0f units"
+		) % [VisionSliceConfig.cost_shape, VisionSliceConfig.cost_hits, price, PRICE_SLACK, ratio],
 	)
 
 
@@ -126,7 +129,10 @@ func _measure(
 		var cone := Cone.new()
 		var t0 := Time.get_ticks_usec()
 		cone.begin(space, at, facing, [], sight)
-		cone.step(1)
+		var job: Variant = cone.get("_job")
+		# the query, then the hits chunk by chunk: one item a step
+		while job.stage == Job.Stage.CORNERS or job.stage == Job.Stage.HITS:
+			cone.step(1)
 		var t1 := Time.get_ticks_usec()
 		corner_units = cone.work_units()
 		cone.step(1 << 60)
@@ -158,14 +164,17 @@ func _ticks(
 	corners_price := 0,
 ) -> int:
 	var kept := VisionSliceConfig.cost_shape
+	var kept_hits := VisionSliceConfig.cost_hits
 	if corners_price > 0:
 		VisionSliceConfig.cost_shape = corners_price
+		VisionSliceConfig.cost_hits = 0
 	var cone := Cone.new()
 	cone.begin(space, at, facing, [], sight)
 	var ticks := 1
 	while not cone.step(VisionSliceConfig.slice_units) and ticks < 100:
 		ticks += 1
 	VisionSliceConfig.cost_shape = kept
+	VisionSliceConfig.cost_hits = kept_hits
 	return ticks
 
 

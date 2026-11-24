@@ -7,16 +7,16 @@ finished job's polygons until the new one completes); `step(units)` runs it on u
 whether it is done; `running()` says whether one is in flight; `work_units()` is the work the job has spent. `rebuild` is
 `begin` plus `step` to the end, so it is the whole rebuild every existing cone test and `PlayerView` use.
 
-**Units.** A unit is a price in `VisionSliceConfig` (`cost_cast` and `cost_probe` 1, `cost_shape` 225): a ray cast
+**Units.** A unit is a price in `VisionSliceConfig` (`cost_cast` and `cost_probe` 1, `cost_shape` 100 a corners query, `cost_hits` 30 a chunk of `hit_chunk` 32 hits): a ray cast
 (`SightRay.cast`), a region shape query (`ViewShapes.queries`, re-asks included: a 3D shape query in the twin space over a slab (`ViewShapes.SLAB`, 2 px: the engine cannot build a thinner hull of the sector) from the height the plan ray runs at), a far-face probe (`far_exit`).
-**The corners are priced at their cost** (`cost_shape` 225): the query, its polygons, the dedupe are about 200 to 225 units
+**The corners are priced at their cost** (`cost_shape` 100 + `cost_hits` 30 a chunk of 32 hits, a median 4 chunks): the query (stage `CORNERS`) and then its polygons and the dedupe (stage `HITS`, a chunk a piece of work, so a slice may end between them) are are about 200 to 225 units
 (`perf/cone_corner_cost` measures it: 198 on 2026-11-19, loaded; p25 104, p75 304; the 2D query was 372 to 374), so `begin` and the first step do the corners and then the first rays up to
 the slice (`vision/cone_corners_priced`); a region asked again is priced for each ask and can fill the slice with them, and then no ray is cast. Priced as one unit they made a start tick the corners plus 449 units of
 rays, about 6 to 7 ms. A job is ceil((corners + rays) / slice) ticks, and its cone is at most 2 (ticks - 1) frames old: 2 ticks is up to 2, 3 ticks 4, the longest district job in the grid (5 ticks) 8
 (`vision/pose_lag_bounds` still holds a job to 6 ticks, 10 frames; the user chose to price the corners at their cost on 2026-11-19, over the slice-sized price of 2026-11-12; the tick figures were measured loaded and perf3d re-measures them quiet), and a test that cuts `slice_units` cuts `cost_shape` to it. `vision/cone_slice_units` holds `work_units()` to casts, queries and probes counted by subclasses, at every step size and at
 other prices (which change the count, never the polygon).
 
-**Stages**, in order: the corners (one piece), the even fan by ray, which corners the eye sees by corner, the sort of the ray
+**Stages**, in order: the corners (the query, one piece; then its hits a chunk at a time), the even fan by ray, which corners the eye sees by corner, the sort of the ray
 lists (atomic, no engine work), the bubble's rays, the cone's rays (a fan ray takes its end from the fan's casts, no work). A
 step cuts only between those items, so it may spend a little over its units, always does at least one item, and the polygon does
 not depend on the slice (`vision/cone_sliced_matches_whole`: 1, 7, 64 and the default `slice_units` equal `rebuild` exactly).

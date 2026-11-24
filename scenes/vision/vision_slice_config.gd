@@ -12,12 +12,12 @@ static var cost_cast: int = 1
 ## (`perf/cone_corner_cost`, the 3D shape query of the twin space): the query is priced `cost_shape`
 ## (a third of that: 0.8 of the 2.2 ms) and its polygons and dedupe `cost_hits` a chunk, below. A
 ## job whose query is asked again (a crowded region) is priced for each ask.
-static var cost_shape: int = 80
+static var cost_shape: int = 100
 static var cost_probe: int = 1
 ## The polygons and the dedupe of the corners are priced apart from the query: `hit_chunk` hits a
 ## piece of work of `cost_hits` units, so a start tick holds the query and a few chunks, not all
 ## of the corners.
-static var cost_hits: int = 18
+static var cost_hits: int = 30
 static var hit_chunk: int = 32
 ## The units one `step` runs: about 3.5 ms of a physics frame.
 static var slice_units: int = 450
