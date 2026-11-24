@@ -49,8 +49,8 @@ Update the "before" numbers in a test's comment only when its load changes.
 - **What the player's view costs is held as a difference** (`perf/match_npc_vision_relative`: one 10v10 in one process, blocks of frames
   with the view on and off, interleaved, since two plays of a match differ by far more than the view costs): `perf-vision-cost.md` (split out to keep this file under the 8192-byte cap).
   State since #195: `perf/match_10v10_stress`, `match_10v10_opening` and `match_5v5_stress` pass; `grenade_match_stress` passes at its
-  p95 of 25 and worst frame of 37 (the only budgets moved, above); `match_npc_vision` is red pending #223. None is skipped or tagged. History and the
-  gates the district moved: `perf-district.md`, `perf-district-ext2.md`, `perf-district-ext3.md`.
+  p95 of 25 and worst frame of 37 (the only budgets moved, above); `match_npc_vision` is red pending #223. None is skipped or tagged. History: ADR 0017; the
+  gates the district moved: `perf-district.md`.
   What one NPC costs a frame (measured, #195): `perf-npc-cost.md`. A match's opening (`perf/match_10v10_opening`, from the first
   sighting or shot) and the worst-frames report `--verbose` prints for every frame guard: `perf-opening.md`.
 - **A wall-clock budget belongs here and nowhere else:** the lint rule `timing_in_perf` fails a `Time.get_ticks_usec()`

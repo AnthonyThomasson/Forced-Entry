@@ -2,7 +2,7 @@
 
 Until #203 a revision played its own match: the order and timing of events followed memory allocation or the wall clock, so
 `perf/grenade_match_stress` read a sim length of 21.3 to 21.5 s merged against 20.4 s at base, and "the branch is slower in 8 of 8 pairs"
-(`perf-district-ext3.md`) could not be told from a different fight. The sim length is `warm_until_contact` plus the window, so it is the
+(ADR 0017) could not be told from a different fight. The sim length is `warm_until_contact` plus the window, so it is the
 contact time. Never judge a guard by its sim length or one run.
 
 ## State of #203 (all landed)

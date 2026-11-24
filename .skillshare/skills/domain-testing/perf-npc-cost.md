@@ -1,6 +1,6 @@
 # Perf · What one NPC costs a frame in a calm 10v10, measured (#195, job npc-cost)
 
-Side file of `perf.md` (`perf-district-ext3-spikes.md` holds the estimates this replaces). M = measured: HEAD 1917ba46, 2026-11-12,
+Side file of `perf.md` (the estimates it replaces are in ADR 0017). M = measured: HEAD 1917ba46, 2026-11-12,
 `perf/match_10v10_stress` over its 300-frame window with throwaway `Time.get_ticks_usec` accumulators at about 90 sites. They were never
 committed (the tree was reverted), so these numbers cannot be rerun as they are; rerun by timing the same functions again. Nine runs, `--quiet`:
 the gate printed `waiting for a quiet machine: load 3.46 (under 6 wanted), 1 busy Godot (none wanted), 0.0 of 30 min` in five of them and the test
