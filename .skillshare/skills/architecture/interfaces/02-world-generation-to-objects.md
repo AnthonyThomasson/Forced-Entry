@@ -1,5 +1,5 @@
 2. **World Generation → Objects** (the only way world-gen makes entities)
-   - `SharedTextures.requests(tower_footprints := []) -> Array` — the complete PixelArt request dictionaries every district shares:
+   - `SharedTextures.requests() -> Array` — the complete PixelArt request dictionaries every district shares:
 	 road glyphs, crossings, podiums, awnings and glyph signs, shell decor, and the tower shadows derived from the supplied
 	 `{ size, half, length, depth, podium }` footprints (`podium`: the segment lengths a plan stands with). `WorldGen.prewarm` hands these to Art; no nodes are built. `ObjectArt.flat_request(art, size, color, opts)` and `tile_flat_request(art, color, material, opts)` are the flat (`"flat": true`, no `facing`) twins of a request, for the 3D render's textures (`flat`, `tile_flat` paint them; empty for an unknown art id).
    - `FurnitureArt.requests(art, sizes, colors, opts, overhang := Vector2.ZERO) -> Array` and `ObjectArt.neon_variants(art, opts) -> Array` — the flat (`"flat": true`) PixelArt requests of a piece's 3D art (canonical footprint sizes, its colours, painter options, the overhang part's size), and the neon trims a kind can take; `DistrictPrewarm.furniture_requests` walks the catalogue, the podium plans and the clutter through them for `WorldGen.prewarm(true)`.

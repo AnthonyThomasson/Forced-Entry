@@ -77,7 +77,7 @@ read through `character.sight()`: any character can be the viewer.
 - **A mover's place in the view is its sim node's `ViewLayers` bit, read by Art's `MeshCarrier` and `MeshFollower`**: a new moving thing sets
   `ViewLayers.set_moving` on its node (the carrier hides its mesh outside the cone) or, for a batch with no body, marks its mesh
   (`MeshNodes.moving`); a `MOVING` flash light is kept out of the world by nothing here: lights are Lighting's (`domain-lighting`).
-- **`ViewShapes` keeps a collider's top for its life** (`_rated`: `SightRay.top_of`, its twin's top; a character's is 0, it is looked over at any height), and `ViewWatch` does not watch it. That
+- **`ViewWatch` reads a collider's top once, at `_classify`** (`SightRay.top_of`, its twin's top; a character's is 0, it is looked over at any height), and does not watch it. That
   holds because a piece's top is set once from its mesh's real size and a door's is always 84 with `transparent` fixed at spawn
   (`look.material == "glass"`; a shatter changes only `look.broken`). Objects promises neither changes in play (interface 03);
   the `rebuild_every` backstop bounds the stale cone should either ever change (a tipped piece, #194 D14). A collider with no twin yet

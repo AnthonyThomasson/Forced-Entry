@@ -8,8 +8,7 @@
 	 no `Knockback` (it is its own body), and does not rebuild anything from the dents.
    - `Deformation` (static): silhouette/collider polygons and the damage darkening (`darken(damage_total)`).
 	 - Polygons: `base_ring(shape, size)`, `shape_polygon(shape, size, impacts)` (cached), `wall_polygon(a, b, thickness, impacts)`,
-	   `is_valid_polygon(poly)` (skip a self-touching one that frame), `convex_pieces(polygon)`, `shapes_of(pieces)` (their
-	   `ConvexPolygonShape2D`s), `cut_shape(shape, size, impacts)` / `cut_wall(a, b, thickness, impacts)` -> `[polygon, pieces]`
+	   `is_valid_polygon(poly)` (skip a self-touching one that frame), `convex_pieces(polygon)`, `cut_wall(a, b, thickness, impacts)` -> `[polygon, pieces]`
 	   (uncached and pure: safe on a worker thread).
 	 - Impacts: built by `new_impact(pos, inward, damage, blood, dent: DentLimits)` (`physics/dent_limits.gd`: `max_depth`,
 	   `allow_chunks`, `rng`: the world's `WorldRng.of`, the dent's seed) and kept by `push_impact(list, impact, max_impacts)` (oldest dropped); `Deformable.record` and Objects' wall (one
@@ -26,7 +25,7 @@
 	 - `BloodDecals.layer(parent)`: the batched decal layer under a world node.
 	 - `BloodFootprints` (Node child, character): `step(foot, fall: Footfall)` on each footfall prints a sole if the foot carries wet blood
 	   (`Footfall`, `physics/blood/footfall.gd`: `at`, `direction`, `length`, `width`, `inner`, `speed`).
-	 - `BloodSmear` (Node child, objects): `set_footprint(local_polygon)`, then drags blood out of a puddle as ribbons while the body slides.
+	 - `BloodSmear` (Node child, objects): `set_footprint(polygon)`, then drags blood out of a puddle as ribbons while the body slides.
 	 - `BloodSurface` (static): `register(rect, groove: Callable(world, half_width) -> 0..1, porous) -> id` / `unregister(id)`.
 	   Objects' `Floor` registers its room so a bleed-out flow runs along grout/seams; rugs register porous (blood
 	   sinks in).
