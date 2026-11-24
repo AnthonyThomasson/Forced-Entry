@@ -3,6 +3,9 @@ extends RefCounted
 ## FROZEN COPY of `GrenadeArc` as it was before the failing-path cut (#194, perf-arc): the oracle
 ## `tests/items/grenade_arc_matches_reference_test.gd` plans every input with both and wants the
 ## same launch (and the same `work`). Do not edit it to follow `GrenadeArc`; it is the old answer.
+## It guards this cut only: a deliberate change to the planner's rules re-freezes it in the same
+## commit (copy the new planner over it, and say why in the commit message). It and the oracle are
+## deleted by the ticket's final perf job (#194, job 20) once every guard passes.
 ## Items domain, the one planner of a grenade's throw, for the player's throw and the AI's
 ## (interface 6): from the thrower's release height to the aim point, the LOWEST arc that clears
 ## what is in the way in the twin 3D space (furniture tops, a doorway's lintel, a wall) and lands
