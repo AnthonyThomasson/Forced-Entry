@@ -28,11 +28,12 @@ var _params := PhysicsShapeQueryParameters3D.new()
 var _ray := PhysicsRayQueryParameters3D.new()
 ## The twin space of `_space_frame` (a body stays in one world, so one physics frame asks the engine
 ## once however many casts it makes), and the body's twin the exclusion lists were built for with
-## those lists (what `_params` and `_ray` hold, set only when the twin changes).
+## those lists (what `_params` and `_ray` hold, set only when the twin changes; null until first
+## built, an empty one for a body with no twin).
 var _space_cache: PhysicsDirectSpaceState3D
 var _space_frame := -1
 var _twin: Node3D
-var _excluded: Array[RID] = []
+var _excluded: Variant = null
 ## The sphere shape last asked for and its radius (px), the common repeat of a hand's or a foot's
 ## casts.
 var _last_radius := -1.0
@@ -171,20 +172,30 @@ func _set_ray_mask(mask: int) -> void:
 ## rebuilt and written only when the twin is another one than last time.
 func _exclude() -> void:
 	var twin := TwinSpace.twin_for(_character)
-	if twin == _twin and _twin != null:
+	if _excluded != null and twin == _twin:
 		return
 	_twin = twin
-	_excluded = []
+	var list: Array[RID] = []
 	if twin != null:
-		_excluded.append((twin as CollisionObject3D).get_rid())
-	_params.exclude = _excluded
-	_ray.exclude = _excluded
+		list.append((twin as CollisionObject3D).get_rid())
+	_excluded = list
+	_params.exclude = list
+	_ray.exclude = list
 
 
-## The twin space the body is in, asked of the engine once a physics frame.
+## The twin space the body is in, asked of the engine once a physics frame. Only a space the twin
+## space answered is kept: the viewport's own world, which `TwinSpace.space_of` falls back to before
+## the twin space is registered, is asked again next time.
 func _space() -> PhysicsDirectSpaceState3D:
 	var frame := Engine.get_physics_frames()
-	if frame != _space_frame or _space_cache == null or not _character.is_inside_tree():
-		_space_cache = TwinSpace.space_of(_character)
-		_space_frame = frame
-	return _space_cache
+	if frame == _space_frame and _space_cache != null and _character.is_inside_tree():
+		return _space_cache
+	_space_cache = null
+	if not _character.is_inside_tree():
+		return null
+	var twins := TwinSpace.space_in(_character.get_viewport().find_world_2d())
+	if twins == null:
+		return TwinSpace.space_of(_character)
+	_space_cache = twins
+	_space_frame = frame
+	return twins

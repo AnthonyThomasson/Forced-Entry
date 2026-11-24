@@ -65,8 +65,9 @@ func update(character: Node2D, delta: float) -> void:
 		clear()
 		return
 	if _rig == null:
-		_rig = Rig.new(character, false, false)
-	_rig.solve_legs(character)
+		_rig = Rig.new(character, false, false)  # Its own solve is this frame's.
+	else:
+		_rig.solve_legs(character)
 	_origin = character.global_position
 	var posture: StringName = character.movement.body_posture()
 	_ankle_height = BodyHeights.contact(&"ankle", posture)
