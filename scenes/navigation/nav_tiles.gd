@@ -23,7 +23,7 @@ const RECT_META := "nav_tile_rect"
 const WALLS_META := "nav_tile_walls"
 const HOLES_META := "nav_tile_holes"
 ## The holes a tick brought that are the baked ones within `NavSettle.TOLERANCE`
-## (`_holes_unchanged`).
+## (`holes_unchanged`).
 const SEEN_META := "nav_tile_holes_seen"
 ## The meta on the planning region that keeps each tower's parsed walls (`walls_reaching`).
 const WALL_CACHE_META := "nav_wall_cache"
@@ -91,10 +91,10 @@ static func rebake(
 	walls: Dictionary = {},
 ) -> int:
 	var tiles := NavBuilder.steering_regions(region)
-	var hole_bins := bin(furniture + characters, _reaches(tiles), site.house.position)
+	var hole_bins := bin(furniture + characters, reaches_of(tiles), site.house.position)
 	var due: Array[int] = []
 	for i in tiles.size():
-		if not _holes_unchanged(tiles[i], hole_bins[i]):
+		if not holes_unchanged(tiles[i], hole_bins[i]):
 			due.append(i)
 	if due.is_empty():
 		return 0
@@ -136,17 +136,10 @@ static func due_tiles(
 	characters: Array,
 	walkers: Array[Vector2] = [],
 ) -> Array[Dictionary]:
-	var tiles := NavBuilder.steering_regions(region)
-	var hole_bins := bin(furniture + characters, _reaches(tiles), site.house.position)
-	var keyed: Array[Dictionary] = []
-	for i in tiles.size():
-		if _holes_unchanged(tiles[i], hole_bins[i]):
-			continue
-		var rect: Rect2 = tiles[i].get_meta(RECT_META)
-		var gap := _gap(rect, walkers, site)
-		keyed.append({ "tile": tiles[i], "holes": hole_bins[i], "gap": gap, "i": i })
-	keyed.sort_custom(_nearer)
-	return keyed
+	var due := NavDue.new(region, site, furniture, characters, walkers)
+	while not due.step(1 << 30, 1 << 30):
+		pass
+	return due.result()
 
 
 ## The walls (`NavSource.walls`' shape) that reach any of the tiles of `entries` (`due_tiles`'
@@ -232,7 +225,7 @@ static func walking_at(root: Node) -> Array[Vector2]:
 
 ## The squared distance from the nearest of the world points `walkers` to `rect` (the house's local
 ## frame); INF with none.
-static func _gap(rect: Rect2, walkers: Array[Vector2], site: NavSite) -> float:
+static func gap_of(rect: Rect2, walkers: Array[Vector2], site: NavSite) -> float:
 	var best := INF
 	for point in walkers:
 		var local := point - site.house.position
@@ -241,7 +234,7 @@ static func _gap(rect: Rect2, walkers: Array[Vector2], site: NavSite) -> float:
 
 
 ## Whether the due entry `a` is baked before `b`: the nearer to a walker, then the grid's order.
-static func _nearer(a: Dictionary, b: Dictionary) -> bool:
+static func nearer(a: Dictionary, b: Dictionary) -> bool:
 	if a["gap"] != b["gap"]:
 		return a["gap"] < b["gap"]
 	return a["i"] < b["i"]
@@ -437,7 +430,7 @@ static func _reach(tile: NavigationRegion3D) -> Rect2:
 
 
 ## The `_reach` of each of `tiles`.
-static func _reaches(tiles: Array) -> Array[Rect2]:
+static func reaches_of(tiles: Array) -> Array[Rect2]:
 	var out: Array[Rect2] = []
 	for tile: NavigationRegion3D in tiles:
 		out.append(_reach(tile))
@@ -449,7 +442,7 @@ static func _reaches(tiles: Array) -> Array[Rect2]:
 ## was baked from, so a piece creeping on is due once it adds up to the tolerance; the holes found
 ## within it are remembered (`SEEN_META`), so the next tick's identical ones are one equality test
 ## and the shape comparison is made only when a footprint moves.
-static func _holes_unchanged(tile: NavigationRegion3D, holes: Array) -> bool:
+static func holes_unchanged(tile: NavigationRegion3D, holes: Array) -> bool:
 	if not tile.has_meta(HOLES_META):
 		return false
 	if tile.get_meta(SEEN_META, null) == holes:
@@ -466,7 +459,7 @@ static func _holes_unchanged(tile: NavigationRegion3D, holes: Array) -> bool:
 static func _baked_from(tile: NavigationRegion3D, walls: Array, holes: Array) -> bool:
 	return (tile.has_meta(WALLS_META)
 			and tile.get_meta(WALLS_META) == walls
-			and _holes_unchanged(tile, holes))
+			and holes_unchanged(tile, holes))
 
 
 ## A world point on `tile`'s navmesh (the centre of its first polygon), `Vector2.INF` when the tile

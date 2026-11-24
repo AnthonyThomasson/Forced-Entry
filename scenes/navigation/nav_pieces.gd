@@ -18,6 +18,9 @@ var _pieces: Array = []
 var _by_id: Dictionary = {}
 ## Whether a piece was added or left since the pieces were listed.
 var _relist := true
+## How far a reading in steps has got (`step_holes`) and the footprints it holds.
+var _at := 0
+var _walked: Array = []
 
 
 ## The tracker of `house`, made on first use. `house` must stand in the tree.
@@ -58,19 +61,49 @@ static func under(house: Node2D) -> Array[Node2D]:
 ## The footprint of every piece under the house, in the order a walk of its descendants finds them,
 ## then the doors' leaves standing clear of their doorways (`NavLeaves.hole`).
 func holes() -> Array:
+	begin_holes()
+	while not step_holes(1 << 30, 1 << 30):
+		pass
+	return _walked
+
+
+## Start reading the footprints in steps (`step_holes`): the pieces are listed again when one was
+## added or has left.
+func begin_holes() -> void:
 	if _relist:
 		_list()
-	var out: Array = []
-	for piece: Piece in _pieces:
+	_at = 0
+	_walked = []
+
+
+## Read the next pieces, up to `scan` of them and up to `cuts` footprints cut afresh, whichever
+## comes first; true once every piece is read and the doors' leaves added, the footprints being
+## `walked` (what `holes` returns).
+func step_holes(scan: int, cuts: int) -> bool:
+	var cut := 0
+	var stop := mini(_at + scan, _pieces.size())
+	while _at < stop and cut < cuts:
+		var piece: Piece = _pieces[_at]
+		_at += 1
+		if not is_instance_valid(piece.body):
+			continue  # freed meanwhile: the next listing drops it
 		var stamp: Variant = NavTwins.stamp_of(piece.body)
 		if piece.dirty or stamp != piece.stamp:
 			piece.stamp = stamp
 			piece.hull = NavHoles.cut(piece.body)
 			piece.dirty = false
+			cut += 1
 		if not piece.hull.is_empty():
-			out.append(piece.hull.duplicate())  # a caller's edit stays its own
-	NavLeaves.append_holes(out, _house)
-	return out
+			_walked.append(piece.hull.duplicate())  # a caller's edit stays its own
+	if _at < _pieces.size():
+		return false
+	NavLeaves.append_holes(_walked, _house)
+	return true
+
+
+## The footprints `holes` / `step_holes` made.
+func walked() -> Array:
+	return _walked
 
 
 ## Forget the house: the connections go and the next ask makes a fresh tracker.

@@ -78,6 +78,8 @@ func run(t: TestContext) -> void:
 	probe.watch(updater, district, region as NavigationRegion3D)
 	await t.until(func() -> bool: return probe.ticks >= 1, 1.0)
 	t.check(probe.ticks >= 1, "a tick came while the burst was open")
+	await t.until(func() -> bool: return probe.checked, 2.0)
+	t.check(probe.checked, "its job ended")
 	t.check(
 		probe.stranded.is_empty(),
 		"after the tick every tile due by the footprints is still to bake or held (stranded: %s)"
@@ -107,12 +109,13 @@ func _below(tile: NavigationRegion3D) -> NavigationRegion3D:
 	return null
 
 
-## Counts the updater's ticks from now on and, at the first, reads which tiles are due by the
-## footprints of that moment but are neither to bake nor held. Connected after the updater's own
-## handler, so it runs after the part of the tick that does not wait a frame.
+## Counts the updater's ticks from now on and, at the first, once its job has ended (`NavTick`, a
+## few frames), reads which tiles are due by the footprints of that moment but are neither to bake
+## nor held.
 class TickProbe extends RefCounted:
 	var ticks := 0
 	var stranded: Array[String] = []
+	var checked := false
 	var _updater: Node
 	var _district: Node2D
 	var _region: NavigationRegion3D
@@ -125,8 +128,13 @@ class TickProbe extends RefCounted:
 
 	func _on_tick() -> void:
 		ticks += 1
-		if ticks > 1:
+		if ticks == 1:
+			_updater.get_tree().physics_frame.connect(_after_job)
+
+	func _after_job() -> void:
+		if _updater.ticking() or checked:
 			return
+		checked = true
 		var site := NavBuilder.site_of(_region, _district, WorldGen.district_rooms(_district))
 		var in_play: Array[NavigationRegion3D] = _updater.tiles_in_play()
 		var due := NavTiles.due_tiles(

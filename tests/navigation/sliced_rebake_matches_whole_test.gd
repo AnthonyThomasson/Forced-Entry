@@ -1,17 +1,20 @@
 extends GameTest
 ## A district's planning re-bake is gathered a few frames at a time and swapped in whole (#192,
-## rule 26): after a piece is shoved, the tick re-bakes the steering tiles at once and the planning
-## gather runs over at least two and at most eight physics frames, during which every read (the
-## region's polygon, the map's iteration, a route) still sees the previous map. The map it swaps in
-## equals a whole re-bake of the same world, the ring too; a piece shoved while the gather runs is
-## caught by the next tick; and a region freed mid-gather leaves nothing running.
+## rule 26): after a piece is shoved, the tick (a few physics frames: `NavTick`) re-bakes the
+## steering tiles and the planning gather runs over at least two and at most `MOST_FRAMES` physics
+## frames from the timer, during which every read (the region's polygon, the map's iteration, a
+## route) still sees the previous map. The map it swaps in equals a whole re-bake of the same world,
+## the ring too; a piece shoved while the gather runs is caught by the next tick; and a region freed
+## mid-gather leaves nothing running.
 ## What marks the swap is the region's remembered source `version` (`NavSource.remember`), which
 ## counts finished gathers, and then the planning region's polygon, assigned when the bake lands.
 
 const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const SEED := 7
-## The most physics frames the gather may take, from the tick to the swap.
-const MOST_FRAMES := 8
+## The most physics frames the gather may take, from the timer to the swap: the district's tick (the
+## footprints read, the characters', the outlines binned, the tiles checked: nine of this district's
+## 857 pieces) and the gather's own seven.
+const MOST_FRAMES := 26
 ## How long (sim s) a bake may take to land: it runs on the server's worker thread in real time.
 const WAIT := 12.0
 
@@ -23,8 +26,8 @@ var _timer: Timer
 func describe() -> Dictionary:
 	return {
 		"name": "A district's sliced planning re-bake equals a whole one",
-		"description": "A piece is shoved; the planning gather takes two to eight frames with the "
-			+ "previous map answering throughout, then the map equals a whole re-bake.",
+		"description": "A piece is shoved; the planning gather takes two to 26 frames with "
+			+ "the previous map answering throughout, then the map equals a whole re-bake.",
 		"tags": ["navigation", "district", "rebake", "perf"],
 		"timeout": 60.0,
 	}
@@ -49,6 +52,11 @@ func run(t: TestContext) -> void:
 	if not t.require(pieces.size() >= 2, "premise: the district has solid pieces"):
 		return
 	_timer.stop()  # the ticks are driven here
+	var updater := _timer.get_parent()
+	await t.until(
+		func() -> bool: return not updater.busy(),
+		8.0,
+	)  # a cold tick and its bake end first
 	await t.seconds(1.0)  # whatever the first ticks started lands
 	await _check_sliced(t, pieces)
 	await _check_next_tick(t)
