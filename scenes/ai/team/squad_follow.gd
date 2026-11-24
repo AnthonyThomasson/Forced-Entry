@@ -223,7 +223,7 @@ func _trail_spot(world: World2D, here: Vector2, member: Node2D, dist: float) -> 
 	var stands := member.global_position
 	if dist > _trail_length() and here.distance_to(back) > here.distance_to(stands):
 		return stands
-	return NavBuilder.snap(world.navigation_map, back)
+	return NavBuilder.snap(NavWorld.map_in(world), back)
 
 
 ## `at`, or, when it or `member` is in the leader's way (`_in_way`), a spot beside that way, on the
@@ -328,7 +328,7 @@ func _further_on(member: Node, here: Vector2, ahead: Vector2) -> Vector2:
 ## (no wall between) and out of every doorway, or `Vector2.INF`: a spot in a wall, under furniture,
 ## in another room or in a doorway is not one a follower is sent to.
 func _open_at(world: World2D, here: Vector2, want: Vector2) -> Vector2:
-	var at := NavBuilder.snap(world.navigation_map, want)
+	var at := NavBuilder.snap(NavWorld.map_in(world), want)
 	if (at.distance_to(want) > SLOT_SNAP
 			or _in_doorway(at)
 			or not _vision.wall_hit(TwinSpace.space_in(world), here, at).is_empty()):

@@ -275,7 +275,7 @@ static func _floor_faces(outline: PackedVector2Array) -> PackedVector3Array:
 ## Keep what the planning bake was made from (its walkable outline, its obstructions and the agent
 ## radius) on `region`, with a version that counts the bakes, so an avoid map can be baked from it
 ## with more holes and knows when the furniture has moved.
-static func remember(region: NavigationRegion2D, baked: Dictionary) -> void:
+static func remember(region: NavigationRegion3D, baked: Dictionary) -> void:
 	var source: NavigationMeshSourceGeometryData2D = baked["source"]
 	var poly: NavigationPolygon = baked["poly"]
 	var version := 0
@@ -289,33 +289,36 @@ static func remember(region: NavigationRegion2D, baked: Dictionary) -> void:
 	})
 
 
-## A new active map with the project's 2D navigation defaults (what the world's own map is made
-## with: a freshly made map has the 3D ones, and the server refuses a navmesh baked with another
-## cell size). `edge_connections` is whether the map runs the server's edge-connection pass (the
-## project's setting by default): it joins free edges of different regions within a pixel, which
-## rebuilds the whole map's links on every change (`steering-edge-connections.md`).
+## A new active map with the project's 3D navigation defaults (what a world's own map is made
+## with, `project.godot`: cell size and height are those a bake's mesh is made in, and the server
+## refuses a navmesh baked with another cell size). `edge_connections` is whether the map runs the
+## server's edge-connection pass (the project's setting by default): it joins free edges of
+## different regions within a pixel, which rebuilds the whole map's links on every change
+## (`steering-edge-connections.md`).
 static func new_map(edge_connections := true) -> RID:
-	var map := NavigationServer2D.map_create()
-	NavigationServer2D.map_set_cell_size(
-		map,
-		float(ProjectSettings.get_setting("navigation/2d/default_cell_size", 1.0)),
+	var map := NavigationServer3D.map_create()
+	NavigationServer3D.map_set_cell_size(
+		map, float(ProjectSettings.get_setting("navigation/3d/default_cell_size", CELL_SIZE)),
 	)
-	NavigationServer2D.map_set_edge_connection_margin(
-		map,
-		float(ProjectSettings.get_setting("navigation/2d/default_edge_connection_margin", 1.0)),
+	NavigationServer3D.map_set_cell_height(
+		map, float(ProjectSettings.get_setting("navigation/3d/default_cell_height", CELL_HEIGHT)),
 	)
-	NavigationServer2D.map_set_link_connection_radius(
+	NavigationServer3D.map_set_edge_connection_margin(
 		map,
-		float(ProjectSettings.get_setting("navigation/2d/default_link_connection_radius", 4.0)),
+		float(ProjectSettings.get_setting("navigation/3d/default_edge_connection_margin", 1.0)),
 	)
-	NavigationServer2D.map_set_use_edge_connections(
+	NavigationServer3D.map_set_link_connection_radius(
+		map,
+		float(ProjectSettings.get_setting("navigation/3d/default_link_connection_radius", 4.0)),
+	)
+	NavigationServer3D.map_set_use_edge_connections(
 		map,
 		(
 			edge_connections
-			and bool(ProjectSettings.get_setting("navigation/2d/use_edge_connections", true))
+			and bool(ProjectSettings.get_setting("navigation/3d/use_edge_connections", true))
 		),
 	)
-	NavigationServer2D.map_set_active(map, true)
+	NavigationServer3D.map_set_active(map, true)
 	return map
 
 

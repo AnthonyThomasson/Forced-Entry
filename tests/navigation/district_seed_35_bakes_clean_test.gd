@@ -27,10 +27,10 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	await t.seconds(2.0)
-	var region := t.world.find_children("NavRegion", "NavigationRegion2D", true, false)[0]
-	var why := Bake.problem(region as NavigationRegion2D)
+	var region := t.world.find_children("NavRegion", "NavigationRegion3D", true, false)[0]
+	var why := Bake.problem(region as NavigationRegion3D)
 	t.check(why == "", "the planning polygon has nothing the server rejects: %s" % why)
-	for tile: NavigationRegion2D in NavBuilder.steering_regions(region as NavigationRegion2D):
+	for tile: NavigationRegion3D in NavBuilder.steering_regions(region as NavigationRegion3D):
 		var tile_why := Bake.problem(tile)
 		if tile_why != "":
 			t.check(false, "a steering tile has nothing the server rejects: %s" % tile_why)

@@ -11,7 +11,7 @@ const SEED := 7
 const CORNER_IN := 100.0
 
 var _district: Node2D
-var _region: NavigationRegion2D
+var _region: NavigationRegion3D
 
 
 func describe() -> Dictionary:
@@ -35,7 +35,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)
 	_district = t.world.get("district") as Node2D
-	_region = t.world.find_children("NavRegion", "NavigationRegion2D", true, false)[0]
+	_region = t.world.find_children("NavRegion", "NavigationRegion3D", true, false)[0]
 	var site := NavBuilder.site_of(_region, _district, WorldGen.district_rooms(_district))
 	var front := WorldGen.district_bounds(_district).position + Vector2(CORNER_IN, CORNER_IN)
 	t.actor(&"p").global_position = front
@@ -51,17 +51,17 @@ func run(t: TestContext) -> void:
 		return
 	var parsed := NavTiles.parse_for(_region, site, due)
 	var before := NavTiles.threaded_total
-	var tile := due[0]["tile"] as NavigationRegion2D
-	var polygon := tile.navigation_polygon
+	var tile := due[0]["tile"] as NavigationRegion3D
+	var polygon := NavPlan.polygon_of(tile)
 	var held := NavTiles.prepare(site, due[0], parsed)
 	if not t.require(held != null, "premise: the first due tile was started"):
 		return
 	t.expect_eq(NavTiles.threaded_total, before + 1, "the bake was started on a worker thread")
 	t.check(held.task >= 0, "the held bake names its pool task")
-	t.expect_eq(tile.navigation_polygon, polygon, "the tile is as it was until the burst lands")
+	t.expect_eq(NavPlan.polygon_of(tile), polygon, "the tile is as it was until the burst lands")
 	NavTiles.land([held])
 	t.expect_eq(held.task, -1, "landing joined the task")
-	t.check(tile.navigation_polygon != polygon, "the tile took a polygon when the burst landed")
+	t.check(NavPlan.polygon_of(tile) != polygon, "the tile took a polygon when the burst landed")
 	var again := _on_main_thread(tile, site, held.walls, held.holes)
 	var poly := held.poly
 	t.expect_eq(poly.vertices, again.vertices, "the threaded bake's vertices are the main thread's")
@@ -72,7 +72,7 @@ func run(t: TestContext) -> void:
 
 ## The tile `held` was baked for, baked here from the same source on the calling thread.
 func _on_main_thread(
-	tile: NavigationRegion2D,
+	tile: NavigationRegion3D,
 	site: NavSite,
 	walls: Dictionary,
 	holes: Array,

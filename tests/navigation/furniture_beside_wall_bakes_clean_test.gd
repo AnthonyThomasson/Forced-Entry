@@ -36,10 +36,10 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)
-	var region: NavigationRegion2D = t.world.find_children(
-		"NavRegion", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"NavRegion", "NavigationRegion3D", true, false,
 	)[0]
-	var map: RID = t.world.get_world_2d().navigation_map
+	var map: RID = NavWorld.map_of(t.world)
 	var chair: Node2D = t.object(&"chair")
 	var problems := []
 	for spot: Array in SPOTS:
@@ -66,7 +66,7 @@ func run(t: TestContext) -> void:
 					"off the main thread" if off_thread else "in place",
 					why,
 				])
-			NavigationServer2D.map_force_update(map)
+			NavigationServer3D.map_force_update(map)
 			await t.frames(2)
 	t.check(
 		problems.is_empty(),

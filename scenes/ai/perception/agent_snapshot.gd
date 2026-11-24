@@ -175,7 +175,7 @@ func _context(known: Array, callouts: Array) -> Dictionary:
 	var ctx := {
 		"world": _character.get_world_2d(),
 		"space": TwinSpace.space_of(_character),
-		"map": _character.get_world_2d().navigation_map,
+		"map": NavWorld.map_of(_character),
 		"self_pos": self_pos,
 		"self_id": _character.get_instance_id(),
 		"exclude": SightRay.exclude_of(_character),

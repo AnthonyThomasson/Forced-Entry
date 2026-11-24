@@ -183,7 +183,7 @@ func _on_posted(topic: StringName, data: Dictionary) -> void:
 ## Reserve the first free slot at the nearest doorway near the human where an allied team is
 ## stacking up.
 func _look_for_team() -> void:
-	var map: RID = _char.get_world_2d().navigation_map
+	var map: RID = NavWorld.map_of(_char)
 	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(_char)
 	var best := {}
 	var best_dist := INF
@@ -267,7 +267,7 @@ func _ask_side(stack: RefCounted, n: int) -> void:
 		return
 	var world := _char.get_world_2d()
 	reservation.member.ask(
-		_entry.stack_side_from(stack, pos, world.navigation_map, TwinSpace.space_in(world)),
+		_entry.stack_side_from(stack, pos, NavWorld.map_in(world), TwinSpace.space_in(world)),
 		now,
 	)
 
@@ -277,7 +277,7 @@ func _ask_side(stack: RefCounted, n: int) -> void:
 func _walk_distance(to: Vector2) -> float:
 	var from := _char.global_position
 	var straight := from.distance_to(to)
-	var map: RID = _char.get_world_2d().navigation_map
+	var map: RID = NavWorld.map_of(_char)
 	if straight > reserve_range * leave_factor or not NavBuilder.ready(map):
 		return straight
 	return NavBuilder.path_length(NavBuilder.route(map, from, to))

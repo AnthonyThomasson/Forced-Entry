@@ -53,7 +53,7 @@ static var unsplit_total := 0
 
 ## The polygon `poly`, just baked for `tile`, is what `tile` was baked to: kept raw, with its
 ## border's vertices read off (`weld` then splits it against the neighbours').
-static func take(tile: NavigationRegion2D, poly: NavigationPolygon) -> void:
+static func take(tile: NavigationRegion3D, poly: NavigationPolygon) -> void:
 	var rect: Rect2 = tile.get_meta(NavTiles.RECT_META)
 	_snap_to_borders(poly, rect)
 	tile.set_meta(BASE_META, poly)
@@ -81,21 +81,21 @@ static func weld(changed: Array) -> void:
 	for item: Variant in changed:
 		if not _live(item):
 			continue
-		var tile := item as NavigationRegion2D
+		var tile := item as NavigationRegion3D
 		queue[tile] = true
 		_add_neighbours(queue, tile)
 	var fit := {}
 	for item: Variant in queue:
 		fit[item] = true
-		_add_neighbours(fit, item as NavigationRegion2D)
+		_add_neighbours(fit, item as NavigationRegion3D)
 	# Closing a cell at a tile's corner opens a stretch on the border across: each tile that was
 	# baked again queues its neighbours for the next round, until none is.
 	for _round in MAX_ROUNDS:
 		var next := {}
 		for item: Variant in queue:
-			if _live(item) and _agree(item as NavigationRegion2D):
-				_add_neighbours(next, item as NavigationRegion2D)
-				_add_neighbours(fit, item as NavigationRegion2D)
+			if _live(item) and _agree(item as NavigationRegion3D):
+				_add_neighbours(next, item as NavigationRegion3D)
+				_add_neighbours(fit, item as NavigationRegion3D)
 				fit[item] = true
 		queue = next
 		if queue.is_empty():
@@ -104,11 +104,11 @@ static func weld(changed: Array) -> void:
 		rounds_exhausted_total += 1
 	for item: Variant in fit:
 		if _live(item):
-			_fit(item as NavigationRegion2D)
+			_fit(item as NavigationRegion3D)
 
 
 ## Add the live neighbours of `tile` to the set `into`.
-static func _add_neighbours(into: Dictionary, tile: NavigationRegion2D) -> void:
+static func _add_neighbours(into: Dictionary, tile: NavigationRegion3D) -> void:
 	for entry: Dictionary in neighbours(tile):
 		if _live(entry["tile"]):
 			into[entry["tile"]] = true
@@ -117,7 +117,7 @@ static func _add_neighbours(into: Dictionary, tile: NavigationRegion2D) -> void:
 ## Bake `tile` again, from what it was first baked from, with the stretches of its borders its
 ## neighbours' borders do not hold closed, when those are not the stretches it was last baked
 ## closed over. Whether it was.
-static func _agree(tile: NavigationRegion2D) -> bool:
+static func _agree(tile: NavigationRegion3D) -> bool:
 	if not tile.has_meta(EDGES_META):
 		return false
 	var base: NavigationPolygon = tile.get_meta(BASE_META)
@@ -142,13 +142,13 @@ static func _agree(tile: NavigationRegion2D) -> bool:
 	tile.set_meta(NOW_META, _border_edges(poly, rect))
 	tile.set_meta(POINTS_META, _border_points(poly, rect))
 	tile.set_meta(SPLIT_META, _none())
-	tile.navigation_polygon = poly
+	NavPlan.assign(tile, poly)
 	return true
 
 
 ## Per side, the stretches of `tile`'s border that it holds walkable (as it was first baked) where
 ## the neighbour across holds none (as it holds them now).
-static func _stretches_to_close(tile: NavigationRegion2D) -> Array:
+static func _stretches_to_close(tile: NavigationRegion3D) -> Array:
 	var out := _no_stretches()
 	var mine: Array = tile.get_meta(EDGES_META)
 	var rect: Rect2 = tile.get_meta(NavTiles.RECT_META)
@@ -156,7 +156,7 @@ static func _stretches_to_close(tile: NavigationRegion2D) -> Array:
 		if not _live(entry["tile"]) or not entry["tile"].has_meta(NOW_META):
 			continue
 		var side: int = entry["side"]
-		var other: NavigationRegion2D = entry["tile"]
+		var other: NavigationRegion3D = entry["tile"]
 		var their_rect: Rect2 = other.get_meta(NavTiles.RECT_META)
 		var reach := Vector2(
 			maxf(_from(rect, side), _from(their_rect, side)),
@@ -259,19 +259,19 @@ static func _no_stretches() -> Array:
 static func _live(tile: Variant) -> bool:
 	if not is_instance_valid(tile):
 		return false
-	var region := tile as NavigationRegion2D
+	var region := tile as NavigationRegion3D
 	return region != null and region.is_inside_tree()
 
 
 ## The tiles that share a stretch of border with `tile`, `{ tile, side }`, kept on the tile (a
 ## district's tiles stay as they are).
-static func neighbours(tile: NavigationRegion2D) -> Array:
+static func neighbours(tile: NavigationRegion3D) -> Array:
 	if tile.has_meta(NEIGHBOURS_META):
 		return tile.get_meta(NEIGHBOURS_META)
 	var out := []
 	var rect: Rect2 = tile.get_meta(NavTiles.RECT_META)
 	for other in tile.get_parent().get_children():
-		var near := other as NavigationRegion2D
+		var near := other as NavigationRegion3D
 		if near == null or near == tile or not near.has_meta(NavTiles.RECT_META):
 			continue
 		var side := _side_between(rect, near.get_meta(NavTiles.RECT_META))
@@ -283,27 +283,27 @@ static func neighbours(tile: NavigationRegion2D) -> Array:
 
 ## Give `tile` the raw polygon split at what its neighbours have on the borders, when that is not
 ## what it holds.
-static func _fit(tile: NavigationRegion2D) -> void:
+static func _fit(tile: NavigationRegion3D) -> void:
 	if not tile.has_meta(RAW_META):
 		return
 	var missing := _missing_points(tile)
 	if missing == tile.get_meta(SPLIT_META):
 		return
 	var raw: NavigationPolygon = tile.get_meta(RAW_META)
-	tile.navigation_polygon = raw if missing == _none() else _split(raw, tile, missing)
+	NavPlan.assign(tile, raw if missing == _none() else _split(raw, tile, missing))
 	tile.set_meta(SPLIT_META, missing)
 
 
 ## Per side, the coordinates of the border vertices the neighbours have and `tile` has not (in a
 ## cell of its own: two vertices in one cell are one to the server).
-static func _missing_points(tile: NavigationRegion2D) -> Array:
+static func _missing_points(tile: NavigationRegion3D) -> Array:
 	var out := _none()
 	var mine: Array = tile.get_meta(POINTS_META)
-	var offset := tile.to_global(Vector2.ZERO)
+	var offset := NavPlan.plan_of(tile.global_position)
 	for entry: Dictionary in neighbours(tile):
 		if not _live(entry["tile"]):
 			continue
-		var other: NavigationRegion2D = entry["tile"]
+		var other: NavigationRegion3D = entry["tile"]
 		if not other.has_meta(POINTS_META):
 			continue
 		var side: int = entry["side"]
@@ -349,14 +349,14 @@ static func _apart(
 ## that corner, one triangle to each piece of the edge, and the rest of the polygon stays one.
 static func _split(
 	raw: NavigationPolygon,
-	tile: NavigationRegion2D,
+	tile: NavigationRegion3D,
 	missing: Array,
 ) -> NavigationPolygon:
 	var cut := {
 		"verts": raw.get_vertices(),
 		"rect": tile.get_meta(NavTiles.RECT_META),
 		"missing": missing,
-		"shift": tile.to_global(Vector2.ZERO),
+		"shift": NavPlan.plan_of(tile.global_position),
 		"made": {},
 	}
 	var rings: Array[PackedInt32Array] = []

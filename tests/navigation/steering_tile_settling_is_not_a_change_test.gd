@@ -13,7 +13,7 @@ const SETTLE := 0.05
 const MOVED := 0.5
 
 var _district: Node2D
-var _region: NavigationRegion2D
+var _region: NavigationRegion3D
 var _rooms: Array
 var _site: NavSite
 
@@ -37,7 +37,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)
 	_district = t.world.get("district") as Node2D
-	_region = t.world.find_children("NavRegion", "NavigationRegion2D", true, false)[0]
+	_region = t.world.find_children("NavRegion", "NavigationRegion3D", true, false)[0]
 	_rooms = WorldGen.district_rooms(_district)
 	_site = NavBuilder.site_of(_region, _district, _rooms)
 	NavBuilder.rebake_steering(_region, _district, _rooms)

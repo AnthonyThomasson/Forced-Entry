@@ -34,8 +34,8 @@ func pending() -> bool:
 ## The tiles whose polygon is still to be assigned this burst: those still to bake and those baked
 ## and held. A tile due by the footprints of the moment is in this list or has been landed with
 ## them (`navigation/tile_burst_lands_before_next_tick`).
-func tiles_in_play() -> Array[NavigationRegion2D]:
-	var out: Array[NavigationRegion2D] = []
+func tiles_in_play() -> Array[NavigationRegion3D]:
+	var out: Array[NavigationRegion3D] = []
 	for entry in tiles:
 		out.append(entry["tile"])
 	for held in _held:
@@ -46,7 +46,7 @@ func tiles_in_play() -> Array[NavigationRegion2D]:
 ## Start the first of the tiles still to bake (on a worker thread) and hold it, on a `GameClock`
 ## frame none was started on yet; the frame `NavBakeConfig.tile_frames` after the last one was
 ## started lands the burst. Nothing to land (every tile was up to date): the burst ends at once.
-func step(region: NavigationRegion2D, site: NavSite) -> void:
+func step(region: NavigationRegion3D, site: NavSite) -> void:
 	if GameClock.frame() == _frame:
 		return
 	_frame = GameClock.frame()

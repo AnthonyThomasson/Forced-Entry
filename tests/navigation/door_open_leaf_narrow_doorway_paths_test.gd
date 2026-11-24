@@ -48,7 +48,7 @@ func run(t: TestContext) -> void:
 	if not t.require(door.angle() >= OPEN - 1.0, "the door stands open (%.0f)" % door.angle()):
 		return
 	await t.seconds(0.5)
-	var planning: RID = t.world.get_world_2d().navigation_map
+	var planning: RID = NavWorld.map_of(t.world)
 	var maps := { "planning": planning, "steering": NavBuilder.steering_map(planning) }
 	for name in maps:
 		for to in TO:

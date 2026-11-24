@@ -608,7 +608,7 @@ static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 ## `nav_debug` overlay, set up over `nav_region` and not yet ticking (`_settle` starts it).
 static func _rebaker(
 	world: Node2D,
-	nav_region: NavigationRegion2D,
+	nav_region: NavigationRegion3D,
 	root: Node2D,
 	site_rooms: Array,
 	nav_debug: Node2D,
@@ -691,7 +691,7 @@ static func _wait_nav(world: Node2D) -> void:
 		await world.get_tree().physics_frame
 	var deadline := Time.get_ticks_msec() + NAV_SYNC_MS
 	while is_instance_valid(world) and world.is_inside_tree():
-		var map: RID = world.get_world_2d().navigation_map
+		var map: RID = NavWorld.map_of(world)
 		var steering := NavBuilder.steering_map(map)
 		if NavBuilder.ready(map) and (not steering.is_valid() or NavBuilder.ready(steering)):
 			return

@@ -61,10 +61,10 @@ func _check_hand_made(t: TestContext) -> void:
 
 
 func _check_district(t: TestContext) -> void:
-	var region: NavigationRegion2D = t.world.find_children(
-		"NavRegion", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"NavRegion", "NavigationRegion3D", true, false,
 	)[0]
-	var poly := region.navigation_polygon
+	var poly := NavPlan.polygon_of(region)
 	var concave := 0
 	var widest := 0
 	for i in poly.get_polygon_count():

@@ -59,8 +59,8 @@ func run(t: TestContext) -> void:
 	var rooms := WorldGen.district_rooms(district)
 	if not t.require(rooms.size() >= 2, "the district has rooms to path between"):
 		return
-	var region: NavigationRegion2D = t.world.find_children(
-		"NavRegion", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"NavRegion", "NavigationRegion3D", true, false,
 	)[0]
 	var rebake_ms := Perf.time_ms(func():
 		for i in REBAKES:
@@ -80,7 +80,7 @@ func run(t: TestContext) -> void:
 ## re-bake tick costs a frame while the characters are about.
 func _steering(
 	t: TestContext,
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	district: Node2D,
 	rooms: Array,
 ) -> void:
@@ -96,7 +96,7 @@ func _steering(
 
 ## `QUERIES` path queries between the district's rooms: their total time and how many found a path.
 func _queries(t: TestContext, rooms: Array) -> void:
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	var found := [0]  # a lambda captures ints by value
 	var query_ms := Perf.time_ms(func():
 		for i in QUERIES:

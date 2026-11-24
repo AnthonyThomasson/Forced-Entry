@@ -84,7 +84,7 @@ static func name_of(rect: Rect2, footprint: Rect2) -> String:
 ## reach the tiles to bake, parsed afresh (`walls_reaching`): a wall shot up in a tile where nothing
 ## stands or moves waits for the next change there. Returns how many tiles were baked.
 static func rebake(
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	site: NavSite,
 	furniture: Array,
 	characters: Array,
@@ -130,7 +130,7 @@ static func rebake(
 ## now, the updater bakes the first at once and one more each physics frame, and lands them
 ## together.
 static func due_tiles(
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	site: NavSite,
 	furniture: Array,
 	characters: Array,
@@ -153,7 +153,7 @@ static func due_tiles(
 ## entries), parsed once for a whole burst: the towers that do, parsed afresh, as `rebake` parses
 ## them for all its due tiles at once.
 static func parse_for(
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	site: NavSite,
 	entries: Array,
 ) -> Dictionary:
@@ -172,7 +172,7 @@ static func parse_for(
 ## site has nothing to bake). The worker is handed the bake's values, not the record
 ## (`NavTileBake.start`).
 static func prepare(site: NavSite, entry: Dictionary, parsed: Dictionary) -> NavTileBake:
-	var tile := entry["tile"] as NavigationRegion2D
+	var tile := entry["tile"] as NavigationRegion3D
 	if not is_instance_valid(tile) or not tile.is_inside_tree():
 		return null
 	var reaches: Array[Rect2] = [_reach(tile)]
@@ -252,7 +252,7 @@ static func _nearer(a: Dictionary, b: Dictionary) -> bool:
 ## `NavTileBake.run`, which reads nothing of the tree): a `NavTileBake`; null when the site has
 ## nothing to bake.
 static func _gathered(
-	tile: NavigationRegion2D,
+	tile: NavigationRegion3D,
 	site: NavSite,
 	walls: Dictionary,
 	holes: Array,
@@ -276,7 +276,7 @@ static func _gathered(
 ## `_gathered` for `tile` from the `walls` that reach it (of the parse `parsed`) and its `holes`,
 ## null when it was baked from these walls and holes already (the holes to within `NavSettle`).
 static func _gathered_if_changed(
-	tile: NavigationRegion2D,
+	tile: NavigationRegion3D,
 	site: NavSite,
 	parsed: Dictionary,
 	walls: Array,
@@ -303,13 +303,13 @@ static func _bake_together(gathered: Array[NavTileBake]) -> void:
 
 ## `tile` takes `poly`, baked from `walls` and `holes`, which it keeps.
 static func _assign(
-	tile: NavigationRegion2D,
+	tile: NavigationRegion3D,
 	poly: NavigationPolygon,
 	walls: Dictionary,
 	holes: Array,
 ) -> void:
 	NavSeams.take(tile, poly)
-	tile.navigation_polygon = poly
+	NavPlan.assign(tile, poly)
 	tile.set_meta(WALLS_META, walls["obstruction"])
 	tile.set_meta(HOLES_META, holes)
 	tile.set_meta(SEEN_META, holes)
@@ -321,7 +321,7 @@ static func _assign(
 ## A tower costs a tenth of the whole district's parse, and a tile touches one or two. A collider
 ## or a wall that is a child of the house itself is no tower's: the whole house is parsed instead.
 static func walls_reaching(
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	site: NavSite,
 	reaches: Array[Rect2],
 ) -> Array:
@@ -338,7 +338,7 @@ static func walls_reaching(
 ## `walls_reaching` for every tower, not only those that reach: the ones that reach `reaches` are
 ## parsed again, and the rest keep what they were.
 static func walls_all(
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	site: NavSite,
 	reaches: Array[Rect2],
 ) -> Array:
@@ -355,7 +355,7 @@ static func walls_all(
 ## as kept on `region`: a tower never parsed, or one that reaches `reaches`, is read again and
 ## kept. Null when a body, a wall or a door is a child of the house itself.
 static func _refreshed(
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	site: NavSite,
 	reaches: Array[Rect2],
 ) -> Variant:
@@ -380,7 +380,7 @@ static func _refreshed(
 ## furniture went from `before` to `after` (`NavBuilder.furniture_holes`): a house's whole parse; a
 ## district's every tower, those near a piece that moved parsed afresh (`walls_all`).
 static func walls_after(
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	site: NavSite,
 	before: Array,
 	after: Array,
@@ -430,14 +430,14 @@ static func _touches(entry: Dictionary, reaches: Array[Rect2]) -> bool:
 
 
 ## `tile`'s rect with the `BORDER` round it: what reaches it.
-static func _reach(tile: NavigationRegion2D) -> Rect2:
+static func _reach(tile: NavigationRegion3D) -> Rect2:
 	return (tile.get_meta(RECT_META) as Rect2).grow(BORDER)
 
 
 ## The `_reach` of each of `tiles`.
 static func _reaches(tiles: Array) -> Array[Rect2]:
 	var out: Array[Rect2] = []
-	for tile: NavigationRegion2D in tiles:
+	for tile: NavigationRegion3D in tiles:
 		out.append(_reach(tile))
 	return out
 
@@ -447,7 +447,7 @@ static func _reaches(tiles: Array) -> Array[Rect2]:
 ## was baked from, so a piece creeping on is due once it adds up to the tolerance; the holes found
 ## within it are remembered (`SEEN_META`), so the next tick's identical ones are one equality test
 ## and the shape comparison is made only when a footprint moves.
-static func _holes_unchanged(tile: NavigationRegion2D, holes: Array) -> bool:
+static func _holes_unchanged(tile: NavigationRegion3D, holes: Array) -> bool:
 	if not tile.has_meta(HOLES_META):
 		return false
 	if tile.get_meta(SEEN_META, null) == holes:
@@ -461,7 +461,7 @@ static func _holes_unchanged(tile: NavigationRegion2D, holes: Array) -> bool:
 
 ## Whether `tile` was last baked from exactly `walls` and `holes` (to `NavSettle.TOLERANCE`; never
 ## baked: no).
-static func _baked_from(tile: NavigationRegion2D, walls: Array, holes: Array) -> bool:
+static func _baked_from(tile: NavigationRegion3D, walls: Array, holes: Array) -> bool:
 	return (tile.has_meta(WALLS_META)
 			and tile.get_meta(WALLS_META) == walls
 			and _holes_unchanged(tile, holes))
@@ -470,10 +470,10 @@ static func _baked_from(tile: NavigationRegion2D, walls: Array, holes: Array) ->
 ## A world point on `tile`'s navmesh (the centre of its first polygon), `Vector2.INF` when the tile
 ## has none (all wall or all furniture): where the map's ready check asks for the tile. `fallback`
 ## for a steering region that is no tile.
-static func probe_of(tile: NavigationRegion2D, fallback: Vector2) -> Vector2:
+static func probe_of(tile: NavigationRegion3D, fallback: Vector2) -> Vector2:
 	if not tile.has_meta(RECT_META):
 		return fallback
-	var nav_poly := tile.navigation_polygon
+	var nav_poly := NavPlan.polygon_of(tile)
 	if nav_poly == null or nav_poly.get_polygon_count() == 0:
 		return Vector2.INF
 	var vertices := nav_poly.get_vertices()
@@ -481,7 +481,7 @@ static func probe_of(tile: NavigationRegion2D, fallback: Vector2) -> Vector2:
 	var indices := nav_poly.get_polygon(0)
 	for index in indices:
 		sum += vertices[index]
-	return tile.to_global(sum / float(indices.size()))
+	return NavPlan.plan_of(tile.to_global(NavPlan.lift(sum / float(indices.size()))))
 
 
 ## `outlines` binned by the rect of `reaches` each meets: one list per rect, in the order of

@@ -32,13 +32,13 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)  # the first bake is applied a frame or two after the build
-	var region := NavBuilder.planning_region(t.world.get_world_2d().navigation_map)
+	var region := NavBuilder.planning_region(NavWorld.map_of(t.world))
 	if not t.require(region != null, "the planning region is found from the world's map"):
 		return
 	var landed: Array[int] = []  # the GameClock frame of each landing, in the order asked
 	landed.resize(ASKED + 1)
 	landed.fill(-1)
-	var regions: Array[NavigationRegion2D] = []
+	var regions: Array[NavigationRegion3D] = []
 	var start := GameClock.frame()
 	for i in ASKED:
 		var hole := PackedVector2Array([
@@ -46,7 +46,7 @@ func run(t: TestContext) -> void:
 			Vector2(140 + i * 100, 400), Vector2(100 + i * 100, 400),
 		])
 		NavBuilder.avoid_map(region, "key%d" % i, [hole])
-		regions.append(region.get_child(region.get_child_count() - 1) as NavigationRegion2D)
+		regions.append(region.get_child(region.get_child_count() - 1) as NavigationRegion3D)
 	NavBuilder.rebake_async(
 		region, t.world.house, t.rooms, NavBuilder.AGENT_RADIUS,
 		func() -> void: landed[ASKED] = GameClock.frame(),
@@ -54,7 +54,7 @@ func run(t: TestContext) -> void:
 	for _frame in NavBakeConfig.house_frames + 3 * ASKED:
 		await t.frames(1)
 		for i in ASKED:
-			if landed[i] < 0 and regions[i].navigation_polygon != null:
+			if landed[i] < 0 and NavPlan.polygon_of(regions[i]) != null:
 				landed[i] = GameClock.frame()
 	if not t.require(not landed.has(-1), "every bake landed (frames %s)" % str(landed)):
 		return

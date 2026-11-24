@@ -31,7 +31,7 @@ func run(t: TestContext) -> void:
 	tactics.throws.spot_walk = 250.0
 	var ctx := {
 		"space": TwinSpace.space_of(npc),
-		"map": npc.get_world_2d().navigation_map,
+		"map": NavWorld.map_of(npc),
 		"self_pos": npc.global_position,
 		"hostiles": [],
 	}

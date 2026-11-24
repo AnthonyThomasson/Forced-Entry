@@ -46,7 +46,10 @@ ui/toolbar/run_overall=true
 
 [navigation]
 
-2d/default_cell_size=4.0
+3d/default_cell_size=4.0
+3d/default_cell_height=2.0
+3d/default_edge_connection_margin=1.0
+3d/default_link_connection_radius=4.0
 world/map_use_async_iterations=false
 
 [physics]

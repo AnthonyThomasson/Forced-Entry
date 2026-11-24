@@ -30,7 +30,7 @@ static var _rings: Dictionary = {}
 ## from the walls and the furniture that reach the building and its outdoor ring, freed with the
 ## region. Nothing when the region covers no explicit footprint or `focus` has no area.
 static func add(
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	house: Node2D,
 	focus: Array,
 	agent_radius: float,
@@ -46,12 +46,12 @@ static func add(
 		region.remove_meta(META)  # no ring: a re-bake must not look for its region
 		return
 	var map := NavSource.new_map()
-	var ring := NavigationRegion2D.new()
+	var ring := NavigationRegion3D.new()
 	ring.name = NAME
-	ring.navigation_polygon = NavSource.bake(baked, house.position)
+	NavPlan.assign(ring, NavSource.bake(baked, house.position))
 	ring.set_navigation_map(map)
 	region.add_child(ring)
-	var planning_map := region.get_world_2d().navigation_map
+	var planning_map := NavWorld.map_of(region)
 	_rings[planning_map] = { "map": map, "covered": covered(rect) }
 	ring.tree_exited.connect(_on_exited.bind(planning_map, map), CONNECT_ONE_SHOT)
 	NavReady.await_region(map, ring, (focus[0]["rect"] as Rect2).get_center())
@@ -62,13 +62,13 @@ static func _on_exited(planning_map: RID, map: RID) -> void:
 	if _rings.get(planning_map, {}).get("map", RID()) == map:
 		_rings.erase(planning_map)
 	NavSnaps.forget(map)
-	NavigationServer2D.free_rid(map)
+	NavigationServer3D.free_rid(map)
 
 
 ## The ring region of `region` (the planning region `NavBuilder.build` returned): null for a lone
 ## house, which plans on its one map.
-static func region_of(region: NavigationRegion2D) -> NavigationRegion2D:
-	return region.get_node_or_null(NAME) as NavigationRegion2D
+static func region_of(region: NavigationRegion3D) -> NavigationRegion3D:
+	return region.get_node_or_null(NAME) as NavigationRegion3D
 
 
 ## The ring map that goes with the world's navigation map `planning_map`: invalid when the world
@@ -125,7 +125,7 @@ static func covered(rect: Rect2) -> Rect2:
 ## `NavBuilder.furniture_holes`. {} when the region has no ring. The job is `urgent`
 ## (`NavBake.start`).
 static func job(
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	site: NavSite,
 	furniture: Array,
 	walls: Dictionary,

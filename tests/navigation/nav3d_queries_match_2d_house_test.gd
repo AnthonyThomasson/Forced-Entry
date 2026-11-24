@@ -22,4 +22,4 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	await t.seconds(1.0)
-	NavQueryProbe.compare(t, "house", t.world.get_world_2d().navigation_map)
+	NavQueryProbe.compare(t, "house", NavWorld.map_of(t.world))

@@ -52,24 +52,29 @@ func _stops() -> Array:
 
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)
-	var region := t.world.find_children("NavRegion", "NavigationRegion2D", true, false)[0]
-	var tiles := NavBuilder.steering_regions(region as NavigationRegion2D)
-	var map := NavBuilder.steering_map(t.world.get_world_2d().navigation_map)
+	var region := t.world.find_children("NavRegion", "NavigationRegion3D", true, false)[0]
+	var tiles := NavBuilder.steering_regions(region as NavigationRegion3D)
+	var map := NavBuilder.steering_map(NavWorld.map_of(t.world))
 	if not t.require(not tiles.is_empty() and map.is_valid(), "premise: a steering map"):
 		return
 	t.check(
-		not NavigationServer2D.map_get_use_edge_connections(map),
+		not NavigationServer3D.map_get_use_edge_connections(map),
 		"the steering map is built without its edge-connection pass",
 	)
 	_expect_same(t, map, tiles, "as built")
 	for fraction: float in _stops():
-		var tile: NavigationRegion2D = tiles[int(tiles.size() * fraction)]
+		var tile: NavigationRegion3D = tiles[int(tiles.size() * fraction)]
 		var rect: Rect2 = tile.get_meta(NavTiles.RECT_META)
 		var baked := NavTiles.baked_total
-		t.actor(&"p").global_position = tile.to_global(rect.end)
+		t.actor(&"p").global_position = NavPlan.global_of(tile, rect.end)
 		await t.seconds(LANDS_WITHIN)
 		t.check(NavTiles.baked_total > baked, "premise: the character's stop re-baked tiles")
-		_expect_same(t, map, tiles, "after a character stopped at %s" % tile.to_global(rect.end))
+		_expect_same(
+			t,
+			map,
+			tiles,
+			"after a character stopped at %s" % NavPlan.global_of(tile, rect.end),
+		)
 
 
 ## `map` answers the same routes between `tiles`' points with the pass off as on.
@@ -94,8 +99,8 @@ func _stride() -> int:
 
 ## `map` with its edge-connection pass `on` or off, synchronised now.
 func _set_edge_connections(map: RID, on: bool) -> void:
-	NavigationServer2D.map_set_use_edge_connections(map, on)
-	NavigationServer2D.map_force_update(map)
+	NavigationServer3D.map_set_use_edge_connections(map, on)
+	NavigationServer3D.map_force_update(map)
 
 
 ## The most (px) a route may be shorter with the pass off than on; negative: no route differs

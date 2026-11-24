@@ -46,7 +46,7 @@ func run(t: TestContext) -> void:
 	for id: StringName in [&"crate", &"box"]:
 		var at: Vector2 = t.object(id).global_position
 		t.check(_carved(holes, at), "%s is a nav hole" % id)
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	if not t.require(NavBuilder.ready(map), "the nav map is baked"):
 		return
 	for id: StringName in [&"plate", &"cup", &"book"]:

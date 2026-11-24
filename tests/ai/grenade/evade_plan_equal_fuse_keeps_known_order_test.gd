@@ -45,7 +45,7 @@ func run(t: TestContext) -> void:
 	var first := _frag(t, Maps.HALL_MIDDLE + Vector2(-90, 0))
 	var second := _frag(t, Maps.HALL_MIDDLE + Vector2(90, 0))
 	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(npc)
-	var map: RID = npc.get_world_2d().navigation_map
+	var map: RID = NavWorld.map_of(npc)
 	var exclude: Array = SightRay.exclude_of(npc)
 	known._note(first, first.global_position, &"seen", false)
 	var planned := known.plan(space, map, exclude)

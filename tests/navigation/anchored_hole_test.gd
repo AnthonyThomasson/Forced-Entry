@@ -78,7 +78,7 @@ func run(t: TestContext) -> void:
 	t.check(_carved(holes, _footprint(CHAIR_AT, 13.0)), "furniture_holes has a hole over the chair")
 	t.check(not _carved(holes, [RUG_AT]), "the rug (walk-over decor) is not carved")
 
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	if t.require(NavBuilder.ready(map), "the nav map is baked"):
 		var off := NavBuilder.snap(map, POST_AT).distance_to(POST_AT)
 		t.check(

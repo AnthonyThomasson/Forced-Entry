@@ -30,7 +30,7 @@ static func taken_in(map: RID) -> bool:
 
 ## Note that `region`, just added to `map`, is not in the map's queries until one at `probe` (a
 ## world point on the region) is answered by it. Forgotten when the region leaves the tree.
-static func await_region(map: RID, region: NavigationRegion2D, probe: Vector2) -> void:
+static func await_region(map: RID, region: NavigationRegion3D, probe: Vector2) -> void:
 	var entry := { "region": region.get_rid(), "probe": probe }
 	var waiting: Array = _awaiting.get(map, [])
 	waiting.append(entry)

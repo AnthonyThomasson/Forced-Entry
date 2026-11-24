@@ -119,7 +119,7 @@ func _exposure(t: TestContext) -> void:
 	var npc := t.actor(&"npc")
 	var world := {
 		"space": TwinSpace.space_of(npc), "ex": SightRay.exclude_of(npc),
-		"map": npc.get_world_2d().navigation_map,
+		"map": NavWorld.map_of(npc),
 	}
 	var spots: Array = [
 		Maps.HALL_MIDDLE, Maps.LIVING_CENTRE, Maps.KITCHEN_CENTRE, Maps.DOOR_HALL_LIVING,

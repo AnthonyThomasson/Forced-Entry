@@ -63,7 +63,7 @@ func run(t: TestContext) -> void:
 	t.check(
 		(
 			not bool(near["doors"])
-			and not views.plain_enters(START, GOAL, world.navigation_map, "kitchen")
+			and not views.plain_enters(START, GOAL, NavWorld.map_in(world), "kitchen")
 		),
 		"asked afresh from the lane the way is the plain one and keeps out of the kitchen",
 	)

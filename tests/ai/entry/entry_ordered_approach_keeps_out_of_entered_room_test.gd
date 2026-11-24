@@ -112,7 +112,7 @@ func _routes_set_up(t: TestContext, f: Dictionary, start: Vector2, spot: Vector2
 		f,
 		start,
 		spot,
-		t.world.get_world_2d().navigation_map,
+		NavWorld.map_of(t.world),
 	)
 	return t.require(
 		round_both.has("path"),
@@ -138,7 +138,7 @@ func _check_approach(t: TestContext, walk: Dictionary) -> void:
 ## "" when the route from `from` to `to` on an avoid map with only the doorway's view carved (the
 ## test's own polygon) runs through the kitchen; else why not, in words.
 func _view_only_route_crosses(t: TestContext, f: Dictionary, from: Vector2, to: Vector2) -> String:
-	var map: RID = t.world.get_world_2d().navigation_map
+	var map: RID = NavWorld.map_of(t.world)
 	var region := NavBuilder.planning_region(map)
 	if region == null:
 		return "no planning region to measure on"

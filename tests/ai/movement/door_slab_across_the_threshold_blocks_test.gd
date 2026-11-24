@@ -80,8 +80,8 @@ func run(t: TestContext) -> void:
 ## The nav map, re-baked, has no way from the west room to the east one: the slab is a hole
 ## across the doorway.
 func _nav_agrees(t: TestContext) -> void:
-	var region: NavigationRegion2D = t.world.find_children(
-		"NavRegion", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"NavRegion", "NavigationRegion3D", true, false,
 	)[0]
 	var map := region.get_navigation_map()
 	var through := func() -> bool:

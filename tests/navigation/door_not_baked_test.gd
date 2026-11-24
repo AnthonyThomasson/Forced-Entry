@@ -37,7 +37,7 @@ func run(t: TestContext) -> void:
 	await t.seconds(0.3)
 	if not t.require(t.object(&"door") != null, "the door stands in the doorway"):
 		return
-	var planning := t.world.get_world_2d().navigation_map
+	var planning := NavWorld.map_of(t.world)
 	for map in [planning, NavBuilder.steering_map(planning)]:
 		var name := "planning" if map == planning else "steering"
 		var path := NavPlan.path(map, FROM, TO, false)

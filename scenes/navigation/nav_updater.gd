@@ -22,7 +22,7 @@ extends Node
 
 ## The baked region to re-bake in place, the house whose furniture is tracked, and the rooms +
 ## agent radius the bake needs — all handed in by `setup`.
-var _region: NavigationRegion2D
+var _region: NavigationRegion3D
 var _house: Node2D
 var _rooms: Array = []
 var _agent_radius: float = NavBuilder.AGENT_RADIUS
@@ -81,7 +81,7 @@ func _physics_process(_delta: float) -> void:
 
 
 ## The steering tiles of a district still to bake or landing with this tick's burst, for tests.
-func tiles_in_play() -> Array[NavigationRegion2D]:
+func tiles_in_play() -> Array[NavigationRegion3D]:
 	return _burst.tiles_in_play()
 
 
@@ -90,7 +90,7 @@ func tiles_in_play() -> Array[NavigationRegion2D]:
 ## refresh. Captures the current furniture layout as the baseline and adds a repeating Timer,
 ## stopped until `start()`.
 func setup(
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	house: Node2D,
 	rooms: Array,
 	nav_debug: Node = null,

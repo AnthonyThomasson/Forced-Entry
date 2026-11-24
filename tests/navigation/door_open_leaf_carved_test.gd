@@ -57,7 +57,7 @@ func run(t: TestContext) -> void:
 	var door: Node = t.object(&"door")
 	if not t.require(door != null and door.gap() < 1.0, "the door stands shut in the doorway"):
 		return
-	var planning: RID = t.world.get_world_2d().navigation_map
+	var planning: RID = NavWorld.map_of(t.world)
 	var maps := { "planning": planning, "steering": NavBuilder.steering_map(planning) }
 	await t.seconds(0.5)
 	_check_through(t, maps, door, "shut", false)

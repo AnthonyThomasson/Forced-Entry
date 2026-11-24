@@ -45,8 +45,8 @@ func run(t: TestContext) -> void:
 func _district(t: TestContext) -> Dictionary:
 	await t.seconds(0.5)
 	var district := t.world.get("district") as Node2D
-	var region: NavigationRegion2D = t.world.find_children(
-		"NavRegion", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"NavRegion", "NavigationRegion3D", true, false,
 	)[0]
 	var tiles := NavBuilder.steering_regions(region)
 	return {
@@ -175,7 +175,7 @@ func _grid_extremes(t: TestContext) -> void:
 ## The reach rect of every tile, including the baker's border.
 func _reaches(tiles: Array) -> Array[Rect2]:
 	var out: Array[Rect2] = []
-	for tile: NavigationRegion2D in tiles:
+	for tile: NavigationRegion3D in tiles:
 		out.append((tile.get_meta(NavTiles.RECT_META) as Rect2).grow(NavTiles.BORDER))
 	return out
 

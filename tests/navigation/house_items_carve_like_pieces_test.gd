@@ -57,7 +57,7 @@ func run(t: TestContext) -> void:
 		return
 	var holes := NavBuilder.furniture_holes(house)
 	t.check(holes == NavHoles.plain(house), "the holes equal a full re-cut with the items there")
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	t.require(NavBuilder.ready(map), "the nav map is baked")
 	for node in stacked:
 		var at := node.global_position
@@ -97,7 +97,7 @@ func _floor_items(t: TestContext, house: Node2D, map: RID, holes: Array) -> void
 ## A point of the baked map at least `CLEAR` px from every hole, or INF.
 func _clear_floor(map: RID, holes: Array) -> Vector2:
 	for k in 200:
-		var point := NavigationServer2D.map_get_random_point(map, 1, true)
+		var point := NavPlan.plan_of(NavigationServer3D.map_get_random_point(map, 1, true))
 		var clear := true
 		for hole: PackedVector2Array in holes:
 			if Geometry2D.is_point_in_polygon(point, hole):

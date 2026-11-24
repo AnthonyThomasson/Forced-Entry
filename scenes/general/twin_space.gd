@@ -95,7 +95,7 @@ const TWIN_META := &"twin"
 
 ## The twin spaces by the instance id of the `World2D` they stand beside: what `space_in` reads, so
 ## a reader holding the world its nodes stand in (for its navigation map) finds the 3D space too.
-static var _beside: Dictionary = {}
+static var standing: Dictionary = {}
 
 ## The twin hook: `Callable(node: Node2D) -> Node3D`, one per domain's kinds. Set before `watch`.
 var builders: Array[Callable] = []
@@ -149,11 +149,11 @@ func _init() -> void:
 func _exit_tree() -> void:
 	if get_tree() != null and get_tree().node_added.is_connected(_on_node_added):
 		get_tree().node_added.disconnect(_on_node_added)
-	for id: int in _beside.keys():
-		var stands: Array = _beside[id]
+	for id: int in standing.keys():
+		var stands: Array = standing[id]
 		stands.erase(self)
 		if stands.is_empty():
-			_beside.erase(id)
+			standing.erase(id)
 
 
 func _physics_process(_delta: float) -> void:
@@ -176,10 +176,10 @@ func watch(root: Node) -> void:
 	_root = root
 	_home = root.get_viewport()
 	var beside := root.get_viewport().find_world_2d().get_instance_id()
-	if not _beside.has(beside):
-		_beside[beside] = []
-	if not self in _beside[beside]:
-		_beside[beside].append(self)
+	if not standing.has(beside):
+		standing[beside] = []
+	if not self in standing[beside]:
+		standing[beside].append(self)
 	for group: StringName in _groups:
 		_scan_group(group)
 	# the pieces and the characters in tree order (the order their twins are made in is the order
@@ -254,7 +254,7 @@ static func space_of(node: Node) -> PhysicsDirectSpaceState3D:
 ## also holds their navigation map): for a reader that holds that world and no node. Null when no
 ## twin space stands beside it (a world built by hand, with no twins: nothing blocks a 3D line).
 static func space_in(world: World2D) -> PhysicsDirectSpaceState3D:
-	var stands: Array = _beside.get(world.get_instance_id(), [])
+	var stands: Array = standing.get(world.get_instance_id(), [])
 	for i in range(stands.size() - 1, -1, -1):  # the newest: an older one may be on its way out
 		var stand: TwinSpace = stands[i]
 		if is_instance_valid(stand) and stand.is_inside_tree():

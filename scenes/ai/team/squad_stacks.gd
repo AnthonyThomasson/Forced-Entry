@@ -70,4 +70,4 @@ func _geometry(opening: String, into: String) -> Dictionary:
 	if not squad.is_inside_tree():
 		return {}
 	var world := squad.get_viewport().find_world_2d()
-	return entry.geometry(opening, into, world.navigation_map, TwinSpace.space_in(world))
+	return entry.geometry(opening, into, NavWorld.map_in(world), TwinSpace.space_in(world))

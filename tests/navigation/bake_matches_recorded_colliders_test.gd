@@ -324,7 +324,7 @@ func _check_clearance(t: TestContext, poly: NavigationPolygon, walls: Array) -> 
 ## Every doorway a wall owns is open on a map baked from the walls alone (no furniture to stand in
 ## one): it holds the doorway's middle.
 func _check_doorways(t: TestContext, root: Node2D, map: RID) -> void:
-	NavigationServer2D.map_force_update(map)
+	NavigationServer3D.map_force_update(map)
 	var shut: Array[String] = []
 	var doorways := 0
 	for wall in NavTwins.walls_under(root):
@@ -493,7 +493,7 @@ func _mesh_area(poly: NavigationPolygon) -> float:
 ## The recorded routes (`[from.x, from.y, to.x, to.y, length]`, on the old map) on the new map:
 ## each is found, within `ROUTE_LONGER` / `ROUTE_SHORTER` of its recorded length.
 func _check_routes(t: TestContext, map: RID, routes: Array) -> void:
-	NavigationServer2D.map_force_update(map)
+	NavigationServer3D.map_force_update(map)
 	var missing := 0
 	var longest := -INF
 	var shortest := INF
@@ -543,17 +543,17 @@ func _check_route_clearance(
 
 ## Free a map `_map_of` made and its region.
 func _free_map(map: RID) -> void:
-	NavigationServer2D.free_rid(NavigationServer2D.map_get_regions(map)[0])
-	NavigationServer2D.free_rid(map)
+	NavigationServer3D.free_rid(NavigationServer3D.map_get_regions(map)[0])
+	NavigationServer3D.free_rid(map)
 
 
 ## A map of its own holding the navmesh `poly` at `origin`.
 func _map_of(poly: NavigationPolygon, origin: Vector2) -> RID:
 	var map := NavSource.new_map()
-	var region := NavigationServer2D.region_create()
-	NavigationServer2D.region_set_map(region, map)
-	NavigationServer2D.region_set_transform(region, Transform2D(0.0, origin))
-	NavigationServer2D.region_set_navigation_polygon(region, poly)
+	var region := NavigationServer3D.region_create()
+	NavigationServer3D.region_set_map(region, map)
+	NavigationServer3D.region_set_transform(region, Transform3D(Basis(), NavPlan.lift(origin)))
+	NavigationServer3D.region_set_navigation_mesh(region, NavPlan.mesh_of(poly))
 	return map
 
 

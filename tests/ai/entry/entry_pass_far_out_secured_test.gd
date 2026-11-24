@@ -90,7 +90,7 @@ func _set_up_holds(t: TestContext) -> bool:
 				% gap,
 	):
 		return false
-	var plain := NavBuilder.route(t.world.get_world_2d().navigation_map, START, GUNFIRE)
+	var plain := NavBuilder.route(NavWorld.map_of(t.world), START, GUNFIRE)
 	var out_at := -1.0
 	for i in range(1, plain.size()):
 		for k in 20:

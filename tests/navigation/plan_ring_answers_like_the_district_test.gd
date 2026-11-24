@@ -38,8 +38,8 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)  # the first bake is applied a frame or two after the build
-	var region: NavigationRegion2D = t.world.find_children(
-		"NavRegion", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"NavRegion", "NavigationRegion3D", true, false,
 	)[0]
 	var map := region.get_navigation_map()
 	var ring := NavRing.map_of(map)
@@ -72,12 +72,12 @@ func run(t: TestContext) -> void:
 
 
 ## The ring's region has far fewer polygons than the planning region's.
-func _check_smaller(t: TestContext, region: NavigationRegion2D) -> void:
+func _check_smaller(t: TestContext, region: NavigationRegion3D) -> void:
 	var small := NavRing.region_of(region)
 	if not t.require(small != null, "premise: the ring has a region"):
 		return
-	var ring_polygons := small.navigation_polygon.get_polygon_count()
-	var district_polygons := region.navigation_polygon.get_polygon_count()
+	var ring_polygons := NavPlan.polygon_of(small).get_polygon_count()
+	var district_polygons := NavPlan.polygon_of(region).get_polygon_count()
 	t.check(
 		ring_polygons > 0 and ring_polygons < district_polygons * SMALLER_THAN,
 		"the ring map is the smaller (%d polygons, the district's %d)"

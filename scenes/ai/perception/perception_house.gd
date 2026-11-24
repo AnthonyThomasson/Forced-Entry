@@ -107,7 +107,7 @@ func take_in(house_rooms: Array) -> void:
 	if perception.tuning.entry.enabled:
 		var world: World2D = perception._character.get_world_2d()
 		# Lay the doorways before a decision needs them.
-		perception.entry.doorways.warm_geometry(world.navigation_map, TwinSpace.space_in(world))
+		perception.entry.doorways.warm_geometry(NavWorld.map_in(world), TwinSpace.space_in(world))
 	rooms = house_rooms
 
 

@@ -46,7 +46,7 @@ func run(t: TestContext) -> void:
 	var ctx := {
 		"geometry": geometry,
 		"space": TwinSpace.space_of(npc),
-		"map": npc.get_world_2d().navigation_map,
+		"map": NavWorld.map_of(npc),
 		"exclude": GrenadeAi.character_rids(t),
 		"rng": rng,
 	}

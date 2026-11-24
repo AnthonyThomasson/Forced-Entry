@@ -115,7 +115,7 @@ func evade_plan() -> Dictionary:
 		return {}
 	return live.plan(
 		TwinSpace.space_of(perception._character),
-		perception._character.get_world_2d().navigation_map,
+		NavWorld.map_of(perception._character),
 		character_rids(),
 	)
 

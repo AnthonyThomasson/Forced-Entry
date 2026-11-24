@@ -66,7 +66,7 @@ func run(t: TestContext) -> void:
 ## ducked spot is a `crouch`); with no fuse left and no legs, and nothing to hide behind, there is
 ## no way to get safe.
 func _check_escape(t: TestContext, geometry: RefCounted, space: PhysicsDirectSpaceState3D) -> void:
-	var map: RID = t.world.get_world_2d().navigation_map
+	var map: RID = NavWorld.map_of(t.world)
 	var npc := t.actor(&"npc")
 	var threat := GrenadeAi.escape_threat(&"frag", Probe.BLAST_RADIUS, BURST, 3.0)
 	var runner := GrenadeAi.escape_runner(CLOSE, 200.0)

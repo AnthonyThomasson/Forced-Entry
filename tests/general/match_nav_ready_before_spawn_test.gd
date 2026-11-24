@@ -145,10 +145,10 @@ func _note_target(watch: Dictionary, npc: Node, agent: NavigationAgent2D) -> voi
 ## planning_house, steering_house }` (`*_house`: the map's closest point to a room's centre belongs
 ## to the house's own region).
 func _maps_now(viewport: SubViewport, npc: Node) -> Dictionary:
-	var map: RID = viewport.world_2d.navigation_map
+	var map: RID = NavWorld.map_of(viewport)
 	var steering := NavBuilder.steering_map(map)
 	var region := _find_region(viewport)
-	var steering_regions: Array[NavigationRegion2D] = []
+	var steering_regions: Array[NavigationRegion3D] = []
 	if region != null:
 		steering_regions = NavBuilder.steering_regions(region)
 	var centre := Vector2.INF
@@ -178,14 +178,14 @@ func _answers_with(map: RID, regions: Array, centre: Vector2) -> bool:
 		return false  # asking a map that never synchronized is an engine error
 	var owner := NavPlan.owner_at(map, centre)
 	return regions.any(
-		func(r: NavigationRegion2D) -> bool: return r != null and r.get_rid() == owner,
+		func(r: NavigationRegion3D) -> bool: return r != null and r.get_rid() == owner,
 	)
 
 
-## The first NavigationRegion2D under `node` (the planning region the bake added), else null.
-func _find_region(node: Node) -> NavigationRegion2D:
+## The first NavigationRegion3D under `node` (the planning region the bake added), else null.
+func _find_region(node: Node) -> NavigationRegion3D:
 	for child in node.get_children():
-		if child is NavigationRegion2D:
+		if child is NavigationRegion3D:
 			return child
 		var found := _find_region(child)
 		if found != null:

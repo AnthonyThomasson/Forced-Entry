@@ -48,7 +48,7 @@ func run(t: TestContext) -> void:
 	var district := t.world.get("district") as Node2D
 	if not t.require(district != null, "the world holds the district"):
 		return
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	var towers := DistrictReads.get_towers(district)
 	var start := _start(towers[DistrictLayout.HOUSE_BLOCK])
 	for tower: Dictionary in towers:

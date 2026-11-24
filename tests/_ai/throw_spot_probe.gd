@@ -74,7 +74,7 @@ static func hand_lob_clear(t: TestContext, thrower: Node, at: Vector2, to: Vecto
 ## The walk on the world's navigation map from `a` to `b`: `{ len, reaches }` (`reaches`: the route
 ## ends within 12 px of `b`).
 static func walk(t: TestContext, a: Vector2, b: Vector2) -> Dictionary:
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	var path: PackedVector2Array = NavBuilder.route(map, a, b)
 	return {
 		"len": NavBuilder.path_length(path),

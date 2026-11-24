@@ -14,7 +14,7 @@ class_name NavRebake extends RefCounted
 ## is left alone. `done` is called even when there is nothing to bake. Returns the bakes started
 ## (`NavBake`: the planning region's, then the ring's; none when there is nothing to bake).
 static func planning(
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	site: NavSite,
 	furniture: Array,
 	done: Callable,
@@ -33,7 +33,7 @@ static func planning(
 ## even when there is nothing to bake. Returns the bakes started (the planning region's, then the
 ## ring's).
 static func swap(
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	site: NavSite,
 	job: Dictionary,
 	ring: Dictionary,
@@ -64,7 +64,7 @@ static func swap(
 ## (`NavBuilder.furniture_holes`) and `characters` (`NavBuilder.character_holes`). A district bakes
 ## its tiles (`NavTiles.rebake`). Does nothing when the region has no steering child.
 static func steering(
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	site: NavSite,
 	furniture: Array,
 	characters: Array,
@@ -78,14 +78,14 @@ static func steering(
 		return
 	var job := NavSource.job(site, furniture, characters, parsed)
 	if not job.is_empty():
-		steering_region.navigation_polygon = NavSource.bake(job, site.house.position)
+		NavPlan.assign(steering_region, NavSource.bake(job, site.house.position))
 
 
 ## `job` (`NavSource.job`) baked on a worker thread and assigned to `region` on the physics frame
 ## `frames` after this call, then `landed` called (`NavBake`: not when the thread finishes, so the
 ## frame is the same every run). Returns the bake.
 static func _bake_async(
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	job: Dictionary,
 	origin: Vector2,
 	landed: Callable,

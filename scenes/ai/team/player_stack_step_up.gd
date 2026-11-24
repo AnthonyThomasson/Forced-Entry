@@ -40,7 +40,7 @@ func stepped(stacking_now: Dictionary) -> Dictionary:
 			continue
 		for key in o.get("rooms", []):
 			var geo: Dictionary = stack._entry.geometry(
-				id, str(key), world.navigation_map, TwinSpace.space_in(world),
+				id, str(key), NavWorld.map_in(world), TwinSpace.space_in(world),
 			)
 			if geo.is_empty() or not stack._entry.slots.on_stack_side(stack._entry, geo, pos):
 				continue

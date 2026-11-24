@@ -79,9 +79,9 @@ static func _plan(p: Vector3) -> Vector2:
 
 
 ## The box of the region's mesh in world space.
-static func _bounds(region: NavigationRegion2D) -> Rect2:
-	var poly := region.navigation_polygon
-	var box := Rect2(poly.vertices[0] + region.global_position, Vector2.ZERO)
+static func _bounds(region: NavigationRegion3D) -> Rect2:
+	var poly := NavPlan.polygon_of(region)
+	var box := Rect2(poly.vertices[0] + NavPlan.plan_of(region.global_position), Vector2.ZERO)
 	for v in poly.vertices:
-		box = box.expand(v + region.global_position)
+		box = box.expand(v + NavPlan.plan_of(region.global_position))
 	return box

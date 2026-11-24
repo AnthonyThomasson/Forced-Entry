@@ -41,8 +41,8 @@ func run(t: TestContext) -> void:
 	await t.seconds(Perf.MATCH_WARMUP_S)
 	var district: Node2D = t.world.district
 	var rooms := WorldGen.district_rooms(district)
-	var region: NavigationRegion2D = t.world.find_children(
-		"NavRegion", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"NavRegion", "NavigationRegion3D", true, false,
 	)[0]
 	for attempt in ATTEMPTS:
 		var started := Engine.get_physics_frames()

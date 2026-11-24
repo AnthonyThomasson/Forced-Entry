@@ -173,7 +173,7 @@ func slot_reach(from: Vector2, to: Vector2, map: RID, bodies: Array) -> int:
 ## The avoid map (`NavBuilder.avoid_map`) of planning region `region` with a body carved at each of
 ## `bodies` (a `BODY_SEGMENTS`-gon of `SLOT_BODY` and `NavBuilder.OBSTACLE_MARGIN`), keyed by the
 ## bodies on a `SLOT_STEP` grid (`slot_reach`).
-func _bodies_map(region: NavigationRegion2D, bodies: Array) -> RID:
+func _bodies_map(region: NavigationRegion3D, bodies: Array) -> RID:
 	var keys: Array = []
 	var holes: Array = []
 	for b: Vector2 in bodies:

@@ -209,7 +209,7 @@ static func side_of_act(brain: Node) -> String:
 
 ## The navmesh route `from` > `to` in the test's world (what an NPC would walk).
 static func route(t: TestContext, from: Vector2, to: Vector2) -> PackedVector2Array:
-	return NavPlan.path(t.world.get_world_2d().navigation_map, from, to)
+	return NavPlan.path(NavWorld.map_of(t.world), from, to)
 
 
 ## Whether walking the route `from` > `to` crosses the line of fire between `shooter` and

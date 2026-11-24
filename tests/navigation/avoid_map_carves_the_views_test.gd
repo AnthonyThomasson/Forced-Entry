@@ -30,7 +30,7 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var world_map := t.world.get_world_2d().navigation_map
+	var world_map := NavWorld.map_of(t.world)
 	var region := NavBuilder.planning_region(world_map)
 	if not t.require(region != null, "the planning region is found from the world's map"):
 		return
@@ -49,16 +49,16 @@ func run(t: TestContext) -> void:
 	await t.frames(30)
 	NavBuilder.avoid_map(region, "elsewhere", [])
 	t.check(
-		await t.until(func(): return not NavigationServer2D.get_maps().has(map), 5.0),
+		await t.until(func(): return not NavigationServer3D.get_maps().has(map), 5.0),
 		"a map nobody asks for is freed",
 	)
-	t.check(NavigationServer2D.get_maps().has(other), "the one still asked for is kept")
+	t.check(NavigationServer3D.get_maps().has(other), "the one still asked for is kept")
 
 
 ## The avoid map of the middle hole: cached by its key, baked, its route round the hole, the world's
 ## map untouched. Returns it, or an invalid RID once a premise has ended the test.
-func _check_round_the_hole(t: TestContext, region: NavigationRegion2D, straight: float) -> RID:
-	var world_map := t.world.get_world_2d().navigation_map
+func _check_round_the_hole(t: TestContext, region: NavigationRegion3D, straight: float) -> RID:
+	var world_map := NavWorld.map_of(t.world)
 	var hole := PackedVector2Array(HOLE)
 	var map := NavBuilder.avoid_map(region, "middle", [hole])
 	if not t.require(map.is_valid(), "avoid_map answers a map"):
@@ -94,7 +94,7 @@ func _check_round_the_hole(t: TestContext, region: NavigationRegion2D, straight:
 ## invalid RID once a premise has ended the test.
 func _check_another_key(
 	t: TestContext,
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	map: RID,
 	straight: float,
 ) -> RID:

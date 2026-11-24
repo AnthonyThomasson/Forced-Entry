@@ -70,7 +70,7 @@ func run(t: TestContext) -> void:
 	var ctx := {
 		"npcs": npcs,
 		"space": TwinSpace.space_of(thrower),
-		"map": thrower.get_world_2d().navigation_map,
+		"map": NavWorld.map_of(thrower),
 		# npc -> its AgentThrow: its heights, the grenades it knows the numbers of, its pace
 		"own": _own_throws(npcs),
 	}

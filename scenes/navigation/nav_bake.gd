@@ -58,7 +58,7 @@ var _tree: SceneTree
 ## `NavBakeConfig.district_frames` and an avoid map's (`avoid`) after `NavBakeConfig.avoid_frames`;
 ## a lone house, either, after `NavBakeConfig.house_frames`. `ring` is the planning ring's bake
 ## (`NavBakeConfig.ring_frames`).
-static func frames_for(region: NavigationRegion2D, avoid := false, ring := false) -> int:
+static func frames_for(region: NavigationRegion3D, avoid := false, ring := false) -> int:
 	var bounds: Rect2 = region.get_meta(NavBuilder.BOUNDS_META, Rect2())
 	if not bounds.has_area():
 		return NavBakeConfig.house_frames
@@ -76,7 +76,7 @@ static func frames_for(region: NavigationRegion2D, avoid := false, ring := false
 ## behind three district bakes, and the frame that landed it with it. Returns the bake, to read
 ## `was_late` once it has landed.
 static func start(
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	job: Dictionary,
 	origin: Vector2,
 	landed: Callable,
@@ -133,7 +133,7 @@ func _land() -> void:
 	WorkerThreadPool.wait_for_task_completion(_task)
 	_task = -1
 	landed_total += 1
-	var target := _region_ref.get_ref() as NavigationRegion2D
+	var target := _region_ref.get_ref() as NavigationRegion3D
 	if target != null:
-		target.navigation_polygon = _poly
+		NavPlan.assign(target, _poly)
 	_landed.call()

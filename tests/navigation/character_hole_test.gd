@@ -42,7 +42,7 @@ func _path_length(t: TestContext, steering := true) -> float:
 
 
 func _path(t: TestContext, steering := true) -> PackedVector2Array:
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	if steering:
 		map = NavBuilder.steering_map(map)
 	return NavPlan.path(map, Vector2(60, 150), Vector2(540, 150), false)

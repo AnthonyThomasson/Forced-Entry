@@ -33,8 +33,8 @@ func run(t: TestContext) -> void:
 	await t.seconds(0.5)
 	var district: Node2D = t.world.district
 	var rooms := WorldGen.district_rooms(district)
-	var region: NavigationRegion2D = t.world.find_children(
-		"NavRegion", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"NavRegion", "NavigationRegion3D", true, false,
 	)[0]
 	var sleepers: Array[int] = []
 	for _i in SLEEPERS:

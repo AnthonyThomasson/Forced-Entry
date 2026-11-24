@@ -86,7 +86,7 @@ func run(t: TestContext) -> void:
 ## (an avoid map carved with the body's footprint, `NavBuilder.avoid_map`); a failed check says
 ## why not.
 func _pocket_behind_slot_three(t: TestContext, f: Dictionary) -> bool:
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	var spots := _spots(t, f, map)
 	if spots.is_empty():
 		return false

@@ -234,7 +234,7 @@ func _throw_from(t: TestContext, characters: Array) -> Vector2:
 			target = c
 	if target == null:
 		return Vector2.ZERO
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	var spot := target.global_position + Vector2.RIGHT * THROW_DISTANCE
 	for a in 16:
 		var want := target.global_position + Vector2.from_angle(TAU * a / 16.0) * THROW_DISTANCE

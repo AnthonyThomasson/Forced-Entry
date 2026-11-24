@@ -28,8 +28,8 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)  # the first bake lands a frame or two after the build
-	var region: NavigationRegion2D = t.world.find_children(
-		"*", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"*", "NavigationRegion3D", true, false,
 	)[0]
 	var count := NavBakeConfig.house_frames
 	# From a node's _physics_process.
@@ -103,7 +103,7 @@ class _Run extends RefCounted:
 	var started := [-1, -1]
 	var landed := [-1, -1]
 
-	func begin(t: TestContext, region: NavigationRegion2D) -> void:
+	func begin(t: TestContext, region: NavigationRegion3D) -> void:
 		started = [Engine.get_physics_frames(), GameClock.frame()]
 		var here := self
 		NavBuilder.rebake_async(

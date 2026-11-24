@@ -33,8 +33,8 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)
-	var region: NavigationRegion2D = t.world.find_children(
-		"NavRegion", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"NavRegion", "NavigationRegion3D", true, false,
 	)[0]
 	var map := region.get_navigation_map()
 	var small := NavRing.region_of(region)
@@ -50,16 +50,16 @@ func run(t: TestContext) -> void:
 		"premise: both spots are inside the ring",
 	):
 		return
-	var held_planning := region.navigation_polygon
-	var held_ring := small.navigation_polygon
+	var held_planning := NavPlan.polygon_of(region)
+	var held_ring := NavPlan.polygon_of(small)
 	var held := _iterations(map)
 	piece.global_position = new_spot
 	t.check(
-		await t.until(func() -> bool: return region.navigation_polygon != held_planning, WAIT),
+		await t.until(func() -> bool: return NavPlan.polygon_of(region) != held_planning, WAIT),
 		"the planning region is re-baked after the shove",
 	)
 	t.check(
-		await t.until(func() -> bool: return small.navigation_polygon != held_ring, WAIT),
+		await t.until(func() -> bool: return NavPlan.polygon_of(small) != held_ring, WAIT),
 		"the ring is re-baked after the shove",
 	)
 	# Both maps take the new meshes in: each builds its iteration on a worker thread, so the wait

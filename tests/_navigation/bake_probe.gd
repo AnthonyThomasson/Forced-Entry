@@ -5,10 +5,10 @@ extends RefCounted
 
 ## What is wrong with `region`'s baked polygon, as the NavigationServer would see it ("" = nothing):
 ## a polygon edge whose ends fall in one 1 px cell, or that more than two polygons share.
-static func problem(region: NavigationRegion2D) -> String:
-	var poly := region.navigation_polygon
+static func problem(region: NavigationRegion3D) -> String:
+	var poly := NavPlan.polygon_of(region)
 	var verts := poly.get_vertices()
-	var offset := region.global_position
+	var offset := NavPlan.plan_of(region.global_position)
 	var shared := {}
 	for i in poly.get_polygon_count():
 		var indices := poly.get_polygon(i)

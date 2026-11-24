@@ -26,16 +26,16 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var world_map := t.world.get_world_2d().navigation_map
+	var world_map := NavWorld.map_of(t.world)
 	t.check(
-		not NavigationServer2D.map_get_use_async_iterations(world_map),
+		not NavigationServer3D.map_get_use_async_iterations(world_map),
 		"the world's map does not sync on a thread",
 	)
 	await t.seconds(0.5)  # the first bake is applied a frame or two after the build
 	var ring := NavRing.map_of(world_map)
 	if t.require(ring.is_valid(), "the district has its planning ring map"):
 		t.check(
-			not NavigationServer2D.map_get_use_async_iterations(ring),
+			not NavigationServer3D.map_get_use_async_iterations(ring),
 			"the planning ring's map does not sync on a thread",
 		)
 	var region := NavBuilder.planning_region(world_map)
@@ -43,10 +43,10 @@ func run(t: TestContext) -> void:
 		return
 	var avoid := NavBuilder.avoid_map(region, "key", [])
 	t.check(
-		not NavigationServer2D.map_get_use_async_iterations(avoid),
+		not NavigationServer3D.map_get_use_async_iterations(avoid),
 		"an avoid map does not sync on a thread",
 	)
 	t.check(
-		not NavigationServer2D.map_get_use_async_iterations(NavBuilder.steering_map(world_map)),
+		not NavigationServer3D.map_get_use_async_iterations(NavBuilder.steering_map(world_map)),
 		"the steering map does not sync on a thread",
 	)

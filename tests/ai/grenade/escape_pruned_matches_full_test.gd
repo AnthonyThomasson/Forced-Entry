@@ -66,7 +66,7 @@ func run(t: TestContext) -> void:
 	geometry.learn_carried()
 	var search := {
 		"space": TwinSpace.space_of(npc),
-		"map": npc.get_world_2d().navigation_map,
+		"map": NavWorld.map_of(npc),
 		"exclude": GrenadeAi.character_rids(t),
 	}
 	var spotted := 0

@@ -58,8 +58,8 @@ func run(t: TestContext) -> void:
 	var middle := Vector2.ZERO
 	for corner in ring:
 		middle += corner / ring.size()
-	var region: NavigationRegion2D = t.world.find_children(
-		"NavRegion", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"NavRegion", "NavigationRegion3D", true, false,
 	)[0]
 	var map := region.get_navigation_map()
 	t.check(

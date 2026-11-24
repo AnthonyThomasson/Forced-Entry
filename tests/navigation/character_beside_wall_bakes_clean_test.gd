@@ -35,11 +35,11 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)
-	var region: NavigationRegion2D = t.world.find_children(
-		"NavRegion", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"NavRegion", "NavigationRegion3D", true, false,
 	)[0]
 	var steering := NavBuilder.steering_region(region)
-	var map := NavBuilder.steering_map(t.world.get_world_2d().navigation_map)
+	var map := NavBuilder.steering_map(NavWorld.map_of(t.world))
 	var problems := []
 	for spot in SPOTS:
 		t.actor(&"p").global_position = spot
@@ -47,7 +47,7 @@ func run(t: TestContext) -> void:
 		var why := Bake.problem(steering)
 		if why != "":
 			problems.append("%s: %s" % [spot, why])
-		NavigationServer2D.map_force_update(map)
+		NavigationServer3D.map_force_update(map)
 		await t.frames(2)
 	t.check(
 		problems.is_empty(),

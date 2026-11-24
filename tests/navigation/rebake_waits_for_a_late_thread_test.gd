@@ -28,10 +28,10 @@ func run(t: TestContext) -> void:
 	await t.seconds(0.5)
 	var district: Node2D = t.world.district
 	var rooms := WorldGen.district_rooms(district)
-	var region: NavigationRegion2D = t.world.find_children(
-		"NavRegion", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"NavRegion", "NavigationRegion3D", true, false,
 	)[0]
-	var before := region.navigation_polygon
+	var before := NavPlan.polygon_of(region)
 	var started := Engine.get_physics_frames()
 	var landed_at := [-1]  # a lambda captures an int by value
 	var bakes := NavBuilder.rebake_async(
@@ -41,7 +41,7 @@ func run(t: TestContext) -> void:
 	var planning_at := -1  # the frame the planning region's polygon changed
 	for _frame in 20:
 		await t.frames(1)
-		if planning_at < 0 and region.navigation_polygon != before:
+		if planning_at < 0 and NavPlan.polygon_of(region) != before:
 			planning_at = Engine.get_physics_frames()
 		if landed_at[0] >= 0:
 			break
@@ -60,6 +60,6 @@ func run(t: TestContext) -> void:
 		bakes.size() == 2 and bakes[0].was_late,
 		"the planning bake's thread was late and was waited for",
 	)
-	var landed := region.navigation_polygon
+	var landed := NavPlan.polygon_of(region)
 	t.check(landed != before, "the region holds the new polygon")
 	t.check(landed.get_polygon_count() > 100, "whole: %d polygons" % landed.get_polygon_count())

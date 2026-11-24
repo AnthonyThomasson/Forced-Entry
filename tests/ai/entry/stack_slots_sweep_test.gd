@@ -92,7 +92,7 @@ func run(t: TestContext) -> void:
 		t,
 		{
 			"label": "terrace", "house": t.world.house, "rooms": t.rooms,
-			"openings": t.world.openings, "map": terrace.navigation_map,
+			"openings": t.world.openings, "map": NavWorld.map_in(terrace),
 			"space": TwinSpace.space_in(terrace),
 		},
 		found,
@@ -121,7 +121,7 @@ func _sweep_plan(t: TestContext, plan: String, house_seed: int, found: Dictionar
 		t,
 		{
 			"label": "%s#%d" % [plan, house_seed], "house": built["house"],
-			"rooms": built["rooms"], "openings": built["openings"], "map": w2d.navigation_map,
+			"rooms": built["rooms"], "openings": built["openings"], "map": NavWorld.map_in(w2d),
 			"space": TwinSpace.space_in(w2d),
 		},
 		found,
@@ -185,7 +185,7 @@ func _build_house(t: TestContext, plan: String, house_seed: int) -> Dictionary:
 	var house := WorldGen.generate(house_seed, plan, Vector2.ZERO, root)
 	# The stage builds the navmeshes and the twin space (the AI's lines read the twins).
 	var handle := await MatchBuilder.stage({ "house": house, "wait_nav": true }, root)
-	if handle.is_empty() or not NavBuilder.ready(viewport.world_2d.navigation_map):
+	if handle.is_empty() or not NavBuilder.ready(NavWorld.map_of(viewport)):
 		viewport.queue_free()
 		return {}
 	return {

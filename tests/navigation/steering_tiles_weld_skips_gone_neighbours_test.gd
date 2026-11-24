@@ -28,7 +28,7 @@ func run(t: TestContext) -> void:
 		[Vector2(200, 0), Vector2(200, 100), Vector2(150, 50)],
 	])
 	NavSeams.weld([left, right])
-	t.check(left.navigation_polygon != left.get_meta(NavSeams.RAW_META), "premise: left is split")
+	t.check(NavPlan.polygon_of(left) != left.get_meta(NavSeams.RAW_META), "premise: left is split")
 	var away := _tile(parent, Rect2(200, 0, 100, 100), [
 		[Vector2(200, 0), Vector2(300, 0), Vector2(300, 100), Vector2(200, 100)],
 	])
@@ -50,7 +50,7 @@ func run(t: TestContext) -> void:
 	right.free()
 	NavSeams.weld([left])
 	t.expect_eq(
-		left.navigation_polygon,
+		NavPlan.polygon_of(left),
 		left.get_meta(NavSeams.RAW_META),
 		"the tile beside a freed one is whole again",
 	)

@@ -7,7 +7,7 @@ class_name NavTileBake extends RefCounted
 ## the task.
 
 ## The tile the polygon is for.
-var tile: NavigationRegion2D
+var tile: NavigationRegion3D
 ## The polygon the bake fills in (baked into on the worker, then the tile's).
 var poly: NavigationPolygon
 ## The wall outlines and the footprints of the furniture and characters it is baked from, kept on

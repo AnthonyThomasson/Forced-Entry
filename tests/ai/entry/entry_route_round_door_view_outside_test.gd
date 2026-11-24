@@ -52,7 +52,7 @@ func run(t: TestContext) -> void:
 	Probe.gunfire(GUNFIRE)
 	# The premise: the plain route runs through the front door's view, and the way round is within
 	# the cap.
-	var plain := NavBuilder.route(t.world.get_world_2d().navigation_map, START, GUNFIRE)
+	var plain := NavBuilder.route(NavWorld.map_of(t.world), START, GUNFIRE)
 	var plain_len := NavBuilder.path_length(plain)
 	var crosses := false
 	for i in range(1, plain.size()):

@@ -147,7 +147,7 @@ static func _run(
 	rec["t0"] = t.time
 	var stop := func() -> bool: return _sample(t, f, ids, rec)
 	var seen: Dictionary = await Bump.watch(t, ids, WATCH_CAP + 1.0, stop)
-	rec["map"] = t.world.get_world_2d().navigation_map
+	rec["map"] = NavWorld.map_of(t.world)
 	rec["moves"] = move_ups(t, ids, String(f["id"]))
 	if rec["move_up"] and not t.require(
 			not (rec["moves"] as Array).is_empty(),

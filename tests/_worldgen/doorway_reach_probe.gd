@@ -67,7 +67,7 @@ static func check_built(
 	t.check(exits.size() <= 1, "%s has %d exits" % [label, exits.size()])
 
 	var region := NavBuilder.build(house, rooms, t.world, AGENT_RADIUS)
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	# The bake is applied to the shared map a frame or more later, and under load later still: wait
 	# until the map answers with this house's navmesh (a query before that reads the old map, or
 	# logs an engine error).

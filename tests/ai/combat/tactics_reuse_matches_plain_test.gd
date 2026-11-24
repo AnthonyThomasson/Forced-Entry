@@ -175,7 +175,7 @@ func _context(t: TestContext, hostiles: Array) -> Dictionary:
 		fronts[h["id"]] = (npc.global_position - (h["pos"] as Vector2)).angle()
 	return {
 		"space": TwinSpace.space_of(npc),
-		"map": npc.get_world_2d().navigation_map,
+		"map": NavWorld.map_of(npc),
 		"self_pos": npc.global_position,
 		"exclude": SightRay.exclude_of(npc),
 		"hostiles": hostiles,

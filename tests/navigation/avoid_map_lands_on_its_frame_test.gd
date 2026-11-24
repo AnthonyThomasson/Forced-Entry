@@ -24,7 +24,7 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var region := NavBuilder.planning_region(t.world.get_world_2d().navigation_map)
+	var region := NavBuilder.planning_region(NavWorld.map_of(t.world))
 	if not t.require(region != null, "the planning region is found from the world's map"):
 		return
 	for key in ["first", "second"]:
@@ -33,7 +33,7 @@ func run(t: TestContext) -> void:
 		var avoid_region := _newest(region)
 		var landed_after := -1
 		for i in NavBakeConfig.house_frames * 2:
-			if avoid_region.navigation_polygon != null:
+			if NavPlan.polygon_of(avoid_region) != null:
 				landed_after = Engine.get_physics_frames() - started
 				break
 			await t.frames(1)
@@ -51,5 +51,5 @@ func run(t: TestContext) -> void:
 
 
 ## The avoid region added last under `region` (a second one is named by the engine).
-func _newest(region: NavigationRegion2D) -> NavigationRegion2D:
-	return region.get_child(region.get_child_count() - 1) as NavigationRegion2D
+func _newest(region: NavigationRegion3D) -> NavigationRegion3D:
+	return region.get_child(region.get_child_count() - 1) as NavigationRegion3D

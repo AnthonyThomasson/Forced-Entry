@@ -15,7 +15,7 @@ const MOST_FRAMES := 8
 ## How long (sim s) a bake may take to land: it runs on the server's worker thread in real time.
 const WAIT := 12.0
 
-var _region: NavigationRegion2D
+var _region: NavigationRegion3D
 var _district: Node2D
 var _timer: Timer
 
@@ -37,7 +37,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)
-	_region = t.world.find_children("NavRegion", "NavigationRegion2D", true, false)[0]
+	_region = t.world.find_children("NavRegion", "NavigationRegion3D", true, false)[0]
 	_district = t.world.district
 	_timer = t.world.get_node("NavUpdater/RebakeTimer") as Timer
 	for body in PlanProbe.pieces_under(_district):
@@ -60,7 +60,7 @@ func run(t: TestContext) -> void:
 ## throughout.
 func _check_sliced(t: TestContext, pieces: Array[Node2D]) -> void:
 	var map := _region.get_navigation_map()
-	var held := _region.navigation_polygon
+	var held := NavPlan.polygon_of(_region)
 	var version := _version()
 	var iteration := NavPlan.iteration(map)
 	var rooms := WorldGen.district_rooms(_district)
@@ -82,7 +82,7 @@ func _check_sliced(t: TestContext, pieces: Array[Node2D]) -> void:
 		if _version() == version:
 			seen_previous = (
 				seen_previous
-				and _region.navigation_polygon == held
+				and NavPlan.polygon_of(_region) == held
 				and NavPlan.iteration(map) == iteration
 				and NavBuilder.route(map, from, to) == route_before
 			)
@@ -92,7 +92,7 @@ func _check_sliced(t: TestContext, pieces: Array[Node2D]) -> void:
 	)
 	t.check(seen_previous, "until then the region, the map and a route are the previous map's")
 	t.check(
-		await t.until(func() -> bool: return _region.navigation_polygon != held, WAIT),
+		await t.until(func() -> bool: return NavPlan.polygon_of(_region) != held, WAIT),
 		"the planning region is re-baked after the first shove",
 	)
 
@@ -100,20 +100,20 @@ func _check_sliced(t: TestContext, pieces: Array[Node2D]) -> void:
 ## The piece shoved while the gather ran was left for the next tick, which gathers it.
 func _check_next_tick(t: TestContext) -> void:
 	var version := _version()
-	var held := _region.navigation_polygon
-	var held_ring := NavRing.region_of(_region).navigation_polygon
+	var held := NavPlan.polygon_of(_region)
+	var held_ring := NavPlan.polygon_of(NavRing.region_of(_region))
 	_timer.timeout.emit()
 	t.check(
 		await t.until(func() -> bool: return _version() >= version + 1, WAIT),
 		"a piece shoved while a gather ran is gathered by the next tick",
 	)
 	t.check(
-		await t.until(func() -> bool: return _region.navigation_polygon != held, WAIT),
+		await t.until(func() -> bool: return NavPlan.polygon_of(_region) != held, WAIT),
 		"and its bake lands on the planning region",
 	)
 	t.check(
 		await t.until(
-			func() -> bool: return NavRing.region_of(_region).navigation_polygon != held_ring,
+			func() -> bool: return NavPlan.polygon_of(NavRing.region_of(_region)) != held_ring,
 			WAIT,
 		),
 		"and on the ring",
@@ -127,13 +127,13 @@ func _check_equals_whole(t: TestContext) -> void:
 	var furniture := NavBuilder.furniture_holes(_district)
 	var whole := NavSource.bake(NavSource.job(site, furniture), _district.position)
 	t.check(
-		_same_mesh(_region.navigation_polygon, whole),
+		_same_mesh(NavPlan.polygon_of(_region), whole),
 		"the swapped-in map is a whole re-bake's",
 	)
 	var ring := NavRing.job(_region, site, furniture, {})
 	var whole_ring := NavSource.bake(ring, _district.position)
 	t.check(
-		_same_mesh(NavRing.region_of(_region).navigation_polygon, whole_ring),
+		_same_mesh(NavPlan.polygon_of(NavRing.region_of(_region)), whole_ring),
 		"and so is the ring",
 	)
 

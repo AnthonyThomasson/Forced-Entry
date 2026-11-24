@@ -68,7 +68,7 @@ func _entry(t: TestContext, script: GDScript) -> RefCounted:
 func _ranking(
 	t: TestContext, entry: RefCounted, id: String, into: String, count: int,
 ) -> Dictionary:
-	var map: RID = t.world.get_world_2d().navigation_map
+	var map: RID = NavWorld.map_of(t.world)
 	var space := TwinSpace.space_of(t.world)
 	var g: Dictionary = entry.geometry(id, into, map, space)
 	if g.is_empty():

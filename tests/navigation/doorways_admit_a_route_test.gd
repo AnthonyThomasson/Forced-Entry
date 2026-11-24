@@ -84,11 +84,14 @@ func _probe(t: TestContext, root: Node2D, site: NavSite, holes: Array, label: St
 	var walls := NavSource.walls_of(root)
 	var poly := NavSource.bake(NavSource.job(site, holes, [], walls), root.position)
 	var map := NavSource.new_map()
-	var region := NavigationServer2D.region_create()
-	NavigationServer2D.region_set_map(region, map)
-	NavigationServer2D.region_set_transform(region, Transform2D(0.0, root.position))
-	NavigationServer2D.region_set_navigation_polygon(region, poly)
-	NavigationServer2D.map_force_update(map)
+	var region := NavigationServer3D.region_create()
+	NavigationServer3D.region_set_map(region, map)
+	NavigationServer3D.region_set_transform(
+		region,
+		Transform3D(Basis(), NavPlan.lift(root.position)),
+	)
+	NavigationServer3D.region_set_navigation_mesh(region, NavPlan.mesh_of(poly))
+	NavigationServer3D.map_force_update(map)
 	var asked := 0
 	var failed: Array[String] = []
 	var unseen := 0
@@ -104,8 +107,8 @@ func _probe(t: TestContext, root: Node2D, site: NavSite, holes: Array, label: St
 				unseen += 1
 			elif problem != "":
 				failed.append("%s at %s: %s" % [wall.name, _middle(wall, gap).round(), problem])
-	NavigationServer2D.free_rid(region)
-	NavigationServer2D.free_rid(map)
+	NavigationServer3D.free_rid(region)
+	NavigationServer3D.free_rid(map)
 	t.require(asked > 0, "premise: %s has doorways (%d)" % [label, asked])
 	t.check(
 		unseen <= asked * MOST_UNSEEN,

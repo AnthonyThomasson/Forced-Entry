@@ -50,7 +50,7 @@ func _plain_map(t: TestContext, routes: GDScript) -> void:
 	t.expect_eq(NavBuilder.route(map, from, to), expected, "the repeated plain route is identical")
 	t.expect_eq(_queries(routes), before, "the repeated plain route does not ask the server again")
 
-	var region := fixture["region"] as NavigationRegion2D
+	var region := fixture["region"] as NavigationRegion3D
 	var house := fixture["house"] as Node2D
 	(fixture["obstacle"] as Node2D).position = Vector2(400, 100)
 	await t.frames(2)  # its twin follows
@@ -80,9 +80,9 @@ func _ring_fallback(t: TestContext, routes: GDScript) -> void:
 		"premise: the divider makes the local route fall back to the district",
 	):
 		return
-	var region := fixture["region"] as NavigationRegion2D
-	fixture["old_district"] = region.navigation_polygon
-	fixture["old_ring"] = NavRing.region_of(region).navigation_polygon
+	var region := fixture["region"] as NavigationRegion3D
+	fixture["old_district"] = NavPlan.polygon_of(region)
+	fixture["old_ring"] = NavPlan.polygon_of(NavRing.region_of(region))
 	var expected := _plain_route(map, from, to)
 	t.expect_eq(NavBuilder.route(map, from, to), expected, "the fallback's final route is cached")
 	var before := _queries(routes)
@@ -111,12 +111,12 @@ func _put_back_each(
 ) -> void:
 	var map: RID = fixture["map"]
 	var held := _iterations(map)
-	(fixture["region"] as NavigationRegion2D).navigation_polygon = fixture["old_district"]
+	NavPlan.assign((fixture["region"] as NavigationRegion3D), fixture["old_district"])
 	if not await _moved_on(t, map, held, [0], "the district-only iteration"):
 		return
 	_fresh(t, routes, map, ends, "a district-only iteration")
 	held = _iterations(map)
-	NavRing.region_of(fixture["region"]).navigation_polygon = fixture["old_ring"]
+	NavPlan.assign(NavRing.region_of(fixture["region"]), fixture["old_ring"])
 	if not await _moved_on(t, map, held, [1], "the ring-only iteration"):
 		return
 	_fresh(t, routes, map, ends, "a ring-only iteration")

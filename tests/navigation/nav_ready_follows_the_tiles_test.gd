@@ -56,7 +56,7 @@ func run(t: TestContext) -> void:
 func _ready_means_tiles_in(
 	t: TestContext,
 	steering: RID,
-	tiles: Array[NavigationRegion2D],
+	tiles: Array[NavigationRegion3D],
 ) -> void:
 	var not_ready_first := not NavBuilder.ready(steering)
 	t.check(not_ready_first, "the steering map is not ready in the frame the build returns")
@@ -78,7 +78,7 @@ func _ready_means_tiles_in(
 
 
 ## The tiles of `tiles` with a mesh whose probe the map does not answer from them.
-func _missing(steering: RID, tiles: Array[NavigationRegion2D]) -> Array[String]:
+func _missing(steering: RID, tiles: Array[NavigationRegion3D]) -> Array[String]:
 	var out: Array[String] = []
 	if NavPlan.iteration(steering) == 0:
 		for tile in tiles:
@@ -99,7 +99,7 @@ func _missing(steering: RID, tiles: Array[NavigationRegion2D]) -> Array[String]:
 ## mesh it had; after the landing the route is found on the new mesh.
 func _route_through_a_tile_in_flight(
 	t: TestContext,
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	house: Node2D,
 	rooms: Array,
 	piece: Node2D,
@@ -116,7 +116,7 @@ func _route_through_a_tile_in_flight(
 	)
 	if not t.require(not due.is_empty(), "premise: moving the piece made a tile due"):
 		return
-	var from_tile := due[0]["tile"] as NavigationRegion2D
+	var from_tile := due[0]["tile"] as NavigationRegion3D
 	var to_tile := _neighbour(NavBuilder.steering_regions(region), from_tile, probes)
 	if not t.require(to_tile != null, "premise: the due tile has a neighbour with a mesh"):
 		return
@@ -126,14 +126,14 @@ func _route_through_a_tile_in_flight(
 	}
 	var meshes := {}
 	for entry: Dictionary in due:
-		meshes[entry["tile"]] = (entry["tile"] as NavigationRegion2D).navigation_polygon
+		meshes[entry["tile"]] = NavPlan.polygon_of((entry["tile"] as NavigationRegion3D))
 	var burst := NavTileBurst.new()
 	burst.begin(due)
 	await _in_flight(t, burst, meshes, route)
 	t.check(not burst.pending(), "the burst landed")
 	t.check(
-		meshes.keys().any(func(tile: NavigationRegion2D) -> bool:
-			return tile.navigation_polygon != meshes[tile]),
+		meshes.keys().any(func(tile: NavigationRegion3D) -> bool:
+			return NavPlan.polygon_of(tile) != meshes[tile]),
 		"the due tile took its new mesh when the burst landed",
 	)
 	await t.frames(2)
@@ -160,8 +160,8 @@ func _in_flight(
 		in_flight += 1
 		if not NavBuilder.ready(route["map"]):
 			gaps.append("unready")
-		for tile: NavigationRegion2D in meshes:
-			if tile.navigation_polygon != meshes[tile]:
+		for tile: NavigationRegion3D in meshes:
+			if NavPlan.polygon_of(tile) != meshes[tile]:
 				gaps.append("%s changed before it landed" % tile.name)
 		if not _found(route):
 			gaps.append("no route")
@@ -185,10 +185,10 @@ func root_of(house: Node2D) -> Node:
 
 ## A tile beside `tile` (its rect shares an edge) that has a mesh point, null when none.
 func _neighbour(
-	tiles: Array[NavigationRegion2D],
-	tile: NavigationRegion2D,
+	tiles: Array[NavigationRegion3D],
+	tile: NavigationRegion3D,
 	probes: Dictionary,
-) -> NavigationRegion2D:
+) -> NavigationRegion3D:
 	var rect: Rect2 = tile.get_meta(NavTiles.RECT_META)
 	for other in tiles:
 		if other == tile or probes[other] == Vector2.INF:

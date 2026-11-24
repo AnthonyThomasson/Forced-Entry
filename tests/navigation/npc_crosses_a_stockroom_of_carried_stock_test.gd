@@ -66,7 +66,7 @@ func run(t: TestContext) -> void:
 		crates += 1 if key == "crate" else 0
 		boxes += 1 if key == "wrapped_box" else 0
 	t.require(crates >= 2 and boxes == 4, "premise: %d crates, %d boxes carried" % [crates, boxes])
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	t.require(NavBuilder.ready(map), "the nav map is baked")
 	var walker := t.puppet(&"walker")
 	walker.walk_to(TO)

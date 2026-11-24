@@ -45,7 +45,7 @@ func run(t: TestContext) -> void:
 	var edges := Seams.seam_edges(left, Seams.pairs([left, right])[0])
 	t.check(edges.size() >= 4, "the border edge was cut at 52 (%d edges)" % edges.size())
 	var area := 0.0
-	var poly := left.navigation_polygon
+	var poly := NavPlan.polygon_of(left)
 	var vertices := poly.get_vertices()
 	for i in poly.get_polygon_count():
 		var ring := poly.get_polygon(i)
@@ -57,8 +57,8 @@ func run(t: TestContext) -> void:
 
 
 ## A tile region over `rect` holding `rings` (polygons of points), welded as a baked tile is.
-func _tile(parent: Node2D, rect: Rect2, rings: Array) -> NavigationRegion2D:
-	var tile := NavigationRegion2D.new()
+func _tile(parent: Node2D, rect: Rect2, rings: Array) -> NavigationRegion3D:
+	var tile := NavigationRegion3D.new()
 	tile.set_meta(NavTiles.RECT_META, rect)
 	parent.add_child(tile)
 	var poly := NavigationPolygon.new()
@@ -72,5 +72,5 @@ func _tile(parent: Node2D, rect: Rect2, rings: Array) -> NavigationRegion2D:
 		poly.add_polygon(indices)
 	poly.vertices = points
 	NavSeams.take(tile, poly)
-	tile.navigation_polygon = poly
+	NavPlan.assign(tile, poly)
 	return tile

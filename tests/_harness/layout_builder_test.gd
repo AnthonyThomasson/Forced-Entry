@@ -49,7 +49,7 @@ func _check_first_frame(t: TestContext) -> void:
 	var first := PlanProbe.first(t.world, Vector2(200, 60), Vector2(400, 60))
 	t.check(not first.is_empty(), "the shared wall is solid on the test's first frame")
 	t.check(
-		NavPlan.iteration(t.world.get_world_2d().navigation_map) > 0,
+		NavPlan.iteration(NavWorld.map_of(t.world)) > 0,
 		"and the navmesh is live",
 	)
 
@@ -64,7 +64,7 @@ func _check_wall_and_door(t: TestContext) -> void:
 
 ## A path between the rooms exists and crosses the shared wall at the doorway.
 func _check_door_path(t: TestContext) -> void:
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	var from := Vector2(100, 60)
 	var to := Vector2(500, 60)
 	var path := NavPlan.path(map, from, to)
@@ -79,7 +79,7 @@ func _check_door_path(t: TestContext) -> void:
 
 ## The table is a hole in the navmesh: the path round it is longer than the straight line.
 func _check_table_hole(t: TestContext) -> void:
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	var around := NavPlan.path(map, Vector2(60, 150), Vector2(240, 150))
 	var length := 0.0
 	for i in range(1, around.size()):

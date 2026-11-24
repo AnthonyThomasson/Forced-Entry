@@ -22,7 +22,7 @@ const SHIFTS := [
 ## How near (px) two stretches' ends are to be the same.
 const SAME := 0.01
 
-var _region: NavigationRegion2D
+var _region: NavigationRegion3D
 var _site: NavSite
 var _tiles: Array
 
@@ -48,7 +48,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)
 	var district := t.world.get("district") as Node2D
-	_region = t.world.find_children("NavRegion", "NavigationRegion2D", true, false)[0]
+	_region = t.world.find_children("NavRegion", "NavigationRegion3D", true, false)[0]
 	_site = NavBuilder.site_of(_region, district, WorldGen.district_rooms(district))
 	_tiles = NavBuilder.steering_regions(_region)
 	var centre := _centre_of_a_block()
@@ -64,7 +64,7 @@ func run(t: TestContext) -> void:
 			rect.position, Vector2(rect.end.x, rect.position.y),
 			Vector2(rect.position.x, rect.end.y), rect.end]:
 		for shift: Vector2 in SHIFTS:
-			var at := centre.to_global(corner) + shift
+			var at := NavPlan.global_of(centre, corner) + shift
 			_bake_centre(centre, original + [_square(at)])
 			_expect_agreed(t, block, "with a hole at %s" % at)
 			_bake_centre(centre, original)
@@ -73,18 +73,18 @@ func run(t: TestContext) -> void:
 
 
 ## A tile of the grid whose eight neighbours (rects a tile's size away) are all tiles, else null.
-func _centre_of_a_block() -> NavigationRegion2D:
-	for tile: NavigationRegion2D in _tiles:
+func _centre_of_a_block() -> NavigationRegion3D:
+	for tile: NavigationRegion3D in _tiles:
 		if _block(tile).size() == 9:
 			return tile
 	return null
 
 
 ## `centre` and the tiles of the grid round it that are whole tiles.
-func _block(centre: NavigationRegion2D) -> Array:
+func _block(centre: NavigationRegion3D) -> Array:
 	var rect: Rect2 = centre.get_meta(NavTiles.RECT_META)
 	var out: Array = []
-	for tile: NavigationRegion2D in _tiles:
+	for tile: NavigationRegion3D in _tiles:
 		var other: Rect2 = tile.get_meta(NavTiles.RECT_META)
 		var apart := (other.position - rect.position).abs()
 		if apart.x <= NavTiles.SIZE and apart.y <= NavTiles.SIZE and other.size == rect.size:
@@ -101,7 +101,7 @@ func _square(at: Vector2) -> PackedVector2Array:
 
 
 ## Bake `tile` alone from `holes` on a worker thread and land it (it and its neighbours welded).
-func _bake_centre(tile: NavigationRegion2D, holes: Array) -> void:
+func _bake_centre(tile: NavigationRegion3D, holes: Array) -> void:
 	var entry := { "tile": tile, "holes": holes }
 	var held := NavTiles.prepare(_site, entry, NavTiles.parse_for(_region, _site, [entry]))
 	if held != null:
@@ -126,9 +126,9 @@ func _expect_agreed(t: TestContext, block: Array, what: String) -> void:
 ## the two tiles share.
 func _disagreeing(block: Array) -> Array[String]:
 	var out: Array[String] = []
-	for tile: NavigationRegion2D in block:
+	for tile: NavigationRegion3D in block:
 		for entry: Dictionary in NavSeams.neighbours(tile):
-			var other: NavigationRegion2D = entry["tile"]
+			var other: NavigationRegion3D = entry["tile"]
 			if not block.has(other):
 				continue
 			var side: int = entry["side"]
@@ -142,7 +142,7 @@ func _disagreeing(block: Array) -> Array[String]:
 
 
 ## The stretch along the border of `tile`'s side `side` that `tile` and `other` share.
-func _shared(tile: NavigationRegion2D, other: NavigationRegion2D, side: int) -> Vector2:
+func _shared(tile: NavigationRegion3D, other: NavigationRegion3D, side: int) -> Vector2:
 	var a: Rect2 = tile.get_meta(NavTiles.RECT_META)
 	var b: Rect2 = other.get_meta(NavTiles.RECT_META)
 	if side < NavSeams.TOP:

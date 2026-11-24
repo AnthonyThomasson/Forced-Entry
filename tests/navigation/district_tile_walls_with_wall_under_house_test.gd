@@ -30,8 +30,8 @@ func run(t: TestContext) -> void:
 	await t.seconds(0.5)
 	var district := t.world.get("district") as Node2D
 	var house := t.world.get("house") as Node2D
-	var region: NavigationRegion2D = t.world.find_children(
-		"NavRegion", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"NavRegion", "NavigationRegion3D", true, false,
 	)[0]
 	var site := NavSite.new(district, WorldGen.district_rooms(district), RADIUS)
 	var wall: Node2D = null

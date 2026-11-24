@@ -119,7 +119,7 @@ func setup(agent: NavigationAgent2D, npc_tuning: NpcTuning) -> void:
 	# off the world its character stands in.
 	var body := agent.get_parent() as Node2D
 	if body != null and body.is_inside_tree():
-		_plan_map = body.get_world_2d().navigation_map
+		_plan_map = NavWorld.map_of(body)
 	crowd.steering_map = NavBuilder.steering_map(_plan_map)
 	_reach = agent.target_desired_distance
 

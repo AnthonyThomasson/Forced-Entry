@@ -64,7 +64,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var mate := t.actor(&"mate")
 	var brain := Entry.brain(t, &"walker")
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	# Lambdas capture plain values by copy, so the state the watch updates lives in one Dictionary.
 	var st := {
 		"sealed": false, "held_since": INF, "longest": 0.0, "longest_at": Vector2.INF, "walks": 0,

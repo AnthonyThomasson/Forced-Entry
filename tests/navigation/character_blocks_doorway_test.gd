@@ -28,7 +28,7 @@ func configure(s: TestSetup) -> void:
 
 
 func _reach(t: TestContext, steering := true) -> float:
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	if steering:
 		map = NavBuilder.steering_map(map)
 	var path := NavPlan.path(map, FROM, TO, false)

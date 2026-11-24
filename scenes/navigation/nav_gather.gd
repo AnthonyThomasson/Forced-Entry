@@ -16,7 +16,7 @@ const FUSE_STEPS := 4
 ## The planning job and the ring's (`NavSource.job`; {} with no ring) once `step` has returned true.
 var job: Dictionary = {}
 var ring: Dictionary = {}
-var _region: NavigationRegion2D
+var _region: NavigationRegion3D
 var site: NavSite
 var _before: Array
 var furniture: Array
@@ -30,7 +30,7 @@ var _step := 0
 ## A gather of `region`'s planning bake for `site`, after the furniture went from `before` to
 ## `furniture` (`NavBuilder.furniture_holes`).
 func _init(
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	gathered_site: NavSite,
 	before: Array,
 	gathered_furniture: Array,

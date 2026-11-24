@@ -30,8 +30,8 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)
-	var region: NavigationRegion2D = t.world.find_children(
-		"NavRegion", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"NavRegion", "NavigationRegion3D", true, false,
 	)[0]
 	var map := region.get_navigation_map()
 	var ring_region := NavRing.region_of(region)
@@ -49,7 +49,7 @@ func run(t: TestContext) -> void:
 	var district := NavPlan.iteration(map)
 	var ring_map := NavRing.map_of(map)
 	var ring := NavPlan.iteration(ring_map)
-	ring_region.navigation_polygon = ring_region.navigation_polygon.duplicate()
+	NavPlan.assign(ring_region, NavPlan.polygon_of(ring_region).duplicate())
 	if not t.require(
 		await t.until(
 			func() -> bool: return NavPlan.iteration(ring_map) != ring, WAIT,

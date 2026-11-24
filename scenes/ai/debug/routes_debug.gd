@@ -36,7 +36,7 @@ func _on() -> bool:
 
 ## Draws the overlay from the controller's public debug getters.
 func _paint() -> void:
-	var map: RID = _character.get_world_2d().get_navigation_map()
+	var map: RID = NavWorld.map_of(_character)
 	var me := _character.global_position
 	var now := GameClock.msec()
 	if now - _cache_ms > CACHE_TTL * 1000.0 or me.distance_to(_cache_from) > 24.0:

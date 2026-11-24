@@ -96,7 +96,7 @@ func run(t: TestContext) -> void:
 	var w := Slots.world_of(
 		t.rooms,
 		t.world.openings,
-		w2d.navigation_map,
+		NavWorld.map_in(w2d),
 		TwinSpace.space_in(w2d),
 		t.world.house,
 	)
