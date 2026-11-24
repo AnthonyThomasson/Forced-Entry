@@ -23,25 +23,34 @@ extends RefCounted
 ## flight is served after the jobs of a better rank (attacked and a new hostile, then an order, a
 ## task resolved, following, a way blocked, any other reason, a cadence decision last) and, within
 ## a rank, after the older ones; so under fire an NPC's decision is not queued behind the routine
-## ones begun before it. The starvation bound is the one the ranks give: a job waits for the older
-## jobs of its own rank and for the better-ranked ones that are in flight meanwhile.
+## ones begun before it. A rank ages, in frames, never by a clock: a job's effective rank is its
+## reason's rank less one for every `AGE_FRAMES` frames since its claim (`_aged`, never below 0).
+## That is the starvation bound: a stream of better claims holds a job back for at most
+## `OTHER_RANK` x `AGE_FRAMES` frames (150), then it ranks with them and, begun before every one
+## of them, is served first. A routine decision and an ordered one (rank 1: it waited 122 frames in
+## the opening before) alike.
 ##
 ## At most one decision begins in a physics frame whatever the pool holds (`may_start`).
 
 ## The rank of a forced decision's reason: 0 is served first. Reasons not named here (and "cadence")
-## rank `OTHER_RANK`.
+## rank `OTHER_RANK`. A hostile seen again and the engaged contact lost are a change of the hostile
+## belief too (`goal_controller.gd`'s salient key): they rank with it.
 const REASON_RANK := {
 	"attacked": 0,
 	"hostile belief changed": 0,
+	"sight returned": 0,
+	"lost the engaged contact": 0,
 	"ordered": 1,
 	"task resolved": 2,
 	"follows its leader": 3,
 	"way blocked": 4,
 }
 const OTHER_RANK := 5
+## Frames a claim waits for its rank to improve by one.
+const AGE_FRAMES := 30
 
-## job id -> `{ seq, rank, cost, frame }`: the claim's order, its reason's rank, what the next piece
-## costs and the frame the job last had its turn.
+## job id -> `{ seq, rank, claim, cost, frame }`: the claim's order, its reason's rank, the frame it
+## was claimed on, what the next piece costs and the frame the job last had its turn.
 static var _entries := {}
 ## The claim counter.
 static var _seq := 0
@@ -71,7 +80,9 @@ static func began(job: int, rank := OTHER_RANK) -> void:
 		if _entries[id]["frame"] < _start_frame - 2:
 			_entries.erase(id)
 	_seq += 1
-	_entries[job] = { "seq": _seq, "rank": rank, "cost": 0, "frame": _start_frame }
+	_entries[job] = {
+		"seq": _seq, "rank": rank, "claim": _start_frame, "cost": 0, "frame": _start_frame,
+	}
 
 
 ## `job`'s turn in this frame ended: its next piece costs `cost` (0: nothing to run, as a walk that
@@ -81,7 +92,8 @@ static func note(job: int, cost: int) -> void:
 	if not _entries.has(job):
 		_seq += 1
 		_entries[job] = {
-			"seq": _seq, "rank": OTHER_RANK, "cost": cost, "frame": DecisionBudget.frame(),
+			"seq": _seq, "rank": OTHER_RANK, "claim": DecisionBudget.frame(), "cost": cost,
+			"frame": DecisionBudget.frame(),
 		}
 		return
 	var entry: Dictionary = _entries[job]
@@ -100,16 +112,25 @@ static func leave(job: int) -> void:
 static func owed(job: int, fresh := false, rank := OTHER_RANK) -> int:
 	var frame := DecisionBudget.frame()
 	var mine: Dictionary = _entries.get(job, {})
-	var my_rank: int = rank if fresh else mine.get("rank", OTHER_RANK)
+	var my_rank: int = rank if fresh else _aged(mine, frame)
 	var behind: int = _seq + 1 if fresh else mine.get("seq", _seq + 1)
 	var total := 0
 	for id in _entries:
 		var entry: Dictionary = _entries[id]
-		var same_rank_older: bool = entry["rank"] == my_rank and entry["seq"] < behind
-		var ahead: bool = entry["rank"] < my_rank or same_rank_older
+		var their_rank := _aged(entry, frame)
+		var same_rank_older: bool = their_rank == my_rank and entry["seq"] < behind
+		var ahead: bool = their_rank < my_rank or same_rank_older
 		if id != job and ahead and entry["frame"] < frame and entry["frame"] >= frame - 2:
 			total += entry["cost"]
 	return total
+
+
+## The rank of a job's entry as it stands at `frame`: its reason's rank less a step for every
+## `AGE_FRAMES` since its claim, never below 0 (an entry with no entry: the worst rank).
+static func _aged(entry: Dictionary, frame: int) -> int:
+	if entry.is_empty():
+		return OTHER_RANK
+	return maxi(0, entry["rank"] - floori(float(frame - entry["claim"]) / float(AGE_FRAMES)))
 
 
 ## How many decisions have begun, each `began` one claim, since the last `reset`: a job the roster

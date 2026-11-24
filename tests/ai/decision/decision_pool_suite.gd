@@ -177,11 +177,14 @@ func test_the_pool_is_served_oldest_claim_first_whatever_the_tree_order() -> voi
 func test_the_reasons_rank_attacked_and_new_hostile_first() -> void:
 	var rank := DecisionBudget.Roster.rank_of
 	assert_int(rank.call("attacked")).is_equal(rank.call("hostile belief changed"))
+	# A hostile seen again and the engaged one lost are changes of the hostile belief too.
+	assert_int(rank.call("sight returned")).is_equal(rank.call("hostile belief changed"))
+	assert_int(rank.call("lost the engaged contact")).is_equal(rank.call("hostile belief changed"))
 	var order := ["attacked", "ordered", "task resolved", "follows its leader", "way blocked"]
 	for i in range(1, order.size()):
 		assert_bool(rank.call(order[i - 1]) < rank.call(order[i])).is_true()
-	assert_bool(rank.call("way blocked") < rank.call("sight returned")).is_true()
-	assert_int(rank.call("cadence")).is_equal(rank.call("sight returned"))
+	assert_bool(rank.call("way blocked") < rank.call("off the leash")).is_true()
+	assert_int(rank.call("cadence")).is_equal(rank.call("off the leash"))
 
 
 ## An urgent claim is served before an older routine job: the older one's next piece no longer
@@ -214,6 +217,57 @@ func test_an_urgent_claim_is_served_before_an_older_routine_one() -> void:
 	_frame += 1
 	_job.advance()
 	assert_int(_planner.begun).is_equal(1)
+
+
+## A job's rank ages, in frames (`DecisionRoster.AGE_FRAMES`): a routine job (rank 5) stands behind
+## a stream of attacked claims for at most five steps of 30 frames, then it ranks with them and is
+## older than every one of them, so it is served first. The bound: no job waits more than
+## 6 x 30 frames behind a stream of better ones.
+func test_a_job_never_waits_more_than_six_ageing_steps_behind_a_stream_of_better_ones() -> void:
+	DecisionBudget.per_frame = 3
+	DecisionPrices.cost_hostile = 2
+	DecisionPrices.cost_finish = 2
+	_perception.hostiles = 1
+	assert_bool(_job.request(false)).is_true()  # a cadence decision: the worst rank
+	var stream: Array = []
+	var frames := 0
+	while _planner.begun == 0 and frames < 400:
+		var urgent := _new_job()
+		urgent.perception.hostiles = 1
+		urgent.request(true, "attacked")
+		stream.append(urgent)
+		stream = stream.filter(func(j): return j.planner.begun == 0)
+		for job in stream:
+			job.advance()  # first in the tree's order, every frame
+		_job.advance()
+		_frame += 1
+		frames += 1
+	assert_int(_planner.begun).is_equal(1)
+	assert_bool(frames <= 6 * DecisionBudget.Roster.AGE_FRAMES).is_true()
+	assert_bool(frames > 5 * DecisionBudget.Roster.AGE_FRAMES).is_true()  # premise: it did wait
+
+
+## What a job owes the pool is judged at its aged rank: a worse-ranked job in flight owes nothing to
+## a fresh better claim until it has waited, a rank better every 30 frames (a stand of 150 frames
+## brings a cadence decision to the best rank).
+func test_a_waiting_job_owes_the_pool_at_its_aged_rank() -> void:
+	var roster := DecisionBudget.Roster
+	var step: int = roster.AGE_FRAMES
+	var routine := _new_job()
+	var claimed := _frame
+	assert_bool(routine.request(false)).is_true()  # rank 5 (cadence)
+	var me := _new_job()
+	var best: int = roster.rank_of("attacked")
+	var owed := func(age: int, rank: int) -> int:
+		_frame = claimed + age * step + 1
+		roster.note(routine.get_instance_id(), 2)  # what it needs next
+		_frame += 1  # and it has not had its turn in this frame
+		return roster.owed(me.get_instance_id(), true, rank)
+	assert_int(owed.call(0, best)).is_equal(0)  # rank 5: behind every better claim
+	assert_int(owed.call(4, best)).is_equal(0)  # rank 1 after four steps: still behind the best
+	assert_int(owed.call(4, 1)).is_equal(2)  # and ahead of a claim of its rank that is younger
+	assert_int(owed.call(5, best)).is_equal(2)  # rank 0, older: ahead of every claim
+	assert_int(owed.call(9, best)).is_equal(2)  # never better than the best
 
 
 func test_a_job_that_never_runs_again_holds_no_one_up_once_released() -> void:

@@ -128,7 +128,9 @@ func _check_live_grenade(t: TestContext, nb: Node) -> bool:
 	if not t.require(await t.until(func(): return t.happened(&"throw"), 6.0), "the invader throws"):
 		return false
 	t.actor(&"d").movement.speed = _defender_speed
-	t.actor(&"d").facing = Vector2.LEFT  # toward the throw, whatever its decision had it facing
+	# Toward the throw, whatever its decision had it facing: "having seen it" below holds by this
+	# set facing (the defender looks at the grenade), not by what its decision chose.
+	t.actor(&"d").facing = Vector2.LEFT
 	await t.frames(10)
 	var own: Array = GrenadeAi.grenades(nb).get("known", [])
 	if t.check(not own.is_empty(), "the thrower knows the live grenade"):

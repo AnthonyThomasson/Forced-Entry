@@ -88,8 +88,9 @@ func _completed_snapshots(t: TestContext) -> void:
 	if not t.require(await t.until(seen, 3.0), "set-up: the invader sees two hostiles"):
 		return
 	var perception: Node = brain.get("_perception")
-	var fast: Dictionary = perception.sense(brain.get("goal"), "", 0)
-	var plain: Dictionary = perception.sense(brain.get("goal"), "", 0)
+	var engaged: int = t.actor(&"h1").get_instance_id()  # an NPC with none analyses one hostile
+	var fast: Dictionary = perception.sense(brain.get("goal"), "", engaged)
+	var plain: Dictionary = perception.sense(brain.get("goal"), "", engaged)
 	(plain["demand"].ctx as Dictionary).erase("tactics_cache")
 	fast["demand"].complete()
 	plain["demand"].complete()

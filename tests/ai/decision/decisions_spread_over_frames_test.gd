@@ -15,10 +15,7 @@ const COUNT := 8
 ## apiece, and the eighth lands on frame 31 (it was frame 11 before the pieces were split and
 ## priced: `decision-prices.md`).
 const LANDS_ON := [4, 8, 12, 16, 20, 23, 27, 31]
-## Frames a landing may slip past the measured one: a start that goes a frame later when another
-## NPC's piece took the frame's start (the order the tree gives them is not pinned here).
-const SLIP := 2
-const SPREAD_FRAMES := 31 + SLIP
+const SPREAD_FRAMES := 31 + 2
 const TARGET := Vector2(900, 60)
 
 
@@ -73,8 +70,8 @@ func run(t: TestContext) -> void:
 		decided_after.append(_decided(brains))
 	t.trace("decided", decided_after[SPREAD_FRAMES - 1])
 	t.check(
-		decided_after[0] <= 2,
-		"on the first frame at most one snapshot started (%d NPCs had decided)" % decided_after[0],
+		decided_after[0] == 0,
+		"on the first frame no decision has landed (%d NPCs had decided)" % decided_after[0],
 	)
 	var one_at_a_time := true
 	for k in range(1, SPREAD_FRAMES):
@@ -90,9 +87,9 @@ func run(t: TestContext) -> void:
 		# The frame (counted from 1) on which the (k+1)-th decision had landed.
 		var lands := decided_after.find_custom(func(n: int) -> bool: return n > k) + 1
 		t.check(
-			lands >= 1 and lands <= LANDS_ON[k] + SLIP,
-			"decision %d landed by frame %d (on frame %d; %s)"
-				% [k + 1, LANDS_ON[k] + SLIP, lands, decided_after],
+			lands == LANDS_ON[k],
+			"decision %d landed on frame %d exactly (on frame %d; %s)"
+				% [k + 1, LANDS_ON[k], lands, decided_after],
 		)
 
 	# The pool raised to hold every NPC's pieces (the test harness restores the static afterwards):

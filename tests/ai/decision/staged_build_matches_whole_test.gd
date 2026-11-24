@@ -29,6 +29,9 @@ const NPC := Vector2(900, 190)
 const FOE_AWAY := Vector2(260, 190)
 const FOE_AWAY_TOO := Vector2(260, 260)
 
+## The engaged hostile the builds are made for (0: none).
+var _engaged := 0
+
 
 func describe() -> Dictionary:
 	return {
@@ -72,6 +75,8 @@ func run(t: TestContext) -> void:
 	)
 	if not t.require(await t.until(seen, 3.0), "set-up: the invader sees both trespassers"):
 		return
+	# One of the two is engaged: an NPC with none analyses only the nearest.
+	_engaged = t.actor(&"foe").get_instance_id()
 	await _compare(t, brain, "fight", FIGHT, 2)
 
 
@@ -81,7 +86,7 @@ func _compare(
 		t: TestContext, brain: Node, label: String, rules: Array, hostiles: int,
 ) -> void:
 	DecisionStub.rules = rules
-	var both := _build_both(t, brain)
+	var both := _build_both(t, brain, _engaged)
 	var whole: Dictionary = both["whole"]
 	var stepped: Dictionary = both["stepped"]
 	var expected: Array = [START]
@@ -118,7 +123,7 @@ func _compare(
 ## `kinds` the kinds of piece it ran. Older decisions of an NPC that thought it stood in a house
 ## room are completed between the pieces, as the debug overlay does: a build that read their
 ## room would have the `inside` fact true.
-func _build_both(t: TestContext, brain: Node) -> Dictionary:
+func _build_both(t: TestContext, brain: Node, engaged := 0) -> Dictionary:
 	var perception: Node = brain.get("_perception")
 	var goal: String = brain.get("goal")
 	var here: Vector2 = t.actor(&"npc").global_position
@@ -127,10 +132,10 @@ func _build_both(t: TestContext, brain: Node) -> Dictionary:
 	}]
 	var olds: Array = []
 	for i in 24:  # more than a build has pieces
-		olds.append(perception.sense(goal, "", 0))
+		olds.append(perception.sense(goal, "", engaged))
 		olds[i]["demand"].rooms = old_rooms
-	var whole: Dictionary = perception.sense(goal, "digging in", 0)
-	var staged = perception.begin_sense(goal, "digging in", 0)
+	var whole: Dictionary = perception.sense(goal, "digging in", engaged)
+	var staged = perception.begin_sense(goal, "digging in", engaged)
 	var kinds: Array = []
 	while not staged.done():
 		kinds.append(staged.next_piece())

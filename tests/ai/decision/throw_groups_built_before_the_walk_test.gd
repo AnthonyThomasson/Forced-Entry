@@ -71,8 +71,9 @@ func run(t: TestContext) -> void:
 ## A throw exists: the search, then the grenade piece's steps, leave the throws at the hostile it
 ## was found at built; the sources it went through before are none, as the whole build says.
 func _found(t: TestContext, perception: Node, goal: String) -> void:
-	var whole: RefCounted = perception.sense(goal, "", 0)["demand"]
-	var demand: RefCounted = perception.sense(goal, "", 0)["demand"]
+	var engaged: int = t.actor(&"h").get_instance_id()  # an NPC with none analyses one hostile
+	var whole: RefCounted = perception.sense(goal, "", engaged)["demand"]
+	var demand: RefCounted = perception.sense(goal, "", engaged)["demand"]
 	t.check(demand.targets.size() >= 2, "found: two hostiles are given full analysis")
 	_search(demand)
 	if not t.require(demand.facts.get("grenade_ready", false), "found: the search finds a throw"):

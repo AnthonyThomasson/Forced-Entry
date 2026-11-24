@@ -249,6 +249,7 @@ capped by `max_options_per_level`. The engaged hostile always takes a slot witho
 slots go to the nearest others. Every known hostile remains in contacts, shared facts and the hostile bind, but those beyond the cap
 receive only their cheap line facts, not fire, flank, advance, melee or grenade groups and no per-target sections. Test:
 `ai/decision/analyses_engaged_and_nearest` (the farthest engaged hostile and the nearest other are analysed; the third stays known).
+An NPC that is not engaged with any hostile analyses ONE, the nearest, whatever the cap (the second slot is for the one it is fighting); the others are listed with their line only. Test: `ai/decision/analyses_one_when_not_engaged`.
 
 Tests: `entry_guard_explore`, `entry_guard_search_room`, `entry_guard_advance`, `entry_guard_cleared_room_free`,
 `entry_guard_under_fire_exempt` (shot at from behind, in the garden: straight through), `entry_guard_shot_from_room_ahead` (shot at from the
