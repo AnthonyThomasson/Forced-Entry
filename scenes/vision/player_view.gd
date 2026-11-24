@@ -133,6 +133,13 @@ func rebuild_causes() -> Dictionary:
 	return _pipeline.causes.duplicate()
 
 
+## Whether the cone published last is of a settling job: the one built past the restart cap, with
+## blockers that moved under `VisionSliceConfig.settle_px` since its start taken as where they were
+## (a test's read).
+func settled_publish() -> bool:
+	return _pipeline.settled_publish
+
+
 ## How many blockers stand off the snapshot of the cone's job by under `ViewWatch.STILL_PX`, and the
 ## most any is off it (px): what a cone built from the snapshot differs from the live world by
 ## (a test's read).

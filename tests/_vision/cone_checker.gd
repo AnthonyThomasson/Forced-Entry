@@ -73,7 +73,7 @@ func _physics_process(_delta: float) -> void:
 	if reason == "" and _settled(pose):
 		settled += 1
 		var live := { "eye": viewer.global_position, "facing": viewer.get("facing") }
-		reason = _reference_differs(live)
+		reason = _reference_differs(live, true)
 		reason = "settled, the cone is not the live pose's: " + reason if reason != "" else ""
 	_last_published = count
 	_last_starts = view.starts()
@@ -100,7 +100,8 @@ func _settled(pose: Dictionary) -> bool:
 
 
 ## Why the view's polygons differ from the reference cone of `pose` in the world as it is, or "".
-func _reference_differs(pose: Dictionary) -> String:
+## `live`: the pose is the viewer's own (a settling job's cone is excused only for its pose).
+func _reference_differs(pose: Dictionary, live := false) -> String:
 	_plain.rebuild(
 		TwinSpace.space_of(viewer),
 		pose["eye"],
@@ -109,6 +110,11 @@ func _reference_differs(pose: Dictionary) -> String:
 		viewer.sight(),
 	)
 	var differs := Probe.polygons_differ(view.cone(), view.bubble(), _plain.cone, _plain.bubble)
+	if differs != "" and view.settled_publish() and not live:
+		# the job past the restart cap held blockers that moved under `settle_px` where they were:
+		# its cone is the world's to that (`vision/cone_settles_past_the_cap`), and the job after it
+		# starts at once, from the world as it is
+		return ""
 	if differs != "" and view.creeping_in_reach() > 0:
 		return _creep_explains(differs)
 	return differs

@@ -25,7 +25,7 @@ extends RefCounted
 ## A frame that rebuilds nothing measures no shape and builds no Array: the key is compared field by
 ## field and the extents are kept.
 
-const Sector := preload("res://scenes/vision/view_sector.gd")
+const Reach := preload("res://scenes/vision/view_reach.gd")
 ## What a plan handle stands as while it stands (a blocker).
 const SOLID := 1
 ## What a plan handle stands as while it lies flat (a fallen door): a marker of its own.
@@ -65,7 +65,7 @@ var _since := 0
 var _see_over := -1.0
 ## Where a ray can pass, for the eye, the facing and the sight the last check was made for: what
 ## "within reach" means (`_within_reach`).
-var _sector := Sector.new()
+var _reach := Reach.new(STILL_PX)
 ## Whether a blocker within reach had moved by the last rebuild: a query made in the frame it moved
 ## may have read it where it was, so the next frame rebuilds too.
 var _moved_then := false
@@ -109,7 +109,7 @@ func detach() -> void:
 ## Whether a rebuild is due for an eye at `eye` facing `facing`, seeing by `sight`.
 func stale(eye: Vector2, facing: Vector2, sight: Dictionary) -> bool:
 	_since += 1
-	_sector.look(eye, facing, sight)
+	_reach.now.look(eye, facing, sight)
 	if _since >= VisionConfig.rebuild_every:
 		return true
 	if not _built_for(eye, facing, sight):
@@ -149,6 +149,25 @@ func world_changed(sight: Dictionary) -> bool:
 	return _moved_then or _blockers_moved()
 
 
+## Whether the world's change, which restarts a job past the cap, is moves of blockers that are no
+## more than `VisionSliceConfig.settle_px` from the job's snapshot, and nothing else (no signal, no
+## new blocker, no change of the sight): a job that settles goes on through them.
+func settles() -> bool:
+	if _dirty or _built.size() != KEY_SIZE or VisionSliceConfig.settle_px <= 0.0:
+		return false
+	var held := _reach.still
+	_reach.still = VisionSliceConfig.settle_px
+	var moved := _blockers_moved()
+	_reach.still = held
+	return not moved
+
+
+## The next job settles (`VisionSliceConfig.settle_px`) or, with `on` false, is held to the creep
+## bound again.
+func settle(on: bool) -> void:
+	_reach.still = VisionSliceConfig.settle_px if on else STILL_PX
+
+
 ## Forget what the last job was made from: the next ask is a rebuild (a job dropped half done).
 func forget() -> void:
 	_built = []
@@ -157,7 +176,7 @@ func forget() -> void:
 ## The next `built` is for a job from `eye` facing `facing` seeing by `sight`: the sector "within
 ## reach" is of that pose, and the colliders that entered the tree are read first.
 func look(eye: Vector2, facing: Vector2, sight: Dictionary) -> void:
-	_sector.look(eye, facing, sight)
+	_reach.now.look(eye, facing, sight)
 	_read_new(float(sight["eye_height"]))
 
 
@@ -349,7 +368,7 @@ func _blockers_moved() -> bool:
 
 ## Whether the blocker `entry` is, as `now`, where the job's snapshot has it (`STILL_PX`).
 func _stood(entry: Array, now: Transform2D) -> bool:
-	return _lag_of(entry, now) <= STILL_PX
+	return _lag_of(entry, now) <= _reach.still
 
 
 ## How far (px) the blocker `entry` as `now` is from the snapshot: its origin's move and the move of
@@ -433,7 +452,7 @@ func _within_reach(entry: Array, placed: Transform2D) -> bool:
 		entry[3] = extent
 		if extent == INF:
 			return true
-	return _sector.touches(placed.origin, extent)
+	return _reach.now.touches(placed.origin, extent)
 
 
 ## How far (px) any part of `body` lies from its origin: its twin's shapes' farthest

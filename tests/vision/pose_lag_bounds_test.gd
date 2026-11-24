@@ -79,6 +79,8 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"vision.enabled", true)
 	s.set_static(VisionSliceConfig, &"slice_units", SLICE)
 	s.set_static(VisionSliceConfig, &"cost_shape", SLICE)
+	# the cap's whole build is what it pins: no job settles through a slow move
+	s.set_static(VisionSliceConfig, &"settle_px", 0.0)
 	s.object(&"blocker", _anchored_wardrobe(), BLOCKER_AT, { "rotated": true })
 	s.view(&"eye")
 
