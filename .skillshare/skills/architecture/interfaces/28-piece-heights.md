@@ -1,7 +1,7 @@
-28. **Objects → AI, Projectile: real heights, `PieceHeights`** (`objects/art/piece_heights.gd`, static, `RefCounted`; the heights themselves are the `ObjectMesh*Config` holders'
-    values, so a mesh and its height are one number; tests `tests/objects/piece_heights_test.gd`). Read by the bullet (the twin ray), by sight, by the AI's cover picking and line of fire
-    (`AgentTactics.is_cover`: a piece's top reaches a ducked head) and, as the twin geometry itself, by the grenade's burst and the AI's grenade escape (`Explosion.shields`, `docs/grenades.md` G7). The
-    catalogue's 0 to 100 `coverage` is gone.
+28. **Objects → World Generation: real heights, `PieceHeights`** (`objects/art/piece_heights.gd`, static, `RefCounted`; the heights themselves are the `ObjectMesh*Config` holders'
+    values, so a mesh and its height are one number; tests `tests/objects/piece_heights_test.gd`). Objects' twins (`ObjectTwins`, 29) and meshes are built from it, and World Generation's
+    district pre-warm reads `spec_of`. Nothing outside Objects asks it in play: a bullet, a sight line, the AI's cover (`AgentCover`'s `is_cover`: `SightRay.top_of`) and a grenade's burst
+    (`Explosion.shields`, `docs/grenades.md` G7) read the piece's twin, which holds these heights. There is no catalogue `coverage` number.
     - `PieceHeights.top_of(definition: Dictionary) -> float`, `base_of(definition) -> float`, `parts_of(definition) -> Array[Dictionary]`: for a catalogue row (`WorldGen.object_definition(key)`:
 	  `size`, `art`, `art_opts`), px above the floor, 1 px a 3D unit, 42.3 px a metre (`BodyHeights`, interface 11). A **part** is `{ base, top, rect }`: where it starts and ends and the share
 	  of the footprint it covers (`rect` in the footprint's unit square, the painter's canonical frame: back-left corner (0, 0), x across, the front toward +y). `top_of` is the highest part's

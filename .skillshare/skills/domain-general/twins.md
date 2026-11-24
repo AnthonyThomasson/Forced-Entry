@@ -2,9 +2,8 @@
 
 Side file of `domain-general`; the contract is architecture interface 29, the why is `docs/adr/0014-twin-staging-and-plan-space.md`.
 
-`TwinSpace` (`twin_space.gd`, a `Node3D` named `Twins`, built by `MatchBuilder.stage` under the match's world) holds a 3D twin of each solid 2D body in the 3D physics space (Jolt) of the main window's
-`World3D`, the counterpart of the 2D space the sim runs in. It is the staging of #194's move to a 3D simulation: a bullet and the player's aim (`Pointer.aim_hit`) read it, and the other real-cover jobs cast rays into it
-(`TwinSpace.space_of(node)`, `owner_of(collider)` back to the 2D body for `get_surface()`), then the bodies flip to 3D one class at a time and the twin direction reverses (ADR 0014).
+`TwinSpace` (`twin_space.gd`, a never-drawn `SubViewport` named `Twins`, built by `MatchBuilder.stage` under the match's world) holds a 3D twin of each solid sim body in a 3D physics space of its own (Jolt). No 2D physics is left: the sim's roots are plain `Node2D` plan handles, and the twins are the truth of where a free piece, a character or a vehicle stands, what a bullet, an aim (`Pointer.aim_hit`), a sight line and the nav's bake meet
+(`TwinSpace.space_of(node)`, `owner_of(collider)` back to the plan handle for `get_surface()`); ADR 0014.
 
 - **Why that world.** The picture's `SubViewport` has a world of its own and a headless test world has no picture: tying the twins to the picture would make "the twin space exists" false in every test, and phase 2 reads it headless. The 3D view draws this world: once told of a world (`View3D.mirror_world`) its picture's viewport takes the world's
   `TwinSpace.of_world(world)` `World3D`, so the lights and meshes stand where the bodies are (a world with no twin space gets a world of the view's own; each staged world has its own, a test's second one never drawn through the first's camera). Test: `tests/general/view_shares_the_twins_world_test.gd`, `twin_carried_picture_windowed_test.gd` (carried meshes: same pixels as ones placed by hand).

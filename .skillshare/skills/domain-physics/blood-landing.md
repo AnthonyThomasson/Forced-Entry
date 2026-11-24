@@ -8,4 +8,4 @@ reaches it (a chest-height hit beside a wall stands on the wall near that height
 `BloodThrow.surface`: the splat sits at that point, is not clipped by the 2D walls round it, is not in `BloodField` (no footprint or wetness reads it), and
 `InkFx` stands it on the wall's face (its x along the wall, its y down it from the struck height, cut off at the floor and at `PhysicsInkConfig.wall_top`; face normals, `InkMark.normals`)
 or lays it flat at the top's height. A parcel that meets nothing lands as before. Known limits: a top or wall splat is not cut at the edge of its top or wall (a corner, a doorway);
-drips and the bleed-out pool stay floor-only; the 2D splat polygon is what is stood up, so the 2D footprint survives until del2d. Test: `blood_marks_the_wall_at_hit_height_test.gd`.
+drips and the bleed-out pool stay floor-only; the splat's plan polygon is what is stood up. Test: `blood_marks_the_wall_at_hit_height_test.gd`.

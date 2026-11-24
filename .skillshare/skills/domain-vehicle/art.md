@@ -1,6 +1,6 @@
 # Vehicle art
 
-The vehicle is shown only by the 3D mesh (`art/vehicle_mesh*.gd`, `VehicleMeshConfig`, `domain-art/meshes.md`); the 2D `Chassis` / `Roof` draw layers are gone. The brake lights are read off `brake_lights()`, the dents off `hit_marks()`.
+The vehicle is shown only by the 3D mesh (`art/vehicle_mesh*.gd`, `VehicleMeshConfig`, `domain-art/meshes.md`). The brake lights are read off `brake_lights()`, the dents off `hit_marks()`.
 
 ## Painters (`art/`)
 

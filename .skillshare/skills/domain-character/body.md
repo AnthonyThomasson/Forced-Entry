@@ -11,7 +11,7 @@ Everything that gives the character a body. `character.gd` (`SKILL.md`) owns sta
 
 ## Files
 
-Animate: `character_pose.gd` (+ parts `pose_springs`, `pose_arms`, `pose_gait`, `pose_drive`), `character_rig.gd`, `character_legs.gd`, `character_hands.gd`, `character_kick.gd`, `character_ragdoll.gd`; `body_sweep.gd` is the collide-and-slide the hands and legs share, `body_strike.gd` (+ `melee_blow.gd`) the melee strike the punch and kick share. Look: `body_dress.gd` (the resolved look, made by the 3D body: `BodyMesh`), `character_style.gd` (the look a style resolves to) and the painters in `body/art/`, whose flat renders the 3D body wears (`body-textures.md`). `character_base.tscn` attaches `character_hands.gd` as the `Hands` child; the rest are `RefCounted` helpers the anatomy owns. The 2D draw of the body (`character_visuals.gd` and its parts) is gone: the 3D body (`body-mesh.md`) is the only drawing.
+Animate: `character_pose.gd` (+ parts `pose_springs`, `pose_arms`, `pose_gait`, `pose_drive`), `character_rig.gd`, `character_legs.gd`, `character_hands.gd`, `character_kick.gd`, `character_ragdoll.gd`; `body_sweep.gd` is the collide-and-slide the hands and legs share, `body_strike.gd` (+ `melee_blow.gd`) the melee strike the punch and kick share. Look: `body_dress.gd` (the resolved look, made by the 3D body: `BodyMesh`), `character_style.gd` (the look a style resolves to) and the painters in `body/art/`, whose flat renders the 3D body wears (`body-textures.md`). `character_base.tscn` attaches `character_hands.gd` as the `Hands` child; the rest are `RefCounted` helpers the anatomy owns. The 3D body (`body-mesh.md`) is the only drawing.
 
 ## The anatomy (`character_anatomy.gd`)
 

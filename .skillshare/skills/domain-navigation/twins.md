@@ -2,7 +2,7 @@
 
 Side file of `domain-navigation` (`SKILL.md`). ADR 0014 ("The nav bake reads the twins").
 
-Since #194 del2d-c the bake's source is the 3D twins of the twin space (`TwinSpace`, interface 29), not the 2D colliders. `NavTwins` is the
+The bake's source is the 3D twins of the twin space (`TwinSpace`, interface 29). `NavTwins` is the
 reader: `parts(body, grounded)` the `[shape, pose]` of each shape of the body's twin (`TwinSpace.twin_for`, in the tree), `footprints` their plan polygons
 (`TwinShapes.footprint_of`), `stamp_of(body)` what a footprint depends on (the twin and its pose), `walls_under(house)` the walls (the group `TwinSpace.WALLS`: a plan handle that reports `wall_segments`, in tree order). A body with no twin has no footprint: a
 house with no twin space bakes no walls and no holes, so `MatchBuilder.stage` makes the twin space before it bakes, and a test that adds a piece waits a

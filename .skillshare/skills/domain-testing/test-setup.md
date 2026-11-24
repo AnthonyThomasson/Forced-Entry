@@ -60,4 +60,4 @@ only (the browser also calls it to list the switches).
   write for it; it runs only live, with `--include-von` / `--require-von`).
 - **Presentation:** `show_overlays([...])`, `camera_follow([ids])` (default frames all actors; the hand-pan is off when a
   `player` actor is present, since WASD walks it) and `lock_interaction([&"camera", …])`
-  (`in-game-runner.md`, "Locking interactions"), `own_picture()` (the test builds its own 3D picture, a `Main` run whole or a `View3D` by hand: the session shows none over its world, `in-game-runner.md`; also set by tests of the 2D draw or the plain camera, which need the world as it is, until the 2D draw's jobs delete them).
+  (`in-game-runner.md`, "Locking interactions"), `own_picture()` (the test builds its own 3D picture, a `Main` run whole or a `View3D` by hand: the session shows none over its world, `in-game-runner.md`).

@@ -11,4 +11,4 @@ A humanoid on the Physics domain's generic `Ragdoll` (3D points over the floor: 
 - It starts exactly in the rig's pose and is launched with the body's momentum; the upper body is pushed along the blow (`CharacterRagdollFallConfig.hit_topple`), the knees buckle (`knee_buckle`), each point gets a jolt (`jitter`). The legs give out, the body topples and settles (about 2 to 3 s), then sleeps.
 - Reads: `point(i)`, `torso()` (the trunk's basis), `face()`, `toes(i)` (a trunk-frame direction carried onto the bone by the shortest turn), `is_settled()`. `blast(...)` is an explosion's throw (`blast_push`).
 
-The fallen body is shown by the 3D body mesh, which follows the ragdoll's joints once the character is dead (`body-mesh.md`); the 2D laid-out draw, trunk loft and floor shadow are gone.
+The fallen body is shown by the 3D body mesh, which follows the ragdoll's joints once the character is dead (`body-mesh.md`).
