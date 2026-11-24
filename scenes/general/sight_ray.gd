@@ -26,12 +26,22 @@ const MASK := PhysicsLayers.TWIN_SURFACES
 ## The height (px) of what lies on the floor (a grenade, a dropped item): the one point it is
 ## looked at by.
 const GROUND_POINT := 6.0
+## No twin rids to leave out (`exclude_shared`): shared, never changed.
+const _NONE: Array = []
 ## How far (px) over `looks_over` the plan cast runs, so a piece exactly as tall as the eye, whose
 ## top face the ray would lie in, is looked over, and one a hair taller blocks.
 const LEVEL_OVER := 0.05
+## The meta a twin keeps whether sight looks through it (`looks_through`).
+const THROUGH_META := &"sight_through"
+## The meta a twin keeps the rids a ray at it leaves out (`exclude_shared`).
+const EXCLUDE_META := &"sight_exclude"
 
 ## The caster `plan_hit` borrows for every plain ask.
 static var _plain := SightRay.new()
+## The points sight looks at by posture, as `BodyHeights.sight_points` gave them on physics frame
+## `_points_frame` (a frame's asks share one answer).
+static var _points := {}
+static var _points_frame := -1
 ## The 3D ray every eye ask refills.
 static var _eye_ray := PhysicsRayQueryParameters3D.new()
 
@@ -108,6 +118,12 @@ static func visible_heights(
 ## `movement`), a standing one for anything else.
 static func posture_of(body: Object) -> StringName:
 	var movement: Variant = body.get("movement") if body != null else null
+	return _posture_in(movement)
+
+
+## The posture of the character whose `movement` component is `movement` (a standing one for
+## anything that cannot say).
+static func _posture_in(movement: Variant) -> StringName:
 	if movement is Object and (movement as Object).has_method(&"body_posture"):
 		return (movement as Object).call(&"body_posture")
 	return BodyHeights.STAND
@@ -127,12 +143,27 @@ static func eye_point(viewer: Node2D) -> Vector3:
 ## piece the middle of its height (its own twin is left out by `exclude_of`), anything else
 ## (a grenade, a dropped item) the floor's `GROUND_POINT`.
 static func target_heights(target: Object) -> PackedFloat32Array:
-	if target != null and target.get("movement") != null:
-		return BodyHeights.sight_points(posture_of(target))
+	if target != null:
+		var movement: Variant = target.get("movement")
+		if movement != null:
+			return _points_of(_posture_in(movement))
 	var twin := TwinSpace.twin_for(target) if target != null else null
 	if twin != null:
 		return PackedFloat32Array([0.5 * TwinShapes.top_of(twin)])
 	return PackedFloat32Array([GROUND_POINT])
+
+
+## `BodyHeights.sight_points` of `posture`, taken once a physics frame.
+static func _points_of(posture: StringName) -> PackedFloat32Array:
+	var frame := Engine.get_physics_frames()
+	if frame != _points_frame:
+		_points.clear()
+		_points_frame = frame
+	var held: Variant = _points.get(posture)
+	if held == null:
+		held = BodyHeights.sight_points(posture)
+		_points[posture] = held
+	return held
 
 
 ## The twin rids `target`'s own body leaves out of a ray that ends inside it (a piece: the line to
@@ -142,6 +173,21 @@ static func exclude_of(target: Object) -> Array:
 	if twin is CollisionObject3D:
 		return [(twin as CollisionObject3D).get_rid()]
 	return []
+
+
+## `exclude_of` as one array per twin, shared: the caller reads it and never changes it (a ray's
+## exclude list that is not copied by the one that sets it). The sight pass asks it of every
+## character it tests.
+static func exclude_shared(target: Object) -> Array:
+	var twin := TwinSpace.twin_for(target) if target != null else null
+	if not twin is CollisionObject3D:
+		return _NONE
+	var held: Variant = twin.get_meta(EXCLUDE_META, -1)
+	if held is Array:
+		return held
+	var rids: Array[RID] = [(twin as CollisionObject3D).get_rid()]
+	twin.set_meta(EXCLUDE_META, rids)
+	return rids
 
 
 ## The points of `target` (a node) that `viewer`'s eye sees: the heights (px) of the head, chest and
@@ -204,12 +250,19 @@ static func _centre(heights: PackedFloat32Array) -> float:
 
 
 ## Whether the surface of the 2D body a twin stands for says it is `transparent`: a pane, which
-## sight looks through however tall.
+## sight looks through however tall. Read once per twin and kept on it (`THROUGH_META`): a piece's
+## `transparent` does not change for its life (`ViewShapes` reads it the same way), and a ray that
+## strikes a blocker asks this of every one it meets.
 static func looks_through(twin: Object) -> bool:
+	var known: Variant = twin.get_meta(THROUGH_META, -1)
+	if known is bool:
+		return known
 	var body := TwinSpace.owner_of(twin)
 	if body == null or not body.has_method("get_surface"):
 		return false
-	return bool((body.get_surface() as Dictionary).get("transparent", false))
+	var through := bool((body.get_surface() as Dictionary).get("transparent", false))
+	twin.set_meta(THROUGH_META, through)
+	return through
 
 
 # --- The plan cone: the player's view, a floor-plan polygon -------------------------------------

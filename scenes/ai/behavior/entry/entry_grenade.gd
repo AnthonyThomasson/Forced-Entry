@@ -160,20 +160,23 @@ func _bang_held_off(entry: Entry, team: Array, ordered: bool) -> bool:
 ## view, plans the throw and calls it (`_throw_bang`), the rest wait for it. True once the phase has
 ## changed.
 func _bang_call(entry: Entry, team: Array, ordered: bool, delta: float) -> bool:
-	if team.any(func(m): return m["step"] == "bang"):
-		_enter_bang(entry)  # The thrower called it: hold, turned away, until the grenade goes off.
-		return true
+	for m in team:
+		if m["step"] == "bang":
+			# The thrower called it: hold, turned away, until the grenade goes off.
+			_enter_bang(entry)
+			return true
 	if (ordered and entry.readiness.stack_ready(entry, team)
 			and not _stack_has(team, _bang_kind(entry))):
 		# D1 / D15: the stack is in and the order's stun (or frag) is gone: it goes in quietly, and
 		# its claims say so (`bang_off`).
 		give_up_bang(entry)
 		return false
-	if (_thrower(entry) == -1
+	var thrower := _thrower(entry)
+	if (thrower == -1
 			or not entry.readiness.stack_ready(entry, team)
 			or state.hostile_in_view):
 		return false
-	if _thrower(entry) != world.self_id:
+	if thrower != world.self_id:
 		wait += delta  # Waiting for the thrower to call the bang.
 		return false
 	return _throw_bang(entry)
@@ -249,7 +252,10 @@ func _go_quiet(entry: Entry) -> void:
 func vetoed(entry: Entry, team: Array) -> bool:
 	if entry.orders.mode_set(entry):
 		return not stack_bangs(entry)
-	return team.any(func(m): return m["bang_off"])
+	for m in team:
+		if m["bang_off"]:
+			return true
+	return false
 
 
 ## Whether a member of the stack is crossing or through the doorway.
@@ -266,7 +272,12 @@ func stack_has_stun(team: Array) -> bool:
 ## whose claims say so (`stuns` / `frags`).
 func _stack_has(team: Array, grenade_kind: StringName) -> bool:
 	var key := "frags" if grenade_kind == &"frag" else "stuns"
-	return _carried(grenade_kind) > 0 or team.any(func(m): return int(m[key]) > 0)
+	if _carried(grenade_kind) > 0:
+		return true
+	for m in team:
+		if int(m[key]) > 0:
+			return true
+	return false
 
 
 ## How many grenades of `grenade_kind` (`stun` / `frag`) this NPC carries.

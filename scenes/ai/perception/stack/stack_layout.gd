@@ -131,10 +131,10 @@ static func free_slot(claims: Array, self_id: int, current := 0, mine := {}) -> 
 	var taken := {}
 	for m in claims:
 		taken[m["slot"]] = taken.get(m["slot"], []) + [m]
-	var holds := func(other):
-		var verdict := _verdict(claims, current, int(mine.get("side", 0)), other, mine)
-		return _settles(verdict, self_id, other)
-	if current > 0 and (not taken.has(current) or taken[current].all(holds)):
+	if current > 0 and (
+		not taken.has(current)
+		or _all_hold(taken[current], claims, current, self_id, mine)
+	):
 		return current
 	for other in taken.get(current, []):
 		var freed := int(other.get("move_up", 0))
@@ -142,13 +142,32 @@ static func free_slot(claims: Array, self_id: int, current := 0, mine := {}) -> 
 			return freed  # An ally moved up into this slot (E2): this NPC takes the one it freed.
 	var slot := 1
 	while taken.has(slot):
-		var gives_way := func(other): return _gives_way(claims, slot, other, self_id, mine)
-		if taken[slot].all(gives_way):
+		var all_give_way := true
+		for other in taken[slot]:
+			if not _gives_way(claims, slot, other, self_id, mine):
+				all_give_way = false
+				break
+		if all_give_way:
 			# Claimed on the frame this NPC claimed on, by someone farther from it: this NPC takes
 			# it, and the other gives it up.
 			return slot
 		slot += 1
 	return slot
+
+
+## Whether this NPC holds slot `current` against every claim in `others` (`free_slot`).
+static func _all_hold(
+	others: Array,
+	claims: Array,
+	current: int,
+	self_id: int,
+	mine: Dictionary,
+) -> bool:
+	for other in others:
+		var verdict := _verdict(claims, current, int(mine.get("side", 0)), other, mine)
+		if not _settles(verdict, self_id, other):
+			return false
+	return true
 
 
 ## Whether ally `other` gives slot `slot` up to this NPC (`self_id`, `mine`: see `free_slot`): it

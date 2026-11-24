@@ -121,6 +121,18 @@ func can_see_node(
 	space: PhysicsDirectSpaceState3D,
 	_exclude: Array,
 ) -> bool:
+	return can_see_node_at(node, from_pos, facing, space, _eye())
+
+
+## `can_see_node` with the height (px) of this agent's eye given: a caller that asks of many nodes
+## in a row reads it once (`eye_height`).
+func can_see_node_at(
+	node: Node2D,
+	from_pos: Vector2,
+	facing: Vector2,
+	space: PhysicsDirectSpaceState3D,
+	eye: float,
+) -> bool:
 	if node == null or not is_instance_valid(node):
 		return false
 	if not enabled:
@@ -131,7 +143,18 @@ func can_see_node(
 		return false
 	if space == null:
 		return true
-	return _sees(space, from_pos, point, SightRay.target_heights(node), SightRay.exclude_of(node))
+	return SightRay.sees(
+		space,
+		PlanSpace.lift(from_pos, eye),
+		point,
+		SightRay.target_heights(node),
+		SightRay.exclude_shared(node),
+	)
+
+
+## The height (px) of this agent's eye: its posture's, a standing one with no viewer.
+func eye_height() -> float:
+	return _eye()
 
 
 ## The first hit that blocks SIGHT along `from`→`to` (plan points, a standing body at `to`), or {}

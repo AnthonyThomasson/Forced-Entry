@@ -91,6 +91,34 @@ func test_the_twins_an_eye_ray_leaves_out_are_looked_through_and_the_list_is_kep
 	assert_bool(SightRay.hit(space, from, to).is_empty()).is_false()
 
 
+func test_the_shared_exclude_of_a_twin_names_what_exclude_of_names_and_is_kept() -> void:
+	var wall := _piece(Vector2(100.0, 0.0), Vector2(20.0, 200.0), 96.0)
+	await _space3()
+	var shared := SightRay.exclude_shared(wall)
+	assert_array(shared).is_equal(SightRay.exclude_of(wall))
+	assert_bool(is_same(SightRay.exclude_shared(wall), shared)).override_failure_message(
+		"one array per twin",
+	).is_true()
+	assert_array(SightRay.exclude_shared(null)).is_empty()
+	# `exclude_of` still hands out its own copy a caller may grow.
+	var own := SightRay.exclude_of(wall)
+	own.append(RID())
+	assert_array(SightRay.exclude_shared(wall)).has_size(1)
+
+
+func test_a_pane_is_read_once_and_stays_looked_through() -> void:
+	var wall := _piece(Vector2(300.0, 0.0), Vector2(20.0, 200.0), 96.0)
+	var glass := _glass(Vector2(100.0, 0.0), Vector2(10.0, 200.0))
+	var space := await _space3()
+	var pane: Object = TwinSpace.twin_for(glass)
+	var solid: Object = TwinSpace.twin_for(wall)
+	assert_bool(SightRay.looks_through(pane)).is_true()
+	assert_bool(SightRay.looks_through(pane)).is_true()
+	assert_bool(SightRay.looks_through(solid)).is_false()
+	assert_bool(SightRay.looks_through(solid)).is_false()
+	assert_dict(_ray(space, 0.0, SEE_OVER, 200.0, SEE_OVER)).is_empty()
+
+
 func test_the_space_beside_a_world_is_the_twin_space_of_that_world() -> void:
 	await _space()
 	var world := get_viewport().world_2d

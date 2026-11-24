@@ -138,12 +138,18 @@ func ahead(me: Dictionary) -> Array:
 
 ## Whether anyone holds a place in the stack (a claim at a `StackClaim.STACKING` step).
 func stacking() -> bool:
-	return team.any(func(m): return StackClaim.stacking(m["step"]))
+	for m in team:
+		if StackClaim.stacking(m["step"]):
+			return true
+	return false
 
 
 ## Whether a member is crossing (`going_in`) or through the doorway.
 func going_in() -> bool:
-	return team.any(func(m): return StackClaim.crossing(m["step"]))
+	for m in team:
+		if StackClaim.crossing(m["step"]):
+			return true
+	return false
 
 
 ## The instance id of the member who throws the stack's grenade of kind `kind` (`&"frag"` or a
@@ -152,9 +158,10 @@ func going_in() -> bool:
 ## stack.
 func thrower(kind: StringName, me := {}) -> int:
 	var key := "frags" if kind == &"frag" else "stuns"
-	var carriers: Array = team.filter(
-		func(m): return int(m[key]) > 0 and not bool(m["human"]),
-	).map(func(m): return { "id": m["id"], "slot": m["slot"] })
+	var carriers: Array = []
+	for m in team:
+		if int(m[key]) > 0 and not bool(m["human"]):
+			carriers.append({ "id": m["id"], "slot": m["slot"] })
 	if int(me.get(key, 0)) > 0:
 		carriers.append({ "id": int(me.get("id", 0)), "slot": int(me.get("slot", 0)) })
 	if carriers.is_empty():
@@ -233,15 +240,19 @@ func mode(me: Dictionary) -> String:
 	var ordered := order_claim(me)
 	if not ordered.is_empty():
 		var id := str(ordered["order_id"])
-		if team.any(func(m): return m["bang_off"] and m["order_id"] == id):
-			return "quiet"
+		for m in team:
+			if m["bang_off"] and m["order_id"] == id:
+				return "quiet"
 		return str(ordered["order_mode"])
 	var rally := _rally(me)
 	if not rally.is_empty():
 		return _rally_mode(me, rally)
 	if team.is_empty():
 		return ""
-	return "stun" if team.all(func(m): return m["bang"] and not m["bang_off"]) else "quiet"
+	for m in team:
+		if not (m["bang"] and not m["bang_off"]):
+			return "quiet"
+	return "stun"
 
 
 ## The chain every member claims and keeps its slot by (`StackMember.claim`: an NPC's entry, the
@@ -270,8 +281,13 @@ func claim(me: Dictionary) -> Dictionary:
 func split_side(me: Dictionary, own: int) -> int:
 	var n := int(me.get("slot", 0))
 	var id := int(me.get("id", 0))
-	var mine := 1 + team.filter(func(m): return int(m["side"]) == own).size()
-	var other := team.filter(func(m): return int(m["side"]) == -own).size()
+	var mine := 1
+	var other := 0
+	for m in team:
+		if int(m["side"]) == own:
+			mine += 1
+		elif int(m["side"]) == -own:
+			other += 1
 	if mine - other < 2:
 		return own
 	for m in team:

@@ -57,7 +57,7 @@ func see(rooms: Array) -> void:
 	var self_pos: Vector2 = perception._character.global_position
 	var facing: Vector2 = perception._character.facing
 	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(perception._character)
-	var exclude := SightRay.exclude_of(perception._character)
+	var eye: float = vision.eye_height()
 	var now := GameClock.msec()
 	var frame := WorldRng.frame_of(perception._character)
 	var swap := _visible_before
@@ -74,7 +74,7 @@ func see(rooms: Array) -> void:
 			continue
 		if not _due_for_sight(other, self_pos, facing, frame):
 			continue
-		if not vision.can_see_node(other, self_pos, facing, space, exclude):
+		if not vision.can_see_node_at(other, self_pos, facing, space, eye):
 			continue
 		var sighting := _sighting_of(other, rooms, now)
 		visible_now[sighting["id"]] = true
@@ -93,12 +93,13 @@ func see(rooms: Array) -> void:
 ## `SIGHT_EVERY_FRAMES` frames, offset by the NPC's and the target's spawn order, and until then
 ## stays what the last look saw; every frame while `primed`.
 func _due_for_sight(other: Node, self_pos: Vector2, facing: Vector2, frame: int) -> bool:
+	if not vision.in_view(self_pos, facing, other.global_position):
+		if not _looked.is_empty():
+			_looked.erase(other.get_instance_id())  # Out of the cone: its next look is at once.
+		return false
 	var id: int = other.get_instance_id()
 	if other.get("is_dead") == true:
 		_looked.erase(id)
-		return false
-	if not vision.in_view(self_pos, facing, other.global_position):
-		_looked.erase(id)  # Out of the cone: not seen, and its next look is at once.
 		return false
 	if (not primed
 			and _looked.has(id)
@@ -119,6 +120,7 @@ func _sighting_of(other: Node, rooms: Array, now: int) -> Dictionary:
 	var room := HouseRooms.at(pos, rooms)
 	var item = other.inventory.current_item()
 	var f = other.get("faction")
+	var looking = other.get("facing")
 	return {
 		"id": id,
 		"node": other,
@@ -127,7 +129,7 @@ func _sighting_of(other: Node, rooms: Array, now: int) -> Dictionary:
 		"ally": perception.contacts.hostility.is_ally(f if f != null else &""),
 		"pos": pos,
 		"vel": _track(id, pos, now),
-		"facing": other.get("facing") if other.get("facing") is Vector2 else Vector2.ZERO,
+		"facing": looking if looking is Vector2 else Vector2.ZERO,
 		"wound_dmg": other.damage_taken(),
 		"inside": not room.is_empty(),
 		"room_type": room.get("type", "") if not room.is_empty() else "",

@@ -7,7 +7,9 @@ extends RefCounted
 ## it was heard, and a dead or freed speaker's goes at once. A callout that keeps the speaker's
 ## claim (`StackClaim.keeps_claim`: a grenade call, an order's progress) leaves it standing; any
 ## other callout replaces it, so a speaker doing something else holds no claim. A doorway's claims
-## are decoded once per physics frame (`GameClock.frame()`), or again once a claim is heard.
+## and stack are laid when a claim is heard or lapses and stand until then, each claim's `age`
+## brought up once per physics frame (`GameClock.frame()`): the lists and stacks asked on later
+## frames are the same objects while nothing changed.
 
 const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
 const DoorStack := preload("res://scenes/ai/perception/stack/door_stack.gd")
@@ -22,11 +24,12 @@ var ttl := 6.0
 var listener: Node = null
 ## speaker instance id -> { claim (decoded), speaker, at (`GameClock.seconds()` heard) }.
 var _heard := {}
-## opening -> its claims (`claims`), as decoded on frame `_frame`.
+## opening -> its claims (`claims`), laid since a claim was last heard or lapsed.
 var _cache := {}
-## "<opening>>into" -> its `DoorStack`, built on frame `_frame`.
+## opening -> { into -> its `DoorStack` }, laid with `_cache`.
 var _stacks := {}
-## The `GameClock.frame()` `_cache` and `_stacks` were filled on (-1: stale).
+## The `GameClock.frame()` the ages and the lapsed claims were last brought up to date on (-1: not
+## yet).
 var _frame := -1
 
 
@@ -37,7 +40,7 @@ func setup(cfg: Dictionary) -> void:
 	callout_range = float(cfg.get("range", callout_range))
 	ttl = float(cfg.get("ttl", ttl))
 	listener = cfg.get("listener", listener)
-	_frame = -1
+	_drop_laid()
 
 
 ## Take callout `data` (interface 10) heard by a listener standing at `listener_pos`
@@ -63,7 +66,7 @@ func hear(data: Dictionary, listener_pos := Vector2.INF) -> void:
 		}
 	else:
 		_heard.erase(id)
-	_frame = -1
+	_drop_laid()
 
 
 ## The claims heard and standing, speaker instance id -> decoded claim (no ages): what two moments
@@ -90,9 +93,11 @@ func claims(opening: String) -> Array:
 		var claim: Dictionary = rec["claim"]
 		if claim["opening"] != opening or StackClaim.ENDED.has(claim["step"]) or _lapsed(rec, now):
 			continue
-		var c := claim.duplicate()
-		c["age"] = now - float(rec["at"])
-		out.append(c)
+		if not rec.has("live"):
+			rec["live"] = claim.duplicate()  # The claim with its `age`, kept while it stands.
+		var live: Dictionary = rec["live"]
+		live["age"] = now - float(rec["at"])
+		out.append(live)
 	out.sort_custom(StackClaim.by_slot)
 	_cache[opening] = out
 	return out
@@ -103,10 +108,17 @@ func claims(opening: String) -> Array:
 ## claim is heard).
 func stack(opening: String, g := {}) -> RefCounted:
 	var team := claims(opening)
-	var key := "%s>%s" % [opening, str(g.get("into", ""))]
-	if not _stacks.has(key):
-		_stacks[key] = DoorStack.new(g, team)
-	return _stacks[key]
+	var into: String = str(g.get("into", ""))
+	var of_opening: Dictionary = _stacks.get(opening, {})
+	var held: RefCounted = of_opening.get(into)
+	if (held != null
+			and is_same(held.team, team)
+			and (is_same(held.geometry, g) or (g.is_empty() and held.geometry.is_empty()))):
+		return held
+	held = DoorStack.new(g, team)
+	of_opening[into] = held
+	_stacks[opening] = of_opening
+	return held
 
 
 ## The doorways a stack is forming at (`{ opening, into }`, in the order their claims were first
@@ -128,19 +140,32 @@ func openings_stacking() -> Array:
 	return out
 
 
-## Drop the lapsed claims and those of dead or freed speakers, and the cache once a frame has
-## passed.
+## Drop the lapsed claims and those of dead or freed speakers (what is laid goes with the first),
+## and bring the ages of the claims that stand up to date, once a frame has passed.
 func _refresh() -> void:
 	var frame := GameClock.frame()
 	if frame == _frame:
 		return
 	_frame = frame
-	_cache = {}
-	_stacks = {}
 	var now := GameClock.seconds()
+	var dropped := false
 	for id in _heard.keys():
 		if _lapsed(_heard[id], now):
 			_heard.erase(id)
+			dropped = true
+	if dropped:
+		_drop_laid()
+		return
+	for rec: Dictionary in _heard.values():
+		if rec.has("live"):
+			rec["live"]["age"] = now - float(rec["at"])
+
+
+## Forget the claims and stacks laid: a claim came in or went, or what the ledger hears changed.
+func _drop_laid() -> void:
+	_cache = {}
+	_stacks = {}
+	_frame = -1  # What is heard is looked over again at the next ask.
 
 
 ## Whether heard claim `rec` has lapsed by `now`, or its speaker is dead or gone.
