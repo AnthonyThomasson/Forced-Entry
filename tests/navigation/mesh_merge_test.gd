@@ -23,6 +23,13 @@ const RUN_POLYGONS := [[0, 1, 4, 3], [1, 2, 5, 4]]
 ## bookkeeping that keeps the polygons convex but turns a ring differently fails here.
 const L_RINGS := [[4, 3, 0, 1, 2, 5], [3, 4, 7, 6]]
 const RUN_RINGS := [[4, 3, 0, 1, 2, 5]]
+## A ring the baker makes beside a carved door leaf: it visits vertex 1 twice, a spur of no width
+## from vertex 0 (edges 0 -> 1 and 1 -> 0 are both in it), with a square beside it.
+const SPUR_VERTICES := [
+	Vector2(0, 0), Vector2(10, 0), Vector2(10, 10), Vector2(0, 10), Vector2(20, 0),
+	Vector2(20, 10),
+]
+const SPUR_POLYGONS := [[0, 1, 2, 3, 1], [1, 4, 5, 2]]
 
 
 func describe() -> Dictionary:
@@ -42,6 +49,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	_check_hand_made(t)
+	_check_spur(t)
 	await t.seconds(0.5)
 	_check_district(t)
 
@@ -64,6 +72,25 @@ func _check_hand_made(t: TestContext) -> void:
 		points[rect[1]] in corners and points[rect[rect.size() - 1]] in corners,
 		"the ring starts where both neighbours are corners (%s): the server's fan has no flat "
 			% points[rect[0]] + "triangle",
+	)
+
+
+## A ring that is its own neighbour (it holds an edge and its reverse) is not merged with itself:
+## it comes through whole, as the baker made it, where it once lost the polygon and logged a modulo
+## by zero when its neighbours were next read.
+func _check_spur(t: TestContext) -> void:
+	var points := PackedVector2Array(SPUR_VERTICES)
+	var merged := NavMerge.merged(points, _rings(SPUR_POLYGONS))
+	t.check(merged.size() >= 1, "a ring with a spur comes through the merge")
+	var kept := {}
+	for ring in merged:
+		t.check(not ring.is_empty(), "no ring is empty")
+		for v in ring:
+			kept[v] = true
+	t.expect_eq(kept.size(), 6, "every vertex of the baker's polygons is still in a ring")
+	t.check(
+		_as_arrays(merged).any(func(r: Array) -> bool: return r.count(1) == 2),
+		"the ring with the spur is kept as it was",
 	)
 
 

@@ -73,6 +73,8 @@ static func _grow(
 		if found < 0:
 			continue
 		var q := found >> 8
+		if q == p:
+			continue  # a spur of no width: an edge and its reverse in one ring
 		var union := _union(vertices, ring, rings[q], Vector2i(i, found & 255), sides[p])
 		if union.is_empty():
 			continue
