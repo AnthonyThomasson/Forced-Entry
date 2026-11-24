@@ -90,6 +90,11 @@ static func build(
 	)
 	if job.is_empty():
 		return null
+	var planning := NavWorld.map_of(parent)
+	if not planning.is_valid():
+		push_error("NavBuilder.build: %s is not in the tree, so it has no navigation map" % parent)
+		return null
+	NavSource.tune_map(planning)
 	var nav_poly := NavSource.bake(job, house.position)
 	var region := NavigationRegion3D.new()
 	region.name = "NavRegion"
@@ -97,9 +102,7 @@ static func build(
 	NavPlan.assign(region, nav_poly)
 	region.set_meta(BOUNDS_META, bounds)
 	NavSource.remember(region, job)
-	var planning := NavWorld.map_of(parent)
-	if planning.is_valid():
-		region.set_navigation_map(planning)  # before it enters the tree, or it takes the viewport's
+	region.set_navigation_map(planning)  # before it enters the tree, or it takes the viewport's
 	parent.add_child(region)
 	if region.is_inside_tree():
 		var planning_map := region.get_navigation_map()

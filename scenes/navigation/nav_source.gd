@@ -17,6 +17,10 @@ const CELL_SIZE := 4.0
 ## The grid's height (px), the agent's and what a body stands over: only the floor's plane is baked,
 ## so these only need a few cells.
 const CELL_HEIGHT := 2.0
+## A map's edge connection margin (px): the free edges of regions this near are joined.
+const EDGE_MARGIN := 1.0
+## A map's link connection radius (px).
+const LINK_RADIUS := 4.0
 const AGENT_HEIGHT := 8.0
 ## How tall (px) a carved obstruction stands: over the agent, a wall or a body alike.
 const OBSTRUCTION_HEIGHT := 100.0
@@ -289,28 +293,13 @@ static func remember(region: NavigationRegion3D, baked: Dictionary) -> void:
 	})
 
 
-## A new active map with the project's 3D navigation defaults (what a world's own map is made
-## with, `project.godot`: cell size and height are those a bake's mesh is made in, and the server
-## refuses a navmesh baked with another cell size). `edge_connections` is whether the map runs the
+## A new active map on the bake's cell (`tune_map`). `edge_connections` is whether the map runs the
 ## server's edge-connection pass (the project's setting by default): it joins free edges of
 ## different regions within a pixel, which rebuilds the whole map's links on every change
 ## (`steering-edge-connections.md`).
 static func new_map(edge_connections := true) -> RID:
 	var map := NavigationServer3D.map_create()
-	NavigationServer3D.map_set_cell_size(
-		map, float(ProjectSettings.get_setting("navigation/3d/default_cell_size", CELL_SIZE)),
-	)
-	NavigationServer3D.map_set_cell_height(
-		map, float(ProjectSettings.get_setting("navigation/3d/default_cell_height", CELL_HEIGHT)),
-	)
-	NavigationServer3D.map_set_edge_connection_margin(
-		map,
-		float(ProjectSettings.get_setting("navigation/3d/default_edge_connection_margin", 1.0)),
-	)
-	NavigationServer3D.map_set_link_connection_radius(
-		map,
-		float(ProjectSettings.get_setting("navigation/3d/default_link_connection_radius", 4.0)),
-	)
+	tune_map(map)
 	NavigationServer3D.map_set_use_edge_connections(
 		map,
 		(
@@ -320,6 +309,18 @@ static func new_map(edge_connections := true) -> RID:
 	)
 	NavigationServer3D.map_set_active(map, true)
 	return map
+
+
+## Put `map` on the cell size and height a bake's mesh is made in (the server refuses a navmesh
+## baked with another cell size) and the edge and link margins the plan's px units want. A map of
+## the world's own (a twin space's, a viewport's) is made with the project's `3d/default_*`
+## settings, which agree with these, but a map is only as the constants say once it is told, so
+## `NavBuilder.build` tells each planning map it adds a region to.
+static func tune_map(map: RID) -> void:
+	NavigationServer3D.map_set_cell_size(map, CELL_SIZE)
+	NavigationServer3D.map_set_cell_height(map, CELL_HEIGHT)
+	NavigationServer3D.map_set_edge_connection_margin(map, EDGE_MARGIN)
+	NavigationServer3D.map_set_link_connection_radius(map, LINK_RADIUS)
 
 
 ## An empty polygon to bake into, with the bake's agent radius (plus the wall margin).
