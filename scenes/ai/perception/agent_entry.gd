@@ -152,18 +152,34 @@ func watch_doors(room_key: String, exclude_id: String, is_cleared: Callable) -> 
 ## with the plain way on from there that long at most and passing none of `bodies` closer than
 ## `PASS_CLEARANCE` (a slot between two taken ones lies inside their carved margins, and a walk goes
 ## in by that last leg); 0 when it does not, -1 while that map is still being baked (asking starts
-## the bake). What an entry asks before it reads a hold as sealing its slot for good (E2). 1 when
-## there is no planning region to carve.
+## the bake). Only the bodies within `BODY_CORRIDOR` of the plain route are carved first; a way
+## round that leaves that corridor and passes a body not carved (within its margin and the agent's
+## radius of the route) has it carved too and is asked again, once. What an entry asks before it
+## reads a hold as sealing its slot for good (E2). 1 when there is no planning region to carve.
 func slot_reach(from: Vector2, to: Vector2, map: RID, bodies: Array) -> int:
 	var region := NavBuilder.planning_region(map)
 	if region == null or not NavBuilder.ready(map):
 		return 1
 	var plain := NavBuilder.route(map, from, to)
-	var near := bodies if plain.size() < 2 else _bodies_near(bodies, plain)
-	var carved := map if near.is_empty() else _bodies_map(region, near)
-	if not carved.is_valid() or not NavBuilder.ready(carved):
-		return -1
-	var path := plain if near.is_empty() else NavBuilder.route(carved, from, to)
+	var near := bodies if plain.size() < 2 else _bodies_near(bodies, plain, BODY_CORRIDOR)
+	var path := plain
+	for ask in 2:
+		if near.is_empty():
+			break
+		var carved := _bodies_map(region, near)
+		if not carved.is_valid() or not NavBuilder.ready(carved):
+			return -1
+		path = NavBuilder.route(carved, from, to)
+		# The way round may leave the corridor of the plain one and meet a body it did not carve:
+		# carve those too and ask again (once: a set is a bake only when it is new).
+		var more := _bodies_near(
+			bodies.filter(func(b: Vector2) -> bool: return not near.has(b)),
+			path,
+			SLOT_BODY + NavBuilder.OBSTACLE_MARGIN + NavBuilder.AGENT_RADIUS,
+		)
+		if more.is_empty() or ask == 1:
+			break
+		near = near + more
 	if path.is_empty():
 		return 0
 	var end := path[path.size() - 1]
@@ -173,14 +189,15 @@ func slot_reach(from: Vector2, to: Vector2, map: RID, bodies: Array) -> int:
 	return 1 if _last_leg_clear(map, end, goal, bodies) else 0
 
 
-## The bodies of `bodies` within `BODY_CORRIDOR` of the route `path`: the only ones a carved way
-## round could be held by.
-func _bodies_near(bodies: Array, path: PackedVector2Array) -> Array:
+## The bodies of `bodies` within `reach` of the route `path`: with `BODY_CORRIDOR` of the plain
+## route, the only ones a carved way round is likely held by; with a carved body's margin and the
+## agent's radius of a carved route, the ones it would walk into.
+func _bodies_near(bodies: Array, path: PackedVector2Array, reach: float) -> Array:
 	var out: Array = []
 	for b: Vector2 in bodies:
 		for i in range(1, path.size()):
 			if (Geometry2D.get_closest_point_to_segment(b, path[i - 1], path[i]).distance_to(b)
-					<= BODY_CORRIDOR):
+					<= reach):
 				out.append(b)
 				break
 	return out

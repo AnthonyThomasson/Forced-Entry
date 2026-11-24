@@ -8,6 +8,7 @@ extends GameTest
 ## Premise: the plain route from the start to the slot runs through the living room's open floor.
 
 const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
+const EntryBodyMaps := preload("res://scenes/ai/perception/entry/entry_body_maps.gd")
 const FROM := Vector2(-150, -250)
 const TO := Vector2(-230, -170)
 ## A body on the plain route, and where it stands a pixel or two off it.
@@ -52,6 +53,7 @@ func run(t: TestContext) -> void:
 	t.check(first != -1, "premise: the verdict on one body at rest comes (%d)" % first)
 	t.check(NavBuilder.avoid_starts == starts + 1, "premise: the first set baked one map")
 	starts = NavBuilder.avoid_starts
+	_check_key(t, map)
 	var swayed: int = entry.slot_reach(FROM, to, map, [SWAY, BODY + Vector2(0.5, 0.0)])
 	t.check(swayed == first, "a body a pixel or two off, asked twice, is as answered (%d)" % swayed)
 	t.check(NavBuilder.avoid_starts == starts, "and bakes no map of its own")
@@ -66,6 +68,7 @@ func run(t: TestContext) -> void:
 	var moved: int = entry.slot_reach(FROM, to, map, [MOVED])
 	t.check(moved == -1, "a body well off its first place is a set of its own, baking (%d)" % moved)
 	t.check(NavBuilder.avoid_starts == starts + 1, "one map more")
+	_check_last_kept(t, entry, map, to)
 
 
 ## The verdict `entry` gives on bodies `bodies`, asked every frame until its map is up.
@@ -80,3 +83,25 @@ func _verdict(
 			await t.frames(1)
 			waited += 1
 	return verdict
+
+
+## A kept set's key carries its planning region's id: a new region on the map never reuses it.
+func _check_key(t: TestContext, map: RID) -> void:
+	var region := NavBuilder.planning_region(map)
+	var kept: Array = region.get_meta(EntryBodyMaps.META, [])
+	var prefix := "bodies:%d:" % region.get_instance_id()
+	t.check(
+		not kept.is_empty() and str(kept[0]["key"]).begins_with(prefix),
+		"a kept set's key carries its planning region's id",
+	)
+
+
+## The set asked for last is the one kept longest (the first one, asked again).
+func _check_last_kept(t: TestContext, entry: RefCounted, map: RID, to: Vector2) -> void:
+	var kept: Array = NavBuilder.planning_region(map).get_meta(EntryBodyMaps.META)
+	var first_key := str(kept[0]["key"])
+	entry.slot_reach(FROM, to, map, [BODY])
+	t.check(
+		str(kept[-1]["key"]) == first_key,
+		"the set asked for last is the one kept longest",
+	)

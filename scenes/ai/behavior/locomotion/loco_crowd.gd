@@ -127,6 +127,13 @@ func replan_in() -> float:
 	return _replan_at - held_for
 
 
+## Bring the held walk's next re-plan in to `within` s from now when it is later than that (an entry
+## whose verdict on its slot met a map not baked yet asks again when it has landed,
+## `EntryApproach._slot_sealed`).
+func pull_replan(within: float) -> void:
+	_replan_at = minf(_replan_at, held_for + within)
+
+
 ## True once each time a held walk has re-planned and found no way through (the body seals the only
 ## way and the destination is not taken, or no free spot is near it): the caller's cue to re-decide.
 ## The walk stays held meanwhile.

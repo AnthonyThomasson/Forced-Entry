@@ -44,24 +44,44 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var entries: Array = []
-	for id in IDS:
+	for id in ids():
 		var brain: Node = Entry.brain(t, id)
 		if brain != null:
 			entries.append(brain.get("_behavior").get("_entry"))
-	if not t.require(entries.size() == IDS.size(), "every NPC has an entry part"):
+	if not t.require(entries.size() == ids().size(), "every NPC has an entry part"):
 		return
 	var bad: Array[String] = []
-	var tally := [0, 0, 0]
+	var tally := [0, 0, 0, 0, 0, 0]
 	var until := t.time + WATCH
-	var all_in := func() -> bool:
-		return IDS.all(func(id): return not Entry.calls(t, "in", id).is_empty())
-	while t.time < until and bad.size() < 4 and not all_in.call():
+	while t.time < until and bad.size() < 4 and not _done(t):
 		await t.frames(1)
+		_frame(t)
 		for entry: RefCounted in entries:
 			_check(entry, bad, tally)
 	t.check(bad.is_empty(), "kept reads equal fresh ones: %s" % str(bad.slice(0, 4)))
 	t.check(tally[0] > 100, "premise: entries were running (%d checks)" % tally[0])
 	t.check(tally[1] > 0, "premise: a stack with claims in it was read (%d)" % tally[1])
+	_premises(t, tally)
+
+
+## The NPCs whose entries are watched.
+func ids() -> Array:
+	return IDS
+
+
+## Whether the watch is over: every NPC has gone in.
+func _done(t: TestContext) -> bool:
+	return ids().all(func(id): return not Entry.calls(t, "in", id).is_empty())
+
+
+## Called each frame before the entries are checked: what a case does to its world while it is
+## watched.
+func _frame(_t: TestContext) -> void:
+	pass
+
+
+## The premises of the case on `tally` (`_check`): which reads the watch met.
+func _premises(t: TestContext, tally: Array) -> void:
 	t.check(
 		tally[2] > 0,
 		"premise: a stack was ordered or held for a go at some frame (%d)" % tally[2],
@@ -70,7 +90,7 @@ func run(t: TestContext) -> void:
 
 ## One running `entry`: its claim and its stack's reads against fresh ones, what differs added to
 ## `bad`; `tally` counts the entries checked, those with claims on their doorway and those with a
-## mode set.
+## mode set, a hold, a held read true and an order claim (each tallied apart).
 func _check(entry: RefCounted, bad: Array[String], tally: Array) -> void:
 	if entry.state.phase in ["", "done"] or entry.state.geo.is_empty():
 		return
@@ -90,6 +110,12 @@ func _check(entry: RefCounted, bad: Array[String], tally: Array) -> void:
 		tally[1] += 1
 	if stack.mode(me) != "":
 		tally[2] += 1
+	if not stack.hold(me).is_empty():
+		tally[3] += 1
+	if stack.held(me):
+		tally[4] += 1
+	if not stack.order_claim(me).is_empty():
+		tally[5] += 1
 	var reads := {
 		"mode": [stack.mode(me), stack._mode(me)],
 		"hold": [stack.hold(me), stack._hold(me)],

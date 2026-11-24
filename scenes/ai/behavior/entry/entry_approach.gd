@@ -32,9 +32,12 @@ const HELD_BY_FORMING_CAP := 3.0
 ## How long ago (s) a body at rest out of sight may have been seen for a hold's verdict on the slot
 ## to count it (`_standing_bodies`).
 const SEEN_FRESH := 0.5
-## How long (s) before a held walk re-plans the entry asks for the map its verdict on the slot is
-## read from (`tick_approach`): the bake of an avoid map lands `NavBakeConfig.avoid_frames` (22
-## frames, 0.37 s) after its ask, and a margin.
+## How long (s) before a reader of the verdict on the slot (`_slot_sealed`: the held walk's re-plan,
+## the end of a wait on the stack forming at `HELD_BY_FORMING_CAP`, a waypoint put back that the
+## hold sealed) the entry asks for the map the verdict is read from (`_verdict_due`): the bake of an
+## avoid map lands `NavBakeConfig.avoid_frames` (22 frames, 0.37 s) after its ask, and a margin. A
+## verdict read on a map not up yet (-1) pulls the walk's next re-plan in by this much too
+## (`Locomotion`'s `crowd.pull_replan`), where it is asked for again.
 const WARM_LEAD := 0.6
 ## Most seconds one entry spends topping its gun off before the crossing (a reload that will not
 ## start is not waited on forever).
@@ -112,11 +115,34 @@ func _sealed_waypoint(p: Vector2, spot: Vector2) -> bool:
 ## walk goes on, and Locomotion ends it at a free spot beside the slot. A way round there is, though
 ## the steering map does not show it yet (a teammate on its way still crossing it), is no seal. Nor
 ## is one not known yet (its map still being baked): the hold's next re-plan asks again.
-func _slot_sealed(entry: Entry, spot: Vector2) -> bool:
+func _slot_sealed(entry: Entry, spot: Vector2, warming := false) -> bool:
 	if world.loco.crowd.held_at().distance_to(spot) < Locomotion.PASS_CLEARANCE:
 		return false
-	return (world.loco.seals(spot)
-			and world.perception.entry.slot_reach(spot, _standing_bodies(entry)) == 0)
+	if not world.loco.seals(spot):
+		return false
+	var verdict: int = world.perception.entry.slot_reach(spot, _standing_bodies(entry))
+	if verdict == -1 and not warming:
+		# Read on a map not up (the bodies moved since it was asked for): its bake has begun now,
+		# so the walk re-plans (and reads again) when it has landed, not a whole re-plan later.
+		world.loco.crowd.pull_replan(WARM_LEAD)
+	return verdict == 0
+
+
+## Whether a reader of the verdict on the slot (`_slot_sealed`) is within `WARM_LEAD` of reading
+## it, the walk being held: the walk's re-plan (`crowd.replan_in`), the end of the wait on the stack
+## forming (`_end_forming_wait`, at `HELD_BY_FORMING_CAP`), or the waypoint the hold sealed put
+## back (`_redrop_sealed`: it reads the verdict at once).
+func _verdict_due() -> bool:
+	var crowd: RefCounted = world.loco.crowd
+	var held: float = crowd.held_time()
+	if held <= 0.0:
+		return false
+	return (crowd.replan_in() <= WARM_LEAD
+			or (forming_wait and held >= HELD_BY_FORMING_CAP - WARM_LEAD)
+			or (dropped_at != Vector2.INF
+				and not forming_wait
+				and not waypoints.is_empty()
+				and world.loco.seals(waypoints[0])))
 
 
 ## The bodies a hold's verdict on the slot weighs (`_slot_sealed`): the one the walk is held by, and
@@ -347,11 +373,11 @@ func tick_approach(entry: Entry, team: Array, delta: float) -> void:
 		return
 	if _end_forming_wait(entry):
 		return
-	if world.loco.crowd.held_time() > 0.0 and world.loco.crowd.replan_in() <= WARM_LEAD:
-		# Held, and the re-plan near: the map the verdict on the slot is read from is asked for now,
-		# so it is baked by the re-plan (not before: the bodies it carves move on, and each set
-		# asked for is a district-size bake).
-		_slot_sealed(entry, state.member.point)
+	if _verdict_due():
+		# Held, and a reader of the verdict near: the map it is read from is asked for now, so it
+		# is baked by then (not before: the bodies it carves move on, and each set asked for is a
+		# district-size bake).
+		_slot_sealed(entry, state.member.point, true)
 	if not team.is_empty() and entry.grenade.due(entry, team, delta):
 		# The rest of the stack is in place: the thrower goes straight to throw, rather than into
 		# its slot first.

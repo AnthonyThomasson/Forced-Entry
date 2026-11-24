@@ -37,7 +37,10 @@ func _init(g := {}, claims: Array = []) -> void:
 ## The read `key` of member `me`, kept while `me` is the same dictionary (the entry keeps its own
 ## while what it is built from stands, `EntryClaim.me`): a doorway's stack stands across frames
 ## (`ClaimLedger.stack`) and its claims are never changed, so what it works out of them for one
-## member does not change either. A read is a value to read, never to change.
+## member does not change either. A read is a value to read, never to change. The `age` of a claim
+## row a kept `points` read hands out is the age it had when the read was made, and nobody reads it
+## there: the rows of `points` are read for their `point`, `side` and `me` only (the ledger moves
+## the claims' ages on in place, and the kept-reads test leaves `age` out of what it compares).
 func _kept_read(key: StringName, me: Dictionary, fresh: Callable) -> Variant:
 	var kept: Array = _kept.get(key, [])
 	if not kept.is_empty() and is_same(kept[0], me):

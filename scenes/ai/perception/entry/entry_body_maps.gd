@@ -7,8 +7,12 @@ extends RefCounted
 ## and an engine landing, and a hold asks every frame (`EntryApproach.tick_approach`).
 ## Static: it holds nothing itself, the kept sets are meta of the planning region.
 
-## The planning region's meta holding the kept sets, newest last: `{ key, points }`.
+## The planning region's meta holding the kept sets, the one asked for last at the end:
+## `{ key, points }`.
 const META := &"ai_body_maps"
+## The planning region's meta holding how many sets it has made: the number in the next key, never
+## one a set the region let go of (its avoid map may live on) had.
+const SERIAL_META := &"ai_body_maps_made"
 ## How far (px) a body may stand off the one a kept map carved and still be that body: the grid
 ## the sets were keyed on (`AgentEntry.SLOT_STEP`).
 const TOLERANCE := 4.0
@@ -30,10 +34,22 @@ static func of(region: NavigationRegion3D, asked: Array, radius: float) -> RID:
 	region.set_meta(META, kept)
 	var made := _kept_for(kept, bodies)
 	if made.is_empty():
-		made = { "key": "bodies:%d" % _serial(kept), "points": bodies.duplicate() }
+		var serial := int(region.get_meta(SERIAL_META, 0)) + 1
+		region.set_meta(SERIAL_META, serial)
+		# The region's own id in the key: a new planning region on the same map RID would otherwise
+		# reuse a key the old region's avoid map still lives under.
+		made = {
+			"key": "bodies:%d:%d" % [
+				region.get_instance_id(),
+				serial,
+			], "points": bodies.duplicate(),
+		}
 		kept.append(made)
 		if kept.size() > KEPT:
 			kept.pop_front()
+	elif kept[-1] != made:
+		kept.erase(made)
+		kept.append(made)  # The one asked for last is kept longest.
 	var holes: Array = []
 	for b: Vector2 in made["points"]:
 		var hole := PackedVector2Array()
@@ -67,8 +83,3 @@ static func _matches(points: Array, bodies: Array) -> bool:
 			return false
 		free.remove_at(at)
 	return true
-
-
-## A number no kept set's key carries yet.
-static func _serial(kept: Array) -> int:
-	return 1 if kept.is_empty() else int(str(kept[-1]["key"]).get_slice(":", 1)) + 1
