@@ -3,20 +3,12 @@
 A drivable **car** and **van** (issue #54), for the player in a sandbox: get in and out with **Space** by the nearest door, with the
 door and the character animated throughout, drive with WASD and the handbrake, crash, shove furniture, run people down, and hear
 all of it. Behaviours V1 to V9 are the spec; each has its tests named under it, following the convention of `docs/grenades.md`.
-The tests are in `tests/vehicle/` (`tools/run_tests.sh --domain=vehicle`, 30 tests) plus `tests/audio/vehicle_sounds_test.gd`,
+The tests are in `tests/vehicle/` (`tools/run_tests.sh --domain=vehicle`) plus `tests/audio/vehicle_sounds_test.gd`,
 `tests/audio/vehicle_door_tone_test.gd`, `tests/general/camera_zooms_out_driving_test.gd` and `tests/general/space_vehicle_key_test.gd`. They drive puppets (no AI) and read
 the game only through the drivable contract (`architecture` interface 19), via `tests/_vehicle/vehicle_probe.gd`, which keeps the
 plan's numbers as its own consts so a test checks this file and not the code, and its siblings `vehicle_frame_probe.gd` (the
 vehicle's frame) and `vehicle_ride_probe.gd` (placing, boarding, getting out and driving). The code is the Vehicles domain (`scenes/vehicle/`,
 skill `domain-vehicle`).
-
-**Verification (14 October 2026, on the finished branch).** `tools/lint.sh` and the headless load check: clean. The 34 tests the
-feature adds (the 30 in `tests/vehicle/`, `audio/vehicle_sounds`, `audio/vehicle_door_tone`, `general/camera_zooms_out_driving`,
-`general/use_vehicle_key`, since renamed `general/space_vehicle_key`): 34 passed. `tools/run_tests.sh --changed --summary --jobs=auto` (which runs everything): 332 passed,
-0 failed, 24 skipped (they need the Von server), 0 `gap`; `--self-test`: 7 passed, 1 failed, `_harness/catalog_selection` ("an ai
-test's category is the folder between its domain and its file"), which fails the same way on the clean base commit. Measured
-(`vehicle/top_speed`, `vehicle/launch_and_brake`): tops 1280 / 880; 0 → 640 in 0.75 s, van 0 → 440 in 0.97 s; stop from the top
-1.42 / 1.70 s.
 
 All distances are px, speeds px/s and times seconds. The numbers are the Vehicles holders' (`scenes/vehicle/vehicle_*_config.gd`: `VehicleConfig`'s per-kind rows and the
 shared `VehicleBoardingConfig`, `VehicleDoorConfig`, `VehicleDriveConfig`, `VehicleCollisionConfig`, `VehicleArtConfig`, `VehicleMeshConfig`). A

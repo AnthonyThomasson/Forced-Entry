@@ -11,27 +11,6 @@ rules needed (the amendments to G7, G11, G16, G17, G18 are marked in them). Issu
 firing one-handed, the blind-fire roll, the stun's flash as a light; marked in them) and added the Performance section below, to
 which issue #78 added its windowed numbers.
 
-**Verification (15 October 2026, issue #51 final wrap-up, R1 to R17 and the audit's fixes on main `a03e23f`).** `tools/lint.sh` and
-`tools/load_check.sh`: clean. The 50 tests issue #51 adds, `--repeat=10 --include-von --require-von --jobs=auto`: 500 passed, 0 failed (load average 5.5
-before, 3.6 after); the 11 existing tests it changes, the same way: 110 passed, 0 failed. The whole suite, `tools/run_tests.sh --summary --jobs=auto
---include-von --require-von`: 407 passed, 0 failed, 0 timed out, 0 skipped, 0 `gap` (load average 5.3 before, 4.7 after). Perf, `tools/run_tests.sh
---domain=perf`, six runs each started at load average 3.5 to 4.4: 9 of 9 each time; 5v5 match 3.71 to 4.20 ms a frame on average (p95 5.31 to 6.47),
-10v10 7.81 to 9.73 (p95 9.63 to 14.40), NPC crowd 4.32 to 4.92 (p95 6.43 to 13.30). Main `a03e23f` run in turn with two of them on the same machine:
-5v5 3.63 to 3.80, 10v10 8.13 to 8.42, NPC crowd 4.08 to 4.49, so the branch costs 5 to 12 % more a frame in those pairs (0.3, 1.0 and 0.2 ms on the
-mean), all within the 16.7 ms standard. `tools/von_probe.py tools/von_scenarios/grenade_*.json tools/von_scenarios/stun_entry_*.json --ablate -v`:
-16 of 16.
-
-**Verification (16 October 2026, issue #56 wrap-up after the audit's fixes, on origin/main `f0e4f8e`).** `tools/lint.sh` and
-`tools/load_check.sh`: clean. Every test issue #56 adds or changes passes alone (the 19 headless ones one process each, the two perf ones in the
-gated runs below, the two Von ones with `--include-von --require-von`); the timing-dependent ones 10 of 10 with `--repeat=10`,
-`ai/grenade/stunned_defender_blind` and `stunned_defender_holds_fire` 3 of 3 on the real Von server. The whole suite, `tools/run_tests.sh --summary
---jobs=auto` (load 3.5 before, 5.4 after): 441 passed, 0 failed, 0 timed out, 44 skipped (the Von ones), 0 `gap`; all of `tests/ai/grenade/` on the
-real Von server: 53 passed, 0 failed. `general/fill_batch_matches_draw_calls` and `items/prepaint_covers_the_draws` pass with `--windowed`. The
-wrap-up before the audit's fixes saw one 94 ms frame of `perf/hit_overload_stress` in the whole suite (load 4.5 to 5.2, its average 12.1 and p95
-14.0 within); it did not come back in 16 runs alternated with origin/main under a parallel load of 4.0 to 7.6, 3 more each alone at a load of 3 or
-less (the branch at or below origin/main: avg 10.4-10.6 against 11.3-12.2), nor in this suite or the `--domain=perf` run below. The perf numbers
-are under Performance below.
-
 ## The real-world weapons being simulated
 
 **Frag (the US M67).** A 400 g steel sphere with about 6.5 oz of high explosive, thrown by hand. Its fuze burns 4 to 5 seconds after the
