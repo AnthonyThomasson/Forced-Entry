@@ -291,7 +291,7 @@ func _analyse_step(staged: SnapshotBuild, t: Dictionary) -> bool:
 				"front": front,
 				"own_side": _tactics.side_of(t["pos"], front, ctx["self_pos"]),
 				"line": _line(ctx, pinned),
-				"fire": _tactics.fire_positions(ctx, pinned),
+				"fire": _tactics.fire_spots.fire_positions(_tactics, ctx, pinned),
 			},
 		}
 		return false

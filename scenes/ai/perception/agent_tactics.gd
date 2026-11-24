@@ -15,6 +15,7 @@ extends RefCounted
 
 const AgentCover := preload("res://scenes/ai/perception/agent_cover.gd")
 const ThrowSpots := preload("res://scenes/ai/perception/throw_spots.gd")
+const FireSpots := preload("res://scenes/ai/perception/fire_spots.gd")
 ## The flanking sides offered, as degrees off the target's front (screen space, +y down).
 const SIDES := { "left": -90.0, "right": 90.0, "rear": 180.0 }
 ## How far (px) a sampled point may be pulled by navmesh snapping before it counts as unreachable.
@@ -46,6 +47,8 @@ const DUCKED_LINES := "fire_lines_ducked"
 var vision: RefCounted
 ## Where to throw a grenade from (`throw_spots.gd`): the part reads this geometry at each call.
 var throws := ThrowSpots.new()
+## Where to fight a hostile from (`fire_spots.gd`): the part reads this geometry at each call.
+var fire_spots := FireSpots.new()
 # --- Config fields the perception's apply_config() sets from the NPC's tuning (`NpcTuning`: the
 # `tactics` topic's of the same name, `shoot_range` and the ring off `combat`, `still_speed` off
 # `context`; `throw_spot_walk` off `grenades` is `throws.spot_walk`).
@@ -563,122 +566,6 @@ func _flank_point(
 	return fallback
 
 
-## Where to fight `target` from: `here` (this spot, when it has a clear shot in range), firing
-## `spots` spread around the target, and an `ambush` spot in cover. Spot candidates come from rings
-## around the NPC (`combat_ring_radius`, ×2) and around the target (each of `fire_spot_distances`);
-## each must have a clear shot in range and pass `_safe_spot`, and the best is kept per 8-way sector
-## around the target (cover close by first, then the shortest step). `here` is never screened:
-## staying put is not a move.
-func fire_positions(ctx: Dictionary, target: Dictionary) -> Dictionary:
-	var tpos: Vector2 = target["pos"]
-	var self_pos: Vector2 = ctx["self_pos"]
-	var ex: Array = ctx["exclude"] + body_rid(target)
-	var out := { "here": {}, "spots": [], "ambush": {} }
-	if (self_pos.distance_to(tpos) <= shoot_range
-			and not _shot_blocked(ctx, self_pos, tpos, target.get("node"))):
-		out["here"] = _annotate(ctx, target, self_pos, ex)
-	var rings := _fire_rings(ctx, tpos, ex, target.get("node"))
-	out["spots"] = _sector_spots(ctx, target, rings["fire"], ex)
-	out["ambush"] = _ambush_from(ctx, target, rings["cover"], ex)
-	return out
-
-
-## The candidate spots to fight from a target at `tpos`: `fire`, the points with a clear shot on the
-## rings round the NPC (`combat_ring_radius`, ×2) and then those on the rings round the target (each
-## of `fire_spot_distances`, snapped onto the navmesh), and `cover`, the ring points round the NPC
-## shielded from it.
-func _fire_rings(ctx: Dictionary, tpos: Vector2, ex: Array, node: Variant) -> Dictionary:
-	var fire: Array = []
-	var cover: Array = []
-	for radius in [combat_ring_radius, combat_ring_radius * 2.0]:
-		var ring := _self_combat_spots(ctx, tpos, ex, radius, node)
-		fire.append_array(ring["fire"])
-		cover.append_array(ring["cover"])
-	for dist in fire_spot_distances:
-		for i in combat_ring_count:
-			var raw: Vector2 = tpos + Vector2.RIGHT.rotated(TAU * i / combat_ring_count) * dist
-			var p := NavBuilder.snap(ctx["map"], raw)
-			if (p.distance_to(raw) <= SNAP_TOLERANCE
-					and not _shot_blocked(ctx, p, tpos, node)):
-				fire.append(p)
-	return { "fire": fire, "cover": cover }
-
-
-## One self-centred combat ring. Its self-to-candidate sight lines are cast once per snapshot with
-## the context's own exclusions and shared by every target (`_self_ring_lines`); classification
-## against the target remains per target.
-func _self_combat_spots(
-	ctx: Dictionary,
-	tpos: Vector2,
-	ex: Array,
-	radius: float,
-	node: Variant = null,
-) -> Dictionary:
-	var fire: Array = []
-	for p: Vector2 in _self_ring_points(ctx, ex, radius):
-		if not _shot_blocked(ctx, p, tpos, node):
-			fire.append(p)
-	# The same nearest-first sort as `combat_spots`: ring points are equidistant, so the sort's
-	# own tie order is part of which spot comes first.
-	var self_pos: Vector2 = ctx["self_pos"]
-	fire.sort_custom(
-		func(a, b): return a.distance_squared_to(self_pos) < b.distance_squared_to(self_pos),
-	)
-	return { "fire": fire, "cover": _self_cover_spots(ctx, tpos, ex, radius, node) }
-
-
-## The points of a self-centred ring that hide a ducked body from the hostile at `tpos`
-## (`hiding_piece`), nearest first.
-func _self_cover_spots(
-	ctx: Dictionary,
-	tpos: Vector2,
-	ex: Array,
-	radius: float,
-	node: Variant = null,
-) -> Array:
-	var cover: Array = []
-	for p: Vector2 in _self_ring_points(ctx, ex, radius):
-		if vision.hiding_piece(ctx["space"], p, tpos, AgentCover.eye_of(node), ex) != null:
-			cover.append(p)
-	var self_pos: Vector2 = ctx["self_pos"]
-	cover.sort_custom(
-		func(a, b): return a.distance_squared_to(self_pos) < b.distance_squared_to(self_pos),
-	)
-	return cover
-
-
-## The ring points the NPC sees with `ex` excluded. A shared line that hit nothing is clear. One
-## that hit a body only `ex` adds (this target's) is cast again with `ex`; any other hit stays a
-## block. So the result equals casting every line with `ex`, as `combat_spots` does.
-func _self_ring_points(ctx: Dictionary, ex: Array, radius: float) -> Array:
-	var base: Array = ctx["exclude"]
-	var extra: Array = ex.filter(func(r): return not base.has(r))
-	var points: Array = []
-	for line: Dictionary in _self_ring_lines(ctx, radius):
-		var hit: Variant = line["hit"]
-		var point: Vector2 = line["point"]
-		if (hit == null
-				or (extra.has(hit) and not blocked(ctx["space"], ctx["self_pos"], point, ex))):
-			points.append(point)
-	return points
-
-
-## The ring of `radius` round the NPC as `{ point, hit }` (`hit`: the rid of what its line from the
-## NPC first meets with the context's exclusions, null when clear), cast once per snapshot.
-func _self_ring_lines(ctx: Dictionary, radius: float) -> Array:
-	var cache := _cache_bucket(ctx, "self_rings")
-	if not cache.has(radius):
-		var lines: Array = []
-		for i in combat_ring_count:
-			var p: Vector2 = (ctx["self_pos"] as Vector2) + Vector2.RIGHT.rotated(
-				TAU * i / combat_ring_count
-			) * radius
-			var hit: Dictionary = vision.raycast(ctx["space"], ctx["self_pos"], p, ctx["exclude"])
-			lines.append({ "point": p, "hit": hit["rid"] if not hit.is_empty() else null })
-		cache[radius] = lines
-	return cache[radius]
-
-
 ## A named bucket of the context's snapshot-scoped cache, or an unretained dictionary for a plain
 ## computation with no `tactics_cache`.
 func _cache_bucket(ctx: Dictionary, name: String) -> Dictionary:
@@ -751,80 +638,6 @@ func walk_leg(ctx: Dictionary, point: Vector2, route: Callable, max_len: float) 
 	return { "route_len": length, "detour": bool(way.get("detour", false)) }
 
 
-## The firing spots against `target` from `candidates`: the best per 8-way sector round it (cover
-## close by first, then the shortest step) that passes `_safe_spot`, sorted cover close by first,
-## then a hidden route, then the shortest.
-func _sector_spots(ctx: Dictionary, target: Dictionary, candidates: Array, ex: Array) -> Array:
-	var self_pos: Vector2 = ctx["self_pos"]
-	var sectors := _by_sector(ctx, target, candidates, ex)
-	var spots: Array = []
-	for sector in sectors:
-		var group: Array = sectors[sector]
-		group.sort_custom(func(a, b):
-			if (a["cover"] != "") != (b["cover"] != ""):
-				return a["cover"] != ""
-			return ((a["point"] as Vector2).distance_squared_to(self_pos)
-					< (b["point"] as Vector2).distance_squared_to(self_pos)))
-		for c in group:
-			var spot = _safe_spot(ctx, target, c["point"], ex)
-			if spot != null:
-				spots.append(spot)
-				break
-	spots.sort_custom(func(a, b):
-		if (a["cover"] != "") != (b["cover"] != ""):
-			return a["cover"] != ""
-		if a["route_exposed"] != b["route_exposed"]:
-			return not a["route_exposed"]
-		return a["route_len"] < b["route_len"])
-	return spots
-
-
-## The `candidates` in shooting range of `tpos` and not under the NPC's feet, by 8-way sector round
-## it (sector -> `[{ point, cover }]`, in candidate order). Cheap facts first (range, sector,
-## cover): the route checks run later, only until a sector has its spot.
-func _by_sector(ctx: Dictionary, target: Dictionary, candidates: Array, ex: Array) -> Dictionary:
-	var tpos: Vector2 = target["pos"]
-	var self_pos: Vector2 = ctx["self_pos"]
-	var sectors := {}
-	for p in candidates:
-		if p.distance_to(tpos) > shoot_range or p.distance_to(self_pos) < combat_ring_radius * 0.5:
-			continue
-		var sector := posmod(int(round((p - tpos).angle() / (TAU / 8.0))), 8)
-		if not sectors.has(sector):
-			sectors[sector] = []
-		sectors[sector].append({
-			"point": p, "cover": cover_cached(ctx, p, tpos, ex, AgentCover.viewer_of(target)),
-		})
-	return sectors
-
-
-## The ambush spot against `target`: the first of `cover_spots` that passes `_safe_spot`, with the
-## piece that shields it as its `cover`; {} when none does.
-func _ambush_from(ctx: Dictionary, target: Dictionary, cover_spots: Array, ex: Array) -> Dictionary:
-	for p in cover_spots:
-		var amb = _safe_spot(ctx, target, p, ex)
-		if amb != null:
-			amb["cover"] = object_label(
-				vision.hiding_piece(
-					ctx["space"], p, target["pos"], AgentCover.eye_of_contact(target), ex
-				)
-			)
-			return amb
-	return {}
-
-
-## `p` annotated as a place to fight `target` from (with its route's exposure to the target), or
-## null when the route there passes a known hostile or a hostile would catch the NPC in the open on
-## the way or once there.
-func _safe_spot(ctx: Dictionary, target: Dictionary, p: Vector2, ex: Array) -> Variant:
-	var path := _route(ctx, p)
-	if _route_crosses(path, ctx["hostiles"]) != "" or _watched_in_open(ctx, p, path) != "":
-		return null
-	var a := _annotate(ctx, target, p, ex, path)
-	a["route_exposed"] = _route_exposed(ctx, path, target["pos"])
-	return a
-
-
 ## Ways to close in on `target`: points part-way along the route to it (with any cover there) and
 ## its last-known position itself.
 func advance_positions(ctx: Dictionary, target: Dictionary) -> Array:
@@ -892,7 +705,9 @@ func _retreat_candidates(ctx: Dictionary, threats: Array, rooms: Array, ex: Arra
 	if threats.is_empty():
 		return candidates
 	var nearest: Vector2 = threats[0]
-	for p in _self_cover_spots(ctx, nearest, ex, combat_ring_radius * 2.0):
+	for p in fire_spots._self_cover_spots(
+		self, ctx, { "pos": nearest }, ex, combat_ring_radius * 2.0
+	):
 		# A ring point off the navmesh is walked to its edge.
 		candidates.append({ "point": NavBuilder.snap(ctx["map"], p), "room": "" })
 	for a in ctx["allies"]:

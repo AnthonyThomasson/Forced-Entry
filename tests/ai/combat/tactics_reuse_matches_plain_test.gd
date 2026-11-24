@@ -136,15 +136,10 @@ func _order(snap: Dictionary) -> Dictionary:
 func _rings_match_combat_spots(tactics: RefCounted, ctx: Dictionary, hostiles: Array) -> bool:
 	for _pass in 2:
 		for target in hostiles:
-			var tpos: Vector2 = target["pos"]
 			for radius in [tactics.combat_ring_radius, tactics.combat_ring_radius * 2.0]:
 				var ex: Array = ctx["exclude"] + tactics.body_rid(target)
-				var ring: Dictionary = tactics._self_combat_spots(
-					ctx,
-					tpos,
-					ex,
-					radius,
-					target.get("node"),
+				var ring: Dictionary = tactics.fire_spots._self_combat_spots(
+					tactics, ctx, target, ex, radius
 				)
 				var plain: Dictionary = tactics.combat_spots(
 					ctx["space"], ctx["self_pos"], target, ex, radius
@@ -160,7 +155,7 @@ func _two_target_snapshot(tactics: RefCounted, ctx: Dictionary, hostiles: Array)
 	for target in hostiles:
 		var front: float = ctx["fronts"][target["id"]]
 		out[target["id"]] = {
-			"fire": tactics.fire_positions(ctx, target),
+			"fire": tactics.fire_spots.fire_positions(tactics, ctx, target),
 			"flanks": tactics.flank_sides(ctx, target, front),
 			"advance": tactics.advance_positions(ctx, target),
 		}
