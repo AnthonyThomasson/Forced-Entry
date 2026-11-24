@@ -2,7 +2,8 @@ extends RefCounted
 ## AI PERCEPTION sub-domain — one decision snapshot being built in pieces. `AgentSnapshot` (the
 ## author) begins it (`begin_build`) and `step()` runs the next piece: START (gather the knowledge
 ## the build reads, set the decision up and work out the context), one HOSTILE piece per hostile
-## given full analysis (with the cheap `line` entries of the listed hostiles ahead of it), then
+## given full analysis, two pieces each (with the cheap `line` entries of the listed hostiles ahead
+## of it), then
 ## AMBUSH (only for an ambush order whose doorway's posts are not ranked yet: the ranking, a chunk
 ## of its candidates a piece, so it is not one frame's heavy lump), then FINISH (the shared facts,
 ## the option groups, the demand set-up and the sections). Piece by piece
@@ -42,8 +43,9 @@ var frozen := {}
 var knowledge := {}
 ## The decision's context every group reads.
 var ctx := {}
-## What the hostile pieces fill in: `per_target`, `per_sections`, `analyses`, `targets`; the
-## FINISH piece adds what the whole decision shares.
+## What the hostile pieces fill in: `per_target`, `per_sections`, `analyses`, `targets`, and
+## `half`, the first half of the analysis of the hostile at `cursor` while the second is to come
+## (`AgentSnapshot._analyse_step`); the FINISH piece adds what the whole decision shares.
 var parts := {}
 ## The ids of the hostiles given full analysis (a piece runs for each, until `parts.targets` holds
 ## them all), and where in the contacts' order the next piece goes on.

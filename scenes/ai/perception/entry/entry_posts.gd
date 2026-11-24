@@ -42,8 +42,8 @@ const AMBUSH_LATERALS := [30.0, 60.0, 90.0, 120.0, 150.0, 180.0, 220.0, 260.0]
 ## Inset (px) of an ambush post from the room's walls.
 const AMBUSH_INSET := 22.0
 ## A chunk of the ranking's candidate offsets that is one piece of a decision's build
-## (`ambush_step`: 16 of the 80 offsets, about 4 ms), and one past them all.
-const AMBUSH_CHUNK := 16
+## (`ambush_step`: 4 of the 80 offsets, about 1 ms), and one past them all.
+const AMBUSH_CHUNK := 4
 const AMBUSH_WHOLE := 1 << 30
 ## How far apart (px) two ambushers' posts on one side of the doorway stand (a stack's slot spacing:
 ## clear of each other's footprint).

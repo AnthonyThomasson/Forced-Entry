@@ -70,11 +70,13 @@ func run(t: TestContext) -> void:
 				% [str(at.round()), str(a.global_position.round())],
 	):
 		return
-	# The confinement of the first walk begun after the contact, read on the frame it begins.
+	# The confinement of the first walk begun after the contact, read as that decision lands (it is
+	# built over some frames after it is claimed; the walk it ends holds its confinement).
 	var firsts: Array = []
 	var begun := func() -> bool:
-		if OrderBrain.decisions(brain) > before:
-			firsts.append(brain.debug_state().get("decision", {}).get("confinement", {}))
+		var state: Dictionary = brain.debug_state()
+		if OrderBrain.decisions(brain) > before and not state["decision"]["pending"]:
+			firsts.append(state["decision"]["confinement"])
 			return true
 		return false
 	if not t.require(

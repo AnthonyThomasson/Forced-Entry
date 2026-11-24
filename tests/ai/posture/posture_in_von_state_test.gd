@@ -35,17 +35,26 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var defender := t.actor(&"defender")
 	defender.movement.aim_point = t.actor(&"stranger").global_position
-	t.check(
-		await t.until(func(): return not DecisionStub.requests.is_empty(), 8.0),
-		"the defender asked Von",
-	)
-	var first: String = String(DecisionStub.requests[0]["state"])
+	# The first ask lands some frames after the contact (the decision is built over frames), by
+	# which time the defender may already be fighting in place, crouched: its state says what its
+	# posture was in the frame before the ask.
+	var crouched := false
+	var asked_first := false
+	for frame in 480:
+		if not DecisionStub.requests.is_empty():
+			asked_first = true
+			break
+		crouched = defender.movement.posture() == &"crouch"
+		await t.frames(1)
+	t.check(asked_first, "the defender asked Von")
+	var first: String = String(DecisionStub.requests[0]["state"]) if asked_first else ""
 	t.check(first.contains("holding a"), "the state has the usual situation line")
-	for word in ["crouch"]:
-		t.check(
-			not first.contains(word),
-			"a standing defender and a standing hostile leave '%s' out of the state" % word,
-		)
+	t.check(
+		first.contains("You are crouching.") == crouched,
+		"the state says 'You are crouching.' only when the defender is crouching (it is: %s)"
+		% crouched,
+	)
+	t.check(not first.contains("crouched low"), "a standing hostile is not 'crouched low'")
 
 	# The hostile crouches; later asks mention it.
 	var asked := DecisionStub.requests.size()

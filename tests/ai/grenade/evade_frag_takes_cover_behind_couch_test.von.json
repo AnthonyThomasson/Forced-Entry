@@ -8,12 +8,12 @@
 			],
 			"pick": "engage",
 			"probabilities": {
-				"advance": 0.1991,
-				"engage": 0.6513,
-				"retreat": 0.1496
+				"advance": 0.2048,
+				"engage": 0.6492,
+				"retreat": 0.146
 			},
 			"question": "How should you fight thrower? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the hallway, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at thrower from where you stand. You are exposed to their fire.\nthrower — HOSTILE (trespassing) — in sight — in pistol range, east of you, in the hallway — standing still — facing away from you — holding a Pistol.\nFlanks on thrower (you are on behind them): their left side — route passes thrower, line blocked, cover, medium hidden route; their right side — free, line blocked, cover, long hidden route.\nDecided so far: COMBAT → thrower."
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the hallway, inside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded.\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nYou have a clear shot at thrower from where you stand. You are exposed to their fire.\nthrower — HOSTILE (trespassing) — in sight — in pistol range, east of you, in the hallway — standing still — facing away from you — holding a Pistol.\nFlanks on thrower (you are on behind them): their left side — route passes thrower, line blocked, cover, medium hidden route; their right side — free, line blocked, cover, long hidden route.\nDecided so far: COMBAT → thrower."
 		},
 		{
 			"options": [
@@ -35,11 +35,11 @@
 			],
 			"pick": "advance",
 			"probabilities": {
-				"advance": 0.6272,
-				"retreat": 0.3728
+				"advance": 0.7007,
+				"retreat": 0.2993
 			},
 			"question": "How should you fight thrower? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the hallway, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: EVADE - a live frag grenade (waiting, for 3s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nthrower is too far to shoot. They can see you. They are aiming at you.\nthrower — HOSTILE (attacked you) — in sight — too far to shoot, east of you, in the hallway — standing still — aiming at you — holding a Pistol — looks badly wounded.\nFlanks on thrower (you are on their front): their left side — free, line blocked, cover, long hidden route; their right side — free, line blocked, cover, medium hidden route; behind them — free, line blocked, cover, long hidden route.\nYou are under fire: shots are landing near you, from the east!\nDecided so far: COMBAT → thrower."
+			"state": "You are the armed guard of this house. Shoot hostile intruders with your pistol to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside.\nYou are in the hallway, inside the house, holding a Pistol. You are crouching. You are unhurt.\nYour pistol is loaded.\nCurrent activity: EVADE - a live frag grenade (waiting, for 3s).\nKnown hostiles: 1 (1 in sight). Allies near you: none.\nthrower is too far to shoot. They can see you. They are aiming at you.\nthrower — HOSTILE (attacked you) — in sight — too far to shoot, east of you, in the hallway — standing still — aiming at you — holding a Pistol — looks badly wounded.\nFlanks on thrower (you are on their front): their left side — free, line blocked, cover, long hidden route; their right side — free, line blocked, cover, medium hidden route; behind them — free, line blocked, cover, long hidden route.\nYou are under fire: shots are landing near you, from the east!\nDecided so far: COMBAT → thrower."
 		}
 	],
 	"version": 1

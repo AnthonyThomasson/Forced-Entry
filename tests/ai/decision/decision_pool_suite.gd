@@ -9,6 +9,7 @@ const Job := preload("res://scenes/ai/decision/decision_job.gd")
 const Cadence := preload("res://scenes/ai/npc_cadence.gd")
 const Fakes := preload("res://tests/_ai/job_fakes.gd")
 const Builds := preload("res://tests/_ai/job_build_fakes.gd")
+const ThrowSpots := preload("res://scenes/ai/perception/throw_spots.gd")
 
 ## The base of the frame the last test started on; each test starts on a frame of its own. An
 ## instance var, not a `static var`: one in a suite script crashes the 4.4.1 Windows engine at exit
@@ -55,6 +56,17 @@ func _new_job() -> RefCounted:
 	job.ongoing = func() -> bool: return false
 	job.refresh = func() -> Builds.FakeConfinement: return _perception.confinement
 	return job
+
+
+## The pool a frame's decision work is held to (#194): three units, and no decision with a hostile
+## (a start, the hostile's two pieces, a finish) fits one frame, so the first frames of a fight
+## spread their builds instead of holding one lump; no piece but a lob is dearer than two units.
+func test_the_shipped_pool_never_lets_one_frame_run_a_whole_decision() -> void:
+	var whole: int = _shipped["cost_start"] + 2 * _shipped["cost_hostile"] + _shipped["cost_finish"]
+	assert_int(_shipped["per_frame"]).is_equal(3)
+	assert_bool(whole > _shipped["per_frame"]).is_true()
+	assert_bool(_shipped["cost_hostile"] <= 1 and _shipped["cost_ambush"] <= 1).is_true()
+	assert_bool(ThrowSpots.block_work <= 16).is_true()
 
 
 func test_at_most_one_decision_starts_in_a_frame_whatever_the_pool_holds() -> void:

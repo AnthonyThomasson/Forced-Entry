@@ -24,19 +24,22 @@ extends RefCounted
 
 const Roster := preload("res://scenes/ai/decision/decision_roster.gd")
 
-## Work units that may be spent in one physics frame: about 4 ms of decision work, a typical
-## decision landing over two to three frames. A test raises it to see the pieces of many decisions
-## run in one frame; it never lets two decisions start in one (`decision_roster.gd`).
-static var per_frame: int = 4
+## Work units that may be spent in one physics frame: about 3 ms of decision work (a unit is about
+## a millisecond at the 3D prices), a typical decision landing over three to four frames. A test
+## raises it to see the pieces of many decisions run in one frame; it never lets two decisions start
+## in one (`decision_roster.gd`).
+static var per_frame: int = 3
 ## What each kind of piece costs: a decision's first piece (the snapshot build's start; the claim:
-## 0.3 ms measured), one analysed hostile (1.8 ms), the build's finish (0.8 ms), the order-refusal
-## step (0.01 ms) and one planner level (0.1 ms, the odd level that builds a lazy group 2 to 7).
+## 0.3 ms measured), each of the two pieces of an analysed hostile (1.8 ms the two), the build's
+## finish (0.8 ms), the order-refusal step (0.01 ms) and one planner level (0.1 ms, the odd level
+## that builds a lazy group 2 to 7).
 static var cost_start: int = 1
-static var cost_hostile: int = 2
+static var cost_hostile: int = 1
 static var cost_finish: int = 1
-## A chunk of an ambush order's post ranking (`EntryPosts.AMBUSH_CHUNK` offsets: 3 to 5 ms measured
-## in the grenade match's district, the whole ranking 15 to 23 ms, once a doorway and then kept).
-static var cost_ambush: int = 4
+## A chunk of an ambush order's post ranking (`EntryPosts.AMBUSH_CHUNK` offsets: 0.8 to 1.2 ms
+## measured in the grenade match's district, the whole ranking 15 to 23 ms, once a doorway and
+## then kept).
+static var cost_ambush: int = 1
 static var cost_refusal: int = 0
 static var cost_level: int = 0
 ## What a step of the throw search costs (the piece between the order-refusal step and the walk,

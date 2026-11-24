@@ -22,7 +22,7 @@ const ROUTES := ThrowScan.ROUTES
 ## decision budget prices (`DecisionBudget.cost_throw_block`) is about the same work whichever it
 ## is.
 static var block_size: int = 48
-static var block_work: int = 40
+static var block_work: int = 16
 
 ## Longest walk (px of route) to a throw spot (the perception's `apply_config` sets it).
 var spot_walk: float

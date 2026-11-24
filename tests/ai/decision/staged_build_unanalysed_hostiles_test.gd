@@ -19,7 +19,7 @@ func describe() -> Dictionary:
 	return {
 		"name": "A staged snapshot analyses the engaged and nearest hostiles and lists the rest",
 		"description": "With four hostiles known and the third engaged, the build runs a start, "
-			+ "a piece for the nearest and one for the engaged hostile, and a finish; all four "
+			+ "two pieces for the nearest and two for the engaged hostile, and a finish; all four "
 			+ "are listed with their line; the snapshot equals the one-shot build's.",
 		"tags": ["ai", "decision", "snapshot", "scripted"],
 		"timeout": 10.0,
@@ -58,7 +58,9 @@ func run(t: TestContext) -> void:
 		kinds.append(staged.next_piece())
 		staged.step()
 	t.expect_eq(
-		kinds, [START, HOSTILE, HOSTILE, FINISH], "a piece for each of the two analysed hostiles"
+		kinds,
+		[START, HOSTILE, HOSTILE, HOSTILE, HOSTILE, FINISH],
+		"two pieces for each of the two analysed hostiles",
 	)
 	var stepped: Dictionary = staged.result()
 	_check_analysed(t, whole, [ids[0], ids[2]])

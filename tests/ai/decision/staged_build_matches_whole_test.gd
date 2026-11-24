@@ -82,6 +82,7 @@ func _compare(
 	var stepped: Dictionary = both["stepped"]
 	var expected: Array = [START]
 	for i in hostiles:
+		expected.append(HOSTILE)  # two pieces a hostile: its line and fire, then the rest
 		expected.append(HOSTILE)
 	expected.append(FINISH)
 	t.expect_eq(both["kinds"], expected, "%s: the pieces a build runs, in order" % label)
@@ -116,7 +117,7 @@ func _build_both(t: TestContext, brain: Node) -> Dictionary:
 		"key": "old", "type": "kitchen", "rect": Rect2(here - Vector2(50, 50), Vector2(100, 100)),
 	}]
 	var olds: Array = []
-	for i in 5:
+	for i in 8:
 		olds.append(perception.sense(goal, "", 0))
 		olds[i]["demand"].rooms = old_rooms
 	var whole: Dictionary = perception.sense(goal, "digging in", 0)

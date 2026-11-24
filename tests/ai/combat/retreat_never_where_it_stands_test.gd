@@ -67,10 +67,16 @@ func run(t: TestContext) -> void:
 	var seen: int = start
 	var wrong := {}
 	var end := t.time + WINDOW
+	var landing := false
 	while t.time < end:
-		var n: int = brain.debug_state()["decisions"]
-		if n != seen:
-			seen = n
+		var state: Dictionary = brain.debug_state()
+		if int(state["decisions"]) != seen:
+			seen = int(state["decisions"])
+			landing = true
+		# A decision is claimed as it begins and lands over the frames its build takes: the zones
+		# it made are read once it is no longer pending.
+		if landing and not state["decision"]["pending"]:
+			landing = false
 			_check_retreats(t, brain, inv, wrong)
 		await t.frames(1)
 	for w in wrong:

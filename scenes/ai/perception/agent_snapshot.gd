@@ -158,7 +158,9 @@ func _start_build(staged: SnapshotBuild) -> void:
 	var ctx := _context(knowledge["contacts"], knowledge["callouts"])
 	ctx["engaged_id"] = int(knowledge.get("engaged_id", 0))
 	staged.ctx = ctx
-	staged.parts = { "per_target": {}, "per_sections": {}, "analyses": {}, "targets": {} }
+	staged.parts = {
+		"per_target": {}, "per_sections": {}, "analyses": {}, "targets": {}, "half": {},
+	}
 	staged.analysed = _analysed_ids(ctx)
 	staged.piece = SnapshotBuild.Piece.HOSTILE
 	if ctx["hostiles"].is_empty():
@@ -203,12 +205,13 @@ func _context(known: Array, callouts: Array) -> Dictionary:
 	return ctx
 
 
-## One HOSTILE piece: the next hostile given full analysis, with the cheap `line` entries of the
-## listed hostiles ahead of it in the contacts' nearest-first order (and, after the last analysed
-## one, of those that follow it). Per hostile the build gathers the combat geometry (`analyses`),
-## the option groups (`per_target`) and the sections that follow from it (`per_sections`), each by
-## hostile id; `targets` holds each hostile given full analysis with its geometry, for what `demand`
-## builds of it later (its grenade throws and its exposure).
+## One HOSTILE piece: half of the analysis of the next hostile given full analysis (`_analyse_step`:
+## two pieces a hostile, so no frame holds all of its geometry), with the cheap `line` entries of
+## the listed hostiles ahead of it in the contacts' nearest-first order (and, after the last
+## analysed one, of those that follow it). Per hostile the build gathers the combat geometry
+## (`analyses`), the option groups (`per_target`) and the sections that follow from it
+## (`per_sections`), each by hostile id; `targets` holds each hostile given full analysis with its
+## geometry, for what `demand` builds of it later (its grenade throws and its exposure).
 func _hostile_piece(staged: SnapshotBuild) -> void:
 	_own_scratch(staged)
 	var ctx := staged.ctx
@@ -218,15 +221,17 @@ func _hostile_piece(staged: SnapshotBuild) -> void:
 	var listed: int = vocab.tuning.decision.max_options_per_level
 	while staged.cursor < hostiles.size():
 		var i := staged.cursor
-		staged.cursor += 1
 		var t: Dictionary = hostiles[i]
 		if not staged.analysed.has(t["id"]):
+			staged.cursor += 1
 			# The hostile bind lists the nearest `max_options_per_level` hostiles and needs only
 			# this cheap line fact of one beyond the cap; hostiles further out need nothing.
 			if i < listed:
 				analyses[t["id"]] = { "line": _line(ctx, t) }
 			continue
-		_analyse_target(staged, t)
+		if not _analyse_step(staged, t):
+			return
+		staged.cursor += 1
 		if _analysed_ahead(staged):
 			return
 	_after_hostiles(staged)
@@ -260,11 +265,25 @@ func _analysed_ahead(staged: SnapshotBuild) -> bool:
 	return false
 
 
-## The full analysis of hostile `t`: its geometry, option groups and sections, into `staged.parts`.
-func _analyse_target(staged: SnapshotBuild, t: Dictionary) -> void:
+## Half of the full analysis of hostile `t` (a HOSTILE piece): its line of fire and fire positions
+## (`parts["half"]` holds it), then the rest of its geometry, option groups and
+## sections, into `staged.parts`. Whether the hostile is done: the second half ends it.
+func _analyse_step(staged: SnapshotBuild, t: Dictionary) -> bool:
 	var ctx := staged.ctx
 	var parts := staged.parts
-	var a := _analyze(ctx, t)
+	if parts["half"].is_empty():
+		var front: float = ctx["fronts"][t["id"]]
+		parts["half"] = {
+			"front": front,
+			"own_side": _tactics.side_of(t["pos"], front, ctx["self_pos"]),
+			"line": _line(ctx, t),
+			"fire": _tactics.fire_positions(ctx, t),
+		}
+		return false
+	var a: Dictionary = parts["half"]
+	a["flanks"] = _tactics.flank_sides(ctx, t, a["front"])
+	a["advance"] = _tactics.advance_positions(ctx, t)
+	parts["half"] = {}
 	parts["analyses"][t["id"]] = a
 	parts["targets"][t["id"]] = { "t": t, "a": a }
 	parts["per_target"][t["id"]] = {
@@ -274,6 +293,7 @@ func _analyse_target(staged: SnapshotBuild, t: Dictionary) -> void:
 		"melee": _options.melee_group(ctx["self_pos"], t),
 	}
 	parts["per_sections"][t["id"]] = _target_sections(ctx, t, a)
+	return true
 
 
 ## The FINISH piece: what the whole decision shares, the facts, the option groups, the demand that
@@ -496,21 +516,6 @@ func _option_groups(ctx: Dictionary, parts: Dictionary, knowledge: Dictionary) -
 		"retreat_positions": _options.retreat_group(ctx, hostiles, known_rooms, parts["dmg"]),
 		"shooter": _options.shooter_group(ctx, hostiles),
 		"order": _orders.group(ctx, knowledge["order"], rooms),
-	}
-
-
-## The combat geometry around hostile `t`: its frame (front bearing), the line between the NPC and
-## it, and the candidate fire / flank / advance positions.
-func _analyze(ctx: Dictionary, t: Dictionary) -> Dictionary:
-	var self_pos: Vector2 = ctx["self_pos"]
-	var front: float = ctx["fronts"][t["id"]]
-	return {
-		"front": front,
-		"own_side": _tactics.side_of(t["pos"], front, self_pos),
-		"line": _line(ctx, t),
-		"fire": _tactics.fire_positions(ctx, t),
-		"flanks": _tactics.flank_sides(ctx, t, front),
-		"advance": _tactics.advance_positions(ctx, t),
 	}
 
 

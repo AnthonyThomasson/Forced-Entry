@@ -7,7 +7,7 @@ extends RefCounted
 
 const TARGET := Vector2(900, 60)
 ## The most frames the younger one is watched for after the older one is gone.
-const WATCH_FRAMES := 8
+const WATCH_FRAMES := 12
 
 
 ## Two invaders, `elder` first in the tree, and the trespasser, with every piece priced.

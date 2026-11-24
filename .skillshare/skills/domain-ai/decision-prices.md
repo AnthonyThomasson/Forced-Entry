@@ -7,11 +7,11 @@ Side file of `decision-job.md` (split out to keep it under the 8192-byte cap).
 | Piece | Static | Units | Measured mean ms (10v10 / grenade) | max ms |
 |---|---|---|---|---|
 | START (the claim: reads, freezes the knowledge) | `cost_start` | 1 | 0.32 / 0.29 | 0.7 |
-| HOSTILE (one analysed hostile, at most 2) | `cost_hostile` | 2 | 1.77 / 1.73 | 2.5 |
-| AMBUSH chunk (16 of the 80 offsets of an ambush order's post ranking, once a doorway) | `cost_ambush` | 4 | 3 to 5 (the whole ranking 15 to 23) | 6 |
+| HOSTILE (one analysed hostile, at most 2: two pieces, line and fire, then the rest) | `cost_hostile` each | 1 + 1 | 1.77 / 1.73 the two (#194 split) | 2.5 |
+| AMBUSH chunk (4 of the 80 offsets of an ambush order's post ranking, once a doorway) | `cost_ambush` | 1 | 0.8 to 1.2 (the whole ranking 15 to 23) | 2 |
 | FINISH | `cost_finish` | 1 | 0.82 / 0.72 | 2.2 |
 | REFUSAL | `cost_refusal` | 0 | 0.014 | 0.02 |
-| THROW block of the throw-spot scan (`ThrowSpots.block_size` 48 raw candidates, ended at `ThrowSpots.block_work` 40) | `cost_throw_block`, then charged by work (`work_unit` 15) | 1 to 3 | 0 to about 3 ms: 40 of planner work (`GrenadeArc.work`, an arc swept or a cast, about 0.07 ms each in the 10v10 match) | 5.5 ms for 80 to 110 work (the last candidate may pass the cap) |
+| THROW block of the throw-spot scan (`ThrowSpots.block_size` 48 raw candidates, ended at `ThrowSpots.block_work` 16) | `cost_throw_block`, then charged by work (`work_unit` 15) | 1 to 3 | 0 to about 2 ms: 16 of planner work (`GrenadeArc.work`, an arc swept or a cast, about 0.07 ms each in the 10v10 match) | 4 ms (one lob of 55 work: the unit) |
 | THROW rank pass | `cost_throw_rank` | 1 | 0.2 to 0.5 (4 samples) | 0.5 |
 | THROW one route | `cost_throw_route` | 1 | 0.36 / 0.37 | 0.8 |
 | GROUP unit (a lead's route or a point heard, a lost hostile, the allies' calls together; a doorway's pick) | `cost_group_unit` | 1 | leads 0.27 (3 steps, max 0.52), entries 0.46 / 0.57 (max 0.69) | 0.7 |
