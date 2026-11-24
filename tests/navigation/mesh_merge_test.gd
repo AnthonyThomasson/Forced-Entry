@@ -18,6 +18,11 @@ const RUN_VERTICES := [
 	Vector2(0, 0), Vector2(5, 0), Vector2(10, 0), Vector2(0, 10), Vector2(5, 10), Vector2(10, 10),
 ]
 const RUN_POLYGONS := [[0, 1, 4, 3], [1, 2, 5, 4]]
+## The rings `NavMerge.merged` makes of them, vertex for vertex and in order: where each ring
+## starts and which way it turns is what the server's fan reads, so a change to the merge's
+## bookkeeping that keeps the polygons convex but turns a ring differently fails here.
+const L_RINGS := [[4, 3, 0, 1, 2, 5], [3, 4, 7, 6]]
+const RUN_RINGS := [[4, 3, 0, 1, 2, 5]]
 
 
 func describe() -> Dictionary:
@@ -47,9 +52,11 @@ func _check_hand_made(t: TestContext) -> void:
 	t.expect_eq(l_merged.size(), 2, "an L of three squares merges into two polygons, not one")
 	for ring in l_merged:
 		t.check(_convex(l_points, ring), "each polygon of the L is convex")
+	t.expect_eq(_as_arrays(l_merged), L_RINGS, "the L's rings keep their vertex order")
 	var points := PackedVector2Array(RUN_VERTICES)
 	var run_merged := NavMerge.merged(points, _rings(RUN_POLYGONS))
 	t.expect_eq(run_merged.size(), 1, "two squares side by side are one rectangle")
+	t.expect_eq(_as_arrays(run_merged), RUN_RINGS, "the rectangle's ring keeps its vertex order")
 	var rect := run_merged[0]
 	t.expect_eq(rect.size(), 6, "the rectangle keeps its two straight-run vertices")
 	var corners := [Vector2(0, 0), Vector2(10, 0), Vector2(0, 10), Vector2(10, 10)]
@@ -77,6 +84,14 @@ func _check_district(t: TestContext) -> void:
 		widest <= NavMerge.MAX_CORNERS,
 		"no polygon has more than %d corners (%d)" % [NavMerge.MAX_CORNERS, widest],
 	)
+
+
+## `rings` as plain arrays of indexes, to compare with what a constant holds.
+func _as_arrays(rings: Array[PackedInt32Array]) -> Array:
+	var out := []
+	for ring in rings:
+		out.append(Array(ring))
+	return out
 
 
 func _rings(source: Array) -> Array[PackedInt32Array]:
