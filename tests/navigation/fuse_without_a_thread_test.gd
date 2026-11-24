@@ -68,6 +68,7 @@ func run(t: TestContext) -> void:
 func _check_queued_behind_busy_threads(
 	t: TestContext, outlines: Array, plain: Array,
 ) -> void:
+	await _drain_orphans(t)  # a task an earlier join left queued is not this case's
 	var sleepers: Array[int] = []
 	for _i in OS.get_processor_count() * 2:
 		sleepers.append(
@@ -75,28 +76,32 @@ func _check_queued_behind_busy_threads(
 		)
 	var queued := NavFuse.new()
 	queued.start(outlines)
-	var orphans_before := NavFuse._orphans.size()
 	t.check(
 		queued.join() == NavFuse.Found.INLINE,
 		"a fusing queued behind busy threads is fused inline",
 	)
 	t.check(queued.fusion.result() == plain, "and equals a plain fuse")
 	t.check(
-		NavFuse._orphans.size() == orphans_before + 1,
+		NavFuse._orphans.size() == 1,
 		"its queued task is kept to be waited for once it has run",
 	)
 	t.expect_eq(queued.fusion._next_id, outlines.size(), "it fused each outline once")
 	for task in sleepers:
 		WorkerThreadPool.wait_for_task_completion(task)
-	var waited := 0
-	while NavFuse._orphans.size() > orphans_before and waited < 300:
-		await t.frames(1)
-		NavFuse.reap()
-		waited += 1
-	t.check(NavFuse._orphans.size() == orphans_before, "the late task ran and was reaped")
+	await _drain_orphans(t)
+	t.check(NavFuse._orphans.is_empty(), "the late task ran and was reaped")
 	t.expect_eq(
 		queued.fusion._next_id,
 		outlines.size(),
 		"the late task found the fusing claimed: it fused nothing",
 	)
 	t.check(queued.fusion.result() == plain, "and the fusion is unchanged")
+
+
+## Wait for the tasks `NavFuse.join` left queued to have run, and reap them.
+func _drain_orphans(t: TestContext) -> void:
+	var waited := 0
+	while not NavFuse._orphans.is_empty() and waited < 300:
+		NavFuse.reap()
+		await t.frames(1)
+		waited += 1
