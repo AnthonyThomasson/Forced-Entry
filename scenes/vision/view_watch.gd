@@ -47,7 +47,8 @@ var _dirty := true
 ## The solids that block sight: instance id -> `[node, transform, standing, extent, footprint]`, the
 ## extent being how far (px) its twin's shapes lie from its origin, as the twin stands in its frame.
 var _blockers := {}
-## Every collider classified (blocker, low or character), by instance id.
+## Every collider classified (blocker, low or character), by instance id, with its top (px), which
+## does not change in play: a new eye height sorts them again from it, with no read of the world.
 var _known := {}
 ## The colliders sorted before their twin came (a body twins a frame after it joins, so it had no
 ## height and blocked like a wall): instance id -> body, sorted again when its twin arrives.
@@ -240,12 +241,7 @@ func _on_node_added(node: Node) -> void:
 ## viewer looks over a different height.
 func _read_new(see_over: float) -> void:
 	if see_over != _see_over:
-		_see_over = see_over
-		_blockers.clear()
-		_known.clear()
-		_untwinned.clear()
-		_pending.append_array(_colliders())
-		_mark()
+		_sort_by(see_over)
 	for node: Node in _pending:
 		if is_instance_valid(node) and node.is_inside_tree():
 			_classify(node as Node2D)
@@ -253,18 +249,39 @@ func _read_new(see_over: float) -> void:
 	_sort_again_with_twin()
 
 
+## The viewer looks over `see_over` now: each collider is a blocker or looked over by the top it was
+## classified with (a posture change is a frame, not a read of every body in the tree). A solid
+## that stops blocking leaves `_blockers`; one that starts is watched as `_classify` would.
+func _sort_by(see_over: float) -> void:
+	_see_over = see_over
+	for id: int in _known.keys():
+		var top: float = _known[id]
+		if top > see_over:
+			if not _blockers.has(id):
+				_add_blocker(instance_from_id(id) as Node2D)
+		else:
+			_blockers.erase(id)
+	_mark()
+
+
 ## Watch `body` as the kind of collider it is.
 func _classify(body: Node2D) -> void:
 	var id := body.get_instance_id()
 	if _known.has(id) or id in _left_out:
 		return
-	_known[id] = true
-	_connect(body, &"tree_exiting", _left.bind(id))
 	var top := SightRay.top_of(body)
+	_known[id] = top
+	_connect(body, &"tree_exiting", _left.bind(id))
 	if top == INF:
 		_untwinned[id] = body  # no twin yet: a wall's worth until it has one
 	if top <= _see_over:
 		return  # looked over: a low piece, a pane, a character
+	_add_blocker(body)
+
+
+## Watch `body`, whose top is above the viewer's eye, as a blocker.
+func _add_blocker(body: Node2D) -> void:
+	var id := body.get_instance_id()
 	# [node, transform, standing, extent, a handle's footprint part or null]
 	var entry: Array = [body, body.global_transform, SOLID, _measure(body), body.get(&"footprint")]
 	entry[2] = _layer_of(entry)
