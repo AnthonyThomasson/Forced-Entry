@@ -121,18 +121,17 @@ func _on_added(watch: Dictionary, viewport: SubViewport, node: Node) -> void:
 	if node.get_children().all(func(c): return not ("rooms" in c)):
 		return
 	(watch["entries"] as Array).append(_maps_now(viewport, node))
-	for child in node.get_children():
-		if child is NavigationAgent2D:
-			var agent: NavigationAgent2D = child
-			agent.path_changed.connect(func() -> void: _note_target(watch, node, agent))
+	var agent := node.get_node_or_null("NavAnchor/NavigationAgent3D") as NavigationAgent3D
+	if agent != null:
+		agent.path_changed.connect(func() -> void: _note_target(watch, node, agent))
 
 
 ## `npc`'s `agent` changed its path: the first time, note its target in `watch`'s `targets` with how
 ## far it lies from its map's navmesh on this frame.
-func _note_target(watch: Dictionary, npc: Node, agent: NavigationAgent2D) -> void:
+func _note_target(watch: Dictionary, npc: Node, agent: NavigationAgent3D) -> void:
 	if (watch["targets"] as Dictionary).has(npc.name):
 		return
-	var point := agent.target_position
+	var point := NavPlan.plan_of(agent.target_position)
 	var map := agent.get_navigation_map()
 	# A map that never synchronized shows no navmesh (and asking it is an engine error).
 	var off := INF

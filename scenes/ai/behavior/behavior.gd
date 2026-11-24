@@ -103,7 +103,7 @@ var _watch: RefCounted
 ## Build the Locomotion child and capture the perception sub-domain and the NPC's `npc_tuning`. The
 ## controller calls this once in its _ready(); it then calls apply_config(), which hands in the
 ## side's squad (here and again each decision).
-func setup(perception: Node, nav_agent: NavigationAgent2D, npc_tuning: NpcTuning) -> void:
+func setup(perception: Node, nav_agent: NavigationAgent3D, npc_tuning: NpcTuning) -> void:
 	_perception = perception
 	tuning = npc_tuning
 	fight = Fight.new(self)

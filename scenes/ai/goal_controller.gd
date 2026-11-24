@@ -57,7 +57,7 @@ const ZoneList := preload("res://scenes/ai/debug/zone_list.gd")
 ## preset authors them on its scene, a test sets one as an indexed path
 ## (`tuning:entry:ready_timeout`).
 @export var tuning: NpcTuning
-## NavigationAgent2D used for pathing (a sibling under the character); set in the NPC scene.
+## NavigationAgent3D used for pathing (under the character's `NavAnchor`); set in the NPC scene.
 @export var nav_agent_path: NodePath
 
 ## World-space room rects (`{ key, type, rect }`) from its composer (`MatchBuilder.bind_npc`) — the
@@ -122,9 +122,9 @@ func _ready() -> void:
 	# ACT: the behaviour sub-domain (owns its own locomotion). It reads the world via perception and
 	# falls back to a steady stance when no decision can be had.
 	_behavior = Behavior.new()
-	var nav_agent: NavigationAgent2D = null
+	var nav_agent: NavigationAgent3D = null
 	if nav_agent_path != NodePath():
-		nav_agent = get_node_or_null(nav_agent_path) as NavigationAgent2D
+		nav_agent = get_node_or_null(nav_agent_path) as NavigationAgent3D
 	add_child(_behavior)
 	_behavior.setup(_perception, nav_agent, tuning)
 	# The job claims, builds and walks a decision; this controller only asks and advances it.

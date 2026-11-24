@@ -1,8 +1,8 @@
 extends Node
-## AI BEHAVIOUR sub-domain — LOCOMOTION. Owns the NavigationAgent2D and turns a target point into
-## steering on the character: `move_to()` writes `character.movement.move_input` to follow a
-## navigated path around walls and furniture and through doorways. The navmesh (baked by the
-## Navigation domain) carves out furniture and rings the house with a walkable outdoor strip, so
+## AI BEHAVIOUR sub-domain — LOCOMOTION. Owns the NavigationAgent3D (`agent`) and turns a target
+## point into steering on the character: `move_to()` writes `character.movement.move_input` to
+## follow a navigated path around walls and furniture and through doorways. The navmesh (baked by
+## the Navigation domain) carves out furniture and rings the house with a walkable outdoor strip, so
 ## paths route around a piece and reroute through another doorway when one is blocked.
 ##
 ## A walk accounts for the characters the NPC KNOWS of (its part `crowd`, locomotion/loco_crowd.gd:
@@ -43,6 +43,8 @@ const Stall := preload("res://scenes/ai/behavior/locomotion/loco_stall.gd")
 const Doors := preload("res://scenes/ai/behavior/locomotion/loco_doors.gd")
 const DoorLeaves := preload("res://scenes/ai/behavior/locomotion/loco_door_leaves.gd")
 const Aim := preload("res://scenes/ai/behavior/locomotion/loco_aim.gd")
+## The walk's agent in plan terms: the one seam of the nav's 3D (`NavigationAgent3D`).
+const Agent := preload("res://scenes/ai/behavior/locomotion/loco_agent.gd")
 ## The walk's last-leg rule (`PASS_CLEARANCE`), held once with the doorway geometry that predicts
 ## it (`AgentEntry.slot_reach`).
 const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
@@ -91,7 +93,7 @@ var leaves := DoorLeaves.new(self)
 ## Pointing the agent at the goal only when that can change its path: loco_aim.gd.
 var aim := Aim.new()
 ## Pathfinding agent, or null (falls back to straight-line).
-var _agent: NavigationAgent2D
+var _agent: Agent
 ## The world's navigation map: furniture only, what points are snapped and tested on.
 var _plan_map: RID
 ## The agent's own arrival distance (px), what a walk arrives within unless it asks for less.
@@ -110,18 +112,18 @@ var _character: Node
 ## everything falls back to straight line steering). The agent starts on the world's own map
 ## (`_plan_map`: furniture only, which points are snapped to and tested on); `_set_way` moves it to
 ## the steering map for a walk that goes round a body at rest.
-func setup(agent: NavigationAgent2D, npc_tuning: NpcTuning) -> void:
+func setup(agent: NavigationAgent3D, npc_tuning: NpcTuning) -> void:
 	tuning = npc_tuning
-	_agent = agent
 	if agent == null:
 		return
+	_agent = Agent.new(agent)
 	# The agent has not picked its map yet (its own _ready comes after the controller's), so read it
 	# off the world its character stands in.
-	var body := agent.get_parent() as Node2D
+	var body := _agent.body()
 	if body != null and body.is_inside_tree():
 		_plan_map = NavWorld.map_of(body)
 	crowd.steering_map = NavBuilder.steering_map(_plan_map)
-	_reach = agent.target_desired_distance
+	_reach = _agent.target_desired_distance
 
 
 ## Hand in the NPC's body. Called once by `Behavior.bind()`.
