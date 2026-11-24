@@ -27,9 +27,11 @@ const MASK := PhysicsLayers.TWIN_ALL
 const MAX_BODIES := 64
 ## The height (px) of the column a blast's circle is: taller than anything a blast reaches.
 const BLAST_COLUMN := 200.0
-## Most twins a line may pass through (the ones that stop it only where it ends, `_walk`) before it
-## is called blocked.
-const MAX_CLEARED := 8
+## A backstop on the twins a line may pass through (the ones that stop it only where it ends,
+## `_walk`): no room puts this many on a line (the longest is a flash's 400 px, so the cost is one
+## ray per piece on it, 64 at the most). What a line that runs out reads as is the caller's rule
+## (`reaches`), not a count of pieces.
+const MAX_CLEARED := 64
 ## A cover reach no piece of furniture is ever within: only the walls stop the line (the bang, G12).
 const WALLS_ONLY := -1.0
 ## The height (px) of a grenade's centre over what it lies on: its radius (3) and the gap it floats
@@ -336,7 +338,8 @@ static func shields(
 		else BodyHeights.sight_points(cover.posture)
 	)
 	for height in heights:
-		if _walk(space, burst, PlanSpace.lift(p, height), cover.cover_reach, null).is_empty():
+		var found := _walk(space, burst, PlanSpace.lift(p, height), cover.cover_reach, null)
+		if reaches(found, cover.cover_reach):
 			return false
 	return true
 
@@ -355,7 +358,7 @@ static func first_stop(
 		return {}
 	var chest := BodyHeights.sight_points(posture)[1]
 	var found := _walk(space, burst, PlanSpace.lift(to, chest), INF, null)
-	if found.is_empty() or found.has("exhausted"):
+	if reaches(found, INF):
 		return {}
 	var out := found.duplicate()
 	out["position"] = PlanSpace.plan_of(found["position"])
@@ -370,7 +373,7 @@ static func first_stop(
 ## The other characters stop nothing (they are not in the lines' layers). With a finite
 ## `cover_reach` (the flash, G11) a piece of furniture only stops the line when `body` is within
 ## that many px of it on the burst's side; at `WALLS_ONLY` (the bang, G12) furniture does not stop
-## it at all. A line that `_walk` calls exhausted (past `MAX_CLEARED` twins) is stopped there too.
+## it at all. A line `_walk` ran out on (`MAX_CLEARED` twins) reads by `reaches`.
 static func _reach(
 	space: PhysicsDirectSpaceState3D,
 	burst: Vector3,
@@ -385,9 +388,8 @@ static func _reach(
 		var found := _walk(
 			space, burst, PlanSpace.lift(body.global_position, height), cover_reach, body
 		)
-		if found.is_empty():
+		if reaches(found, cover_reach):
 			return { "position": body.global_position, "normal": -outward }
-		# a line past `MAX_CLEARED` twins counts as stopped: it has no hit to read
 		if found.has("exhausted"):
 			continue
 		if TwinSpace.owner_of(found["collider"]) == body:
@@ -411,13 +413,22 @@ static func _points(body: Node2D, cover_reach: float) -> PackedFloat32Array:
 	return SightRay.target_heights(body)
 
 
+## Whether the line `_walk` answered `found` reaches its end, by the caller's `cover_reach`: a clear
+## line ({}) does, one with a stop on it does not, and one that ran out on `MAX_CLEARED` twins
+## (`exhausted`) does for a finite reach (the bang's `WALLS_ONLY`, the flash's: the pieces it
+## passed stopped nothing, and a wall would have ended it) and does not for INF (a frag's blast,
+## where the first piece stops the line, so a line that ran out is a stop the walk lost count of).
+static func reaches(found: Dictionary, cover_reach: float) -> bool:
+	return found.is_empty() or (found.has("exhausted") and cover_reach != INF)
+
+
 ## Walk the 3D line from `from` to `to` through the twin space and return the ray hit that ends it:
 ## `target`'s own twin when the line meets it, else the first wall (a static body, a door among
 ## them) or twin with no body, a piece of furniture or a vehicle (`_against`: with a finite
 ## `cover_reach` only when `to` is within that many px of the face of it nearest `to`; at
 ## `WALLS_ONLY` never).
-## A floor's slab is looked through. {} when the line is clear, and `{ exhausted = true }`
-## (stopped) once it has passed `MAX_CLEARED` twins that did not stop it.
+## A floor's slab is looked through. {} when the line is clear, and `{ exhausted = true }` once it
+## has passed `MAX_CLEARED` twins that did not stop it (what that means is `reaches`).
 static func _walk(
 	space: PhysicsDirectSpaceState3D,
 	from: Vector3,
