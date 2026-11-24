@@ -103,6 +103,8 @@ func _check_avoid(
 		for i in 8:
 			hole.append(middle[h + 1] + Vector2.from_angle(TAU * i / 8.0) * HOLE_RADIUS)
 		carved.append(hole)
+	if not t.require(carved.size() == holes, "premise: the map has room for %d holes" % holes):
+		return
 	var avoid := NavBuilder.avoid_map(planning, key, carved)
 	var waited := 0
 	while not NavBuilder.ready(avoid) and waited < 300:

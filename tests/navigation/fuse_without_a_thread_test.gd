@@ -6,6 +6,8 @@ extends GameTest
 ## wanted runs nothing that had not begun.
 
 const DISTRICT_SEED := 7
+## How long a sleeper holds its thread: past the fusing's inline run.
+const SLEEP_MS := 600
 
 
 func describe() -> Dictionary:
@@ -41,6 +43,8 @@ func run(t: TestContext) -> void:
 	t.check(never.fusion.result() == plain, "and equals a plain fuse")
 	t.check(never.join() == NavFuse.Found.DONE, "a second join finds it done")
 
+	await _check_queued_behind_busy_threads(t, outlines, plain)
+
 	var worked := NavFuse.new()
 	worked.start(outlines)
 	var found := worked.join()  # the thread may or may not have begun: either way
@@ -54,10 +58,45 @@ func run(t: TestContext) -> void:
 	dropped.start(outlines, false)
 	dropped.abandon()
 	t.check(dropped.fusion.result().is_empty(), "a fusing dropped before it began fused nothing")
-
-	var racing := NavFuse.new()
-	racing.start(outlines)
-	racing.abandon()  # whichever began, no task is left running unwaited
-	NavFuse.reap()
-	t.check(racing.fusion.result().size() <= plain.size(), "a started fusing dropped is waited for")
 	holder.queue_free()
+
+
+## A real worker task that never starts: every pool thread held by a high-priority sleeper (two
+## waves, so the fusing is queued behind a second one still), as the ring bake's test does. The
+## fusing is joined inline; the task that runs once the sleepers end finds it claimed and fuses
+## nothing (`_next_id` counts the outlines a fusion took in, so a second fusing would move it).
+func _check_queued_behind_busy_threads(
+	t: TestContext, outlines: Array, plain: Array,
+) -> void:
+	var sleepers: Array[int] = []
+	for _i in OS.get_processor_count() * 2:
+		sleepers.append(
+			WorkerThreadPool.add_task(func() -> void: OS.delay_msec(SLEEP_MS), true),
+		)
+	var queued := NavFuse.new()
+	queued.start(outlines)
+	var orphans_before := NavFuse._orphans.size()
+	t.check(
+		queued.join() == NavFuse.Found.INLINE,
+		"a fusing queued behind busy threads is fused inline",
+	)
+	t.check(queued.fusion.result() == plain, "and equals a plain fuse")
+	t.check(
+		NavFuse._orphans.size() == orphans_before + 1,
+		"its queued task is kept to be waited for once it has run",
+	)
+	t.expect_eq(queued.fusion._next_id, outlines.size(), "it fused each outline once")
+	for task in sleepers:
+		WorkerThreadPool.wait_for_task_completion(task)
+	var waited := 0
+	while NavFuse._orphans.size() > orphans_before and waited < 300:
+		await t.frames(1)
+		NavFuse.reap()
+		waited += 1
+	t.check(NavFuse._orphans.size() == orphans_before, "the late task ran and was reaped")
+	t.expect_eq(
+		queued.fusion._next_id,
+		outlines.size(),
+		"the late task found the fusing claimed: it fused nothing",
+	)
+	t.check(queued.fusion.result() == plain, "and the fusion is unchanged")
