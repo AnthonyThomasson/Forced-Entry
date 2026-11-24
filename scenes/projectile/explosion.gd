@@ -370,7 +370,7 @@ static func first_stop(
 ## The other characters stop nothing (they are not in the lines' layers). With a finite
 ## `cover_reach` (the flash, G11) a piece of furniture only stops the line when `body` is within
 ## that many px of it on the burst's side; at `WALLS_ONLY` (the bang, G12) furniture does not stop
-## it at all.
+## it at all. A line that `_walk` calls exhausted (past `MAX_CLEARED` twins) is stopped there too.
 static func _reach(
 	space: PhysicsDirectSpaceState3D,
 	burst: Vector3,
@@ -387,6 +387,9 @@ static func _reach(
 		)
 		if found.is_empty():
 			return { "position": body.global_position, "normal": -outward }
+		# a line past `MAX_CLEARED` twins counts as stopped: it has no hit to read
+		if found.has("exhausted"):
+			continue
 		if TwinSpace.owner_of(found["collider"]) == body:
 			var n: Vector3 = found["normal"]
 			var flat := Vector2(n.x, n.z)
