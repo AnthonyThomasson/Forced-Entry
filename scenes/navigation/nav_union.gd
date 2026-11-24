@@ -24,8 +24,8 @@ static func fuse(outlines: Array) -> Array:
 	return fusion.result()
 
 
-## Fuse `outlines` in too, in order: a fusion fed its outlines in chunks, a frame at a time, has
-## the result one fed them all at once has.
+## Fuse `outlines` in too, in order: a fusion fed its outlines in several calls has the result one
+## fed them all at once has.
 func add_all(outlines: Array) -> void:
 	for outline in outlines:
 		var cur: PackedVector2Array = outline

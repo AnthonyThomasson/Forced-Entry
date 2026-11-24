@@ -11,13 +11,13 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
 
 - **A district's planning gather is sliced** (`nav_gather.gd`; `sliced_rebake_matches_whole`): the tick re-bakes the steering
   tiles at once and starts a `NavGather`, whose steps run one a physics frame from the updater's `_physics_process` (the walls' parse, the
-  furniture holes fused on a worker thread (started by the first step, joined `FUSE_STEPS` (4) frames on), the district's job, the ring's: seven steps, so seven frames from the tick's own, the swap in the last). The jobs are a second
+  furniture holes fused on a worker thread (started by the first step, joined `FUSE_STEPS` (4) frames on, inline if it never began: `NavFuse`), the district's job, the ring's: seven steps, so seven frames from the tick's own, the swap in the last). The jobs are a second
   buffer nothing reads: until the last step the region's polygon, the map's iteration and the remembered source (`NavSource.remember`) are
   the previous bake's. The last step `NavRebake.swap`s it in whole (the source is remembered, the planning and ring bakes go to a worker thread (`NavBake`), landing on their fixed frame, a
   `done` once both land: the baseline is set then), so the swap is the one moment a finished re-bake shows (the `remember` version counts
   them, the map iterations follow when the bakes land; route caches and the AI's lead-route memo key on those). `_baking` holds from the
   tick to the landing: a move meanwhile waits for the next tick. A lone house's
-  gather stays in its tick (`_rebake_planning`, walls shared with its steering bake). The fusing (`NavUnion`, fed in chunks) is nine tenths
+  gather stays in its tick (`_rebake_planning`, walls shared with its steering bake). The fusing (`NavUnion`, on a worker) is nine tenths
   of the gather.
 - **A district's steering tiles start baking a frame each and land together** (`nav_updater.gd`, `nav_tile_burst.gd` (`NavTileBurst`), `NavTiles.due_tiles` /
   `parse_for` / `prepare` / `land` / `walking_at`; `navigation/tile_rebake_one_a_frame`, `district_steering_rebake_lands_in_its_tick`): a tick's due tiles are started baking a frame each, each on a worker thread (`NavTiles.threaded_total`), and **landed in one**
@@ -25,15 +25,15 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
   by squared distance from the nearest walker to the tile's rect (0 inside it), then the rest, ties and a still scene in the grid's order, fixed at the tick.
   The tick starts the first (`prepare` gathers its source on the main thread), `_physics_process` one more a `GameClock` frame (none on a frame that started one), and the frame `NavBakeConfig.tile_frames` (3) after the last started `land`s them all (`NavTiles.late_total` counts a thread not done): k tiles land k-1+`tile_frames` frames after the tick; a walker sees a body that stopped up to that many frames later (accepted). A tile on its thread keeps its last mesh: no gap, still ready (`nav_ready_follows_the_tiles`). The walls are
   parsed once per burst. A lone house's region is baked whole in its tick, as are `rebake_steering` and `build`'s first.
-  `NavTiles.baked_total` counts tiles when baked, not landed (the frame report's tile bakes). `tile_due_order` pins the order; a tick lands an open burst before reading what is due.
+  `NavTiles.baked_total` counts tiles baked, not landed. `tile_due_order` pins the order; a tick lands an open burst before reading what is due.
 - **A bake lands on a fixed frame** (`nav_bake.gd`, `nav_bake_config.gd`; `navigation/rebake_lands_on_its_frame`, `avoid_map_lands_on_its_frame`,
-  `rebake_waits_for_a_late_thread`, `landings_one_a_frame`, `perf/nav_rebake_lands_in_a_match`). One lands a frame: a bake due on a frame that took one slips to the next, in start order (a planning bake's ring after it). `NavRebake._bake_async` and `NavBuilder._bake_avoid` start the bake on a
+  `rebake_waits_for_a_late_thread`, `landings_one_a_frame`, `perf/nav_rebake_lands_in_a_match`). One a frame: a bake due on a taken frame slips to the next, in start order (a planning bake's ring after it). `NavRebake._bake_async` and `NavBuilder._bake_avoid` start the bake on a
   `WorkerThreadPool` task (the server's sync bake) through `NavBake.start`, which takes its result in (assign to the
   region, `landed`) on the physics frame the caller's count says after the start, not when the thread finishes. A thread not done by then is waited for, which holds that frame (`NavBake.was_late` of that bake, `late_total` of all; the match
-  guards log `PERF <label> nav bakes late N of M`); one on time costs the frame its assignment only. `NavBake.frames_for(region, avoid, ring)`
-  picks the count from `NavBakeConfig`, a district's planning bake `district_frames` 36 (a 120 to 140 ms thread; `perf/ambush_order_stress` sets 50, its headless frames being 3 ms), its avoid
-  maps `avoid_frames` 22 (the AI waits for a chain of them), the planning ring `ring_frames` 7
-  (a 14 ms thread, an `urgent` job: a high-priority task, so busy normal threads do not queue it), a lone house's bakes `house_frames` 3.
+  guards log `PERF <label> nav bakes late N of M, gather fusings late K`); on time costs the frame its assignment only. `NavBake.frames_for(region, avoid, ring)`
+  picks the count from `NavBakeConfig`, a district's planning bake `district_frames` 36 (a 120 to 140 ms thread; `perf/ambush_order_stress` sets 50: its frames are 3 ms), its avoid
+  maps `avoid_frames` 22 (the AI waits on a chain), the planning ring `ring_frames` 7
+  (a 14 ms thread, an `urgent` job: a high-priority task, never queued behind busy threads), a lone house's bakes `house_frames` 3.
   Later than the 2D baker's (planning 14, avoid 12): open work.
   Remeasure when a bake or a frame changes. A region freed meanwhile is left
   alone and `landed` still called; a game closing finishes every bake in flight (`NavBake._finish_all`).

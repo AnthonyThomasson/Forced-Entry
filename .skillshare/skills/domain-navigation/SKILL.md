@@ -16,8 +16,8 @@ A leaf: it builds the maps; everyone else pathfinds. Takes a plain `rooms` array
 | `nav_updater.gd` | Script-only Node that re-bakes on an interval. |
 | `nav_twins.gd` (`NavTwins`) | All static: what a bake reads of a body's 3D twin (`twins.md`): its shapes and their plan footprints. |
 | `nav_holes.gd` (`NavHoles`), `nav_pieces.gd` (`NavPieces`) | `NavHoles`: a body's footprint (`cut`, `hull_of`: the hull of its twin's footprints, grown), the furniture's (`furniture`) and the reference that cuts every piece afresh (`plain`). `NavPieces`: one tracker per house, the pieces and the hull each was last cut to. |
-| `nav_gather.gd` (`NavGather`) | A district's planning re-bake gathered a step a physics frame, swapped in whole (`NavRebake.swap`). |
-| `nav_source.gd` (`NavSource`), `nav_border.gd` (`NavBorder`) | `NavSource`, all static: what a bake is gathered from (the walls read from the twins, the `job` of polygon and source: 2D plan outlines, projected into the 3D baker's at the bake) and running it (`bake_polygon`, `CELL_SIZE` 4 px). `NavBorder`: the raster of a steering tile's border cells (`runs`). |
+| `nav_gather.gd` (`NavGather`), `nav_fuse.gd` | A district's planning re-bake gathered a step a physics frame, swapped in whole (`NavRebake.swap`); `NavFuse`: its fusing on a worker, inline if none began. |
+| `nav_source.gd` (`NavSource`), `nav_border.gd` (`NavBorder`) | `NavSource`, all static: what a bake is gathered from (the walls from the twins, the `job` of polygon and source: 2D plan outlines, projected into the 3D baker's at the bake) and running it (`bake_polygon`, `CELL_SIZE` 4 px). `NavBorder`: the raster of a steering tile's border cells (`runs`). |
 | `nav_rebake.gd` (`NavRebake`) | All static: the updater's re-bakes, the planning one (its `swap` onto a worker thread) and the steering one. |
 | `nav_bake.gd` (`NavBake`), `nav_bake_config.gd` (`NavBakeConfig`) | `NavBake`: one planning bake's worker thread and its landing on a fixed `GameClock` frame (not `Engine.get_physics_frames()`, which runs through a pause). `NavBakeConfig`: that count by kind of bake (`district_frames`, `avoid_frames`, `ring_frames`, `house_frames`, `tile_frames`: a steering burst's landing). |
 | `nav_tiles.gd` (`NavTiles`), `nav_tile_bake.gd`, `nav_tile_burst.gd`, `nav_seams.gd`, `nav_settle.gd` | A district's steering tiles (each baked on a worker thread), the wall cache. `NavTileBake`: a bake in flight. `NavTileBurst`: a tick's tiles started a frame each, landed together. `NavSeams`: border welds. `NavSettle`: settling under 0.1 px is no change. |
@@ -33,7 +33,7 @@ A leaf: it builds the maps; everyone else pathfinds. Takes a plain `rooms` array
 `NavBuilder.build(house, rooms, parent, agent_radius, bounds)` bakes one `NavigationRegion3D`: the house footprint (the `rooms` rects grown by
 `BOUNDS_PAD`, so a walkable **outdoor ring** lets an outside NPC path round to the front entrance) minus the plan footprints of the house's **wall twins**
 (so doorways stay open), minus a **hole per solid piece's twin** so paths route
-round furniture and through another doorway when the near one is blocked (a sealed route leaves the far side unreachable: the AI's cue to shove through). The bake runs in the house's local frame and the region is offset by `house.position`.
+round furniture and through another doorway when the near one is blocked (a sealed route leaves the far side unreachable: the AI shoves through). The bake runs in the house's local frame, the region offset by `house.position`.
 `MatchBuilder.stage` calls it once after the house and its twin space are made (default radius `NavBuilder.AGENT_RADIUS`).
 
 - **Doors are left out of every bake** (interface 9, `docs/adr/0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md`). A house `Door`
@@ -53,7 +53,7 @@ round furniture and through another doorway when the near one is blocked (a seal
 - **The bake reads the 3D twins, not the 2D colliders** (`twins.md`): a wall's and a piece's or character's footprint is the plan polygon of its twin's shapes,
   grown by `OBSTACLE_MARGIN` for a hole, a round one the bake's own 10-sided polygon. Overlapping footprints are fused (skipped for outlines whose boxes are apart:
   `tests/navigation/furniture_union_fast_path_test.gd`) and every outline is snapped to whole pixels.
-- **Every bake is the grid baker's** (ADR 0016, `NavSource.bake_polygon`, `baker.md`): `NavigationServer3D` on 4 px cells from the footprints projected onto a plan-space floor; no `NavWeld`. Regions, maps and queries are 3D: a plan point is the floor's `(x, 0, y)` (`NavPlan`); a region sits on the twin world's map (`NavWorld.map_of`).
+- **Every bake is the grid baker's** (ADR 0016, `NavSource.bake_polygon`, `baker.md`): `NavigationServer3D` on 4 px cells from the footprints projected onto a plan-space floor; no `NavWeld`. Regions, maps and queries are 3D: a plan point is `(x, 0, y)` (`NavPlan`); a region sits on the twin world's map (`NavWorld.map_of`).
 
 ## The steering map: characters at rest are holes too
 
@@ -98,10 +98,10 @@ toward the room's centre, then `from`, every `SNAP_WITHIN_STEP` (8 px) until its
 remembers the exact `(map, from, to)` answer, including the final answer after any ring-to-district fallback, only while both
 planning maps' iteration IDs stand; a repeat returns a copy, either map's re-bake starts its answers afresh, and freeing a map
 drops its entries. The per-map and whole-cache bounds start full caches afresh (`navigation/route_cache_follows_rebake`);
-`path_length(path)` sums a path. `iterations(map)` is `[district, ring]` (-1 without a ring), what an answer is valid for: equal to an earlier read while neither took a re-bake in (the lead-walk memo keys on it). The AI calls these rather than keeping its own guard.
+`path_length(path)` sums a path. `iterations(map)` is `[district, ring]` (-1 without a ring), what an answer is valid for: equal to an earlier read while neither took a re-bake in (the lead-walk memo keys on it). The AI calls these, with no guard of its own.
 
 ## Debug overlay (`nav_debug.gd`)
 
-A draw-only world-space `Node2D` (the map is global, not per NPC) drawing the furniture holes as filled polygons with outlines,
+A draw-only world-space `Node2D` drawing the furniture holes as filled polygons with outlines,
 and the characters' holes in another colour. `MatchBuilder.stage` builds it; `setup(house)` remembers the house; the holes are snapshotted (only while `show_holes` is on) via `NavBuilder.furniture_holes(house)`, the same selection and footprint helpers the bake uses, so it cannot drift from what was
 carved; `show_holes` toggles it (`MatchBuilder.set_overlay`, the toggle bar's "Navigation holes", with Debug on).

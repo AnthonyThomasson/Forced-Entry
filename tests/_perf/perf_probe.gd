@@ -162,8 +162,9 @@ const MATCH_LOGS := [
 	"NavigationPolygon polygon convex partition failed",
 ]
 
-## `NavBake`'s started and late counts when the running guard's warm-up began (`log_late_bakes`):
-## empty until `warm_until_contact` takes one, and again once `log_late_bakes` has read it.
+## `NavBake`'s started and late counts and `NavGather`'s late fusings when the running guard's
+## warm-up began (`log_late_bakes`): empty until `warm_until_contact` takes one, and again once
+## `log_late_bakes` has read it.
 static var _bakes_mark: Array = []
 
 
@@ -207,7 +208,7 @@ static func warm_until_contact(t: TestContext, label: String, characters: Array)
 ## Take the nav bakes' counts now, for `log_late_bakes` (a guard whose window opens by itself, not
 ## through `warm_until_contact`, marks where it opens).
 static func mark_bakes() -> void:
-	_bakes_mark = [NavBake.started_total, NavBake.late_total]
+	_bakes_mark = [NavBake.started_total, NavBake.late_total, NavGather.late_total]
 
 
 ## Wait for the fight's first sign: a shot fired or some NPC among `characters` knowing a hostile,
@@ -330,20 +331,21 @@ static func within(t: TestContext, label: String, value: float, limit: float) ->
 	return t.check(value <= limit, "%s: %.2f is over its budget of %.2f" % [label, value, limit])
 
 
-## Log (`PERF <label> nav bakes late N of M`) how many of the nav bakes started since the guard's
-## `warm_until_contact` were still running when their landing frame came (`NavBake`: a late one
-## holds the frame), so a creeping share shows in the log before it shows in a frame budget. Logs
-## nothing for a test that took no mark (it never ran `warm_until_contact`: not a match guard), and
-## reads the mark once, so one guard's mark never reaches the next test.
+## Log (`PERF <label> nav bakes late N of M, gather fusings late K`) how many of the nav bakes
+## started since the guard's `warm_until_contact` were still running when their landing frame came
+## (`NavBake`: a late one holds the frame), so a creeping share shows in the log before it shows in
+## a frame budget. Logs nothing for a test that took no mark (it never ran `warm_until_contact`: not
+## a match guard), and reads the mark once, so one guard's mark never reaches the next test.
 static func log_late_bakes(label: String) -> void:
 	if _bakes_mark.is_empty():
 		return
 	var mark := _bakes_mark
 	_bakes_mark = []
-	GameLog.say("PERF %s nav bakes late %d of %d" % [
+	GameLog.say("PERF %s nav bakes late %d of %d, gather fusings late %d" % [
 		label,
 		NavBake.late_total - mark[1],
 		NavBake.started_total - mark[0],
+		NavGather.late_total - mark[2],
 	])
 
 
