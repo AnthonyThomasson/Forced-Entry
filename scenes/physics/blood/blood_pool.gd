@@ -7,12 +7,19 @@ extends Node2D
 
 ## Flow cells all the pools still claiming may claim between them in one physics frame (each claim
 ## costs its neighbours' collider queries, about 0.12 ms in a district: a pool claiming 60 a frame
-## held 5 to 8 ms for four frames the frame its body died). The pools share it evenly, one claim at
-## least each, so a crowd of deaths flows together, slower, and no frame holds a lump.
+## held 5 to 8 ms for four frames the frame its body died). The pools share it evenly, the remainder
+## (16 % n) going to the first pools in list order, one claim at least each: so the most a frame
+## claims is max(16, n), and a crowd of deaths flows together, slower, and no frame holds a lump.
+## The front sweeps while the cells are claimed (`BloodFlow.advance`), so a pool shows at once.
 const FLOW_CLAIMS_PER_FRAME := 16
 
-## The pools that still have cells to claim.
+## The pools that still have cells to claim, in the order they started.
 static var _claimers: Array[Node] = []
+## The pools claiming at the first claim of physics frame `_round_frame`, by instance id: the shares
+## of one frame are cut from this list, so a pool that finishes (and leaves `_claimers`) mid-frame
+## does not widen the others' shares that same frame.
+static var _round: PackedInt64Array = PackedInt64Array()
+static var _round_frame := -1
 
 ## The flood-fill (the 3D pool shows its cells).
 var flow: BloodFlow
@@ -27,15 +34,17 @@ func _exit_tree() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	# Claim the cells a batch per frame (each costs a collider query), then sweep the front.
+	# Claim the cells a batch per frame (each costs a collider query) and sweep the front over the
+	# ones claimed, which waits where it meets one not yet claimed.
 	if _claiming():
 		flow.step(_share(), TwinSpace.space_of(self), global_position, _budget)
-	else:
+	var claiming := _claiming()
+	if not claiming:
 		_claimers.erase(self)
-		flow.advance(delta, _flow_duration)
+	flow.advance(delta, _flow_duration, claiming)
 	flow.tick(delta)
 	PhysicsFxHook.pool_changed(self)
-	if not _claiming() and flow.settled() and not flow.soaking():
+	if not claiming and flow.settled() and not flow.soaking():
 		set_physics_process(false)
 
 
@@ -51,9 +60,26 @@ func seed_bleed_out(cells: int, duration: float, exclude: Array) -> void:
 	set_physics_process(true)
 
 
-## The claims this pool may make this physics frame: an even share of `FLOW_CLAIMS_PER_FRAME`.
+## How many pools are still claiming (a test reads it: it is empty once the world is freed).
+static func claimer_count() -> int:
+	return _claimers.size()
+
+
+## The claims this pool may make this physics frame: an even share of `FLOW_CLAIMS_PER_FRAME`, the
+## remainder to the first pools in list order, and one at least (a pool that joined this frame).
 func _share() -> int:
-	return maxi(1, floori(float(FLOW_CLAIMS_PER_FRAME) / maxi(_claimers.size(), 1)))
+	var frame := Engine.get_physics_frames()
+	if frame != _round_frame:
+		_round_frame = frame
+		_round.clear()
+		for pool in _claimers:
+			_round.append(pool.get_instance_id())
+	var n := _round.size()
+	var at := _round.find(get_instance_id())
+	if at < 0 or n >= FLOW_CLAIMS_PER_FRAME:
+		return 1
+	var each := floori(float(FLOW_CLAIMS_PER_FRAME) / n)
+	return each + (1 if at < FLOW_CLAIMS_PER_FRAME % n else 0)
 
 
 ## Whether the flow still has cells to claim: budget left and somewhere to flow.

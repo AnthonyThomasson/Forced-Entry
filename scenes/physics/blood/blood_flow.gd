@@ -24,14 +24,14 @@ var trail: Dictionary = {}
 var front := 0.0
 ## How far the sweep has run, 0..1 of the duration.
 var _progress := 0.0
+## Whether claiming may still add cells (until `advance` is told it is over).
+var _claiming := true
 ## The highest flow cost claimed so far; the front sweeps up to it.
 var _last_cost := 0.0
 ## Side (px) of a grid cell.
 var _size: float
 ## Unit direction the flow leans toward.
 var _aim: Vector2
-## Twin RIDs the blocked-cell queries ignore (the body the blood leaves).
-var _exclude: Array
 ## Roughens the per-cell flow cost into lobes.
 var _noise := FastNoiseLite.new()
 ## The retained square shape and query parameters for blocked-cell tests.
@@ -53,7 +53,6 @@ var _extent := Rect2i(Vector2i.ZERO, Vector2i.ONE)
 func _init(aim: Vector2, exclude: Array) -> void:
 	_size = BloodPoolConfig.flow_cell_size
 	_aim = aim
-	_exclude = exclude
 	_noise.seed = randi()
 	_noise.frequency = BloodPoolConfig.flow_noise_frequency
 	_collision.prepare(_size, exclude)
@@ -72,8 +71,12 @@ func done() -> bool:
 
 
 ## Sweep the front outward: `delta` seconds of a `duration`-second spread, easing out like a
-## liquid slowing as it thins. Call once all cells are claimed.
-func advance(delta: float, duration: float) -> void:
+## liquid slowing as it thins. It may run while cells are still being claimed (`claiming`): the
+## front then stops at the cheapest cell not yet claimed, so it never covers one, and the cells it
+## passes fill exactly as they would have had every cell been claimed first (the claim order is the
+## order the front reaches them). Pass `claiming` false once claiming is over for good.
+func advance(delta: float, duration: float, claiming := false) -> void:
+	_claiming = claiming
 	# Blood creeps slower over porous surface, in proportion to how much of the pool lies on it.
 	var slow := 1.0
 	if not _soak.is_empty() and not cells.is_empty():
@@ -85,11 +88,18 @@ func advance(delta: float, duration: float) -> void:
 	_progress = minf(_progress + delta / (maxf(duration, 0.001) * slow), 1.0)
 	var eased := 1.0 - (1.0 - _progress) * (1.0 - _progress)
 	front = (_last_cost + BloodPoolConfig.flow_soft_edge) * eased
+	if claiming:
+		front = minf(front, next_cost())
 
 
-## True once the front has covered every cell.
+## The flow cost of the cheapest cell not yet claimed (the next one `step` claims), INF if none.
+func next_cost() -> float:
+	return INF if _frontier.is_empty() else _frontier.cheapest()
+
+
+## True once the front has covered every cell: the sweep is over and claiming is too.
 func settled() -> bool:
-	return _progress >= 1.0
+	return _progress >= 1.0 and not _claiming
 
 
 ## Fill level (0..1) of a cell: the flood-fill at the current front, or the dragged-out trail if
@@ -264,6 +274,16 @@ class Frontier extends RefCounted:
 		costs[c] = cost
 		_heap.append([cost, _sequence[c], c])
 		_sift_up(_heap.size() - 1)
+
+
+	## The cost of the cheapest live cell (the one `pop` returns next); not for an empty frontier.
+	func cheapest() -> float:
+		while costs.get(_heap[0][2], -1.0) != _heap[0][0]:
+			_heap[0] = _heap.back()
+			_heap.pop_back()
+			if not _heap.is_empty():
+				_sift_down(0)
+		return _heap[0][0]
 
 
 	## Remove the cheapest heap entry and return its live cell. The caller erases it from `costs`.
