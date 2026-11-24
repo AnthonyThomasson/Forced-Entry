@@ -87,6 +87,21 @@ func _init(character: Node2D, with_legs := true, with_arms := true) -> void:
 		_rest_feet(character)
 
 
+## Solve again, into this rig, only what the legs layer reads of a rig without arms (the pelvis, the
+## hips, each ankle, knee pole and toe): the same joints a full solve places, with no head, chest,
+## belly, spine or arms, and no rested feet. The legs layer keeps one rig and solves it afresh each
+## frame, so a frame allocates none.
+func solve_legs(character: Node2D) -> void:
+	solves += 1
+	var m := _measures
+	m._measure(character)
+	_thigh = m.thigh
+	_shin = m.shin
+	if _points.size() < 17:
+		_points.resize(17)
+	m._place_legs(character, _points, _knee_poles, _toes)
+
+
 ## Each ankle the legs layer rested against something (`character.anatomy.legs.ankle(i)`) moved
 ## there, its knee re-solved.
 func _rest_feet(character: Node2D) -> void:
@@ -209,6 +224,29 @@ class Measures:
 			_leg(character, i)
 
 
+	## Place only the legs' joints of `character`, as measured (`Rig.solve_legs`): the pelvis, then
+	## each side's leg.
+	func _place_legs(
+		character: Node2D,
+		points: Array,
+		knee_poles: Array,
+		toes: Array,
+	) -> void:
+		_points = points
+		_knee_poles = knee_poles
+		_toes = toes
+		_points[PELVIS] = _pelvis()
+		for i in 2:
+			_leg(character, i)
+
+
+	## The pelvis: half the lean back of the origin, at the hips' height, swayed by a stagger.
+	func _pelvis() -> Vector3:
+		var f := fold
+		return (-f.fwd * f.lean * 0.5 + UP * f.hip_z
+				+ Vector3(pose.hip_sway.x, pose.hip_sway.y, 0.0))
+
+
 	## The chest, head and pelvis, and the belly and back between them: the chest at the lunge, half
 	## the lean ahead; the neck pitching on from the shoulders, so the head sits ahead of and above
 	## them; the pelvis half the lean back, swayed by a stagger.
@@ -222,8 +260,7 @@ class Measures:
 		_points[HEAD] = (Vector3(pose.head_offset.x, pose.head_offset.y, 0.0)
 				+ f.fwd * (f.lean * 0.5 + neck * sin(neck_pitch))
 				+ UP * (f.chest_z + neck * cos(neck_pitch)))
-		_points[PELVIS] = (-f.fwd * f.lean * 0.5 + UP * f.hip_z
-				+ Vector3(pose.hip_sway.x, pose.hip_sway.y, 0.0))
+		_points[PELVIS] = _pelvis()
 		var mid: Vector3 = (_points[CHEST] + _points[PELVIS]) * 0.5
 		# Out of the chest, square to the leaning spine.
 		var belly := f.fwd * cos(f.pitch) - UP * sin(f.pitch)

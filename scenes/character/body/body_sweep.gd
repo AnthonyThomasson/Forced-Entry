@@ -26,6 +26,19 @@ var _character: Node2D
 var _shapes := {}
 var _params := PhysicsShapeQueryParameters3D.new()
 var _ray := PhysicsRayQueryParameters3D.new()
+## The twin space of `_space_frame` (a body stays in one world, so one physics frame asks the engine
+## once however many casts it makes), and the body's twin the exclusion lists were built for with
+## those lists (what `_params` and `_ray` hold, set only when the twin changes).
+var _space_cache: PhysicsDirectSpaceState3D
+var _space_frame := -1
+var _twin: Node3D
+var _excluded: Array[RID] = []
+## The sphere shape last asked for and its radius (px), the common repeat of a hand's or a foot's
+## casts.
+var _last_radius := -1.0
+var _last_shape: SphereShape3D
+## The mask `_ray` holds.
+var _ray_mask := MASK
 
 
 ## The body whose sweeps and queries this owns.
@@ -52,6 +65,7 @@ func refresh(radius: float) -> void:
 	if space == null:
 		near_solid = false
 		return
+	_exclude()
 	var key := Vector2(radius, -1.0)
 	if not _shapes.has(key):
 		var gate := CylinderShape3D.new()
@@ -65,16 +79,16 @@ func refresh(radius: float) -> void:
 		+ Vector3.UP * (_shapes[key] as CylinderShape3D).height * 0.5,
 	)
 	_params.motion = Vector3.ZERO
-	_params.exclude = _exclude()
-	_params.collision_mask = MASK
 	near_solid = not space.intersect_shape(_params, 1).is_empty()
 
 
 ## Where a foot-sized sphere of `radius` swept from `centre` (world, plan) `height` px up along plan
 ## `motion` comes to rest, as a local offset from `centre`: `motion` itself when the way is clear.
 func circle(centre: Vector2, motion: Vector2, radius: float, height: float) -> Vector2:
+	if motion.length_squared() < 0.0001:
+		return motion
 	var space := _space()
-	if motion.length_squared() < 0.0001 or space == null:
+	if space == null:
 		return motion
 	casts += 1
 	_sphere(centre, radius, height)
@@ -85,8 +99,7 @@ func circle(centre: Vector2, motion: Vector2, radius: float, height: float) -> V
 	var rest := motion * safe
 	_ray.from = PlanSpace.lift(centre, height)
 	_ray.to = PlanSpace.lift(centre + motion, height)
-	_ray.exclude = _exclude()
-	_ray.collision_mask = MASK
+	_set_ray_mask(MASK)
 	var hit := space.intersect_ray(_ray)
 	var normal := -motion.normalized()
 	if not hit.is_empty():
@@ -105,10 +118,10 @@ func solid_distance(from: Vector2, dir: Vector2, max_len: float, height: float) 
 	var space := _space()
 	if space == null:
 		return INF
+	_exclude()
 	_ray.from = PlanSpace.lift(from, height)
 	_ray.to = PlanSpace.lift(from + dir * max_len, height)
-	_ray.exclude = _exclude()
-	_ray.collision_mask = BARREL_MASK
+	_set_ray_mask(BARREL_MASK)
 	var hit := space.intersect_ray(_ray)
 	if hit.is_empty():
 		return INF
@@ -133,27 +146,45 @@ func pushable_at(at: Vector2, height: float) -> Node:
 
 ## Prepare the reused shape query for a sphere of `radius` at plan point `centre`, `height` up.
 func _sphere(centre: Vector2, radius: float, height: float) -> void:
-	var key := Vector2(radius, 0.0)
-	if not _shapes.has(key):
-		var shape := SphereShape3D.new()
-		shape.radius = radius * RenderConfig.unit
-		_shapes[key] = shape
-	_params.shape = _shapes[key]
-	_params.exclude = _exclude()
-	_params.collision_mask = MASK
+	if radius != _last_radius:
+		var key := Vector2(radius, 0.0)
+		if not _shapes.has(key):
+			var shape := SphereShape3D.new()
+			shape.radius = radius * RenderConfig.unit
+			_shapes[key] = shape
+		_last_shape = _shapes[key]
+		_last_radius = radius
+	_params.shape = _last_shape
+	_exclude()
 	_params.transform = Transform3D(Basis(), PlanSpace.lift(centre, height))
 	_params.motion = Vector3.ZERO
 
 
-## The body's own twin, which a sweep passes through.
-func _exclude() -> Array[RID]:
-	var out: Array[RID] = []
-	var twin := TwinSpace.twin_for(_character) as CollisionObject3D
+## Make the reused ray meet `mask`, written only when it changes.
+func _set_ray_mask(mask: int) -> void:
+	if _ray_mask != mask:
+		_ray_mask = mask
+		_ray.collision_mask = mask
+
+
+## Leave the body's own twin out of both reused queries, which a sweep passes through: the lists are
+## rebuilt and written only when the twin is another one than last time.
+func _exclude() -> void:
+	var twin := TwinSpace.twin_for(_character)
+	if twin == _twin and _twin != null:
+		return
+	_twin = twin
+	_excluded = []
 	if twin != null:
-		out.append(twin.get_rid())
-	return out
+		_excluded.append((twin as CollisionObject3D).get_rid())
+	_params.exclude = _excluded
+	_ray.exclude = _excluded
 
 
-## The twin space the body is in.
+## The twin space the body is in, asked of the engine once a physics frame.
 func _space() -> PhysicsDirectSpaceState3D:
-	return TwinSpace.space_of(_character)
+	var frame := Engine.get_physics_frames()
+	if frame != _space_frame or _space_cache == null or not _character.is_inside_tree():
+		_space_cache = TwinSpace.space_of(_character)
+		_space_frame = frame
+	return _space_cache
