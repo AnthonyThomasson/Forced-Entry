@@ -431,12 +431,14 @@ func ambush_begin(
 	return {
 		"key": key, "shared_key": shared_key, "npc": npc, "g": g, "f": f,
 		"observers": _observers_of(g), "offsets": _offsets(AMBUSH_DEPTHS, AMBUSH_LATERALS),
-		"cursor": 0, "posts": [],
+		"cursor": 0, "posts": [], "layout": entry.layouts.key(entry),
 	}
 
 
 ## The next `count` candidate offsets of the ranking in hand (`ambush_begin`), the last of them
-## ending it: `ranking` is `{ posts, landings }` (`_ambush_ranking`) and is kept on a baked map.
+## ending it: `ranking` is `{ posts, landings }` (`_ambush_ranking`) and is kept on a baked map. A
+## ranking whose house or tunables (`EntryLayouts.key`) changed since `ambush_begin` is a mix of two
+## layouts: it is kept nowhere and the work says `stale`, for its owner to begin again.
 func ambush_step(
 	work: Dictionary, map: RID, space: PhysicsDirectSpaceState3D, count: int
 ) -> void:
@@ -449,6 +451,10 @@ func ambush_step(
 			posts.append(post)
 	work["cursor"] = end
 	if end < offsets.size():
+		return
+	var entry: AgentEntry = work["f"]["entry"]
+	if work["layout"] != entry.layouts.key(entry):
+		work["stale"] = true  # The house or a tunable changed under the chunks: keep nothing.
 		return
 	var ranking := { "posts": posts, "landings": _bang_landings(work["g"]) }
 	if NavBuilder.ready(map):

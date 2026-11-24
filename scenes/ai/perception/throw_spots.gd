@@ -16,11 +16,11 @@ const DIRECTIONS := 16
 const ROUTES := ThrowScan.ROUTES
 
 ## Raw candidates a block step of a priced search works through at most, and the arc planner's work
-## (`GrenadeArc.work`, a count, about 0.1 ms each) at which it ends the block earlier: a stretch of
-## candidates that fail the cheap tests is one step, a stretch that asks the planner many (each
-## that passes the cheap tests asks it, 0.05 to 1 ms on the 3D planner) is a few, so a unit the
-## decision budget prices (`DecisionBudget.cost_throw_block`) is about the same work whichever it
-## is.
+## (`GrenadeArc.work`, a count of planner questions asked, memo hits included, not a time) at which
+## it ends the block earlier: a stretch of candidates that fail the cheap tests is one step, a
+## stretch that asks the planner many (each that passes the cheap tests asks it) is a few, so a unit
+## the decision budget prices (`DecisionBudget.cost_throw_block`) is about the same work whichever
+## it is.
 static var block_size: int = 48
 static var block_work: int = 16
 

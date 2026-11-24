@@ -241,7 +241,7 @@ func combat_spots(
 			space,
 			p,
 			tgt_pos,
-			AgentCover.eye_of(tgt.get("node")),
+			AgentCover.eye_of_contact(tgt),
 			exclude,
 		) != null:
 			cover.append(p)
@@ -461,7 +461,7 @@ func _watched_in_open(
 		if (_looking_at(hpos, front, p, half)
 				and hpos.distance_to(p) <= shoot_range * 1.5
 				and not _shot_blocked(ctx, hpos, p)
-				and cover_cached(ctx, p, hpos, ex, h.get("node")) == ""):
+				and cover_cached(ctx, p, hpos, ex, AgentCover.viewer_of(h)) == ""):
 			return h["name"]
 		if path.size() >= 2 and _eyes_route(ctx, h, front, path, ex):
 			return h["name"]
@@ -494,7 +494,7 @@ func _covered_from(ctx: Dictionary, h: Dictionary, ex: Array) -> bool:
 	var hpos: Vector2 = h["pos"]
 	var self_pos: Vector2 = ctx["self_pos"]
 	var covered: bool = (_shot_blocked(ctx, hpos, self_pos)
-			or cover_cached(ctx, self_pos, hpos, ex, h.get("node")) != "")
+			or cover_cached(ctx, self_pos, hpos, ex, AgentCover.viewer_of(h)) != "")
 	covered_from[h["id"]] = covered
 	return covered
 
@@ -793,7 +793,7 @@ func _by_sector(ctx: Dictionary, target: Dictionary, candidates: Array, ex: Arra
 		if not sectors.has(sector):
 			sectors[sector] = []
 		sectors[sector].append({
-			"point": p, "cover": cover_cached(ctx, p, tpos, ex, target.get("node")),
+			"point": p, "cover": cover_cached(ctx, p, tpos, ex, AgentCover.viewer_of(target)),
 		})
 	return sectors
 
@@ -806,7 +806,7 @@ func _ambush_from(ctx: Dictionary, target: Dictionary, cover_spots: Array, ex: A
 		if amb != null:
 			amb["cover"] = object_label(
 				vision.hiding_piece(
-					ctx["space"], p, target["pos"], AgentCover.eye_of(target.get("node")), ex
+					ctx["space"], p, target["pos"], AgentCover.eye_of_contact(target), ex
 				)
 			)
 			return amb
@@ -977,7 +977,7 @@ func _annotate(
 	return {
 		"point": p,
 		"clear_shot": not _shot_blocked(ctx, p, tpos, target.get("node")),
-		"cover": cover_cached(ctx, p, tpos, ex, target.get("node")),
+		"cover": cover_cached(ctx, p, tpos, ex, AgentCover.viewer_of(target)),
 		"route_len": NavBuilder.path_length(path),
 		"route_exposed": false,
 		"exposed_to": exposed_to(ctx, p, ctx["hostiles"], target["id"]),
@@ -995,5 +995,4 @@ func _nearest_gap(p: Vector2, threats: Array) -> float:
 ## The contact's twin rid as a one-element array, for excluding it from a ray (empty when it is
 ## gone or has no twin).
 func body_rid(contact: Dictionary) -> Array:
-	var n = contact.get("node")
-	return SightRay.exclude_of(n) if n is Node and is_instance_valid(n) else []
+	return AgentCover.rids_of(contact)

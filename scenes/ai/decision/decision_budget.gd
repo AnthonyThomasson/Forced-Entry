@@ -55,9 +55,10 @@ static var cost_throw_route: int = 1
 ## one unit of work, a lead's route, a doorway's pick or one kind's throw (about 0.4 ms), and the
 ## finish that sorts and caps what the units made (free: no price to set).
 static var cost_group_unit: int = 1
-## The planner work (`GrenadeArc.work`, a count) one unit holds: a priced step that did more than
-## its price's worth (a throw block of 40 is 3 units, about 3 ms) is charged the rest once it has
-## run (`charge`), so a frame holds one such block, not four 5 ms ones from four NPCs. 0: no charge.
+## The planner work (`GrenadeArc.work`, a count of planner questions asked, memo hits included, not
+## a time: about 0.05 ms each when measured, 42 us since) one unit holds: a priced step that did
+## more than its price's worth (a throw block of 16 is 2 units) is charged the rest once it has run
+## (`charge`), so a frame holds one such block, not four heavy ones from four NPCs. 0: no charge.
 static var work_unit: int = 15
 ## Where the frame number comes from, when not the engine's physics frame: a unit test steps frames
 ## by it, with no engine running them (the way `DecisionStub.source` stands in for the server).

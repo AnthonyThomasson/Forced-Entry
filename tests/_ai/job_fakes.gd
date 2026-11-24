@@ -53,6 +53,8 @@ class FakePerception:
 	var confinement := Builds.FakeConfinement.new()
 	var orders := Builds.FakeOrders.new()
 	var hostiles := 2
+	## AMBUSH pieces each build holds (an ambush order's ranking in chunks).
+	var ambush := 0
 	var order_options: Array = []
 	var builds: Array = []
 	## The throw search the next build's demand hands out (null: none).
@@ -78,6 +80,7 @@ class FakePerception:
 		var b := Builds.FakeBuild.new()
 		b.perception = self
 		b.hostiles = hostiles
+		b.ambush = ambush
 		b.number = builds.size() + 1
 		builds.append(b)
 		return b

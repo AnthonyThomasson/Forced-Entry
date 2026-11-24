@@ -6,8 +6,10 @@ extends GameTest
 ## an NPC picks must not depend on how it was spread. In a generated house (the posts capture's:
 ## seed 7 on garage_home, furnished), for every doorway laid from each room it joins, a ranking in
 ## chunks of `chunked.posts.AMBUSH_CHUNK` and in chunks of 7 holds the posts (spot, side, seen,
-## score) and landings the whole one holds, and holds nothing until its last chunk is through. No
-## actors: each ranking is made on an entry geometry of its own, with no NPC.
+## score) and landings the whole one holds, and holds nothing until its last chunk is through. A
+## ranking whose house changed under its chunks (a door in the way) is kept nowhere and says
+## `stale`, and begun again on the new house it is the one made whole there. No actors: each ranking
+## is made on an entry geometry of its own, with no NPC.
 
 const ENTRY_SCRIPT := "res://scenes/ai/perception/agent_entry.gd"
 const SEED := 7
@@ -55,6 +57,51 @@ func run(t: TestContext) -> void:
 		ways > 0 and with_posts > 0,
 		"premise: doorways ranked (%d), with posts (%d)" % [ways, with_posts],
 	)
+	_house_changes_mid_ranking(t, script)
+
+
+## A ranking begun on one house and ended on another (an opening changed: a door was hit open, a
+## wall broke) is a mix of two: nothing keeps it, it is `stale`, and the ranking begun again on the
+## new house is the whole one the new house has.
+func _house_changes_mid_ranking(t: TestContext, script: GDScript) -> void:
+	var o: Dictionary = t.world.openings[0]
+	var id := String(script.opening_id(o))
+	var into := String((o.get("rooms", []) as Array)[0])
+	var entry := _entry(t, script)
+	var work := _begun(t, entry, id, into)
+	if not t.require(not work.has("ranking"), "premise: a ranking to work out"):
+		return
+	_run(t, entry, work, 1)
+	var changed: Array = (t.world.openings as Array).duplicate(true)
+	changed[0]["changed_since"] = true
+	entry.set_house(changed, t.rooms)
+	_run(t, entry, work, 1000)
+	t.check(work.has("stale") and not work.has("ranking"), "a house changed mid-ranking: stale")
+	t.check(entry.posts.cache.is_empty(), "... and kept in no ranking of the entry's own")
+	var again := _begun(t, entry, id, into)
+	_run(t, entry, again, 1000)
+	var fresh := _entry(t, script)
+	fresh.set_house(changed, t.rooms)
+	var want := _ranking(t, fresh, id, into, fresh.posts.AMBUSH_WHOLE)
+	t.check(again.has("ranking") and want.has("ranking"), "begun again on the new house: ranked")
+	t.check(again["ranking"] == want["ranking"], "... the ranking the new house has whole")
+
+
+## The ranking of doorway `id` into `into` by `entry`, begun.
+func _begun(t: TestContext, entry: RefCounted, id: String, into: String) -> Dictionary:
+	var map: RID = NavWorld.map_of(t.world)
+	var g: Dictionary = entry.geometry(id, into, map, TwinSpace.space_of(t.world))
+	return entry.posts.ambush_start(entry, g, map)
+
+
+## Up to `chunks` chunks of `work`, fewer when it ends (ranked or stale).
+func _run(t: TestContext, entry: RefCounted, work: Dictionary, chunks: int) -> void:
+	var map: RID = NavWorld.map_of(t.world)
+	var space := TwinSpace.space_of(t.world)
+	var done := 0
+	while done < chunks and not work.has("ranking") and not work.has("stale"):
+		entry.posts.ambush_step(work, map, space, entry.posts.AMBUSH_CHUNK)
+		done += 1
 
 
 func _entry(t: TestContext, script: GDScript) -> RefCounted:

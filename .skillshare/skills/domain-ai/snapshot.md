@@ -4,7 +4,7 @@ The BUILD half of perception: from what the NPC knows (contacts, memory, learned
 
 ## Files
 
-- `agent_snapshot.gd` — `build`, the `facts` literal (`_facts`), the per-hostile pieces (`_hostile_piece`, `_analyse_target`), assembly of `sections` and `options` (`_state_sections`, `_option_groups`: the groups every walk reads), `fill_goal`.
+- `agent_snapshot.gd` — `build`, the `facts` literal (`_facts`), the per-hostile pieces (`_hostile_piece`, `_analyse_step`), assembly of `sections` and `options` (`_state_sections`, `_option_groups`: the groups every walk reads), `fill_goal`.
 - `snapshot/snapshot_sources.gd` (`SnapshotSources`) — the perception modules it reads, filled once by the perception's `setup()`.
 - `snapshot/snapshot_vocab.gd` (`SnapshotVocab`) — the shared vocabulary and tuning: `COMPASS`, the band and wording helpers (`dist_band`, `recency`, `route_band`, `place`, `where`, ...), the house `rooms` of the decision in build, the NPC's `character` (set by `bind`). Tunables are read live off `vocab.tuning` (`NpcTuning` topics, handed in by `apply_config`).
 - `snapshot/snapshot_sections.gd` — the `*_text` functions behind the sections.

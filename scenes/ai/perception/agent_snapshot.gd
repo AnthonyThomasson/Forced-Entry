@@ -242,6 +242,9 @@ func _hostile_piece(staged: SnapshotBuild) -> void:
 func _after_hostiles(staged: SnapshotBuild) -> void:
 	staged.ambush_work = _orders.ambush_work(staged.ctx, staged.knowledge["order"], staged.rooms)
 	staged.piece = SnapshotBuild.Piece.FINISH
+	if not NavBuilder.ready(staged.ctx["map"]):
+		# Nothing is kept on an unbaked map: a ranking in chunks would be made again by the option.
+		staged.ambush_work = {}
 	if not staged.ambush_work.is_empty():
 		staged.piece = SnapshotBuild.Piece.AMBUSH
 
@@ -251,7 +254,13 @@ func _after_hostiles(staged: SnapshotBuild) -> void:
 func _ambush_piece(staged: SnapshotBuild) -> void:
 	_own_scratch(staged)
 	_orders.ambush_step(staged.ambush_work, staged.ctx)
-	if staged.ambush_work.has("ranking"):
+	if staged.ambush_work.get("stale", false):
+		# The house changed under the chunks: begin again, the finish when it is kept already.
+		var order: Dictionary = staged.knowledge["order"]
+		staged.ambush_work = _orders.ambush_work(staged.ctx, order, staged.rooms)
+		if staged.ambush_work.is_empty():
+			staged.piece = SnapshotBuild.Piece.FINISH
+	elif staged.ambush_work.has("ranking"):
 		staged.ambush_work = {}
 		staged.piece = SnapshotBuild.Piece.FINISH
 
@@ -267,22 +276,30 @@ func _analysed_ahead(staged: SnapshotBuild) -> bool:
 
 ## Half of the full analysis of hostile `t` (a HOSTILE piece): its line of fire and fire positions
 ## (`parts["half"]` holds it), then the rest of its geometry, option groups and
-## sections, into `staged.parts`. Whether the hostile is done: the second half ends it.
+## sections, into `staged.parts`. Whether the hostile is done: the second half ends it. Both halves
+## read the hostile through one pinned copy (`_pinned`), so a hostile that ducks or is freed between
+## the two pieces is the hostile the first half saw.
 func _analyse_step(staged: SnapshotBuild, t: Dictionary) -> bool:
 	var ctx := staged.ctx
 	var parts := staged.parts
 	if parts["half"].is_empty():
+		var pinned := _pinned(t)
 		var front: float = ctx["fronts"][t["id"]]
 		parts["half"] = {
-			"front": front,
-			"own_side": _tactics.side_of(t["pos"], front, ctx["self_pos"]),
-			"line": _line(ctx, t),
-			"fire": _tactics.fire_positions(ctx, t),
+			"pin": pinned,
+			"a": {
+				"front": front,
+				"own_side": _tactics.side_of(t["pos"], front, ctx["self_pos"]),
+				"line": _line(ctx, pinned),
+				"fire": _tactics.fire_positions(ctx, pinned),
+			},
 		}
 		return false
-	var a: Dictionary = parts["half"]
-	a["flanks"] = _tactics.flank_sides(ctx, t, a["front"])
-	a["advance"] = _tactics.advance_positions(ctx, t)
+	var a: Dictionary = parts["half"]["a"]
+	var pin: Dictionary = parts["half"]["pin"]
+	pin["node"] = pin["node"] if is_instance_valid(pin["node"]) else null  # Freed since half one.
+	a["flanks"] = _tactics.flank_sides(ctx, pin, a["front"])
+	a["advance"] = _tactics.advance_positions(ctx, pin)
 	parts["half"] = {}
 	parts["analyses"][t["id"]] = a
 	parts["targets"][t["id"]] = { "t": t, "a": a }
@@ -294,6 +311,16 @@ func _analyse_step(staged: SnapshotBuild, t: Dictionary) -> bool:
 	}
 	parts["per_sections"][t["id"]] = _target_sections(ctx, t, a)
 	return true
+
+
+## A copy of contact `t` with its hostile read once: the eye its posture sets and the twin rid to
+## leave out of a ray, which the geometry of both halves of its analysis reads instead of the node.
+func _pinned(t: Dictionary) -> Dictionary:
+	var pin := t.duplicate()
+	pin["eye"] = AgentCover.eye_of(t.get("node"))
+	pin["rids"] = AgentCover.rids_of(t)
+	pin["node"] = pin["node"] if is_instance_valid(pin.get("node")) else null  # Freed since START.
+	return pin
 
 
 ## The FINISH piece: what the whole decision shares, the facts, the option groups, the demand that
@@ -526,7 +553,7 @@ func _option_groups(ctx: Dictionary, parts: Dictionary, knowledge: Dictionary) -
 ## clear shot passes over, "" when none).
 func _line(ctx: Dictionary, t: Dictionary) -> Dictionary:
 	var self_pos: Vector2 = ctx["self_pos"]
-	var ex: Array = ctx["exclude"] + _tactics.body_rid(t)
+	var ex: Array = ctx["exclude"] + AgentCover.rids_of(t)
 	var plan = _tactics.blocker(ctx["space"], self_pos, t["pos"], ex)
 	var node: Variant = t.get("node")
 	var target: Node2D = node if is_instance_valid(node) else null
@@ -547,7 +574,7 @@ func _line(ctx: Dictionary, t: Dictionary) -> Dictionary:
 		"in_range": self_pos.distance_to(t["pos"]) <= vocab.tuning.combat.shoot_range,
 		"cover": _tactics.object_label(
 			_tactics.vision.hiding_piece(
-				ctx["space"], self_pos, t["pos"], AgentCover.eye_of(node), ex
+				ctx["space"], self_pos, t["pos"], AgentCover.eye_of_contact(t), ex
 			)
 		),
 		"blocker": "" if shot.is_empty() else _tactics.object_label(stop),

@@ -29,16 +29,19 @@ class FakeOrders:
 		ended.append([id, why])
 
 
-## A snapshot being built: START, one HOSTILE piece per hostile, FINISH (the kinds of
-## `SnapshotBuild.Piece`: 0, 1, 2, then DONE = 3).
+## A snapshot being built: START, one HOSTILE piece per hostile, `ambush` AMBUSH pieces, FINISH (the
+## kinds of `SnapshotBuild.Piece`: 0, 1, 4, 2, then DONE = 3).
 class FakeBuild:
 	extends RefCounted
 	var perception: RefCounted
 	var number := 0
 	var hostiles := 0
+	## AMBUSH pieces between the hostiles and the finish.
+	var ambush := 0
 	var piece := 0
 	var steps := 0
 	var _taken := 0
+	var _chunks := 0
 	var _confinement: FakeConfinement
 	var _result := {}
 
@@ -53,10 +56,13 @@ class FakeBuild:
 		match piece:
 			0:
 				_confinement = perception.confinement.copy()
-				piece = 1 if hostiles > 0 else 2
+				piece = 1 if hostiles > 0 else _after_hostiles()
 			1:
 				_taken += 1
-				piece = 1 if _taken < hostiles else 2
+				piece = 1 if _taken < hostiles else _after_hostiles()
+			4:
+				_chunks += 1
+				piece = 4 if _chunks < ambush else 2
 			2:
 				_result = {
 					"facts": { "build": number },
@@ -70,6 +76,9 @@ class FakeBuild:
 
 	func result() -> Dictionary:
 		return _result
+
+	func _after_hostiles() -> int:
+		return 4 if ambush > 0 else 2
 
 	## The demand's throw search (this fake is its snapshot's demand): `perception.search` as the
 	## next throw search, once, or none.

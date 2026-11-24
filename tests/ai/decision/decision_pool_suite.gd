@@ -10,6 +10,7 @@ const Cadence := preload("res://scenes/ai/npc_cadence.gd")
 const Fakes := preload("res://tests/_ai/job_fakes.gd")
 const Builds := preload("res://tests/_ai/job_build_fakes.gd")
 const ThrowSpots := preload("res://scenes/ai/perception/throw_spots.gd")
+const EntryPosts := preload("res://scenes/ai/perception/entry/entry_posts.gd")
 
 ## The base of the frame the last test started on; each test starts on a frame of its own. An
 ## instance var, not a `static var`: one in a suite script crashes the 4.4.1 Windows engine at exit
@@ -67,6 +68,41 @@ func test_the_shipped_pool_never_lets_one_frame_run_a_whole_decision() -> void:
 	assert_bool(whole > _shipped["per_frame"]).is_true()
 	assert_bool(_shipped["cost_hostile"] <= 1 and _shipped["cost_ambush"] <= 1).is_true()
 	assert_bool(ThrowSpots.block_work <= 16).is_true()
+
+
+## The frames a decision's build takes to land at the shipped prices (the planner begins its walk),
+## counted from the frame it is claimed (frame 1): the cadence the docs' frame counts rest on
+## (`decision-prices.md`). A hostile is two pieces, an ambush's ranking `chunks` more.
+func _frames_to_land(hostile_pieces: int, chunks := 0) -> int:
+	Fakes.set_prices(_shipped)
+	_perception.hostiles = hostile_pieces
+	_perception.ambush = chunks
+	assert_bool(_job.request(false)).is_true()
+	var frames := 1
+	_job.advance()
+	while _planner.begun == 0 and frames < 100:
+		_frame += 1
+		frames += 1
+		_job.advance()
+	return frames
+
+
+func test_one_hostile_lands_its_build_in_two_frames() -> void:
+	assert_int(_frames_to_land(2)).is_equal(2)  # start, two halves | finish
+
+
+func test_two_hostiles_land_their_build_in_two_frames() -> void:
+	assert_int(_frames_to_land(4)).is_equal(2)  # start, two halves | two halves, finish
+
+
+func test_an_ambush_build_lands_in_the_frames_its_chunks_price() -> void:
+	var offsets: int = (
+		EntryPosts.AMBUSH_DEPTHS.size() * EntryPosts.AMBUSH_LATERALS.size() * 2
+	)
+	var chunks: int = int(offsets / float(EntryPosts.AMBUSH_CHUNK))
+	assert_int(chunks).is_equal(20)  # premise: 80 offsets, 4 a piece
+	# A start, a hostile's two halves, the 20 chunks and a finish: 24 units, three a frame.
+	assert_int(_frames_to_land(2, chunks)).is_equal(8)
 
 
 func test_at_most_one_decision_starts_in_a_frame_whatever_the_pool_holds() -> void:
