@@ -32,6 +32,13 @@ const SOLID := 1
 const LYING := 2
 ## The fields of `_key`.
 const KEY_SIZE := 11
+## A blocker that moved no more than this (px) from where the job snapshot it is where it was: the
+## move of its origin plus its extent's turn. Settling bodies creep 0.0005 to 0.003 px a frame for
+## dozens of frames, and each creep restarted the job (the third restart in a row a whole build,
+## 8 to 10 ms). The move is measured from the snapshot (`built`), not from the last frame, so
+## creeps add up and a held pose never lags the live one by more than this. The engine's own hit
+## noise is 0.02 px.
+const STILL_PX := 0.05
 
 ## Whether the cone must be rebuilt now: set by anything that signals a change, cleared by the
 ## rebuild.
@@ -163,7 +170,7 @@ func built(eye: Vector2, facing: Vector2, sight: Dictionary) -> void:
 		var entry: Array = _blockers[id]
 		var body: Node2D = entry[0]
 		var now := body.global_transform
-		var moved: bool = now != entry[1] or _layer_of(entry) != entry[2]
+		var moved: bool = not _stood(entry, now) or _layer_of(entry) != entry[2]
 		if moved and _moved_within_reach(entry, now):
 			_moved_then = true
 		entry[1] = now
@@ -332,9 +339,49 @@ func _blockers_moved() -> bool:
 		# The common frame, where nothing moved: no call but the body's own transform.
 		if now == then and (entry[4] == null or _layer_of(entry) == entry[2]):
 			continue
+		if _stood(entry, now) and _layer_of(entry) == entry[2]:
+			continue
 		if _moved_within_reach(entry, now):
 			return true
 	return false
+
+
+## Whether the blocker `entry` is, as `now`, where the job snapshot it (`STILL_PX`).
+func _stood(entry: Array, now: Transform2D) -> bool:
+	return _lag_of(entry, now) <= STILL_PX
+
+
+## How far (px) the blocker `entry` as `now` is from the snapshot: its origin's move and the move of
+## the farthest point of it by the turn of its axes; unbounded while its extent is.
+func _lag_of(entry: Array, now: Transform2D) -> float:
+	var then: Transform2D = entry[1]
+	if now == then:
+		return 0.0
+	var extent: float = entry[3]
+	if extent == INF:
+		return INF
+	var turn := maxf((now.x - then.x).length(), (now.y - then.y).length())
+	return (now.origin - then.origin).length() + extent * turn
+
+
+## The most any watched blocker, in reach or not, lags the snapshot (a test's read of the bound).
+func lag() -> float:
+	var worst := 0.0
+	for id in _blockers:
+		var entry: Array = _blockers[id]
+		worst = maxf(worst, _lag_of(entry, (entry[0] as Node2D).global_transform))
+	return worst
+
+
+## How many watched blockers are off the snapshot but within `STILL_PX` of it: the cone built from
+## the snapshot is the live world's only to that (a test's read).
+func creeping() -> int:
+	var count := 0
+	for id in _blockers:
+		var entry: Array = _blockers[id]
+		var now: Transform2D = (entry[0] as Node2D).global_transform
+		count += int(now != entry[1] and _stood(entry, now))
+	return count
 
 
 ## Whether the blocker `entry`, moved from the transform it has to `now`, was within reach before

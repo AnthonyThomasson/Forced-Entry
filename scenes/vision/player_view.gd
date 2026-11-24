@@ -133,6 +133,18 @@ func rebuild_causes() -> Dictionary:
 	return _pipeline.causes.duplicate()
 
 
+## How many blockers stand off the snapshot of the cone's job by under `ViewWatch.STILL_PX`, and the
+## most any is off it (px): what a cone built from the snapshot differs from the live world by
+## (a test's read).
+func creeping() -> int:
+	return _watch.creeping()
+
+
+## The most (px) any blocker stands off the snapshot of the cone's job.
+func creep_lag() -> float:
+	return _watch.lag()
+
+
 ## Whether a rebuild is in flight: the cone published is older than the world and the viewer.
 func building() -> bool:
 	return _pipeline.running()
