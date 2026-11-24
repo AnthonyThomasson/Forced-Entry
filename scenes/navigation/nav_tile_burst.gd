@@ -7,6 +7,10 @@ class_name NavTileBurst extends RefCounted
 ## the last was started (`NavTiles.land`). The walls the tiles are baked from are parsed once,
 ## with the first.
 
+## How many frames past its due one a burst waits for a free landing frame (`NavBake.landing_taken`)
+## before it lands whatever: bakes landing back to back cannot hold its tiles off forever.
+const MOST_SLIP := 3
+
 ## The tiles still to bake (`NavTiles.due_tiles`), in the order they are.
 var tiles: Array[Dictionary] = []
 ## The bakes made so far, held until the last is made.
@@ -47,8 +51,8 @@ func tiles_in_play() -> Array[NavigationRegion3D]:
 ## frame none was started on yet; the frame `NavBakeConfig.tile_frames` after the last one was
 ## started lands the burst, on a frame no bake landed on (`NavBake.landing_taken`: one landing a
 ## frame, the bake's first, as its signal runs before the updater's step; a burst that finds it
-## taken lands on the next frame). Nothing to land (every tile was up to date): the burst ends at
-## once.
+## taken lands on the next frame, up to `MOST_SLIP` frames, then whatever). Nothing to land (every
+## tile was up to date): the burst ends at once.
 func step(region: NavigationRegion3D, site: NavSite) -> void:
 	if GameClock.frame() == _frame:
 		return
@@ -63,17 +67,25 @@ func step(region: NavigationRegion3D, site: NavSite) -> void:
 			_land_at = _frame + NavBakeConfig.tile_frames
 	if tiles.is_empty() and _held.is_empty():
 		land()
-	elif tiles.is_empty() and _frame >= _land_at and not NavBake.landing_taken():
-		NavBake.take_landing()  # one landing a frame: a bake's due on this frame lands first
+	elif tiles.is_empty() and _held_may_land():
 		land()
 
 
-## Give the held tiles their polygons, all at once, and end the burst's parse.
+## Give the held tiles their polygons, all at once, and end the burst's parse. A landing takes its
+## `GameClock` frame (`NavBake.take_landing`), a forced one too: a bake due on it lands the next.
 func land() -> void:
+	if not _held.is_empty():
+		NavBake.take_landing()
 	NavTiles.land(_held)
 	_held.clear()
 	_walls = {}
 	_land_at = -1
+
+
+## Whether the held tiles' frame has come and no landing has taken it, or they have waited
+## `MOST_SLIP` frames for one.
+func _held_may_land() -> bool:
+	return _frame >= _land_at and (not NavBake.landing_taken() or _frame >= _land_at + MOST_SLIP)
 
 
 ## Drop everything: the match is gone.

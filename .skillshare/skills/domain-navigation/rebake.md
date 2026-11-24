@@ -16,16 +16,16 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
   the previous bake's. The last step `NavRebake.swap`s it in whole (the source is remembered, the planning and ring bakes go to a worker thread (`NavBake`), landing on their fixed frame, a
   `done` once both land: the baseline is set then), so the swap is the one moment a finished re-bake shows (the `remember` version counts
   them, the map iterations follow when the bakes land; route caches and the AI's lead-route memo key on those). `_baking` holds from the
-  tick to the landing: a move meanwhile waits for the next tick. A lone house's
+  tick's `_apply` (it starts the gather, if the footprints still move against the baseline as it stands: a bake that landed meanwhile carved them) to the landing: a move meanwhile waits for the next tick. A lone house's
   gather stays in its tick (`_rebake_planning`, walls shared with its steering bake). The fusing (`NavUnion`, on a worker) is nine tenths
   of the gather.
 - **A district's steering tiles start baking a frame each and land together** (`nav_updater.gd`, `nav_tile_burst.gd` (`NavTileBurst`), `NavTiles.due_tiles` /
   `parse_for` / `prepare` / `land` / `walking_at`; `navigation/tile_rebake_one_a_frame`, `district_steering_rebake_lands_in_its_tick`): a tick's due tiles are started baking a frame each, each on a worker thread (`NavTiles.threaded_total`), and **landed in one**
   (`steering-edge-connections.md`). Order: tiles holding a **moving walker** first (a living character moving at `REST_SPEED` or more),
   by squared distance from the nearest walker to the tile's rect (0 inside it), then the rest, ties and a still scene in the grid's order, fixed at the tick.
-  The tick starts the first (`prepare` gathers its source on the main thread), `_physics_process` one more a `GameClock` frame (none on a frame that started one), and the frame `NavBakeConfig.tile_frames` (3) after the last started `land`s them all (`NavTiles.late_total` counts a thread not done): k tiles land k-1+`tile_frames` frames after the tick; a walker sees a body that stopped up to that many frames later (accepted). A tile on its thread keeps its last mesh: no gap, still ready (`nav_ready_follows_the_tiles`). The walls are
+  The tick starts the first (`prepare` gathers its source on the main thread), `_physics_process` one more a `GameClock` frame (none on a frame that started one), and the frame `NavBakeConfig.tile_frames` (3) after the last started `land`s them all, on a frame no bake landed on, slipping up to `MOST_SLIP` (3) then whatever (`NavTiles.late_total` counts a thread not done): k tiles land k-1+`tile_frames` frames after the tick's own (`tick.md`); a walker sees a body that stopped up to that many frames later (accepted). A tile on its thread keeps its last mesh: no gap, still ready (`nav_ready_follows_the_tiles`). The walls are
   parsed once per burst. A lone house's region is baked whole in its tick, as are `rebake_steering` and `build`'s first.
-  `NavTiles.baked_total` counts tiles baked, not landed. `tile_due_order` pins the order; a tick lands an open burst before reading what is due.
+  `tile_due_order` pins the order; a tick lands an open burst before reading what is due.
 - **A bake lands on a fixed frame** (`nav_bake.gd`, `nav_bake_config.gd`; `navigation/rebake_lands_on_its_frame`, `avoid_map_lands_on_its_frame`,
   `rebake_waits_for_a_late_thread`, `landings_one_a_frame`, `perf/nav_rebake_lands_in_a_match`). One a frame: a bake due on a taken frame slips to the next, in start order (a planning bake's ring after it). `NavRebake._bake_async` and `NavBuilder._bake_avoid` start the bake on a
   `WorkerThreadPool` task (the server's sync bake) through `NavBake.start`, which takes its result in (assign to the
@@ -34,21 +34,19 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
   picks the count from `NavBakeConfig`, a district's planning bake `district_frames` 36 (a 120 to 140 ms thread; `perf/ambush_order_stress` sets 50: its frames are 3 ms), its avoid
   maps `avoid_frames` 22 (the AI waits on a chain), the planning ring `ring_frames` 7
   (a 14 ms thread, an `urgent` job: a high-priority task, never queued behind busy threads), a lone house's bakes `house_frames` 3.
-  Later than the 2D baker's (planning 14, avoid 12): open work.
   Remeasure when a bake or a frame changes. A region freed meanwhile is left
-  alone and `landed` still called; a game closing finishes every bake in flight (`NavBake._finish_all`).
+  alone and `landed` still called; a game closing finishes every bake in flight.
 - **A map syncs on the main thread** (`project.godot`, `navigation/world/map_use_async_iterations` off; `navigation/map_syncs_without_a_thread`): the server's
   async sync would show a landed bake on a frame that follows the machine's load, so a match was a different fight run to run whatever the landing frames.
-  It costs the main thread almost nothing: within 0.4 ms of the async average (`domain-testing`, its perf side files).
+  It costs the main thread within 0.4 ms of the async average.
 - The tick's own re-bakes take the footprints it just measured, so it measures furniture
   once and parses the walls once. The public `rebake`,
   `rebake_async`, `rebake_steering` are **test-facing seams** that measure their own footprints, like `NavUpdater.tiles_in_play`; tests only.
 - `rebake` re-bakes a region's polygon in place with holes re-measured at the furniture's **current** `global_transform`.
   `rebake_async` gathers the geometry on the main thread and assigns the polygon on the bake's fixed frame, then runs `done`; the
   landing holds the region by a `WeakRef` (a lambda capturing a node freed before it runs logs an engine error:
-  `tests/navigation/rebake_outlives_region_test.gd`). The sync `rebake` is for a test that needs the map now
-  (`perf/bake_and_path_stress` times it); no frame pays for a bake.
-- `furniture_holes` (`NavHoles.furniture`, one `NavPieces` tracker per house) keeps each piece's hull with what it was cut from (its twin
+  `tests/navigation/rebake_outlives_region_test.gd`).  The sync `rebake` is for a test that needs the map now.
+- `furniture_holes` (`NavHoles.furniture`, a tracker per house, a `Reader` per read) keeps each piece's hull with what it was cut from (its twin
   and the twin's pose, `NavTwins.stamp_of`), and cuts only a piece whose twin moved, turned or tipped, or that was twinned or added; a
   quiet tick reads one transform a piece and walks no tree. A footprint a script moves by hand reaches the twin up to
   `TwinSpace.PARK_SPREAD` frames later. The pieces are found again (`find_children`) only after one

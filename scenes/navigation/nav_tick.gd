@@ -10,14 +10,14 @@ enum Phase {
 
 ## Navigation domain: one interval tick of a district's updater (`nav_updater.gd`) made in steps, a
 ## physics frame each, so no frame pays for the whole of it: the footprints of the furniture read a
-## few pieces at a time (`NavPieces.step_holes`: a scan and a cut count per frame, so the cold first
-## tick, where every piece is cut, spreads too), then the characters' and the movement checks, then
-## the due tiles (`NavDue`: the outlines binned by chunks, the tiles checked a few at a time). The
-## work is the same as a tick made at once; only WHEN it is read moves: a later slice reads its
+## few pieces at a time (`NavPieces.Reader.step`: a scan and a cut count per frame, so the cold
+## first tick, where every piece is cut, spreads too), then the characters' and the movement checks,
+## then the due tiles (`NavDue`: the outlines binned by chunks, the tiles checked a few at a time).
+## The work is the same as a tick made at once; only WHEN it is read moves: a later slice reads its
 ## pieces a frame later than the first, and the tick's answer (the baselines, the tiles due, the
-## planning gather) is the updater's some frames after the timer fired (five for the steady tick of
-## a district, more when many pieces are cut). A tick found still running when the timer fires again
-## is skipped.
+## planning gather) is the updater's some frames after the timer fired (about nine for a steady
+## tick of a district, 27 or more when every piece is cut: `tick.md`). A tick found still running
+## when the timer fires again is skipped.
 
 ## Pieces scanned and cut a frame, outlines binned and tiles checked a frame (work counts, not
 ## times: the steps are the same on any machine).
@@ -40,7 +40,7 @@ var _site: NavSite
 var _threshold := 0.0
 var _baseline: Array
 var _character_baseline: Array
-var _pieces: NavPieces
+var _pieces: NavPieces.Reader
 var _scan: NavDue
 var _phase := Phase.FURNITURE
 
@@ -61,15 +61,14 @@ func _init(
 	_baseline = baselines[0]
 	_character_baseline = baselines[1]
 	_threshold = threshold
-	_pieces = NavPieces.of(house)
-	_pieces.begin_holes()
+	_pieces = NavPieces.of(house).reader()
 
 
 ## Do this frame's step; true once the tick is made.
 func step() -> bool:
 	match _phase:
 		Phase.FURNITURE:
-			if _pieces.step_holes(SCAN, CUTS):
+			if _pieces.step(SCAN, CUTS):
 				furniture = _pieces.walked()
 				_phase = Phase.CHARACTERS
 		Phase.CHARACTERS:

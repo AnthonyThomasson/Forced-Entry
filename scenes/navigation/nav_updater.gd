@@ -163,8 +163,7 @@ func start() -> void:
 ## burst's frames later (`navigation/tile_rebake_one_a_frame`), and the planning gather
 ## (`NavGather`) is a job of a few physics frames too, swapped in whole and baked on the worker
 ## thread. A tick still running when the timer fires, and a furniture move while the gather runs,
-## wait for the
-## next tick.
+## wait for the next tick.
 func _on_tick() -> void:
 	if not enabled or _region == null or not is_instance_valid(_house):
 		return
@@ -194,13 +193,15 @@ func _on_tick() -> void:
 ## tiles start their burst (the first tile is started by the next physics frame) and a furniture
 ## move starts the planning gather, from the baseline as it stands.
 func _apply(made: NavTick) -> void:
-	if not made.moved or not is_instance_valid(_house):
-		return
+	if not enabled or not made.moved or not is_instance_valid(_house):
+		return  # disabled meanwhile: a tick made after it starts nothing
 	var site := NavBuilder.site_of(_region, _house, _rooms, _agent_radius)
 	_burst.begin(made.due)
 	_character_baseline = made.characters
 	_refresh_overlay()
-	if made.furniture_moved and not _baking:
+	# Against the baseline as it stands: a bake that landed during the tick's frames carved these
+	# very holes, and a gather of them again would be a bake of nothing new.
+	if not _baking and NavTick.moves(_baseline, made.furniture, move_threshold):
 		_baking = true
 		_gather = NavGather.new(_region, site, _baseline, made.furniture)
 

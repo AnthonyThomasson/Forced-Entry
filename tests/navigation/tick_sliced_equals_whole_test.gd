@@ -64,13 +64,12 @@ func run(t: TestContext) -> void:
 
 ## No step cuts more footprints than `CUTS`, however many pieces are dirty.
 func _cut_bound(t: TestContext, district: Node2D) -> void:
-	var pieces := NavPieces.of(district)
-	pieces.begin_holes()
+	var pieces := NavPieces.of(district).reader()
 	var worst := 0
 	var done := false
 	while not done:
 		var before := NavHoles.cuts
-		done = pieces.step_holes(NavTick.SCAN, NavTick.CUTS)
+		done = pieces.step(NavTick.SCAN, NavTick.CUTS)
 		worst = maxi(worst, NavHoles.cuts - before)
 	t.check(worst <= NavTick.CUTS, "a step cuts at most CUTS footprints (%d)" % worst)
 

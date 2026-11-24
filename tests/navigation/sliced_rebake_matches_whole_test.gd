@@ -11,10 +11,10 @@ extends GameTest
 
 const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const SEED := 7
-## The most physics frames the gather may take, from the timer to the swap: the district's tick (the
-## footprints read, the characters', the outlines binned, the tiles checked: nine of this district's
-## 857 pieces) and the gather's own seven.
-const MOST_FRAMES := 34
+## The most physics frames the gather may take, from the timer to the swap: the district's steady
+## tick (the footprints read, the characters', the outlines binned, the tiles checked: ten of this
+## district's 857 pieces, measured) and the gather's own seven, with a few to spare.
+const MOST_FRAMES := 20
 ## How long (sim s) a bake may take to land: it runs on the server's worker thread in real time.
 const WAIT := 12.0
 
@@ -26,7 +26,7 @@ var _timer: Timer
 func describe() -> Dictionary:
 	return {
 		"name": "A district's sliced planning re-bake equals a whole one",
-		"description": "A piece is shoved; the planning gather takes two to 34 frames with "
+		"description": "A piece is shoved; the planning gather takes two to 20 frames with "
 			+ "the previous map answering throughout, then the map equals a whole re-bake.",
 		"tags": ["navigation", "district", "rebake", "perf"],
 		"timeout": 60.0,
@@ -58,6 +58,12 @@ func run(t: TestContext) -> void:
 		8.0,
 	)  # a cold tick and its bake end first
 	await t.seconds(1.0)  # whatever the first ticks started lands
+	# The first tick after the twins were frozen cuts every piece afresh (they settled meanwhile):
+	# made here, so the tick the shove sets off is a steady one (nine or ten frames).
+	_timer.timeout.emit()
+	await t.frames(1)
+	await t.until(func() -> bool: return not updater.busy(), 8.0)
+	await t.seconds(1.0)
 	await _check_sliced(t, pieces)
 	await _check_next_tick(t)
 	_check_equals_whole(t)

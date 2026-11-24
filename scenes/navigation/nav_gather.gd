@@ -75,7 +75,8 @@ func step() -> bool:
 		if not job.is_empty():
 			NavSource.add_prepared(job["source"], _fuse.prepared)
 	else:
-		_join(_ring_fuse)
+		if not _ring_reach.is_empty():
+			_join(_ring_fuse)  # none was started with no ring
 		ring = NavRing.finish(_ring_reach, _ring_fuse.prepared)
 		return true
 	_step += 1
