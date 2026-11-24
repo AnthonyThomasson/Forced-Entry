@@ -313,7 +313,7 @@ a route that passes no known hostile (agent_tactics.gd `throw_spot`), never insi
 shots came from). It is chosen as the fire spots are, and so that its walk needs no detour: one whose walk (measured as it would be walked, round the doorway
 views when it would take that, `docs/tactical-entry.md` E18) crosses no doorway into a room not cleared and comes into no doorway view it cannot go
 round first, then out of the line from the spot (low furniture between), then with cover close by against it (a doorway's jamb, a piece of
-furniture), then the shortest walk (the "out of the line" and "cover close by" ranks of a throw spot still read the 2D plan line, not the 3D one of `docs/cover-and-stance.md` A4; the safety judgements, the zone and `no_safe_spot`, read the burst's real 3D line); candidates are rings round the NPC (48 to 240 px) and round the spot (0.95 and 0.8 of the
+furniture), then the shortest walk (both ranks read the twin space: "out of the line" is a 3D ray at a walker's ankle height from the burst spot to the throw spot, stopped by any wall, door, piece, vehicle or character (`AgentTactics.blocked`), so low furniture hides it; "cover close by" is the 3D lines of a ducked body at the spot or a step from it (`AgentVision.hiding_piece`: head, chest and hips from the burst's standing eye height, `docs/cover-and-stance.md` A4); the safety judgements, the zone and `no_safe_spot`, read the burst's real 3D line of G7); candidates are rings round the NPC (48 to 240 px) and round the spot (0.95 and 0.8 of the
 reach). The option's `params.from` is the throw spot (where it stands, for a throw in place) and `params.walk` says it walks there; the ally-in-blast and
 self-safety tags are judged from there (an NPC that stands outside the zone but would throw from inside it with no way out is `no_safe_spot`). Its desc adds
 " — from the hallway to the east, short route", and the group's summary says "within throwing range from a spot nearby" when every option needs the
@@ -603,7 +603,7 @@ is made at a match's spawns; later inventories cost about 0.05 ms. It moves 0.3-
 - **The tests reach all of it duck-typed** (`has_method`, `call`, groups, topics, node ids), because most of it did not exist when they
   were written.
 - **Cover** is the real 3D line from the burst to each point of the body at its posture's heights, stopped by the twin geometry (`Explosion.shields`, `Explosion.first_stop`);
-  the tests read it with `GrenadeAi.shielded` (a line of its own from the burst, in the twin space).
+  the tests read it with `GrenadeAi.shielded` (`tests/_ai/grenade_ai_probe.gd`: a line of its own from the burst, in the twin space).
 - **Scenario tests** run the whole pipeline with recorded Von answers (replayed, `--record-von` refreshes them), the rest of the AI on and nothing scripted. Their premises are the
   puppet thrower in the evade scenarios (an invader puppet that cannot be killed, armed with one grenade the way the match builder arms a spawn), the
   hostile puppet that cannot be killed and never shoots in the combat scenarios, the one shot of gunfire heard in the stun entry, and the
@@ -620,7 +620,7 @@ is made at a match's spawns; later inventories cost about 0.05 ms. It moves 0.3-
 | Throw | wind-up 0.3 s, `max_range` 550 px, `restitution` 0.35 | same |
 | Throw spot (AI) | at most 250 px of walking (`throw_spot_walk`), within 535 px of the spot | same |
 | Flash / blast radius | `flash_radius` 400 px (full inside 100) | `blast_radius` 250 px (full inside `kill_radius` 120) |
-| Effect | blind up to 5 s; deaf up to 6 s within 350 px (x0.4 through a wall); 5 damage within 30 px | 60 damage; 40 fragments of 7.5 damage over the upper hemisphere, penetration 0.4, 500 px reach |
+| Effect | blind up to 5 s; deaf up to 6 s within 350 px (x0.4 through a wall); 5 damage within 30 px | 60 damage; 40 fragments of 12 damage (a share of it after the hit zone) over the upper hemisphere, penetration 0.4, 500 px reach |
 | Danger zone (AI) | line of sight within 400 px; furniture shields only within 30 px of the body (`flash_cover_reach`) | line of sight within 370 px (250 + 120 margin); a body whose every point the real 3D line from the burst cannot reach (G7) is shielded: a ducked one behind cover taller than its head, a standing one in a low piece's shadow |
 | Heard landing (AI) | 300 px | 300 px |
 
@@ -669,4 +669,4 @@ Cooking a grenade, picking one up, throwing it back or kicking it away; grenades
 doors (issue #21); smoke and gas grenades; a frag at entry that a stack chooses on its own (only a leader's order throws one, G18);
 defenders reacting to a stack at their door beyond G16 and an ordered ambush (`docs/leadership.md` LD15); grenades setting
 anything on fire; structural damage to walls beyond the usual deformation; the patent's multi-charge device; hearing damage and permanent
-injury; a grenade rolled along the floor; any use of stairs or heights.
+injury; a grenade rolled along the floor; any use of stairs or an upper floor (a grenade flies at its real height, G3, but the world has one storey).
