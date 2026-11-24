@@ -75,8 +75,8 @@ func run(t: TestContext) -> void:
 ## The district map's iteration id and its ring map's.
 func _iterations(map: RID) -> Array:
 	return [
-		NavigationServer2D.map_get_iteration_id(map),
-		NavigationServer2D.map_get_iteration_id(NavRing.map_of(map)),
+		NavPlan.iteration(map),
+		NavPlan.iteration(NavRing.map_of(map)),
 	]
 
 
@@ -93,7 +93,7 @@ func _check_snaps(t: TestContext, map: RID, old_spot: Vector2, new_spot: Vector2
 			NavBuilder.snap(
 				map,
 				spot,
-			).distance_to(NavigationServer2D.map_get_closest_point(map, spot))
+			).distance_to(NavPlan.closest(map, spot))
 				<= SAME,
 			"%s: the ring snaps it as the district map does" % str(spot.round()),
 		)

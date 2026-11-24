@@ -49,7 +49,7 @@ func _check_first_frame(t: TestContext) -> void:
 	var first := PlanProbe.first(t.world, Vector2(200, 60), Vector2(400, 60))
 	t.check(not first.is_empty(), "the shared wall is solid on the test's first frame")
 	t.check(
-		NavigationServer2D.map_get_iteration_id(t.world.get_world_2d().navigation_map) > 0,
+		NavPlan.iteration(t.world.get_world_2d().navigation_map) > 0,
 		"and the navmesh is live",
 	)
 
@@ -67,7 +67,7 @@ func _check_door_path(t: TestContext) -> void:
 	var map := t.world.get_world_2d().navigation_map
 	var from := Vector2(100, 60)
 	var to := Vector2(500, 60)
-	var path := NavigationServer2D.map_get_path(map, from, to, true)
+	var path := NavPlan.path(map, from, to)
 	t.check(path.size() >= 3, "a path between the rooms exists (%d points)" % path.size())
 	var passes_door := false
 	for i in range(1, path.size()):
@@ -80,7 +80,7 @@ func _check_door_path(t: TestContext) -> void:
 ## The table is a hole in the navmesh: the path round it is longer than the straight line.
 func _check_table_hole(t: TestContext) -> void:
 	var map := t.world.get_world_2d().navigation_map
-	var around := NavigationServer2D.map_get_path(map, Vector2(60, 150), Vector2(240, 150), true)
+	var around := NavPlan.path(map, Vector2(60, 150), Vector2(240, 150))
 	var length := 0.0
 	for i in range(1, around.size()):
 		length += around[i - 1].distance_to(around[i])

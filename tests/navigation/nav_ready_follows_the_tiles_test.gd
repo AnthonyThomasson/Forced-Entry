@@ -80,7 +80,7 @@ func _ready_means_tiles_in(
 ## The tiles of `tiles` with a mesh whose probe the map does not answer from them.
 func _missing(steering: RID, tiles: Array[NavigationRegion2D]) -> Array[String]:
 	var out: Array[String] = []
-	if NavigationServer2D.map_get_iteration_id(steering) == 0:
+	if NavPlan.iteration(steering) == 0:
 		for tile in tiles:
 			out.append(String(tile.name))
 		return out
@@ -88,7 +88,7 @@ func _missing(steering: RID, tiles: Array[NavigationRegion2D]) -> Array[String]:
 		var at := NavTiles.probe_of(tile, Vector2.INF)
 		if at == Vector2.INF:
 			continue
-		if NavigationServer2D.map_get_closest_point_owner(steering, at) != tile.get_rid():
+		if NavPlan.owner_at(steering, at) != tile.get_rid():
 			out.append(String(tile.name))
 	return out
 
@@ -174,7 +174,7 @@ func _in_flight(
 
 ## Whether the steering map answers a path from `route`'s `from` to its `to`.
 func _found(route: Dictionary) -> bool:
-	var path := NavigationServer2D.map_get_path(route["map"], route["from"], route["to"], true)
+	var path := NavPlan.path(route["map"], route["from"], route["to"])
 	return not path.is_empty() and path[path.size() - 1].distance_to(route["to"]) <= REACH
 
 

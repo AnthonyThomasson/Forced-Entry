@@ -102,7 +102,7 @@ func _queries(t: TestContext, rooms: Array) -> void:
 		for i in QUERIES:
 			var a: Rect2 = rooms[i % rooms.size()]["rect"]
 			var b: Rect2 = rooms[(i * 7 + 3) % rooms.size()]["rect"]
-			var path := NavigationServer2D.map_get_path(map, a.get_center(), b.get_center(), true)
+			var path := NavPlan.path(map, a.get_center(), b.get_center())
 			if not path.is_empty():
 				found[0] += 1)
 	Perf.within(t, "nav %d path queries total ms" % QUERIES, query_ms, QUERY_BUDGET_MS)

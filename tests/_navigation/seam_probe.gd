@@ -160,7 +160,7 @@ static func all_pairs(map: RID, spots: Array[Vector2]) -> Array[PackedVector2Arr
 	var out: Array[PackedVector2Array] = []
 	for a in spots:
 		for b in spots:
-			out.append(NavigationServer2D.map_get_path(map, a, b, true))
+			out.append(NavPlan.path(map, a, b))
 	return out
 
 
@@ -168,8 +168,8 @@ static func all_pairs(map: RID, spots: Array[Vector2]) -> Array[PackedVector2Arr
 static func both_ways(map: RID, ends: Array[PackedVector2Array]) -> Array[PackedVector2Array]:
 	var out: Array[PackedVector2Array] = []
 	for pair in ends:
-		out.append(NavigationServer2D.map_get_path(map, pair[0], pair[1], true))
-		out.append(NavigationServer2D.map_get_path(map, pair[1], pair[0], true))
+		out.append(NavPlan.path(map, pair[0], pair[1]))
+		out.append(NavPlan.path(map, pair[1], pair[0]))
 	return out
 
 

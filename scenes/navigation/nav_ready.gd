@@ -15,12 +15,12 @@ static var _awaiting: Dictionary = {}
 ## Whether `map` alone is baked: valid, synchronized at least once, and has taken in every region
 ## noted for it.
 static func taken_in(map: RID) -> bool:
-	if not map.is_valid() or NavigationServer2D.map_get_iteration_id(map) == 0:
+	if not map.is_valid() or NavPlan.iteration(map) == 0:
 		return false
 	var waiting: Array = _awaiting.get(map, [])
 	for entry in waiting.duplicate():
 		# Asked only after the map's first sync: before it the query is an engine error.
-		if NavigationServer2D.map_get_closest_point_owner(map, entry["probe"]) == entry["region"]:
+		if NavPlan.owner_at(map, entry["probe"]) == entry["region"]:
 			waiting.erase(entry)
 	if waiting.is_empty():
 		_awaiting.erase(map)

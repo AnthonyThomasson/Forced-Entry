@@ -76,7 +76,7 @@ func _ring_fallback(t: TestContext, routes: GDScript) -> void:
 	var from := Vector2(400, 300)
 	var to := Vector2(400, 500)
 	if not t.require(
-		not NavRing.keeps(ring, NavigationServer2D.map_get_path(ring, from, to, true), to),
+		not NavRing.keeps(ring, NavPlan.path(ring, from, to), to),
 		"premise: the divider makes the local route fall back to the district",
 	):
 		return
@@ -127,8 +127,8 @@ func _put_back_each(
 func _iterations(map: RID) -> Array:
 	var ring := NavRing.map_of(map)
 	return [
-		NavigationServer2D.map_get_iteration_id(map),
-		NavigationServer2D.map_get_iteration_id(ring) if ring.is_valid() else -1,
+		NavPlan.iteration(map),
+		NavPlan.iteration(ring) if ring.is_valid() else -1,
 	]
 
 
@@ -207,9 +207,9 @@ func _fixture(
 ## The route algorithm before exact memoization: ring first, district when the ring cannot keep it.
 func _plain_route(map: RID, from: Vector2, to: Vector2) -> PackedVector2Array:
 	var asked := NavRing.map_for(map, [from, to])
-	var path := NavigationServer2D.map_get_path(asked, from, to, true)
+	var path := NavPlan.path(asked, from, to)
 	if asked != map and not NavRing.keeps(asked, path, to):
-		path = NavigationServer2D.map_get_path(map, from, to, true)
+		path = NavPlan.path(map, from, to)
 	return path if path.size() >= 2 else PackedVector2Array([from, to])
 
 

@@ -60,7 +60,7 @@ func run(t: TestContext) -> void:
 			"a room's centre %s is weighed on the ring map" % str(p.round()),
 		)
 		t.check(
-			NavBuilder.snap(map, p).distance_to(NavigationServer2D.map_get_closest_point(map, p))
+			NavBuilder.snap(map, p).distance_to(NavPlan.closest(map, p))
 				<= REACHED,
 			"%s snaps where the district map snaps it" % str(p.round()),
 		)
@@ -91,14 +91,14 @@ func _centres(t: TestContext, map: RID) -> Array[Vector2]:
 	var out: Array[Vector2] = []
 	for room: Dictionary in WorldGen.get_rooms(t.world.house):
 		var centre := (room["rect"] as Rect2).get_center()
-		out.append(NavigationServer2D.map_get_closest_point(map, centre))
+		out.append(NavPlan.closest(map, centre))
 	return out
 
 
 ## `NavBuilder.route` between two points of the ring ends where the district map's path does and
 ## is as long as it, to a few px.
 func _check_route(t: TestContext, map: RID, from: Vector2, to: Vector2) -> void:
-	var expected := NavigationServer2D.map_get_path(map, from, to, true)
+	var expected := NavPlan.path(map, from, to)
 	var got := NavBuilder.route(map, from, to)
 	var label := "%s -> %s" % [str(from.round()), str(to.round())]
 	t.check(
@@ -116,7 +116,7 @@ func _check_route(t: TestContext, map: RID, from: Vector2, to: Vector2) -> void:
 ## answered as before.
 func _check_outside(t: TestContext, map: RID, ring: RID, inside: Vector2) -> void:
 	var far := inside + Vector2(OUTSIDE * 2.0, 0.0)
-	var street := NavigationServer2D.map_get_closest_point(map, far)
+	var street := NavPlan.closest(map, far)
 	t.check(
 		NavRing.map_for(map, [street]) == map,
 		"a point out in the street %s is weighed on the district map" % str(street.round()),
@@ -133,7 +133,7 @@ func _check_outside(t: TestContext, map: RID, ring: RID, inside: Vector2) -> voi
 		NavBuilder.snap(map, street).distance_to(street) <= REACHED,
 		"the street point snaps to itself (%s)" % str(street.round()),
 	)
-	var expected := NavigationServer2D.map_get_path(map, inside, street, true)
+	var expected := NavPlan.path(map, inside, street)
 	var got := NavBuilder.route(map, inside, street)
 	var slack := absf(NavBuilder.path_length(got) - NavBuilder.path_length(expected))
 	t.check(
@@ -156,9 +156,8 @@ func _check_keeps(t: TestContext, ring: RID, centres: Array[Vector2]) -> void:
 	)
 	var wall := WorldGen.get_rooms(t.world.house)[0]["rect"].position as Vector2
 	var inside_wall := wall + Vector2(1, 1)
-	if NavigationServer2D.map_get_closest_point(
+	if NavPlan.closest(
 		ring,
-		inside_wall,
-	).distance_to(inside_wall) > REACHED:
+		inside_wall).distance_to(inside_wall) > REACHED:
 		t.check(NavRing.keeps(ring, short, inside_wall), "a path to a goal off the floor is kept")
 	t.check(not NavRing.keeps(ring, PackedVector2Array(), floor_point), "no path is not kept")

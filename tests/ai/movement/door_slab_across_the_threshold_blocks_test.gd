@@ -85,7 +85,7 @@ func _nav_agrees(t: TestContext) -> void:
 	)[0]
 	var map := region.get_navigation_map()
 	var through := func() -> bool:
-		var path := NavigationServer2D.map_get_path(map, WEST, GUNFIRE, true)
+		var path := NavPlan.path(map, WEST, GUNFIRE)
 		return path.is_empty() or path[path.size() - 1].distance_to(GUNFIRE) > 20.0
 	t.check(await t.until(through, WAIT), "the nav map has no way through the doorway")
 

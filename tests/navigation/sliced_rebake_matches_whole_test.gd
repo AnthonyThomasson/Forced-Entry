@@ -62,7 +62,7 @@ func _check_sliced(t: TestContext, pieces: Array[Node2D]) -> void:
 	var map := _region.get_navigation_map()
 	var held := _region.navigation_polygon
 	var version := _version()
-	var iteration := NavigationServer2D.map_get_iteration_id(map)
+	var iteration := NavPlan.iteration(map)
 	var rooms := WorldGen.district_rooms(_district)
 	var from: Vector2 = rooms[0]["rect"].get_center()
 	var to: Vector2 = rooms[3]["rect"].get_center()
@@ -83,7 +83,7 @@ func _check_sliced(t: TestContext, pieces: Array[Node2D]) -> void:
 			seen_previous = (
 				seen_previous
 				and _region.navigation_polygon == held
-				and NavigationServer2D.map_get_iteration_id(map) == iteration
+				and NavPlan.iteration(map) == iteration
 				and NavBuilder.route(map, from, to) == route_before
 			)
 	t.check(

@@ -516,10 +516,7 @@ static func snap_within(map: RID, p: Vector2, rect: Rect2, from: Vector2) -> Vec
 	for toward in [rect.get_center(), from]:
 		var steps := maxi(1, ceili(p.distance_to(toward) / SNAP_WITHIN_STEP))
 		for i in steps + 1:
-			var q := NavigationServer2D.map_get_closest_point(
-				asked,
-				p.lerp(toward, float(i) / steps),
-			)
+			var q := NavPlan.closest(asked, p.lerp(toward, float(i) / steps))
 			if rect.has_point(q) and route(map, from, q)[-1].distance_to(q) <= SNAP_REACHED:
 				return q
 	return snap(map, from)

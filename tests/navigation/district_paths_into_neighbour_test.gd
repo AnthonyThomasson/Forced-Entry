@@ -78,10 +78,10 @@ func _check_reaches(t: TestContext, map: RID, start: Vector2, tower: Dictionary)
 	var target: Vector2 = (frame["pos"] as Vector2) - (frame["out"] as Vector2) * INTO_ROOM
 	var label := "tower %d" % tower["block"]
 	t.check(
-		NavigationServer2D.map_get_closest_point(map, target).distance_to(target) <= REACHED,
+		NavPlan.closest(map, target).distance_to(target) <= REACHED,
 		"%s: the room just inside its front door %s is on the map" % [label, str(target.round())],
 	)
-	var path := NavigationServer2D.map_get_path(map, start, target, true)
+	var path := NavPlan.path(map, start, target)
 	if not t.check(not path.is_empty(), "%s: a path leads there from the house's front" % label):
 		return
 	var end := path[path.size() - 1]
@@ -102,7 +102,7 @@ func _check_outer_street(t: TestContext, map: RID, district: Node2D) -> void:
 		Vector2(streets.position.x + CORNER_IN, streets.end.y - CORNER_IN),
 	]:
 		t.check(
-			NavigationServer2D.map_get_closest_point(map, corner).distance_to(corner) <= ON_MAP,
+			NavPlan.closest(map, corner).distance_to(corner) <= ON_MAP,
 			"the outer street at %s is on the map" % str(corner.round()),
 		)
 
@@ -121,7 +121,7 @@ func _check_edges(t: TestContext, map: RID, district: Node2D) -> void:
 			Vector2(bounds.end.x - EDGE_IN, down),
 		]:
 			t.check(
-				NavigationServer2D.map_get_closest_point(map, edge).distance_to(edge) <= ON_MAP,
+				NavPlan.closest(map, edge).distance_to(edge) <= ON_MAP,
 				"just inside the district's edge at %s is on the map" % str(edge.round()),
 			)
 
@@ -134,6 +134,6 @@ func _check_shells(t: TestContext, map: RID, district: Node2D) -> void:
 	for shell: Dictionary in shells:
 		var centre: Vector2 = (shell["rect"] as Rect2).get_center()
 		t.check(
-			NavigationServer2D.map_get_closest_point(map, centre).distance_to(centre) >= SHELL_FAR,
+			NavPlan.closest(map, centre).distance_to(centre) >= SHELL_FAR,
 			"the shell at %s is off the map" % str(centre.round()),
 		)

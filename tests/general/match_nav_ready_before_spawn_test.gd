@@ -136,8 +136,8 @@ func _note_target(watch: Dictionary, npc: Node, agent: NavigationAgent2D) -> voi
 	var map := agent.get_navigation_map()
 	# A map that never synchronized shows no navmesh (and asking it is an engine error).
 	var off := INF
-	if NavigationServer2D.map_get_iteration_id(map) != 0:
-		off = NavigationServer2D.map_get_closest_point(map, point).distance_to(point)
+	if NavPlan.iteration(map) != 0:
+		off = NavPlan.closest(map, point).distance_to(point)
 	watch["targets"][npc.name] = { "point": point, "off": off }
 
 
@@ -174,9 +174,9 @@ func _maps_now(viewport: SubViewport, npc: Node) -> Dictionary:
 func _answers_with(map: RID, regions: Array, centre: Vector2) -> bool:
 	if centre == Vector2.INF or not map.is_valid():
 		return false
-	if NavigationServer2D.map_get_iteration_id(map) == 0:
+	if NavPlan.iteration(map) == 0:
 		return false  # asking a map that never synchronized is an engine error
-	var owner := NavigationServer2D.map_get_closest_point_owner(map, centre)
+	var owner := NavPlan.owner_at(map, centre)
 	return regions.any(
 		func(r: NavigationRegion2D) -> bool: return r != null and r.get_rid() == owner,
 	)

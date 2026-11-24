@@ -63,7 +63,7 @@ func run(t: TestContext) -> void:
 ## The navigated length of a path straight across the arena.
 func _path_length(t: TestContext) -> float:
 	var map := t.world.get_world_2d().navigation_map
-	var path := NavigationServer2D.map_get_path(map, Vector2(60, 150), Vector2(540, 150), false)
+	var path := NavPlan.path(map, Vector2(60, 150), Vector2(540, 150), false)
 	var length := 0.0
 	for i in range(1, path.size()):
 		length += path[i - 1].distance_to(path[i])

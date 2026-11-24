@@ -119,12 +119,12 @@ func _probe(t: TestContext, root: Node2D, site: NavSite, holes: Array, label: St
 func _through(map: RID, wall: Node2D, gap: Dictionary, walls: Array, frame: Vector2) -> String:
 	var across := _across(wall, gap)
 	var middle := _middle(wall, gap)
-	var from := NavigationServer2D.map_get_closest_point(map, middle - across * PROBE)
-	var to := NavigationServer2D.map_get_closest_point(map, middle + across * PROBE)
+	var from := NavPlan.closest(map, middle - across * PROBE)
+	var to := NavPlan.closest(map, middle + across * PROBE)
 	if from.distance_to(middle - across * PROBE) > 8.0 \
 			or to.distance_to(middle + across * PROBE) > 8.0:
 		return UNSEEN
-	return _problem(NavigationServer2D.map_get_path(map, from, to, true), middle, walls, frame)
+	return _problem(NavPlan.path(map, from, to), middle, walls, frame)
 
 
 ## What is wrong with the route `path` through `middle`, "" for nothing: `walls` are the outlines

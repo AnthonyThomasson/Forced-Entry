@@ -33,6 +33,6 @@ func run(t: TestContext) -> void:
 	t.check(NavRing.map_for(map, [a, b]) == map, "a query is weighed on the world map")
 	t.expect_eq(
 		NavBuilder.route(map, a, b),
-		NavigationServer2D.map_get_path(map, a, b, true),
+		NavPlan.path(map, a, b),
 		"a route is the world map's",
 	)

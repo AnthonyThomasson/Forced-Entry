@@ -335,7 +335,7 @@ func _check_doorways(t: TestContext, root: Node2D, map: RID) -> void:
 				continue
 			doorways += 1
 			var at := _doorway_middle(wall, gap)
-			var held := NavigationServer2D.map_get_closest_point(map, at)
+			var held := NavPlan.closest(map, at)
 			if held.distance_to(at) > DOORWAY_REACH:
 				shut.append("%s at %s" % [wall.name, at])
 	t.require(doorways > 0, "premise: the world has doorways (%d)" % doorways)
@@ -530,9 +530,9 @@ func _check_route_clearance(
 ) -> void:
 	var least := INF
 	for route: Array in routes:
-		var from := NavigationServer2D.map_get_closest_point(map, Vector2(route[0], route[1]))
-		var to := NavigationServer2D.map_get_closest_point(map, Vector2(route[2], route[3]))
-		var path := NavigationServer2D.map_get_path(map, from, to, true)
+		var from := NavPlan.closest(map, Vector2(route[0], route[1]))
+		var to := NavPlan.closest(map, Vector2(route[2], route[3]))
+		var path := NavPlan.path(map, from, to)
 		least = minf(least, Clearance.least_off_walls(path, walls, frame))
 	t.check(
 		least >= ROUTE_CLEARANCE,
@@ -559,9 +559,9 @@ func _map_of(poly: NavigationPolygon, origin: Vector2) -> RID:
 
 ## The length of the path from `from` to `to` on `map` (the ends moved onto it), 0 for none.
 func _length(map: RID, from: Vector2, to: Vector2) -> float:
-	var start := NavigationServer2D.map_get_closest_point(map, from)
-	var end := NavigationServer2D.map_get_closest_point(map, to)
-	var path := NavigationServer2D.map_get_path(map, start, end, true)
+	var start := NavPlan.closest(map, from)
+	var end := NavPlan.closest(map, to)
+	var path := NavPlan.path(map, start, end)
 	var length := 0.0
 	for i in range(1, path.size()):
 		length += path[i - 1].distance_to(path[i])

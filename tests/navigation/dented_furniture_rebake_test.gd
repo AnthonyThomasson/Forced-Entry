@@ -29,5 +29,5 @@ func run(t: TestContext) -> void:
 	shooter.shoot()
 	await t.seconds(3.0)  # past two re-bake ticks
 	var map := t.world.get_world_2d().navigation_map
-	var path := NavigationServer2D.map_get_path(map, Vector2(60, 100), Vector2(640, 300), false)
+	var path := NavPlan.path(map, Vector2(60, 100), Vector2(640, 300), false)
 	t.check(path.size() >= 2, "the re-baked map still routes across the arena")

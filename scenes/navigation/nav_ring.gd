@@ -100,7 +100,7 @@ static func keeps(map: RID, path: PackedVector2Array, to: Vector2) -> bool:
 		return false
 	return (
 		path[-1].distance_to(to) <= NavBuilder.SNAP_REACHED
-		or NavigationServer2D.map_get_closest_point(map, to).distance_to(to)
+		or NavPlan.closest(map, to).distance_to(to)
 			> NavBuilder.SNAP_REACHED
 	)
 

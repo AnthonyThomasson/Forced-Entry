@@ -12,7 +12,7 @@ const MAPS_KEPT := 32
 
 ## Public map RID -> `{ iteration: [district, ring], routes: { [from, to]: path } }`.
 static var _answers: Dictionary = {}
-## How many path queries the memo has sent to NavigationServer2D; an observable of a cache miss.
+## How many path queries the memo has sent to the server; an observable of a cache miss.
 static var server_queries := 0
 
 
@@ -21,8 +21,8 @@ static var server_queries := 0
 static func iterations(map: RID) -> Array:
 	var ring := NavRing.map_of(map)
 	return [
-		NavigationServer2D.map_get_iteration_id(map),
-		NavigationServer2D.map_get_iteration_id(ring) if ring.is_valid() else -1,
+		NavPlan.iteration(map),
+		NavPlan.iteration(ring) if ring.is_valid() else -1,
 	]
 
 
@@ -42,10 +42,10 @@ static func route(map: RID, from: Vector2, to: Vector2) -> PackedVector2Array:
 		return (remembered[ends] as PackedVector2Array).duplicate()
 	var asked := NavRing.map_for(map, ends)
 	server_queries += 1
-	var path := NavigationServer2D.map_get_path(asked, from, to, true)
+	var path := NavPlan.path(asked, from, to)
 	if asked != map and not NavRing.keeps(asked, path, to):
 		server_queries += 1
-		path = NavigationServer2D.map_get_path(map, from, to, true)
+		path = NavPlan.path(map, from, to)
 	var answer := path if path.size() >= 2 else PackedVector2Array([from, to])
 	remembered[ends] = answer.duplicate()
 	return answer

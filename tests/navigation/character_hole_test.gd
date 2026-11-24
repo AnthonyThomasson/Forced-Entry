@@ -45,7 +45,7 @@ func _path(t: TestContext, steering := true) -> PackedVector2Array:
 	var map := t.world.get_world_2d().navigation_map
 	if steering:
 		map = NavBuilder.steering_map(map)
-	return NavigationServer2D.map_get_path(map, Vector2(60, 150), Vector2(540, 150), false)
+	return NavPlan.path(map, Vector2(60, 150), Vector2(540, 150), false)
 
 
 func _clearance(t: TestContext, at: Vector2) -> float:

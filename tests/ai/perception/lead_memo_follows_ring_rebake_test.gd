@@ -46,19 +46,19 @@ func run(t: TestContext) -> void:
 		"premise: the walk is kept while nothing moves",
 	):
 		return
-	var district := NavigationServer2D.map_get_iteration_id(map)
+	var district := NavPlan.iteration(map)
 	var ring_map := NavRing.map_of(map)
-	var ring := NavigationServer2D.map_get_iteration_id(ring_map)
+	var ring := NavPlan.iteration(ring_map)
 	ring_region.navigation_polygon = ring_region.navigation_polygon.duplicate()
 	if not t.require(
 		await t.until(
-			func() -> bool: return NavigationServer2D.map_get_iteration_id(ring_map) != ring, WAIT,
+			func() -> bool: return NavPlan.iteration(ring_map) != ring, WAIT,
 		),
 		"premise: the ring map took the polygon in",
 	):
 		return
 	t.require(
-		NavigationServer2D.map_get_iteration_id(map) == district,
+		NavPlan.iteration(map) == district,
 		"premise: the district map did not move",
 	)
 	memo.open(map, 0, WINDOW_S)
