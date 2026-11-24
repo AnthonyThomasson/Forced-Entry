@@ -441,9 +441,6 @@ measured").
   reproduced by waiting; a 60 hp hit standing in for the fragments made the old test fail the same way, in a headless run. The victim
   has 100 000 hp now and the test kills it with its own health: green with the stand-in, ten of ten headless runs, five of five in the
   windowed queue above. Nothing in the player's view was wrong: the gun was on `MOVING` while it spun and on `WORLD` after.
-- **`vision/unseen_not_repainted`** (gone with the 2D render: its rule, a repaint skipped for what is unseen, was the 2D drawing's) failed twice at the 17th frame of its walker's check in two windowed runs made while the editor
-  was reloading the changed file (an earlier review), and passed in the twenty or so runs after. It passed in each of the five
-  queues above and in ten of ten windowed runs of its own on `cd92abf4`: not reproduced, and not explained.
 - **The shutdown noise.** Every log shows `BUG: Unreferenced static string to 0: ...` (33 or 34 lines) and three
   `Pages in use exist at exit in PagedAllocator` lines, all after the `Queue done:` line: the engine's shutdown noise when it is
   ended by a signal, not this change's. The test runner scene has no command server to quit through, so these runs ended by `SIGTERM`
