@@ -120,7 +120,7 @@ func _restart(
 ) -> bool:
 	_restarts += 1
 	if _restarts > VisionSliceConfig.restart_cap:
-		if _settling or not _watch.settles():
+		if _settling or not _watch.settles(sight):
 			causes["cap"] += 1
 			return _whole(space, eye, facing, exclude, sight)
 		_settling = true

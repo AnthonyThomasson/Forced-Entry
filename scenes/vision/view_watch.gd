@@ -117,7 +117,7 @@ func stale(eye: Vector2, facing: Vector2, sight: Dictionary) -> bool:
 	_read_new(float(sight["eye_height"]))
 	if _dirty:
 		return true
-	return _moved_then or _blockers_moved()
+	return _moved_then or _blockers_moved(_reach.still)
 
 
 ## Every plan handle (a `Node2D` in `TwinSpace.BODIES`: a wall, a piece, a door, a vehicle, a
@@ -146,20 +146,18 @@ func world_changed(sight: Dictionary) -> bool:
 	_read_new(float(sight["eye_height"]))
 	if _dirty:
 		return true
-	return _moved_then or _blockers_moved()
+	return _moved_then or _blockers_moved(_reach.still)
 
 
 ## Whether the world's change, which restarts a job past the cap, is moves of blockers that are no
 ## more than `VisionSliceConfig.settle_px` from the job's snapshot, and nothing else (no signal, no
 ## new blocker, no change of the sight): a job that settles goes on through them.
-func settles() -> bool:
+func settles(sight: Dictionary) -> bool:
 	if _dirty or _built.size() != KEY_SIZE or VisionSliceConfig.settle_px <= 0.0:
 		return false
-	var held := _reach.still
-	_reach.still = VisionSliceConfig.settle_px
-	var moved := _blockers_moved()
-	_reach.still = held
-	return not moved
+	if not _tuned_as_built(sight):
+		return false
+	return not _blockers_moved(VisionSliceConfig.settle_px)
 
 
 ## The next job settles (`VisionSliceConfig.settle_px`) or, with `on` false, is held to the creep
@@ -190,7 +188,7 @@ func built(eye: Vector2, facing: Vector2, sight: Dictionary) -> void:
 		var entry: Array = _blockers[id]
 		var body: Node2D = entry[0]
 		var now := body.global_transform
-		var moved: bool = not _stood(entry, now) or _layer_of(entry) != entry[2]
+		var moved: bool = not _stood(entry, now, _reach.still) or _layer_of(entry) != entry[2]
 		if moved and _moved_within_reach(entry, now):
 			_moved_then = true
 		entry[1] = now
@@ -350,7 +348,7 @@ func _left(id: int) -> void:
 
 ## Whether a blocker within reach moved, turned or changed layer since the last rebuild: within
 ## reach before the change or after it.
-func _blockers_moved() -> bool:
+func _blockers_moved(bound: float) -> bool:
 	for id in _blockers:
 		var entry: Array = _blockers[id]
 		var body: Node2D = entry[0]
@@ -359,16 +357,17 @@ func _blockers_moved() -> bool:
 		# The common frame, where nothing moved: no call but the body's own transform.
 		if now == then and (entry[4] == null or _layer_of(entry) == entry[2]):
 			continue
-		if _stood(entry, now) and _layer_of(entry) == entry[2]:
+		if _stood(entry, now, bound) and _layer_of(entry) == entry[2]:
 			continue
 		if _moved_within_reach(entry, now):
 			return true
 	return false
 
 
-## Whether the blocker `entry` is, as `now`, where the job's snapshot has it (`STILL_PX`).
-func _stood(entry: Array, now: Transform2D) -> bool:
-	return _lag_of(entry, now) <= _reach.still
+## Whether the blocker `entry` is, as `now`, where the job's snapshot has it, to `bound` px
+## (`STILL_PX`, or `settle_px` for a settling job).
+func _stood(entry: Array, now: Transform2D, bound: float) -> bool:
+	return _lag_of(entry, now) <= bound
 
 
 ## How far (px) the blocker `entry` as `now` is from the snapshot: its origin's move and the move of
@@ -416,7 +415,7 @@ func _count_creeping(in_reach_only: bool) -> int:
 	for id in _blockers:
 		var entry: Array = _blockers[id]
 		var now: Transform2D = (entry[0] as Node2D).global_transform
-		if now != entry[1] and _stood(entry, now):
+		if now != entry[1] and _stood(entry, now, _reach.still):
 			count += int(not in_reach_only or _moved_within_reach(entry, now))
 	return count
 

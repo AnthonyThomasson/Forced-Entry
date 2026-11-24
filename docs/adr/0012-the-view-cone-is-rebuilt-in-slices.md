@@ -14,6 +14,7 @@ frames old (a job of 2 ticks, the median), up to 4 (3 ticks) and at most 8 in th
 - It **never shows a mix of two worlds**: a change of the world between slices (a blocker moved, changed shape, joined or left, a
   blocking character, a changed sight number) drops the job and starts it again from the live pose. After `restart_cap` (2) restarts in
   a row the next is built whole in one frame, so a world that changes every frame still gets a cone, every fourth frame (a whole build a frame was the cost before).
+  Amended (#194 perf-view2): not when the change is slow moves only (every blocker in reach within `settle_px`, 1 px, of the job's snapshot, no signal, no joined blocker, the sight as built): that restart begins a settling job, still a slice a tick, which treats those moves as where they were; the cone it publishes is the world's to that (V1), and a settling job restarted is built whole.
 - It **never extrapolates**: the cone published is a fresh cone of an eye the viewer stood at, so the memory (V4, never cleared)
   never holds area no eye saw. A change of the viewer's pose alone lets the job finish on its start pose (restarting for it would
   mean a moving viewer never publishes).

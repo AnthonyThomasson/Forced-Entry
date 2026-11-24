@@ -30,7 +30,7 @@ the one-piece cone it replaced, and that was got by hoisting them.
 
 **Use.** The job holds the world's 3D direct space state and the `exclude` array (twin rids); step it in the physics tick. A world change between
 steps is the caller's to detect (`ViewWatch`) and answer with a new `begin`. `slice_units` (450) is about 3.5 ms: 6 µs a unit in
-houses, 8 to 9 in a match's view. `restart_cap` (2) and `jump_px` (48) are `ViewPipeline`'s.
+houses, 8 to 9 in a match's view. `restart_cap` (2), `jump_px` (48) and `settle_px` (1) are `ViewPipeline`'s (`VisionSliceConfig`).
 
 ## The pipeline (`view_pipeline.gd`, `ViewPipeline`; ADR 0012, V1)
 
@@ -41,9 +41,9 @@ whether a cone was published in it, and then the view writes `SeenArea`.
 - **In flight:** an eye farther than `jump_px` from the published pose builds whole at once; else `ViewWatch.world_changed(sight)`
   (the sight and cone tuning, the dirty flag, a blocking character, the `_moved_then` flush quirk, a blocker moved in reach of the
   job's pose: not the eye or facing) restarts the job from the live pose; else one slice. Restart number `restart_cap` + 1 in a row
-  (reset by a publish) builds whole. The first cone and a jump from idle build whole.
+  (reset by a publish) builds whole unless the change is slow moves only (`ViewWatch.settles(sight)`: no signal, no joined blocker, the sight as built, every blocker in reach within `settle_px` of the snapshot): that restart begins a SETTLING job, a job like any other whose blockers within `settle_px` are where they were, published with `PlayerView.settled_publish()`; a settling job restarted builds whole; `settle_px` 0 = off. The first cone and a jump from idle build whole.
 - **Counts:** `started` (every begin: a start, a restart, a whole build), `published`, the pose the cone shown is of (`pose_eye`,
-  `pose_facing`): `PlayerView.starts()`, `rebuilds()`, `published_pose()`. `causes` (`restarts`, whole builds by cause `first` / `jump` / `cap`, engine `units` stepped), read by a perf probe through `PlayerView.rebuild_causes()` (interface 25). `drop()` (a lift, a disabled view) aborts the job and
+  `pose_facing`): `PlayerView.starts()`, `rebuilds()`, `published_pose()`. `causes` (`restarts`, whole builds by cause `first` / `jump` / `cap`, `settled` restarts past the cap, engine `units` stepped), read by a perf probe through `PlayerView.rebuild_causes()` (interface 25). `drop()` (a lift, a disabled view) aborts the job and
   makes the next ask a rebuild.
 - The sector `ViewWatch` measures "within reach" by stays the job's pose during a job (a blocker moving near the live eye only is
   not a change to the job), and is set again at each begin. A blocker moved after a job began is seen at the next tick's
