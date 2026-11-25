@@ -30,18 +30,21 @@ var best := { "spot": Vector2.INF, "crouch": false, "route": INF }
 ## `snaps` and `judges` the resolver counted, `routes` measured (the pruning's observable),
 ## `bound` the farthest a candidate may be (px, by straight line) and still win (the lesser of the
 ## run allowed and the best route so far, plus the start's slack: the resolver skips one that
-## cannot), `built` the units the owner spent on the burst's candidates.
-var work := { "snaps": 0, "judges": 0, "routes": 0, "bound": INF, "built": 0 }
-## The world it searches, and the pool's order: `[replan, deadline, distance, seq, began]`, set by
-## `EscapePool.begin`.
+## cannot), `slack` the start's slack (px), `built` the units the owner spent on the burst's
+## candidates.
+var work := { "snaps": 0, "judges": 0, "routes": 0, "bound": INF, "built": 0, "slack": 0.0 }
+## The world it searches, and the pool's order: `[replan, deadline, distance, seq, began, urgent]`,
+## set by `EscapePool.begin` (`urgent` by `EscapePool.serve`).
 var space: PhysicsDirectSpaceState3D
 var map: RID
 var key: Array = []
-## The physics frame its owner last asked about it (`EscapePool`).
+## The physics frame its owner last asked about it, and whether its owner is still there to use the
+## answer (`alive`: empty, or a Callable returning a bool; an NPC that has died or been freed has
+## none).
 var touched := 0
+var alive := Callable()
 var _from: Vector2
 var _allowed: float
-var _slack: float
 var _resolve: Callable
 ## The candidate order: `Vector2(straight distance, index)`, sorted.
 var _order: Array = []
@@ -64,8 +67,8 @@ func _init(
 	_from = from
 	_allowed = allowed
 	_resolve = resolver
-	_slack = from.distance_to(NavBuilder.snap(map, from)) + ROUTE_REACH + PRUNE_SLACK
-	work["bound"] = allowed + _slack
+	work["slack"] = from.distance_to(NavBuilder.snap(map, from)) + ROUTE_REACH + PRUNE_SLACK
+	work["bound"] = allowed + float(work["slack"])
 	# Vector2 sorts by x, then y: (straight distance, index in `points`), a native sort.
 	for i in points.size():
 		_order.append(Vector2(from.distance_to(points[i]), i))
@@ -73,7 +76,7 @@ func _init(
 
 
 ## Run it to the end in one go: what `escape` does outside a physics frame, and the oracle the
-## sliced search is held to (`escape_sliced_matches_whole_test`).
+## sliced search is held to (`escape_spot_matches_plain_test`, `_compare_sliced`).
 func run_whole() -> Dictionary:
 	while not done:
 		step(1_000_000)
@@ -106,17 +109,17 @@ func _candidate() -> int:
 	if s.is_empty():
 		return cost
 	var spot: Vector2 = s["spot"]
-	# A route is never shorter than the straight line to its spot less the slack: one that cannot
-	# beat the best (or fit the run) is not measured (strictly, so a tie still is).
-	if _from.distance_to(spot) > work["bound"]:
-		return cost
+	# (The resolver has dropped a spot farther than `work["bound"]` by straight line: a route is
+	# never shorter than that less the slack, so one that cannot beat the best or fit the run is not
+	# measured, strictly, so a tie still is. A resolver that does not may be given a spot that is
+	# then routed, and loses on the length.)
 	var length := _route(spot)
 	cost += ROUTE_UNITS
 	if length <= _allowed and (length < best["route"]
 			or (length == best["route"] and index < _best_index)):
 		best = { "spot": spot, "crouch": s["crouch"], "route": length }
 		_best_index = index
-		work["bound"] = minf(_allowed, length) + _slack
+		work["bound"] = minf(_allowed, length) + float(work["slack"])
 	return cost
 
 

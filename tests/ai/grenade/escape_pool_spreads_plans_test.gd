@@ -1,7 +1,7 @@
 extends GameTest
 ## G16, an evade wave under the escape pool (`EscapePool`): the escape searches of every NPC fleeing
-## one grenade share `per_frame` units a physics frame, so ten defenders caught by one frag on one
-## frame have their plans over the next frames, the one nearest the burst first, no frame spends
+## one grenade share `per_frame` units a physics frame, so ten defenders caught by one frag on
+## one frame have their plans over the next frames, the one nearest the burst first, no frame spends
 ## more than the pool and one candidate's work (7 units), every plan lands well inside the fuse and
 ## every one of them is clear of the burst. Ten defenders stand in the open warehouse in two rows
 ## either side of the frag's flight, all facing the thrower and inside the frag's zone as it
@@ -15,17 +15,20 @@ extends GameTest
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
-## The spec's numbers: the most a frame spends over the pool (one candidate: a snap, a verdict and a
-## route, and the candidates round a burst), the frames from knowing the frag to its plan, and the
-## fuse's frames the plan must beat by `ARRIVE_MARGIN` (`docs/grenades.md` G16).
-const OVER := 7 + EscapeSearch.AROUND_UNITS
-const WITHIN_FRAMES := 20
+const AgentThrow := preload("res://scenes/ai/perception/agent_throw.gd")
+## The spec's numbers: the most a frame serves over the pool (one candidate: a snap, a verdict and
+## a route), the frames from knowing the frag to its plan (the most measured is 9, with the ten and
+## four), and the frames before the burst the plan must beat by `ARRIVE_MARGIN` (`docs/grenades.md`
+## G16). The candidates round a burst are paid when a search begins, whatever the pool has left, and
+## are not served (`peak_served`).
+const OVER := 7
+const WITHIN_FRAMES := 10
 const LANDING := Vector2(470, 350)
 const THROWER_AT := Vector2(700, 350)
 const NPC_COUNT := 10
 ## Four more are blinded for `LATE_BLIND` s as the frag leaves the hand: they hear it come down and
-## need a plan then, the frame the ten's first replans fall due (a replan must not hold a fresh plan
-## up).
+## need a plan then, the frame the ten's first replans fall due (a replan must not hold a fresh
+## plan up).
 const LATE_COUNT := 4
 const LATE_BLIND := 1.0
 
@@ -83,6 +86,7 @@ func run(t: TestContext) -> void:
 		Probe.stun(t.actor(_id(NPC_COUNT + i)), LATE_BLIND, 0.0)
 	if not t.require(await Probe.wait_boom(t, &"frag", 6.0), "the frag went off"):
 		return
+	record["boom"] = Engine.get_physics_frames()
 	_check_wave(t, record)
 	_check_clear(t)
 
@@ -139,9 +143,9 @@ func _check_wave(t: TestContext, record: Dictionary) -> void:
 			% [EscapePool.peak_spent, EscapePool.per_frame],
 	)
 	t.check(
-		EscapePool.peak_spent <= EscapePool.per_frame + OVER,
-		"no frame spent more than the pool and one candidate (the most: %d, pool %d)"
-			% [EscapePool.peak_spent, EscapePool.per_frame],
+		EscapePool.peak_served <= EscapePool.per_frame + OVER,
+		"no frame served more than the pool and one candidate (the most: %d, pool %d)"
+			% [EscapePool.peak_served, EscapePool.per_frame],
 	)
 	var late: Array = []
 	var waits: Array = []
@@ -153,6 +157,13 @@ func _check_wave(t: TestContext, record: Dictionary) -> void:
 	waits.sort()
 	t.check(late.is_empty(), "every NPC has its plan within %d frames of knowing: %s"
 			% [WITHIN_FRAMES, late])
+	var margin := ceili(AgentThrow.ARRIVE_MARGIN * Engine.physics_ticks_per_second)
+	var past_margin: Array = []
+	for id in record["planned"]:
+		if int(record["planned"][id]) > int(record["boom"]) - margin:
+			past_margin.append("%s %d" % [id, int(record["boom"]) - int(record["planned"][id])])
+	t.check(past_margin.is_empty(), "every plan lands %d frames (the margin) before the burst: %s"
+			% [margin, past_margin])
 	t.check(
 		record["planned"].size() == NPC_COUNT + LATE_COUNT,
 		"all %d planned (%d)" % [NPC_COUNT + LATE_COUNT, record["planned"].size()],
@@ -179,10 +190,12 @@ func _check_nearest_first(t: TestContext, record: Dictionary) -> void:
 	t.check(inverted.is_empty(), "no NPC planned after one farther from the burst: %s" % [inverted])
 
 
-## The pool's order on its keys `[replan, deadline, distance, seq]`.
+## The pool's order on its keys `[replan, deadline, distance, seq, began, urgent]` (the urgent
+## ones are pinned by `escape_pool_bounds_wait`).
 func _check_order_rule(t: TestContext) -> void:
-	var keys := [[true, 100, 5.0, 1, 0], [false, 200, 90.0, 2, 0], [false, 100, 90.0, 3, 0],
-			[false, 100, 20.0, 4, 0], [false, 100, 20.0, 5, 0]]
+	var keys := [[true, 100, 5.0, 1, 0, false], [false, 200, 90.0, 2, 0, false],
+			[false, 100, 90.0, 3, 0, false], [false, 100, 20.0, 4, 0, false],
+			[false, 100, 20.0, 5, 0, false]]
 	var searches: Array[EscapeSearch] = []
 	for key: Array in keys:
 		var search := EscapeSearch.new(RID(), Vector2.ZERO, [], 0.0, Callable())

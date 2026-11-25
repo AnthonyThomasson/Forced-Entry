@@ -27,8 +27,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
-	# The premise: the pool is not short (a search lands the frame after it begins).
-	s.set_static(EscapePool, "per_frame", 1_000_000)
 	s.actor(&"npc", &"puppet", Maps.HALL_MIDDLE)
 
 

@@ -407,6 +407,10 @@ func _begin(
 	if not Engine.is_in_physics_frame():
 		search.run_whole()
 		return _landed(id, old)
+	var body: WeakRef = weakref(_character)
+	search.alive = func() -> bool:
+		var npc: Object = body.get_ref()
+		return npc != null and not bool(npc.get("is_dead"))
 	EscapePool.begin(
 		search,
 		not old.is_empty(),

@@ -8,10 +8,14 @@ extends GameTest
 ## its spot is checked against the plain search (every candidate snapped, judged and routed, nothing
 ## shared) run for it on that same frame, from where it stood when it planned.
 ##
-## The plain search's inputs are the ones the NPC began its search with, which its plan carries (a
-## search is served the frame after it begins: where it stood, the fuse left and the grenade's
-## spot), and its pace; the search runs after every body has processed, before the physics step,
-## so the walls, the furniture and the navigation map are the ones the NPC's plan saw.
+## The pool is the shipped one (`EscapePool.per_frame`), so a search may land frames after the frame
+## it began on (it is first served the frame after it begins; the sliced search is pinned to the
+## whole one by `escape_spot_matches_plain`'s `_compare_sliced`). The plain search's inputs are the
+## ones the NPC began its search with, which its plan carries (where it stood, the fuse left and the
+## grenade's spot), and its pace; the plain search is run after every body has processed, before
+## the physics step, on the frame the plan lands, so the walls, the furniture and the navigation
+## map are the ones its search saw. The sharing premise is that at least `WAVE` NPCs begin their
+## search on one same frame (what depends on the burst alone is then built once, for all of them).
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
@@ -30,7 +34,7 @@ const DEFENDERS := {
 	&"d4": [Vector2(550, 445), Vector2.RIGHT],
 	&"d5": [Vector2(610, 410), Vector2.RIGHT],
 }
-## How many defenders must make a plan on one same frame: the wave whose shared work is checked.
+## How many defenders must begin a search on one same frame: the wave whose shared work is checked.
 const WAVE := 3
 
 
@@ -39,7 +43,7 @@ func describe() -> Dictionary:
 		"name": "Every NPC in an evade wave runs to the spot its own plan picks",
 		"description": "Five defenders round a frag thrown into the hall plan their escape "
 			+ "together; every plan's spot equals the plain search's (nothing shared) for that "
-			+ "NPC on that frame, and at least three plan on one frame.",
+			+ "NPC from where it began, and at least three begin a search on one frame.",
 		"tags": ["ai", "grenade", "evade", "scripted"],
 		"timeout": 60.0,
 	}
@@ -47,9 +51,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Maps.house(s)
-	# The premise: the pool is not short (a search lands the frame it begins, as the plain search is
-	# run for that frame; the sliced search's own pin is `escape_sliced_matches_whole`).
-	s.set_static(EscapePool, "per_frame", 1_000_000)
 	# Von is down: a defender with nothing to decide holds where it stands, so where the frag finds
 	# it is where the set-up put it, however the decisions are spread over frames.
 	s.von_down()
@@ -84,11 +85,13 @@ func run(t: TestContext) -> void:
 	ctx["start"] = {}  # the frame's start: { frame, fuse, npc -> { from, speed } }
 	ctx["last"] = {}  # npc -> the evade spot it held at the end of the last frame
 	ctx["checked"] = []  # { npc, frame, spot, plain }
+	ctx["begun"] = {}  # frame -> how many NPCs began a search on it
+	ctx["seen"] = {}  # npc -> the search of its last one begun
 	t.world.add_child(_late_probe(t, ctx))
 
 	if not await _throw_frag(t, ctx):
 		return
-	_check_plans(t, ctx["checked"])
+	_check_plans(t, ctx["checked"], ctx["begun"])
 
 
 ## Each NPC's own AgentThrow, bound to its body, with its controller's evade margin.
@@ -118,8 +121,22 @@ func _late_probe(t: TestContext, ctx: Dictionary) -> LateProbe:
 		if live.is_empty():
 			return
 		for npc: Node in npcs:
+			_note_begun(ctx, npc)
 			_check_plan(t, ctx, npc, live[0])
 	return late
+
+
+## Whether `npc` began a search this frame: one it has not had before (a replan counts).
+func _note_begun(ctx: Dictionary, npc: Node) -> void:
+	var brain := TestContext.controller_of(npc)
+	var searches: Dictionary = brain.get("_perception").grenades.live.get("_searches")
+	var seen: Dictionary = ctx["seen"]
+	for search: EscapeSearch in searches.values():
+		if search != seen.get(npc):
+			seen[npc] = search
+			var begun: Dictionary = ctx["begun"]
+			var frame: int = ctx["start"]["frame"]
+			begun[frame] = int(begun.get(frame, 0)) + 1
 
 
 ## A new evade spot `npc` holds this frame, kept in `ctx.checked` beside its own plain search's.
@@ -195,27 +212,26 @@ func _note_start(t: TestContext, ctx: Dictionary) -> void:
 		start[npc] = { "from": (npc as Node2D).global_position, "speed": own[npc].run_speed() }
 
 
-## Every defender planned, enough of them on one frame, and every plan matched its plain search.
-func _check_plans(t: TestContext, checked: Array) -> void:
+## Every defender planned, enough of them began a search on one frame, and every plan matched its
+## plain search.
+func _check_plans(t: TestContext, checked: Array, begun: Dictionary) -> void:
 	var planned := {}    # npc name -> true
-	var per_frame := {}  # frame -> how many NPCs made a plan on it
 	var differing: Array = []
 	for c: Dictionary in checked:
 		if c["spot"] != Vector2.INF:
 			planned[c["npc"]] = true
-		per_frame[c["frame"]] = int(per_frame.get(c["frame"], 0)) + 1
 		if c["spot"] != c["plain"]:
 			differing.append("%s on frame %d ran to %s, its own plan picks %s"
 					% [c["npc"], c["frame"], c["spot"].round(), c["plain"].round()])
-	var wave: int = per_frame.values().max() if not per_frame.is_empty() else 0
+	var wave: int = begun.values().max() if not begun.is_empty() else 0
 	t.check(
 		planned.size() == DEFENDERS.size(),
 		"every defender planned an escape with a spot (%s)" % str(planned.keys()),
 	)
 	t.check(
 		wave >= WAVE,
-		"at least %d defenders planned on one frame (the most on one frame: %d; %d plans checked)"
-			% [WAVE, wave, checked.size()],
+		"at least %d defenders began a search on one frame (the most on one frame: %d, %s)"
+			% [WAVE, wave, begun],
 	)
 	t.check(
 		differing.is_empty(),
