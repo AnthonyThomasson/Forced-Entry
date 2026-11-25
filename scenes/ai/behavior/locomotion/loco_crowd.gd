@@ -281,8 +281,9 @@ func at_rest(around: Vector2, reach: float) -> Array:
 		if int(b.get("id", 0)) == ignore_id:
 			continue
 		var pos: Vector2 = b["pos"]
-		if ((b.get("vel", Vector2.ZERO) as Vector2).length() < rest_speed
-				and pos.distance_to(around) <= reach):
+		# The nearness first: most bodies are far, and the two tests do not depend on each other.
+		if (pos.distance_to(around) <= reach
+				and (b.get("vel", Vector2.ZERO) as Vector2).length() < rest_speed):
 			out.append(pos)
 	return out
 

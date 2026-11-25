@@ -468,8 +468,9 @@ func _is_known_hostile(body: Node) -> bool:
 ## block itself.
 func has_line_to(target: Node2D, point: Vector2) -> bool:
 	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(_character)
-	var exclude := SightRay.exclude_of(_character)
+	var exclude := SightRay.exclude_shared(_character)  # Read, never edited, unless a target adds.
 	if target != null and is_instance_valid(target):
+		exclude = SightRay.exclude_of(_character)
 		exclude.append_array(SightRay.exclude_of(target))
 	return not _tactics.blocked(space, _character.global_position, point, exclude)
 

@@ -35,7 +35,7 @@ func run(t: TestContext) -> void:
 	var characters: Array = t.world.match_handle.get("combatants", [])
 	if not t.require(characters.size() == PER_SIDE * 2, "the combatants spawned"):
 		return
-	var visions: Array = []
+	var sights: Array = []
 	var ledgers: Array = []
 	for character: Node in characters:
 		var brain := TestContext.controller_of(character, &"debug_state")
@@ -43,34 +43,63 @@ func run(t: TestContext) -> void:
 		if perception == null:
 			continue
 		perception.sight.vision.set_script(FreshVision)
-		visions.append(perception.sight.vision)
+		sights.append(perception.sight)
 		ledgers.append(perception.entry.ledger)
-	if not t.require(visions.size() == characters.size(), "every NPC has a perception"):
+	if not t.require(sights.size() == characters.size(), "every NPC has a perception"):
 		return
 	await t.seconds(Perf.MATCH_WARMUP_S)
 	var bad: Array[String] = []
 	var tally := [0, 0]
 	for _frame in FRAMES:
 		await t.frames(1)
+		_check_cone(characters, sights, bad)
 		for ledger: RefCounted in ledgers:
 			var row := _check_ledger(ledger, bad)
 			tally[0] += row[0]
 			tally[1] += row[1]
 		if bad.size() > 3:
 			break
-	var asked := 0
-	var seen := 0
-	for vision in visions:
-		bad.append_array(vision.mismatches)
-		asked += vision.asked
-		seen += vision.seen
+	var asks := _collect_asks(sights, bad)
 	t.check(bad.is_empty(), "kept reads equal fresh ones: %s" % str(bad.slice(0, 4)))
 	t.check(
-		seen > 0 and asked > seen,
-		"premise: sight asks were made and both answered (%d of %d)" % [seen, asked],
+		asks[1] > 0 and asks[0] > asks[1],
+		"premise: sight asks were made and both answered (%d of %d)" % [asks[1], asks[0]],
 	)
 	t.check(tally[0] > 0, "premise: claims stood on a doorway at some frame (%d)" % tally[0])
 	t.check(tally[1] > 0, "premise: a stack was laid with claims in it (%d)" % tally[1])
+
+
+## What each NPC's sight checked: how many asks and how many answered true, the disagreements
+## added to `bad`.
+func _collect_asks(sights: Array, bad: Array[String]) -> Array[int]:
+	var asks: Array[int] = [0, 0]
+	for sight in sights:
+		var vision: RefCounted = sight.vision
+		bad.append_array(vision.mismatches)
+		asks[0] += vision.asked
+		asks[1] += vision.seen
+	return asks
+
+
+## The sight pass's own cone test (`PerceptionSight._outside_view`) against the vision's
+## (`AgentVision.in_view`), from the numbers its last pass took, for every pair of characters this
+## frame: they agree on every one, so the pass drops exactly the characters `in_view` would have.
+## Disagreements added to `bad`.
+func _check_cone(characters: Array, sights: Array, bad: Array[String]) -> void:
+	for i in characters.size():
+		var vision: RefCounted = sights[i].vision
+		var from: Node2D = characters[i]
+		for other: Node2D in characters:
+			if other == from:
+				continue
+			var sight: RefCounted = sights[i]
+			var outside: bool = sight._outside_view(
+				other.global_position - from.global_position, from.facing,
+			)
+			if outside == vision.in_view(from.global_position, from.facing, other.global_position):
+				bad.append("frame %d cone: pass %s, vision in_view %s" % [
+					Engine.get_physics_frames(), str(outside), str(not outside),
+				])
 
 
 ## `ledger`'s claims and stacks on every doorway it has heard from against a fresh recompute,

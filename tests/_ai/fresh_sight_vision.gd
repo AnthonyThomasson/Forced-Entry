@@ -1,10 +1,10 @@
 extends "res://scenes/ai/perception/agent_vision.gd"
 ## Test double (not a test itself): an NPC's sight sense that answers as the real one does and
-## checks every `can_see_node_at` against a fresh recompute that reads nothing kept (`SightRay`'s
-## kept looks-through, exclude rids and posture points): the target's points from `BodyHeights`, the
-## rids from `exclude_of`, a struck body's surface read as it is now. A disagreement is written to
-## `mismatches`. Put on a perception's `sight.vision` with `set_script` (the object, and every part
-## that holds it, stays the same one).
+## checks every `sees_in_view` (the cast half of `can_see_node_at`) against a fresh recompute that
+## reads nothing kept (`SightRay`'s kept looks-through, exclude rids and posture points): the
+## target's points from `BodyHeights`, the rids from `exclude_of`, a struck body's surface read as
+## it is now. A disagreement is written to `mismatches`. Put on a perception's `sight.vision` with
+## `set_script` (the object, and every part that holds it, stays the same one).
 
 ## What the checks found: one text per disagreement.
 var mismatches: Array[String] = []
@@ -13,17 +13,15 @@ var asked := 0
 var seen := 0
 
 
-func can_see_node_at(
+func sees_in_view(
 	node: Node2D,
+	point: Vector2,
 	from_pos: Vector2,
-	facing: Vector2,
 	space: PhysicsDirectSpaceState3D,
 	eye: float,
 ) -> bool:
-	var answer := super(node, from_pos, facing, space, eye)
+	var answer := super(node, point, from_pos, space, eye)
 	if space == null or not enabled or node == null or not is_instance_valid(node):
-		return answer
-	if not _in_view(from_pos, facing, node.global_position):
 		return answer
 	asked += 1
 	if answer:

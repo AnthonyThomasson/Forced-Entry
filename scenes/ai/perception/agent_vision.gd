@@ -94,6 +94,12 @@ func in_view(from_pos: Vector2, facing: Vector2, point: Vector2) -> bool:
 	return not enabled or _in_view(from_pos, facing, point)
 
 
+## Half the view cone's width in radians (`fov_degrees` / 2), what `_in_view` tests the angle by;
+## the sight pass (`PerceptionSight.see`) tests the same cone itself, a pair at a time, from this.
+func half_fov() -> float:
+	return _half_fov
+
+
 ## The geometry half of sight: `point` is within view distance and either inside the near bubble or
 ## the forward cone.
 func _in_view(from_pos: Vector2, facing: Vector2, point: Vector2) -> bool:
@@ -141,7 +147,20 @@ func can_see_node_at(
 	if not _in_view(from_pos, facing, point):
 		# Out of view whatever stands between: no need to cast.
 		return false
-	if space == null:
+	return sees_in_view(node, point, from_pos, space, eye)
+
+
+## The cast half of `can_see_node_at`, for a caller that has already found `node` (standing at plan
+## point `point`) in view (`in_view`): whether a clear line runs from the eye at `from_pos`, `eye`
+## px up, to any point of its body. True with sight disabled or no space.
+func sees_in_view(
+	node: Node2D,
+	point: Vector2,
+	from_pos: Vector2,
+	space: PhysicsDirectSpaceState3D,
+	eye: float,
+) -> bool:
+	if not enabled or space == null:
 		return true
 	return SightRay.sees(
 		space,
