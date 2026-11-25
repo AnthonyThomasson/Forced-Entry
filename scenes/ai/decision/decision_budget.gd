@@ -28,7 +28,7 @@ const Roster := preload("res://scenes/ai/decision/decision_roster.gd")
 ## half a millisecond), a typical decision landing over three to five frames. A test raises it to
 ## see the pieces of many decisions run in one frame; it never lets two decisions start in one
 ## (`decision_roster.gd`).
-static var per_frame: int = 4
+static var per_frame: int = 6
 ## What the order-refusal step (0.01 ms) and one planner level (0.1 ms, the odd level that builds a
 ## lazy group 2 to 7) cost; the snapshot build's pieces are priced in `DecisionPrices`.
 static var cost_refusal: int = 0

@@ -8,14 +8,14 @@ extends GameTest
 ## their cadence (the starts are still one a frame, whatever the pool holds).
 
 const COUNT := 8
-## The frame the k-th decision lands on, counted from the first frame (#194 perf-decide2, measured
+## The frame the k-th decision lands on, counted from the first frame (#194 pool6, measured
 ## at the shipped pool and prices, twice the same: the frames are a count, not a time, so nothing
 ## varies run to run). Eight invaders with one hostile each: a decision is 14 units (start 1, rings
-## 2, spots 3, two flanks 2, rest 2, retreat 3, finish 1) on a pool of 4, so about four frames
-## apiece, and the eighth lands on frame 31 (it was frame 11 before the pieces were split and
-## priced: `decision-prices.md`).
-const LANDS_ON := [4, 8, 12, 16, 20, 23, 27, 31]
-const SPREAD_FRAMES := 31 + 2
+## 2, spots 3, two flanks 2, rest 2, retreat 3, finish 1) on a pool of 6, so about two and a half
+## frames apiece, and the eighth lands on frame 20 (frame 31 on a pool of 4, frame 11 before the
+## pieces were split and priced: `decision-prices.md`).
+const LANDS_ON := [3, 5, 8, 10, 13, 15, 18, 20]
+const SPREAD_FRAMES := 20 + 2
 const TARGET := Vector2(900, 60)
 
 

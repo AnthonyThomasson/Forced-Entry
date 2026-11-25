@@ -83,15 +83,17 @@ func run(t: TestContext) -> void:
 	await _check_pending(t, brain, belief_times)
 
 
-## End the fixture with one appearance and disappearance inside a window, then no more changes.
+## End the fixture with changes inside a window, then no more. The windows open when a belief
+## decision starts, whatever frame its pieces land on, so wait for the one the legs' last changes
+## left pending: the mover is known (the last leg showed it), so it leaves inside the window
+## that decision opened, and nothing changes after.
 func _check_pending(t: TestContext, brain: Node, belief_times: Array) -> void:
-
-	# One last appearance and disappearance, both inside the latest window, then no more changes.
-	t.actor(&"mover").global_position = OPEN_AT
-	if not t.require(await t.until(func(): return _known(brain, &"mover"), 0.4),
-			"the mover became known once more"):
+	var seen: int = belief_times.size()
+	var opened := await t.until(func():
+		_record(brain, belief_times)
+		return belief_times.size() > seen, 0.7)
+	if not t.require(opened, "the legs' last changes opened a window with a decision"):
 		return
-	_record(brain, belief_times)
 	t.actor(&"mover").global_position = HIDDEN_AT
 	if not t.require(await t.until(func(): return not _known(brain, &"mover"), 0.4),
 			"the mover's last sighting expired inside the window"):
