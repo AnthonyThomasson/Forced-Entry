@@ -70,7 +70,8 @@ func _compare(shape: Shape3D, poses: Array[Transform3D], seen: Dictionary) -> vo
 
 
 ## The kinds the district holds none of (or one size of): a capsule, a sphere, a convex hull, a
-## cylinder and a box of odd sizes.
+## cylinder, a box of odd sizes, a world boundary and a concave mesh (neither footprint holds a
+## point of it: both are empty).
 func _synthetic() -> Array[Shape3D]:
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = 0.31
@@ -88,7 +89,14 @@ func _synthetic() -> Array[Shape3D]:
 	var box := BoxShape3D.new()
 	box.size = Vector3(0.0, 0.33, 0.71)
 	var plane := WorldBoundaryShape3D.new()
-	var out: Array[Shape3D] = [capsule, sphere, hull, cylinder, box, plane]
+	var concave := ConcavePolygonShape3D.new()
+	concave.set_faces(
+		PackedVector3Array(
+			[Vector3(0, 0, 0), Vector3(1.2, 0, 0.3), Vector3(0.4, 0.9, 1.1),
+			Vector3(0, 0, 0), Vector3(0.4, 0.9, 1.1), Vector3(-0.8, 0.2, 0.9)]
+		)
+	)
+	var out: Array[Shape3D] = [capsule, sphere, hull, cylinder, box, plane, concave]
 	return out
 
 

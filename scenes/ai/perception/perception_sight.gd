@@ -15,6 +15,10 @@ const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 ## this often, offset per NPC and target so a squad does not test on the same frame. What the NPC
 ## holds of a character it sees is at most this many frames old.
 const SIGHT_EVERY_FRAMES := 3
+## Where `_cone` holds the view distance, the near bubble and half the cone.
+const CONE_VIEW := 0
+const CONE_BUBBLE := 1
+const CONE_HALF_FOV := 2
 
 ## The root, physics frame and result of the character gathering shared by every perception.
 static var _shared_root: Node = null
@@ -38,10 +42,13 @@ var blind := false
 ## The NPC is a primed ambusher (its controller's reflexes set it every tick, LD15): every
 ## character in its view cone gets a sight test every frame, not every `SIGHT_EVERY_FRAMES`.
 var primed := false
-## What the pass reads of the vision each pair's cone is tested by: the view distance, the near
-## bubble's radius and half the cone's width (radians; both distances infinite with sight not gated,
-## which puts nothing outside), and the NPC's spawn order (`_begin_pass`).
-var _cone := Vector3.ZERO
+## What the pass reads of the vision each pair's cone is tested by (`_read_cone`), at `CONE_VIEW`,
+## `CONE_BUBBLE` and `CONE_HALF_FOV`: the view distance, the near bubble's radius and half the
+## cone's width (radians). Doubles, not a Vector3: a Vector3 holds float32, which would round a
+## `fov_degrees` or `view_distance` the vision's doubles tell apart (exact for 110 degrees only).
+## Both distances are infinite with sight not gated, which puts nothing outside.
+var _cone := PackedFloat64Array([INF, INF, 0.0])
+## The NPC's spawn order (`_begin_pass`).
 var _order := 0
 ## How many group gatherings this perception made (a fast-path test's observable).
 var list_builds := 0
@@ -101,12 +108,21 @@ func _begin_pass() -> void:
 	blind = perception._character.stun.is_blind()
 	if blind:
 		_looked.clear()
-	_cone = (
-		Vector3(vision.view_distance, vision.awareness_radius, vision.half_fov())
-		if vision.enabled
-		else Vector3(INF, INF, 0.0)
-	)
+	_read_cone()
 	_order = WorldRng.order_of(perception._character.get_instance_id())
+
+
+## Take the vision's cone numbers for the pass (`_outside_view`): sight not gated puts nothing
+## outside.
+func _read_cone() -> void:
+	if vision.enabled:
+		_cone[CONE_VIEW] = vision.view_distance
+		_cone[CONE_BUBBLE] = vision.awareness_radius
+		_cone[CONE_HALF_FOV] = vision.half_fov()
+	else:
+		_cone[CONE_VIEW] = INF
+		_cone[CONE_BUBBLE] = INF
+		_cone[CONE_HALF_FOV] = 0.0
 
 
 ## Whether character `other` gets a sight test on its world's physics frame `frame`
@@ -122,15 +138,15 @@ func _due_for_sight(other: Node, self_pos: Vector2, facing: Vector2, frame: int)
 
 
 ## Whether the offset `to` (from the NPC to a character) lies outside its view: the geometry half
-## of sight, `AgentVision._in_view`'s own rule read from the vision's numbers (`_cone`: view
-## distance, near bubble, half the cone), inline in the sight pass so a pair that is not in view
-## costs one call (`kept_sight_reads_match_fresh_test.gd` pins the two together).
+## of sight, `AgentVision._in_view`'s own rule read from the vision's numbers (`_cone`), inline in
+## the sight pass so a pair that is not in view costs one call
+## (`kept_sight_reads_match_fresh_test.gd` pins the two together).
 func _outside_view(to: Vector2, facing: Vector2) -> bool:
 	var dist := to.length()
-	if dist > _cone.x:
+	if dist > _cone[CONE_VIEW]:
 		return true
-	if dist > _cone.y:
-		return facing == Vector2.ZERO or absf(facing.angle_to(to)) > _cone.z
+	if dist > _cone[CONE_BUBBLE]:
+		return facing == Vector2.ZERO or absf(facing.angle_to(to)) > _cone[CONE_HALF_FOV]
 	return false
 
 

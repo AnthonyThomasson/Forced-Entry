@@ -51,6 +51,11 @@ func run(t: TestContext) -> void:
 	# The fact is counted when its search is built, and an NPC that carries no grenade builds none
 	# (it can make no throw: `SnapshotDemand.throw_search`, perf-decide2): arm it with one frag.
 	Grenades.arm(t.actor(&"d"), 0, 1)
+	if not t.require(
+		Grenades.count(t.actor(&"d"), Grenades.FRAG) == 1,
+		"set-up: the defender holds one frag after arming",
+	):
+		return
 	var id: int = t.actor(&"h").get_instance_id()
 	var perception: Node = brain.get("_perception")
 	var demand: RefCounted = perception.sense(brain.get("goal"), "", id)["demand"]
