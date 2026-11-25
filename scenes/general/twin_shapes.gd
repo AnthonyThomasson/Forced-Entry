@@ -13,6 +13,10 @@ extends RefCounted
 ## The sides a round shape's footprint is cut into (as the 2D circle was).
 const ROUND_SIDES := 16
 
+## The cosines and sines of the `ROUND_SIDES` angles of a ring, made on first use.
+static var _ring_cos := PackedFloat64Array()
+static var _ring_sin := PackedFloat64Array()
+
 
 ## The floor-plan polygon (px, plan space, convex, no repeated point) that `shape`, placed at `at`
 ## in the twin space, casts on the floor: the hull of its extreme points moved to plan. A box is its
@@ -20,9 +24,14 @@ const ROUND_SIDES := 16
 ## tilted one the hull of what it reaches. Empty for a shape with no extent (a plane, a concave
 ## mesh). What the navigation bake and the player's view read of a twin.
 static func footprint_of(shape: Shape3D, at: Transform3D) -> PackedVector2Array:
+	# the whole set moved in one step (the same product a point at a time), then to plan
+	var moved := at * _extremes(shape)
+	var unit := RenderConfig.unit
 	var points := PackedVector2Array()
-	for point in _extremes(shape):
-		points.append(PlanSpace.plan_of(at * point))
+	points.resize(moved.size())
+	for i in moved.size():
+		var point := moved[i]
+		points[i] = Vector2(point.x, point.z) / unit
 	if points.size() < 3:
 		return PackedVector2Array()
 	var hull := Geometry2D.convex_hull(points)
@@ -36,10 +45,14 @@ static func _extremes(shape: Shape3D) -> PackedVector3Array:
 	var out := PackedVector3Array()
 	if shape is BoxShape3D:
 		var half := (shape as BoxShape3D).size * 0.5
-		for sx in [-1.0, 1.0]:
-			for sy in [-1.0, 1.0]:
-				for sz in [-1.0, 1.0]:
-					out.append(Vector3(half.x * sx, half.y * sy, half.z * sz))
+		out = PackedVector3Array(
+			[
+				Vector3(-half.x, -half.y, -half.z), Vector3(-half.x, -half.y, half.z),
+				Vector3(-half.x, half.y, -half.z), Vector3(-half.x, half.y, half.z),
+				Vector3(half.x, -half.y, -half.z), Vector3(half.x, -half.y, half.z),
+				Vector3(half.x, half.y, -half.z), Vector3(half.x, half.y, half.z),
+			]
+		)
 	elif shape is CylinderShape3D:
 		var cylinder := shape as CylinderShape3D
 		_ring(out, cylinder.radius, cylinder.height * 0.5)
@@ -60,9 +73,13 @@ static func _extremes(shape: Shape3D) -> PackedVector3Array:
 
 ## Add to `out` the `ROUND_SIDES` points of the circle of `radius` round the up axis, `y` up.
 static func _ring(out: PackedVector3Array, radius: float, y: float) -> void:
+	if _ring_cos.is_empty():
+		for i in ROUND_SIDES:
+			var angle := float(i) / ROUND_SIDES * TAU
+			_ring_cos.append(cos(angle))
+			_ring_sin.append(sin(angle))
 	for i in ROUND_SIDES:
-		var angle := float(i) / ROUND_SIDES * TAU
-		out.append(Vector3(cos(angle) * radius, y, sin(angle) * radius))
+		out.append(Vector3(_ring_cos[i] * radius, y, _ring_sin[i] * radius))
 
 
 ## The height (px above the floor) of the highest point of `twin`'s shapes: its top, read once and

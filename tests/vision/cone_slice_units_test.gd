@@ -262,10 +262,10 @@ class CountingShapes:
 		return hits
 
 	func fold_corners(
-		hits: Array[Dictionary], start: int, stop: int, seen: Dictionary, found: Array
+		hits: Array[Dictionary], start: int, stop: int, seen: Dictionary
 	) -> void:
 		folds += 1
-		super(hits, start, stop, seen, found)
+		super(hits, start, stop, seen)
 
 	func far_exit(space: PhysicsDirectSpaceState3D, hit: Dictionary, dir: Vector2) -> float:
 		probes += 1

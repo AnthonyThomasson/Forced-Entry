@@ -8,14 +8,14 @@ whether it is done; `running()` says whether one is in flight; `work_units()` is
 `begin` plus `step` to the end, so it is the whole rebuild every existing cone test and `PlayerView` use.
 
 **Units.** A unit is a price in `VisionSliceConfig` (`cost_cast` and `cost_probe` 1, `cost_shape`
-120 a corners query, `cost_hits` 35 a chunk of `hit_chunk` 32 hits): a ray cast (`SightRay.cast`), a
+105 a corners query, `cost_hits` 35 a chunk of `hit_chunk` 32 hits): a ray cast (`SightRay.cast`), a
 region shape query (`ViewShapes.queries`, re-asks included: a 3D shape query in the twin space over
 a slab (`ViewShapes.SLAB`, 2 px: the engine cannot build a thinner hull of the sector) from the
 height the plan ray runs at), a far-face probe (`far_exit`).
-**The corners are priced at their cost** (`cost_shape` 120 + `cost_hits` 35 a chunk of 32 hits, a
-median 3 chunks: 225, the user's price, held by `perf/cone_corner_cost` for the whole, the query and
-the chunks each within 2x of their own; the split 120 / 35 is the one `vision/view_on_npc`'s 4-frame bound
-holds at, a dearer chunk (100 / 42) makes a crowded region a tick longer): the query (stage `CORNERS`) and then its polygons and the
+**The corners are priced at their cost** (`cost_shape` 105 + `cost_hits` 35 a chunk of 32 hits, a
+median 3 chunks: 210 of the user's 225, held by `perf/cone_corner_cost` for the whole, the query and
+the chunks each within 2x of their own; the sum is what a read measures (the query 57 to 61 units, the chunks 150, about a chunk 50: `ViewShapes.fold_corners` merges a shape's kept cells in one step and `TwinShapes.footprint_of` builds a shape's polygon in one product); the split 105 / 35 is the one `vision/view_on_npc`'s 4-frame bound
+holds at (60 / 40 gives it 5 frames, 60 / 55 gives 6: the honest split prices a crowded region's chunks), a dearer chunk (100 / 42) makes a crowded region a tick longer): the query (stage `CORNERS`) and then its polygons and the
 dedupe (stage `HITS`, a chunk a piece of work, so a slice may end between them) are 225 units
 (`perf/cone_corner_cost` measures it: 198 on 2026-11-19, 264 on 2026-11-24, both loaded; p25 104, p75 304; the 2D query was 372 to 374), so `begin` and the first step do the corners and then the first rays up to
 the slice (`vision/cone_corners_priced`); a region asked again is priced for each ask and can fill the slice with them, and then no ray is cast. Priced as one unit they made a start tick the corners plus 449 units of

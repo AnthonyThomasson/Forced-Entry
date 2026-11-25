@@ -51,6 +51,8 @@ var memo_hits := 0
 var validations := 0
 ## How many shape queries `corners` has asked in all (a job counts them as engine work).
 var queries := 0
+## The call every shape edit and child change makes (`_clear_polygons`), made once.
+var _clear_cb := Callable(self, "_clear_polygons")
 
 
 func _init() -> void:
@@ -84,9 +86,8 @@ func corners(
 ) -> Array:
 	var hits := read_hits(space, from, reach, exclude, region)
 	var seen := {}
-	var found: Array = []
-	fold_corners(hits, 0, hits.size(), seen, found)
-	return found
+	fold_corners(hits, 0, hits.size(), seen)
+	return seen.values()
 
 
 ## The shapes the region (or, with none, the column of `reach` about `from`) touches: the shape
@@ -117,32 +118,56 @@ func read_hits(
 	return _shapes_in_reach(space)
 
 
-## Fold the corners of `hits[start]` up to `stop` (exclusive) into `found`, the distinct ones in
-## the order first met: `seen` maps a corner's half-pixel cell to its place in `found`, and of two
-## corners in one cell the lesser (`_before`) stays. `seen` and `found` carry across the chunks of
-## one job, which fold to the same corners as one `corners` read.
-func fold_corners(
-	hits: Array[Dictionary], start: int, stop: int, seen: Dictionary, found: Array
-) -> void:
+## Fold the corners of `hits[start]` up to `stop` (exclusive) into `seen`, which maps a corner's
+## half-pixel cell to the corner there: of two corners in one cell the lesser (`_before`) stays,
+## and the cells are kept in the order first met (`seen.values()` are the distinct corners in that
+## order). `seen` carries across the chunks of one job, which fold to the same corners as one
+## `corners` read. A shape's own cells are kept with its polygon (`_entry_of`) and merged in one
+## step; only a shape that shares a cell with one met before is looked at corner by corner.
+func fold_corners(hits: Array[Dictionary], start: int, stop: int, seen: Dictionary) -> void:
+	var last_id := 0
+	var last_memo: Dictionary = {}
 	for i in range(start, stop):
-		var hit := hits[i]
-		var held: Variant = hit["collider"]
-		# a hit is held across ticks: its body may be freed since (a glass door's twin, retwinned),
-		# and a freed one that did not block gives no corner
-		if not is_instance_valid(held) or SightRay.looks_through(held):
+		var held: Variant = hits[i]["collider"]
+		if not _blocks(held):
 			continue
-		var collider: Object = held
-		var entry := _entry_of(collider, hit["shape"])
-		var polygon: PackedVector2Array = entry[2]
-		var keys: PackedInt64Array = entry[3]
-		for k in polygon.size():
-			var point := polygon[k]
-			var place: int = seen.get(keys[k], -1)
-			if place < 0:
-				seen[keys[k]] = found.size()
-				found.append(point)
-			elif _before(point, found[place]):
-				found[place] = point
+		var id: int = held.get_instance_id()
+		if id != last_id:
+			last_id = id
+			last_memo = _memo.get(id, {})
+			if last_memo.is_empty():
+				_memo[id] = last_memo
+		var index: int = hits[i]["shape"]
+		var entry: Variant = last_memo.get(index)
+		if entry == null:
+			entry = _validated_entry(held, id, index)
+			last_memo[index] = entry
+		else:
+			memo_hits += 1
+		var cells: Dictionary = entry[3]
+		var before := seen.size()
+		seen.merge(cells)
+		if seen.size() - before < cells.size():
+			_keep_lesser(cells, seen)
+
+
+## Whether the shape a hit names still blocks sight: its body is not freed (a hit is held across
+## ticks, and a glass door's twin may have been retwinned since: a freed one that did not block
+## gives no corner) and is not looked through (`SightRay.looks_through`, its answer read off the
+## meta here: the call makes it once for a twin).
+func _blocks(held: Variant) -> bool:
+	if not is_instance_valid(held):
+		return false
+	var known: Variant = held.get_meta(SightRay.THROUGH_META, -1)
+	return not known if known is bool else not SightRay.looks_through(held)
+
+
+## Of the cells `seen` held before a shape's own were merged in, the lesser corner stays.
+func _keep_lesser(cells: Dictionary, seen: Dictionary) -> void:
+	for key: int in cells:
+		var point: Vector2 = cells[key]
+		if _before(point, seen[key]):
+			seen[key] = point
 
 
 ## Every blocking shape the query column touches. The physics query returns at most as many as it is
@@ -166,12 +191,12 @@ func polygon_of(collider: Object, index: int) -> PackedVector2Array:
 
 ## The entry of a shape with no polygon (a plane, a concave mesh, no body).
 static func _no_entry() -> Array:
-	return [null, null, PackedVector2Array(), PackedInt64Array()]
+	return [null, null, PackedVector2Array(), {}]
 
 
-## What is kept of shape `index` of `collider`: `[transform, shape, polygon, keys]`, `keys` being
-## the half-pixel cell of each corner of the polygon (`corners`' dedupe), made once with it. Checked
-## against the body once a rebuild, then served from the memo.
+## What is kept of shape `index` of `collider`: `[transform, shape, polygon, cells]`, `cells` being
+## the corners of the polygon by their half-pixel cell (`corners`' dedupe), made once with it.
+## Checked against the body once a rebuild, then served from the memo.
 func _entry_of(collider: Object, index: int) -> Array:
 	var id := collider.get_instance_id()
 	var in_memo: Variant = _memo.get(id)
@@ -211,11 +236,13 @@ func _validated_entry(collider: Object, id: int, index: int) -> Array:
 		return entry
 	_watch_polygon_shape(collider, shape)
 	var polygon := TwinShapes.footprint_of(shape, transform)
-	var keys := PackedInt64Array()
+	var cells := {}
 	for point in polygon:
 		var cell := Vector2i((point * 2.0).round())
-		keys.append((cell.x << 32) + cell.y)
-	entry = [transform, shape, polygon, keys]
+		var key := (cell.x << 32) + cell.y
+		if not cells.has(key) or _before(point, cells[key]):
+			cells[key] = point
+	entry = [transform, shape, polygon, cells]
 	by_shape[index] = entry
 	return entry
 
@@ -238,15 +265,16 @@ func memoed() -> int:
 
 ## A dent, re-cut or in-place shape edit invalidates every kept polygon; a move misses on lookup.
 func _watch_polygon_shape(collider: Object, shape: Shape3D) -> void:
-	var changed := Callable(self, "_clear_polygons")
+	var changed := _clear_cb
 	if collider is Node:
 		var id := collider.get_instance_id()
 		if not _hooked.has(id):
 			_hooked[id] = true
-			(collider as Node).tree_exiting.connect(_forget.bind(id), CONNECT_ONE_SHOT)
-		for signal_name in [&"child_entered_tree", &"child_exiting_tree", &"changed"]:
-			if collider.has_signal(signal_name) and not collider.is_connected(signal_name, changed):
-				collider.connect(signal_name, changed)
+			var node := collider as Node
+			node.tree_exiting.connect(_forget.bind(id), CONNECT_ONE_SHOT)
+			for signal_name in [&"child_entered_tree", &"child_exiting_tree", &"changed"]:
+				if node.has_signal(signal_name) and not node.is_connected(signal_name, changed):
+					node.connect(signal_name, changed)
 	if shape != null and not shape.changed.is_connected(changed):
 		shape.changed.connect(changed)
 

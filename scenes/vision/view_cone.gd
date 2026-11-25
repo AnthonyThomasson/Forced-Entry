@@ -177,7 +177,7 @@ func _run_hits(until: int) -> void:
 	var index := _job.index
 	while index < hits.size() and work < until:
 		var stop := mini(index + chunk, hits.size())
-		_shapes.fold_corners(hits, index, stop, _build.seen, _build.found)
+		_shapes.fold_corners(hits, index, stop, _build.seen)
 		work += VisionSliceConfig.cost_hits
 		index = stop
 	_job.work = work
@@ -188,6 +188,7 @@ func _run_hits(until: int) -> void:
 
 ## The corners are all read: the rays come next.
 func _corners_done() -> void:
+	_build.found = _build.seen.values()
 	_build.corners_read = _build.found.size()
 	_build.hits = []
 	_build.seen = {}

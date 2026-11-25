@@ -10,10 +10,13 @@ class_name VisionSliceConfig
 static var cost_cast: int = 1
 ## The corners (the region shape query, its polygons, the dedupe) are priced 225 units
 ## (`perf/cone_corner_cost`, the 3D shape query of the twin space; the user's price, held by that
-## test): the query is priced `cost_shape` and its polygons and dedupe `cost_hits` a chunk, below,
-## a median 3 chunks, so 120 + 3 * 35. A job whose query is asked again (a crowded region) is priced
-## for each ask.
-static var cost_shape: int = 120
+## test, within its band): the query is priced `cost_shape` and its polygons and dedupe `cost_hits`
+## a chunk, below, a median 3 chunks, so 105 + 3 * 35 = 210. The sum is what a read measures (about
+## 213 units: the query 57 to 61, the chunks 150); the split is the one `vision/view_on_npc`'s
+## 4-frame bound holds at: a chunk priced at its 50 units, with the query at its 60, prices a
+## crowded region (7 chunks) 60 more units and its cone a tick older. A job whose query is asked
+## again (a crowded region) is priced for each ask.
+static var cost_shape: int = 105
 static var cost_probe: int = 1
 ## The polygons and the dedupe of the corners are priced apart from the query: `hit_chunk` hits a
 ## piece of work of `cost_hits` units, so a start tick holds the query and a few chunks, not all

@@ -218,10 +218,10 @@ class CountingShapes:
 	var folds := 0
 
 	func fold_corners(
-		hits: Array[Dictionary], start: int, stop: int, seen: Dictionary, found: Array
+		hits: Array[Dictionary], start: int, stop: int, seen: Dictionary
 	) -> void:
 		folds += 1
-		super(hits, start, stop, seen, found)
+		super(hits, start, stop, seen)
 
 	func _shapes_in_reach(space: PhysicsDirectSpaceState3D) -> Array[Dictionary]:
 		var hits := super(space)
