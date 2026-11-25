@@ -41,7 +41,13 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	await _scenario(t, "20 NPCs x 2 grenades", [[1, 20, 40.0, 0], [1, 20, 40.0, 1]])
+	var two := [[1, 20, 40.0, 0], [1, 20, 40.0, 1]]
+	var peak: int = await _scenario(t, "20 NPCs x 2 grenades", two)
+	t.check(
+		peak > EscapePool.per_frame and peak <= EscapePool.per_frame + EscapePool.urgent_extra + 7,
+		"a wave past the age is served at the urgent rate, and no more (a frame: %d of %d + %d)"
+			% [peak, EscapePool.per_frame, EscapePool.urgent_extra],
+	)
 	await _scenario(t, "34 round one frag", [[1, 34, 60.0, 0]])
 	# A stream: two searches a frame for 50 frames, nearer and each with a fuse sooner than the far
 	# search's: more than the pool can serve, and one far search (the one checked) begun on the
@@ -60,7 +66,7 @@ func run(t: TestContext) -> void:
 ## searches begun `frame` frames after the start (the fuse and `checked` default to the shortest and
 ## true), their runners `distance` px from the burst, the first of a grenade paying the candidates
 ## round it) with their owners asking, and check each wait.
-func _scenario(t: TestContext, label: String, arrivals: Array) -> void:
+func _scenario(t: TestContext, label: String, arrivals: Array) -> int:
 	EscapePool.reset()
 	var start := Engine.get_physics_frames()
 	var rows: Array = []
@@ -79,7 +85,9 @@ func _scenario(t: TestContext, label: String, arrivals: Array) -> void:
 	t.check(not rows.is_empty() and late["over"].is_empty(),
 			"%s: %d searches, the worst wait %d frames; over the bound: %s"
 			% [label, rows.size(), late["worst"], late["over"].slice(0, 3)])
+	var peak := EscapePool.peak_served
 	EscapePool.reset()
+	return peak
 
 
 ## Every owner asks after its search `ASK_EVERY` frames (the frames since it began), at `now`

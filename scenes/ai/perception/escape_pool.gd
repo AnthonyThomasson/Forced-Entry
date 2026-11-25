@@ -5,7 +5,8 @@ extends RefCounted
 ##
 ## `per_frame` units a physics frame (80: about 2 ms, a unit being about 25 us; `EscapeSearch`
 ## prices them) across every search. A search runs candidates while the pool lasts, so a frame
-## spends the pool and at most one candidate's work (7 units) more.
+## spends the pool and at most one candidate's work (7 units) more; while a search is urgent it
+## holds `urgent_extra` units more.
 ##
 ## **The order.** Searches are served on each ask, in this order: an urgent search first (see
 ## `urgent`), the one begun first of them; then a plan an NPC has none of yet before a replan; then
@@ -29,6 +30,10 @@ const AGE_FRAMES := 12
 
 ## The units a physics frame holds across every search. Tests set it.
 static var per_frame := 80
+## The units a frame holds on top of that while any search is urgent (a wait past `AGE_FRAMES`, or a
+## fuse about to run out): a wave too big for the pool is then served at twice its rate, so its
+## last NPCs are not caught for waiting. Tests set it.
+static var urgent_extra := 80
 ## The most units any physics frame has spent since `reset` (what tests observe).
 static var peak_spent := 0
 ## The most units any physics frame has spent serving searches (`peak_spent` less what the
@@ -87,10 +92,11 @@ static func serve(space: PhysicsDirectSpaceState3D, map: RID) -> void:
 	for search: EscapeSearch in order:
 		search.key[5] = urgent(search, frame)
 	order.sort_custom(_before)
+	var limit := per_frame + (urgent_extra if not order.is_empty() and order[0].key[5] else 0)
 	for search: EscapeSearch in order:
-		if _spent >= per_frame:
+		if _spent >= limit:
 			break
-		_spent += search.step(per_frame - _spent)
+		_spent += search.step(limit - _spent)
 	peak_spent = maxi(peak_spent, _spent)
 	peak_served = maxi(peak_served, _spent - _built)
 

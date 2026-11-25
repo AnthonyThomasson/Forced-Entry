@@ -1,14 +1,14 @@
 extends GameTest
 ## G16, an evade wave under the escape pool (`EscapePool`): the escape searches of every NPC fleeing
-## one grenade share `per_frame` units a physics frame, so ten defenders caught by one frag on
+## one grenade share `per_frame` units a physics frame, so thirty defenders caught by one frag on
 ## one frame have their plans over the next frames, the one nearest the burst first, no frame spends
 ## more than the pool and one candidate's work (7 units), every plan lands well inside the fuse and
-## every one of them is clear of the burst. Ten defenders stand in the open warehouse in two rows
+## every one of them is clear of the burst. Thirty defenders stand in the open warehouse in six rows
 ## either side of the frag's flight, all facing the thrower and inside the frag's zone as it
 ## leaves its hand, so they see it and need a plan on the same frame (the premise: it is known to
-## all ten on one frame). Each frame, after every NPC has processed, each one's evade plan (the
+## all thirty on one frame). Each frame, after every NPC has processed, each one's evade plan (the
 ## grenade perception's `_plans`: `at` is the frame it was made) is read. Four more are blinded as
-## the frag leaves the hand, and hear it come down: new plans among the replans of the ten. The
+## the frag leaves the hand, and hear it come down: new plans among the replans of the thirty. The
 ## order rule itself (a plan with none yet before a replan, the grenade that goes off first, the
 ## runner nearest, the search begun first) is pinned on its keys.
 
@@ -16,18 +16,19 @@ const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const AgentThrow := preload("res://scenes/ai/perception/agent_throw.gd")
-## The spec's numbers: the most a frame serves over the pool (one candidate: a snap, a verdict and
-## a route), the frames from knowing the frag to its plan (the most measured is 9, with the ten and
-## four), and the frames before the burst the plan must beat by `ARRIVE_MARGIN` (`docs/grenades.md`
-## G16). The candidates round a burst are paid when a search begins, whatever the pool has left, and
-## are not served (`peak_served`).
+## The spec's numbers: the most a frame serves over the pool and its urgent extra (one candidate: a
+## snap, a verdict and a route), the frames from knowing the frag to its plan (the most measured is
+## 15, with the thirty and four; 19 without the urgent extra, when one of them was caught), and the
+## frames before the burst the plan must beat by `ARRIVE_MARGIN` (`docs/grenades.md` G16). The
+## candidates round a burst are paid when a search begins, whatever the pool has left, and are not
+## served (`peak_served`).
 const OVER := 7
-const WITHIN_FRAMES := 10
+const WITHIN_FRAMES := 15
 const LANDING := Vector2(470, 350)
 const THROWER_AT := Vector2(700, 350)
-const NPC_COUNT := 10
+const NPC_COUNT := 30
 ## Four more are blinded for `LATE_BLIND` s as the frag leaves the hand: they hear it come down and
-## need a plan then, the frame the ten's first replans fall due (a replan must not hold a fresh
+## need a plan then, the frame the thirty's first replans fall due (a replan must not hold a fresh
 ## plan up).
 const LATE_COUNT := 4
 const LATE_BLIND := 1.0
@@ -35,8 +36,8 @@ const LATE_BLIND := 1.0
 
 func describe() -> Dictionary:
 	return {
-		"name": "The escape pool spreads ten NPCs' plans over frames, nearest the burst first",
-		"description": "Ten defenders caught by one frag on one frame: no frame spends more "
+		"name": "The escape pool spreads thirty NPCs' plans over frames, nearest the burst first",
+		"description": "Thirty defenders caught by one frag on one frame: no frame spends more "
 			+ "escape units than the pool, the nearest the burst plan first, each has its plan "
 			+ "within the bound of first knowing the grenade, and every one is clear when it "
 			+ "goes off.",
@@ -51,7 +52,8 @@ func configure(s: TestSetup) -> void:
 	s.von_script([])
 	s.switch(&"ai.hostile_on_trespass", false)
 	for i in NPC_COUNT:
-		var at := Vector2(380 + (i % 5) * 45, 270.0 if i < 5 else 430.0)
+		var row := floori(i / 5.0)
+		var at := Vector2(380 + (i % 5) * 45, 170.0 + row * 60 if row < 3 else 230.0 + row * 60)
 		s.actor(_id(i), &"defender", at, { "facing": Vector2.RIGHT })
 	for i in LATE_COUNT:
 		var at := Vector2(250 + (i % 2) * 45, 310.0 + floorf(i / 2.0) * 60.0)
@@ -134,7 +136,7 @@ func _check_wave(t: TestContext, record: Dictionary) -> void:
 	var wave: int = starts.values().max() if not starts.is_empty() else 0
 	t.require(
 		wave == NPC_COUNT,
-		"set-up: all ten know the frag on one frame (the most on one frame: %d, %s; knew it: %s)"
+		"set-up: all thirty know the frag on one frame (the most on one frame: %d, %s; knew it: %s)"
 			% [wave, starts, first],
 	)
 	t.check(
@@ -143,7 +145,7 @@ func _check_wave(t: TestContext, record: Dictionary) -> void:
 			% [EscapePool.peak_spent, EscapePool.per_frame],
 	)
 	t.check(
-		EscapePool.peak_served <= EscapePool.per_frame + OVER,
+		EscapePool.peak_served <= EscapePool.per_frame + EscapePool.urgent_extra + OVER,
 		"no frame served more than the pool and one candidate (the most: %d, pool %d)"
 			% [EscapePool.peak_served, EscapePool.per_frame],
 	)
@@ -172,7 +174,7 @@ func _check_wave(t: TestContext, record: Dictionary) -> void:
 	_check_order_rule(t)
 
 
-## The ten were all known on one frame, so the pool served them nearest the burst first: no NPC
+## The thirty were all known on one frame, so the pool served them nearest the burst first: no NPC
 ## planned before one nearer the burst.
 func _check_nearest_first(t: TestContext, record: Dictionary) -> void:
 	var rows: Array = []
