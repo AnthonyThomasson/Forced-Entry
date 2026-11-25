@@ -4,7 +4,10 @@ extends GameTest
 ## while it keeps one in sight the position it holds is never more than a couple of frames behind.
 ## Von is down, so the NPC holds its post and watches.
 
-const MAX_LAG_FRAMES := 3
+## The NPC's beat (2 frames) and the sight's re-test every second beat (`beat.md`): 4 frames.
+const MAX_LAG_FRAMES := 4
+## What a target walking 2.6 px a frame covers in them.
+const MAX_TRAIL := 12.0
 const NPC_AT := Vector2(150, 250)
 const OPEN_AT := Vector2(650, 100)
 const HIDDEN_AT := Vector2(650, 250)
@@ -13,8 +16,8 @@ const HIDDEN_AT := Vector2(650, 250)
 func describe() -> Dictionary:
 	return {
 		"name": "Sight follows a moving target",
-		"description": "A hostile is seen within 3 frames of stepping into view and lost within 3 "
-			+ "frames of stepping behind a fridge; its tracked position stays within 8 px of the "
+		"description": "A hostile is seen within 4 frames of stepping into view and lost within 4 "
+			+ "frames of stepping behind a fridge; its tracked position stays within 12 px of the "
 			+ "real one while it walks.",
 		"tags": ["ai", "vision", "scripted"],
 		"timeout": 12.0,
@@ -68,8 +71,11 @@ func run(t: TestContext) -> void:
 		"the target walked across the room (x %.0f)" % target.global_position.x,
 	)
 	t.check(
-		worst <= 8.0,
-		"the position it holds trails the target by at most 8 px (worst %.1f)" % worst,
+		worst <= MAX_TRAIL,
+		"the position it holds trails the target by at most %.0f px (worst %.1f)" % [
+			MAX_TRAIL,
+			worst,
+		],
 	)
 
 

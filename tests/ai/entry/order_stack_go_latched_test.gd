@@ -107,13 +107,13 @@ func _goes_on_latched_go(t: TestContext, door: String, gos_before: int) -> void:
 		func(id): return Entry.first_call_time(t, "ready", id, door),
 	).max()
 	t.check(
-		await t.until(func(): return not Entry.calls(t, "going_in").is_empty(), 20.0),
+		await t.until(func(): return _went_in(t, door), 20.0),
 		"the point goes in once the stack is ready, on the latched go",
 	)
 	var going := Order.first_time(
 		t,
 		&"callout",
-		func(d): return String(d.get("entry_step", "")) == "going_in",
+		func(d): return d.get("entry_step", "") == "going_in" and d.get("opening") == door,
 	)
 	t.check(
 		going >= ready_at,
@@ -124,3 +124,9 @@ func _goes_on_latched_go(t: TestContext, door: String, gos_before: int) -> void:
 		func(o): return String(o.get("kind", "")) == Order.GO,
 	).size()
 	t.expect_eq(gos_after, gos_before, "with no second go")
+
+
+## Whether one of the two radioed going in at `door` (the order's own: a member's way round the
+## house may take it past another door, whose entry is its own).
+func _went_in(t: TestContext, door: String) -> bool:
+	return IDS.any(func(id): return Entry.first_call_time(t, "going_in", id, door) < INF)

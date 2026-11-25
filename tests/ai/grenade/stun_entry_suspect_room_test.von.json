@@ -106,11 +106,11 @@
 			],
 			"pick": "locate",
 			"probabilities": {
-				"locate": 0.8454,
-				"retreat": 0.1546
+				"locate": 0.8451,
+				"retreat": 0.1549
 			},
 			"question": "How should you fight the hostile? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the kitchen, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded. You carry a stun grenade.\nCurrent activity: SEARCH - STUN ENTRY - the doorway to the south-west (taking a corner, for 4s).\nSomeone you cannot see is shooting at you. Allies near you: b.\nYou are being shot at by someone you cannot see, from the north-east; you are exposed to their fire.\nNobody else is in sight or known.\nb (ally) — last seen just now — east of you, outside the house — was moving south-east, away from you.\nb (radio, just now): SEARCH - STUN ENTRY - the doorway to the south-west.\nYou are being hit, from the north-east!\nGunfire heard to the south-west, in the kitchen, recently.\nDecided so far: COMBAT."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the kitchen, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded. You carry a stun grenade.\nCurrent activity: SEARCH - STUN ENTRY - the doorway to the south-west (taking a corner, for 4s).\nSomeone you cannot see is shooting at you. Allies near you: b.\nYou are being shot at by someone you cannot see, from the north-east; you are exposed to their fire.\nNobody else is in sight or known.\nb (ally) — last seen just now — south-east of you, outside the house — was moving south-west.\nb (radio, just now): SEARCH - STUN ENTRY - the doorway to the south-west.\nYou are being hit, from the north-east!\nGunfire heard to the south-west, in the kitchen, recently.\nDecided so far: COMBAT."
 		},
 		{
 			"options": [
@@ -121,26 +121,13 @@
 			],
 			"pick": "engage",
 			"probabilities": {
-				"advance": 0.2717,
-				"engage": 0.4009,
-				"flank": 0.1835,
-				"retreat": 0.144
+				"advance": 0.2281,
+				"engage": 0.4129,
+				"flank": 0.2038,
+				"retreat": 0.1552
 			},
 			"question": "How should you fight d? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the kitchen, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: SEARCH - STUN ENTRY - the doorway to the south-west (taking a corner, for 5s).\nKnown hostiles: 1 (1 in sight). Allies near you: a.\nYou have a clear shot at d from where you stand. You are exposed to their fire. They are aiming at you.\nd — HOSTILE (attacked you) — in sight — close, in pistol range, north of you, in the kitchen — standing still — aiming at you — crouched low — holding a Pistol — looks hurt.\na (ally) — in sight — north of you, in the kitchen — on d's front — moving south, toward you — looks badly wounded.\na (radio, just now): COMBAT - LOCATE - toward the shots; under fire.\nFlanks on d (you are on their front): their left side — free, line blocked, cover, short hidden route; their right side — free, clear shot, in the open, short hidden route; behind them — free, line blocked, cover, medium hidden route.\nYou are under fire: shots are landing near you, from the north-west!\nDecided so far: COMBAT → d."
-		},
-		{
-			"options": [
-				"You are badly wounded and being hit (best: b, out of their sight; you are badly wounded)",
-				"You are being shot at by someone you cannot see (the shots came from the north-west) (your current plan)"
-			],
-			"pick": "locate",
-			"probabilities": {
-				"locate": 0.5789,
-				"retreat": 0.4211
-			},
-			"question": "How should you fight the hostile? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the kitchen, inside the house, holding a Pistol. You are badly wounded.\nYour pistol is loaded. You carry a stun grenade.\nCurrent activity: COMBAT - LOCATE - toward the shots (en route, for 0s).\nSomeone you cannot see is shooting at you. Allies near you: b.\nYou are being shot at by someone you cannot see, from the north-west; you are exposed to their fire.\nNobody else is in sight or known.\nb (ally) — last seen just now — north-east of you, outside the house — was moving south-east.\nb (radio, just now): SEARCH - STUN ENTRY - the doorway to the south-west; under fire.\nYou are being hit, from the north-west!\nGunfire heard to the north-west, in the kitchen, just now.\nDecided so far: COMBAT."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the kitchen, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: SEARCH - STUN ENTRY - the doorway to the south-west (taking a corner, for 4s).\nKnown hostiles: 1 (1 in sight). Allies near you: a.\nYou have a clear shot at d from where you stand. You are exposed to their fire.\nd — HOSTILE (attacked you) — in sight — close, in pistol range, north of you, in the kitchen — standing still — aiming at a — crouched low — holding a Pistol — looks hurt.\na (ally) — in sight — north of you, in the kitchen — on d's front — moving south, toward you — looks badly wounded.\na (radio, just now): COMBAT - LOCATE - toward the shots; under fire.\nFlanks on d (you are on their front): their left side — free, line blocked, cover, short hidden route; their right side — free, clear shot, in the open, short hidden route; behind them — free, line blocked, cover, medium hidden route.\nYou are under fire: shots are landing near you, from the north-west!\nDecided so far: COMBAT → d."
 		},
 		{
 			"options": [
@@ -151,26 +138,39 @@
 			],
 			"pick": "fire_here",
 			"probabilities": {
-				"ambush": 0.2052,
-				"fire_here": 0.3579,
-				"fire_south": 0.2233,
-				"fire_south_east": 0.2137
+				"ambush": 0.2031,
+				"fire_here": 0.3667,
+				"fire_south": 0.2195,
+				"fire_south_east": 0.2107
 			},
 			"question": "Where should you fight d from? Prefer a clear shot with cover close by, hidden from other hostiles; wait in ambush when they are coming to you.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nCurrent activity: SEARCH - STUN ENTRY - the doorway to the south-west (taking a corner, for 5s).\nYour pistol is loaded.\nYou have a clear shot at d from where you stand. You are exposed to their fire. They are aiming at you.\nd — HOSTILE (attacked you) — in sight — close, in pistol range, north of you, in the kitchen — standing still — aiming at you — crouched low — holding a Pistol — looks hurt.\na (ally) — in sight — north of you, in the kitchen — on d's front — moving south, toward you — looks badly wounded.\na (radio, just now): COMBAT - LOCATE - toward the shots; under fire.\nYou are under fire: shots are landing near you, from the north-west!\nDecided so far: COMBAT → d → ENGAGE."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nCurrent activity: SEARCH - STUN ENTRY - the doorway to the south-west (taking a corner, for 4s).\nYour pistol is loaded.\nYou have a clear shot at d from where you stand. You are exposed to their fire.\nd — HOSTILE (attacked you) — in sight — close, in pistol range, north of you, in the kitchen — standing still — aiming at a — crouched low — holding a Pistol — looks hurt.\na (ally) — in sight — north of you, in the kitchen — on d's front — moving south, toward you — looks badly wounded.\na (radio, just now): COMBAT - LOCATE - toward the shots; under fire.\nYou are under fire: shots are landing near you, from the north-west!\nDecided so far: COMBAT → d → ENGAGE."
 		},
 		{
 			"options": [
-				"You are badly wounded and being hit (best: the living room, farther from them, still in their sight; you are unhurt)",
+				"You are badly wounded and being hit (best: b, out of their sight; you are badly wounded)",
+				"You are being shot at by someone you cannot see (the shots came from the north-west) (your current plan)"
+			],
+			"pick": "locate",
+			"probabilities": {
+				"locate": 0.5704,
+				"retreat": 0.4296
+			},
+			"question": "How should you fight the hostile? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the kitchen, inside the house, holding a Pistol. You are badly wounded.\nYour pistol is loaded. You carry a stun grenade.\nCurrent activity: COMBAT - LOCATE - toward the shots (en route, for 0s).\nSomeone you cannot see is shooting at you. Allies near you: b.\nYou are being shot at by someone you cannot see, from the north-west; you are exposed to their fire.\nNobody else is in sight or known.\nb (ally) — last seen just now — east of you, outside the house — was moving south-west.\nb (radio, just now): SEARCH - STUN ENTRY - the doorway to the south-west; under fire.\nYou are being hit, from the north-west!\nGunfire heard to the west, in the kitchen, recently.\nDecided so far: COMBAT."
+		},
+		{
+			"options": [
+				"You are badly wounded and being hit (best: a, farther from them, still in their sight; you are unhurt)",
 				"You are being shot at by someone you cannot see (the shots came from the north-west)"
 			],
 			"pick": "locate",
 			"probabilities": {
-				"locate": 0.821,
-				"retreat": 0.179
+				"locate": 0.8274,
+				"retreat": 0.1726
 			},
 			"question": "How should you fight the hostile? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your pistol is nearly empty or empty.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the kitchen, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: COMBAT - d - ENGAGE - where you stand (waiting, for 0s).\nSomeone you cannot see is shooting at you. Allies near you: a.\nYou are being shot at by someone you cannot see, from the north-west; you are exposed to their fire.\nNobody else is in sight or known.\na (ally) — last seen just now — north of you, outside the house — was moving east — looks badly wounded.\na (radio, just now): COMBAT - LOCATE - toward the shots; under fire, badly wounded.\nYou are under fire: shots are landing near you, from the north-west!\nGunfire heard to the north, in the kitchen, just now.\nDecided so far: COMBAT."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the kitchen, inside the house, holding a Pistol. You are unhurt.\nYour pistol is loaded.\nCurrent activity: COMBAT - d - ENGAGE - where you stand (waiting, for 0s).\nSomeone you cannot see is shooting at you. Allies near you: a.\nYou are being shot at by someone you cannot see, from the north-west; you are exposed to their fire.\nNobody else is in sight or known.\na (ally) — last seen just now — north of you, outside the house — was moving east — looks badly wounded.\na (radio, just now): COMBAT - LOCATE - toward the shots; under fire.\nYou are under fire: shots are landing near you, from the north-west!\nGunfire heard to the north, in the kitchen, just now.\nDecided so far: COMBAT."
 		}
 	],
 	"version": 1

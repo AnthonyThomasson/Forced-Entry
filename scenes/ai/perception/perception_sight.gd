@@ -19,6 +19,11 @@ const SIGHT_EVERY_FRAMES := 3
 const CONE_VIEW := 0
 const CONE_BUBBLE := 1
 const CONE_HALF_FOV := 2
+## The sight pass counts its cadence in the NPC's beats (`npc_pace.gd`), which the controller hands
+## in at its first tick: `x` the frames in one beat, `y` the beats between two sight tests of a
+## character that stays in view. `(1, SIGHT_EVERY_FRAMES)`: the pass runs every frame, as a test
+## drives it.
+const BEAT_EVERY_FRAME := Vector2i(1, SIGHT_EVERY_FRAMES)
 
 ## The root, physics frame and result of the character gathering shared by every perception.
 static var _shared_root: Node = null
@@ -48,8 +53,8 @@ var primed := false
 ## `fov_degrees` or `view_distance` the vision's doubles tell apart (exact for 110 degrees only).
 ## Both distances are infinite with sight not gated, which puts nothing outside.
 var _cone := PackedFloat64Array([INF, INF, 0.0])
-## The NPC's spawn order (`_begin_pass`).
-var _order := 0
+## The beat the cadence counts in (`BEAT_EVERY_FRAME`: frames a beat, beats between two tests).
+var beat := BEAT_EVERY_FRAME
 ## How many group gatherings this perception made (a fast-path test's observable).
 var list_builds := 0
 ## How many per-NPC filtered copies of the shared list `others()` built; the sight pass reads the
@@ -72,7 +77,9 @@ func see(rooms: Array) -> void:
 	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(own)
 	var eye: float = vision.eye_height()
 	var now := GameClock.msec()
-	var frame := WorldRng.frame_of(own)
+	@warning_ignore("integer_division")
+	var frame := WorldRng.frame_of(own) / beat.x
+	var order := WorldRng.order_of(own.get_instance_id())
 	_begin_pass()
 	for other in (_world_characters() if not blind else []):
 		# Untyped: a character freed since the list was gathered must not hit a typed assignment.
@@ -83,7 +90,7 @@ func see(rooms: Array) -> void:
 			if not _looked.is_empty():
 				_looked.erase(other.get_instance_id())  # Out of the cone: its next look is at once.
 			continue
-		if not _due_in_view(other, frame):
+		if not _due_in_view(other, frame, order):
 			continue
 		if not vision.sees_in_view(other, point, self_pos, space, eye):
 			continue
@@ -109,7 +116,6 @@ func _begin_pass() -> void:
 	if blind:
 		_looked.clear()
 	_read_cone()
-	_order = WorldRng.order_of(perception._character.get_instance_id())
 
 
 ## Take the vision's cone numbers for the pass (`_outside_view`): sight not gated puts nothing
@@ -133,8 +139,8 @@ func _due_for_sight(other: Node, self_pos: Vector2, facing: Vector2, frame: int)
 		if not _looked.is_empty():
 			_looked.erase(other.get_instance_id())  # Out of the cone: its next look is at once.
 		return false
-	_order = WorldRng.order_of(perception._character.get_instance_id())
-	return _due_in_view(other, frame)
+	var order := WorldRng.order_of(perception._character.get_instance_id())
+	return _due_in_view(other, frame, order)
 
 
 ## Whether the offset `to` (from the NPC to a character) lies outside its view: the geometry half
@@ -156,14 +162,14 @@ func _outside_view(to: Vector2, facing: Vector2) -> bool:
 ## `SIGHT_EVERY_FRAMES` frames, offset by the NPC's and the target's spawn order, and until then
 ## stays what the last look saw; every frame while `primed`. One out of the cone is dropped by the
 ## caller.
-func _due_in_view(other: Node, frame: int) -> bool:
+func _due_in_view(other: Node, frame: int, order: int) -> bool:
 	var id: int = other.get_instance_id()
 	if other.get("is_dead") == true:
 		_looked.erase(id)
 		return false
 	if (not primed
 			and _looked.has(id)
-			and (frame + _order + WorldRng.order_of(id)) % SIGHT_EVERY_FRAMES != 0):
+			and (frame + order + WorldRng.order_of(id)) % beat.y != 0):
 		if _visible_before.has(id):
 			visible_now[id] = true  # Not due: still what the last look saw.
 		return false

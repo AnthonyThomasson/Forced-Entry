@@ -130,8 +130,12 @@ func _check_live_grenade(t: TestContext, nb: Node) -> bool:
 	t.actor(&"d").movement.speed = _defender_speed
 	# Toward the throw, whatever its decision had it facing: "having seen it" below holds by this
 	# set facing (the defender looks at the grenade), not by what its decision chose.
-	t.actor(&"d").facing = Vector2.LEFT
-	await t.frames(10)
+	# Held for the frames of two beats (`beat.md`): off its beat the NPC senses nothing and its body
+	# turns to the aim it holds, so a facing set once can fall on a frame it does not look.
+	for i in 4:
+		t.actor(&"d").facing = Vector2.LEFT
+		await t.frames(1)
+	await t.frames(6)
 	var own: Array = GrenadeAi.grenades(nb).get("known", [])
 	if t.check(not own.is_empty(), "the thrower knows the live grenade"):
 		t.check(own[0]["kind"] == &"frag" and own[0]["source"] == &"own", "a frag of its own")

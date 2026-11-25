@@ -496,6 +496,7 @@ func wants_decision(decide_timer_elapsed: bool) -> bool:
 
 ## Carry out the running primitive this tick.
 func apply(delta: float) -> void:
+	_loco.crowd.step = delta
 	if task.primitive != &"follow":
 		gait.catching_up = false
 	_combat.tick(delta)

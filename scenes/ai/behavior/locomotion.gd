@@ -245,7 +245,7 @@ func move_to(dest: Vector2, within := 0.0) -> void:
 	if _check():
 		# The walk changed map or goal: steer by its new path.
 		next = _agent.get_next_path_position()
-	if leaves.work(get_physics_process_delta_time()):
+	if leaves.work(crowd.step):
 		return  # A door in the way is being opened: the walk waits for it.
 	var here: Vector2 = _character.global_position
 	if _way == Way.ROUND:
@@ -373,7 +373,7 @@ func _check() -> bool:
 	if frame == crowd.checked_frame:
 		return false
 	crowd.checked_frame = frame
-	var delta := get_physics_process_delta_time()
+	var delta := crowd.step
 	var from: Vector2 = _character.global_position
 	var resting := crowd.at_rest(from, LOOKAHEAD + PASS_CLEARANCE)
 	var was_map := _agent.get_navigation_map()

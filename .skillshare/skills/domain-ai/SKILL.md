@@ -15,7 +15,7 @@ Each tick the orchestrator (`goal_controller.gd`, `orchestrator.md`) folds queue
 
 | Sub-domain | Folder | Role |
 |---|---|---|
-| Orchestrator | `goal_controller.gd`, `npc_cadence.gd`, `npc_comms.gd`, `npc_reflexes.gd`, `tuning/` | The AI's composition root; the single authoring surface (`tuning`) and observer surface. |
+| Orchestrator | `goal_controller.gd`, `npc_cadence.gd`, `npc_pace.gd`, `npc_comms.gd`, `npc_reflexes.gd`, `tuning/` | The AI's composition root; the single authoring surface (`tuning`) and observer surface. |
 | Perception | `perception/` | SENSE: what the NPC knows (sight, hostility, memory, hearing, tactics geometry, doorway geometry, grenades known) and the **snapshot** (`agent_snapshot.gd`, `perception/snapshot/`) worded for Von. |
 | Decision | `decision/` | THINK: the tree (data), the planner that walks it, the Von transport and dev server launcher. |
 | Behaviour | `behavior/` | ACT: runs the leaf's primitive and the state Von lacks (engagement, commitment, pathing). Its modules: `combat.gd`, `search_coverage.gd`, `watch.gd`, `entry.gd`. |
@@ -28,6 +28,7 @@ The **stack seam** is `perception/stack/` (`StackClaim`, `ClaimLedger`, `DoorSta
 
 Orchestrator and decision flow
 - `orchestrator.md` — editing `goal_controller.gd`, `npc_cadence.gd`, `npc_comms.gd` or `npc_reflexes.gd`; when a decision starts or is interrupted, how orders and following reach the loop, ambush priming, the EventBus intake.
+- `beat.md` — `npc_pace.gd`: an NPC senses and acts one frame in two (a beat, staggered by spawn order); what is on the beat, what stays every frame, what wakes it at once; the cost in reaction.
 - `decision.md` — editing `scenes/ai/decision/`: the decision tree, adding a mode or tactic, entry rules (under fire → combat), what Von is asked at each level, how an option is chosen, the confinement filter. Then `decision-job.md` for one decision as a job against the work-unit pool (`DecisionBudget`, `decision_job.gd`: claim, pieces, interrupt) `decision-groups.md` for the group and grenade pieces (the leads, entries and throws built ahead of the walk a unit a step), `decision-prices.md` for the pieces' prices, measured, and how a test observes a landing, `decision-latency.md` for how long a decision takes, the order the pool serves and the before / after tables, and `decision-von.md` for the Von transport, the server-down fallback and `DecisionStub`.
 - `decision-von-server.md` — editing `decision_server_launcher.gd`, `server_output.gd` or `server_probe.gd`, the Von boot script (`tools/von/boot.sh`, `boot.ps1`), a missing-setup or port-taken warning, the `--require-von` preflight: how the game starts, reuses and stops the Von server, and every way it settles with none.
 

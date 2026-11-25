@@ -79,6 +79,10 @@ var _replan_at := WAIT
 var step_out := Vector2.INF
 ## Where the NPC stood when the hold under way began (INF: none yet).
 var _hold_at := Vector2.INF
+## Seconds since the walk's last tick: the NPC's beat (`npc_pace.gd`) carries a coast's seconds, so
+## every wait a walk counts (a door, a held way, giving way) counts real time. Set by
+## `Behavior.apply`.
+var step := 1.0 / 60.0
 
 
 func _init(locomotion: Node) -> void:

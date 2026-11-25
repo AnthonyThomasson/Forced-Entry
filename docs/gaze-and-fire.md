@@ -66,6 +66,10 @@ Tests: `gaze_arrival_stops`.
 (`run_through_fire` on the RETREAT node): it is about leaving the line, not trading shots.
 Tests: `ai_runs_to_destination`, `retreat_keeps_running`.
 
+## The beat: where it looks and fires one frame in two (#194 perf-cadence)
+
+An NPC senses and acts on a beat, one frame in two (`npc_pace.gd`; the rule, its wake list and the cost: the `domain-ai` skill's `beat.md`). Its aim (`aim_point`), its walk and its decision to fire are written on its beat; the body turns toward the aim and walks on the intent every frame. So an NPC sights a character in its cone at most a frame later than before, aims at it a frame later, and a gun's cooldown rounds up to its beat (a shot the weapon allows between beats is fired on the next). It never waits for a beat when a frame late would show: a burst owing a round, a throw, a tactical entry (its stack, pie and crossing, and its approach near the doorway: a team's choreography is timed against the other bodies, and a guard that covers a doorway a beat after the invader is abreast of it is a different behaviour) and a door being worked, a grenade run, a primed ambusher and a flash-blinded NPC run every frame, and a hit on it, a grenade event (thrown, landed, burst) or an order wake it for the frame. A character held in view is re-tested every second beat (4 frames).
+
 ## Tuning (the NPC's `tuning.watch`)
 
 `tuning.watch.look_ahead` (150 px), `tuning.watch.door_dwell` (2.5 s), `tuning.watch.lost_gaze` (2 s). The turn between doorways uses

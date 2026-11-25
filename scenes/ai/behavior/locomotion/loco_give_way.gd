@@ -81,7 +81,7 @@ func apply() -> void:
 		yield_id = int(other["id"])
 		_yield_spot = Vector2.INF
 		_yield_for = 0.0
-	_yield_for += loco.get_physics_process_delta_time()
+	_yield_for += loco.crowd.step
 	if _yield_for > GIVE_MAX:
 		return
 	# With the right of way the NPC only stops for a walker on top of it.

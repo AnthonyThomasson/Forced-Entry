@@ -45,6 +45,8 @@ const Cadence := preload("res://scenes/ai/npc_cadence.gd")
 const Comms := preload("res://scenes/ai/npc_comms.gd")
 ## The reflexes outside the decision walk: following, the grenade and the blind roll (`_reflexes`).
 const Reflexes := preload("res://scenes/ai/npc_reflexes.gd")
+## The beat the NPC senses and acts on (`_reflexes.pace`).
+const Pace := preload("res://scenes/ai/npc_pace.gd")
 const ZoneList := preload("res://scenes/ai/debug/zone_list.gd")
 
 ## The behaviour to pursue, in plain language — what Von ranks every level of the decision against.
@@ -445,14 +447,21 @@ func control(character: Node, delta: float) -> void:
 	if _character == null:
 		_bind_body(character)
 	var due: bool = _cadence.due(delta)
-	_sense(character, delta)
+	_comms.process_events()
+	_reflexes.prime()
+	var step: float = _reflexes.pace.step(WorldRng.frame_of(character), delta, _awake())
+	if step >= 0.0:
+		_sense(character, step)
 	# An active interaction holds the tick; when it or a move resolves, re-decide at once.
 	if _behavior.errand.service_interaction(delta, _cadence.forced):
 		_job.rest()  # its tick is held: no piece of its decision runs this frame
 		return
 	_take_resolved()
 	_think(due)
-	_act(delta)
+	if step >= 0.0:
+		_act(step)
+	else:
+		_behavior.gait.coast()
 
 
 ## The NPC died: the body no longer asks its controller to think, so nothing it has in flight ever
@@ -471,19 +480,31 @@ func _on_died() -> void:
 func _bind_body(character: Node) -> void:
 	_character = character
 	_reflexes.bind(character)
+	_reflexes.pace.bind(character)
+	_perception.sight.beat = Vector2i(Pace.BEAT, Pace.SIGHT_EVERY_BEATS)
 	_perception.bind(character)
 	_behavior.bind(character)
 	_job.planner.bind(_npc_name())
 
 
-## SENSE: folds the queued events in, primes a posted ambusher (before the SEE pass, so the sight
-## test runs every frame), perceives, takes the squad's follow reads and refreshes the confinement
-## (after the whole order intake: the SEE pass ends an ambush on contact), and lets the behaviour
-## adopt the hostiles it knows (reconsidering at once when the engaged contact is lost) before the
-## salient-event check.
+## Whether this frame is the NPC's beat whatever its turn (`_reflexes.pace`): an event woke it
+## (`_comms.urgent`: hit, fired at, a grenade, an order), it knows a live grenade, it is flash-blind
+## or just was (its sight returning re-decides it), or the behaviour is at something a frame late
+## would show (`Behavior.needs_every_frame`: a throw, a crossing, a door, an evade, an ambush
+## primed).
+func _awake() -> bool:
+	if _comms.urgent:
+		_comms.urgent = false
+		return true
+	return _reflexes.blind_pending() or _behavior.gait.needs_every_frame()
+
+
+## SENSE, on the NPC's beat (`delta`: the seconds since its last): perceives (the events are in and
+## an ambusher primed, every frame, before the beat is chosen), takes the squad's follow reads and
+## refreshes the confinement (after the whole order intake: the SEE pass ends an ambush on contact),
+## and lets the behaviour adopt the hostiles it knows (reconsidering at once when the engaged
+## contact is lost) before the salient-event check.
 func _sense(character: Node, delta: float) -> void:
-	_comms.process_events()
-	_reflexes.prime()
 	_perception.house.openings = openings
 	_perception.observe(rooms)
 	_reflexes.follow_squad()
@@ -522,8 +543,9 @@ func _think(due: bool) -> void:
 	_job.advance()
 
 
-## ACT: the behaviour carries out the running primitive, then the entry turn, the entry and throw
-## calls and the order's progress go out.
+## ACT, on the NPC's beat (`delta`: the seconds since its last): the behaviour carries out the
+## running primitive, then the entry turn, the entry and throw calls and the order's progress go
+## out.
 func _act(delta: float) -> void:
 	_behavior.apply(delta)
 	if _behavior.entries.take_turned():

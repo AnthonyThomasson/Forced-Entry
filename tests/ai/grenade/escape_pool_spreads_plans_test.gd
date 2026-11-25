@@ -18,12 +18,14 @@ const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const AgentThrow := preload("res://scenes/ai/perception/agent_throw.gd")
 ## The spec's numbers: the most a frame serves over the pool and its urgent extra (one candidate: a
 ## snap, a verdict and a route), the frames from knowing the frag to its plan (the most measured is
-## 15, with the thirty and four; 19 without the urgent extra, when one of them was caught), and the
+## 15, with the thirty and four, 16 for the half that sees the frag a beat later (`beat.md`: an NPC
+## off its beat sees a new grenade on its next, one frame on); 19 without the urgent extra, when one
+## of them was caught), and the
 ## frames before the burst the plan must beat by `ARRIVE_MARGIN` (`docs/grenades.md` G16). The
 ## candidates round a burst are paid when a search begins, whatever the pool has left, and are not
 ## served (`peak_served`).
 const OVER := 7
-const WITHIN_FRAMES := 15
+const WITHIN_FRAMES := 16
 const LANDING := Vector2(470, 350)
 const THROWER_AT := Vector2(700, 350)
 const NPC_COUNT := 30
@@ -133,11 +135,15 @@ func _check_wave(t: TestContext, record: Dictionary) -> void:
 	for id in first:
 		if int(String(id).trim_prefix("d")) < NPC_COUNT:
 			starts[first[id]] = int(starts.get(first[id], 0)) + 1
-	var wave: int = starts.values().max() if not starts.is_empty() else 0
+	# The NPCs sense on a beat (`npc_pace.gd`): the half off its turn on the frame the frag comes
+	# sees it on its next, one frame on, so all thirty know it within two frames, each half on one.
+	var wave: int = 0
+	for n in starts.values():
+		wave += int(n)
 	t.require(
-		wave == NPC_COUNT,
-		"set-up: all thirty know the frag on one frame (the most on one frame: %d, %s; knew it: %s)"
-			% [wave, starts, first],
+		wave == NPC_COUNT and starts.size() <= 2,
+		"set-up: all thirty know the frag within a beat, each half on one frame (%s; knew it: %s)"
+			% [starts, first],
 	)
 	t.check(
 		EscapePool.peak_spent >= EscapePool.per_frame,
@@ -174,20 +180,22 @@ func _check_wave(t: TestContext, record: Dictionary) -> void:
 	_check_order_rule(t)
 
 
-## The thirty were all known on one frame, so the pool served them nearest the burst first: no NPC
-## planned before one nearer the burst.
+## The NPCs that knew the frag on one frame were served nearest the burst first: none planned
+## before one nearer the burst that knew it on the same frame.
 func _check_nearest_first(t: TestContext, record: Dictionary) -> void:
 	var rows: Array = []
 	for i in NPC_COUNT:
 		rows.append({
 			"id": _id(i),
 			"d": float(record["away"].get(_id(i), 0.0)),
+			"known": int(record["first_known"].get(_id(i), 0)),
 			"at": int(record["planned"].get(_id(i), 1_000_000)),
 		})
 	var inverted: Array = []
 	for a: Dictionary in rows:
 		for b: Dictionary in rows:
-			if float(a["d"]) + 1.0 < float(b["d"]) and int(a["at"]) > int(b["at"]):
+			if (float(a["d"]) + 1.0 < float(b["d"]) and int(a["at"]) > int(b["at"])
+					and int(a["known"]) == int(b["known"])):
 				inverted.append("%s (%d px) after %s (%d px)" % [a["id"], a["d"], b["id"], b["d"]])
 	t.check(inverted.is_empty(), "no NPC planned after one farther from the burst: %s" % [inverted])
 

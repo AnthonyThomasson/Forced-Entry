@@ -35,7 +35,7 @@
 				"lead_ally_1": 1.0
 			},
 			"question": "What should you check first? Prefer the freshest lead that matters most to your goal.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nCurrent activity: COMBAT - RETREAT - behind the wall close by (en route, for 0s).\nNobody else is in sight or known.\nb (ally) — last seen just now — south-east of you, outside the house — was standing still.\nb (radio, recently): COMBAT - GRENADE - stun where the shots came from; under fire.\nDecided so far: INVESTIGATE."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are unhurt.\nCurrent activity: COMBAT - RETREAT - behind the wall close by (en route, for 0s).\nNobody else is in sight or known.\nb (ally) — last seen recently — south-east of you, outside the house — was standing still.\nb (radio, recently): COMBAT - GRENADE - stun where the shots came from; under fire.\nDecided so far: INVESTIGATE."
 		},
 		{
 			"options": [

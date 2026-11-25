@@ -16,6 +16,9 @@ var event_queue: Array = []
 ## The last callout this NPC radioed (`position`, `point`, `label`, `at` in game msec), for the
 ## hearing overlay.
 var last_callout := {}
+## An event this tick wakes the NPC off its beat (`npc_pace.gd`): it was hit or fired at, a grenade
+## came down or went off, an order reached it. Set by `process_events`, taken by the controller.
+var urgent := false
 
 
 func _init(brain: Node) -> void:
@@ -39,8 +42,11 @@ func process_events() -> void:
 			&"hit":
 				if deaf and ev[1].get("victim") != controller._character:
 					continue
-				if perception.hearing.process_hit(ev[1]) and not behavior.in_combat():
+				var relevant: bool = perception.hearing.process_hit(ev[1])
+				if relevant and not behavior.in_combat():
 					cadence.force("attacked")
+				if relevant or ev[1].get("victim") == controller._character:
+					urgent = true
 			&"callout":
 				if controller.tuning.radio.hear_callouts and not deaf:
 					perception.hearing.process_callout(ev[1])
@@ -49,13 +55,16 @@ func process_events() -> void:
 					perception.hearing.process_footfall(ev[1])
 			&"grenade":
 				perception.grenades.process(ev[1], deaf)
+				urgent = true
 			&"explosion":
 				perception.grenades.process_explosion(ev[1])
+				urgent = true
 			&"order":
 				# An order (LD5) reaches its recipients whatever their state, deaf included, and is
 				# decided on at once, as a hit is (after a crossing or an evade, which hold every
 				# decision).
 				if perception.orders.process(ev[1]):
+					urgent = true
 					cadence.force("ordered")
 					# A walk it replaces stands until a decision started from here on lands
 					# (the controller's `_on_decided`).
