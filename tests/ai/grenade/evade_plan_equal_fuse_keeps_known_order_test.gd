@@ -27,6 +27,8 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
+	# The premise: the pool is not short (a search lands the frame after it begins).
+	s.set_static(EscapePool, "per_frame", 1_000_000)
 	s.actor(&"npc", &"puppet", Maps.HALL_MIDDLE)
 
 
@@ -48,19 +50,38 @@ func run(t: TestContext) -> void:
 	var map: RID = NavWorld.map_of(npc)
 	var exclude: Array = SightRay.exclude_of(npc)
 	known._note(first, first.global_position, &"seen", false)
-	var planned := known.plan(space, map, exclude)
+	var planned := await _plan_when_landed(t, known, [space, map, exclude], 1)
 	if not t.require(
 			planned.get("id", 0) == first.get_instance_id(),
 			"set-up: the NPC plans the first grenade (%s)" % [planned],
 	):
 		return
 	known._note(second, second.global_position, &"seen", false)
+	# (Both have a plan before the answer is read: the order of asking must not pick it.)
+	await _plan_when_landed(t, known, [space, map, exclude], 2)
 	var plan := known.plan(space, map, exclude)
 	t.check(
 		plan.get("id", 0) == first.get_instance_id(),
 		"with the second grenade fresh and as near to bursting, the plan is still the first's (%s)"
 			% [plan],
 	)
+
+
+## `known.plan(space, map, exclude)` each frame until `plans` grenades have a plan (the escape
+## search lands a frame after it begins, and the pool serves it): the plan then handed out.
+func _plan_when_landed(
+	t: TestContext,
+	known: AgentGrenades,
+	world: Array,
+	plans: int,
+) -> Dictionary:
+	var plan := {}
+	for i in 20:
+		plan = known.plan(world[0], world[1], world[2])
+		if known.get("_plans").size() >= plans:
+			break
+		await t.frames(1)
+	return plan
 
 
 ## A frag at `at` with `FUSE` s left, as the grenade perception reads one (`kind`, `fuse_left()`,

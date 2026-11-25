@@ -96,7 +96,7 @@ Side file of `perf-district.md` (`perf.md`, `domain-testing`).
 
 ### After #192's Extension 2 (2026-11-07): AC34 is NOT met, the escape tail is gone
 
-The escape search is pruned (nearest route first, stop past the best) and capped at `AgentGrenades.ESCAPE_CAP` 3 a physics frame (fresh plans first, a
+The escape search is pruned (nearest route first, stop past the best) and capped at `AgentGrenades.ESCAPE_CAP` 3 a physics frame (a count, not a cost: #194 job 20 perf-escape replaced it with `EscapePool`, 80 units a frame, `perception-grenades.md`) (fresh plans first, a
 replan keeps one slot; `docs/grenades.md` G16: an NPC may start its run up to 3 frames late, which matches the code). A call now costs 3.4 ms (5.7 and 6.4 before), at most 3
 run in a frame, 59 and 50 calls in the grenade match's 560 frames (53 and 49 before, in 29 and 28 frames over 20 ms).
 

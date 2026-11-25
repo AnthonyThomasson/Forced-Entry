@@ -1,24 +1,25 @@
 extends GameTest
-## G16, an evade wave under the per-frame escape cap (#192 rule 31): at most `ESCAPE_CAP` (3)
-## escape searches (`AgentThrow.escape`) run on one physics frame across every NPC, so ten
-## defenders caught by one frag on one frame have their plans over the next frames, three at a
-## time, each at most 3 frames after it first could, and every one of them is clear of the burst.
-## Ten defenders stand in the open warehouse in two rows either side of the frag's flight, all
-## facing the thrower and inside the frag's zone as it leaves its hand, so they see it and need a
-## plan on the same frame (the premise: it is known to all ten on one frame). Each frame, after
-## every NPC has processed, each one's evade plan (the
-## grenade perception's `_plans`: `at` is the frame it was made) is read: a plan new to an NPC is
-## a fresh plan, one that changed a replan. The reservation of rule 31 is asserted as worded: a
-## replan never takes the last search of a frame (at most CAP - 1 a frame), and none runs on a
-## frame after a fresh plan was refused. A replan earlier in the NPC order may still run on the
-## frame a fresh plan is first refused, so that frame is not held to it.
+## G16, an evade wave under the escape pool (`EscapePool`): the escape searches of every NPC fleeing
+## one grenade share `per_frame` units a physics frame, so ten defenders caught by one frag on one
+## frame have their plans over the next frames, the one nearest the burst first, no frame spends
+## more than the pool and one candidate's work (7 units), every plan lands well inside the fuse and
+## every one of them is clear of the burst. Ten defenders stand in the open warehouse in two rows
+## either side of the frag's flight, all facing the thrower and inside the frag's zone as it
+## leaves its hand, so they see it and need a plan on the same frame (the premise: it is known to
+## all ten on one frame). Each frame, after every NPC has processed, each one's evade plan (the
+## grenade perception's `_plans`: `at` is the frame it was made) is read. Four more are blinded as
+## the frag leaves the hand, and hear it come down: new plans among the replans of the ten. The
+## order rule itself (a plan with none yet before a replan, the grenade that goes off first, the
+## runner nearest, the search begun first) is pinned on its keys.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
-## The spec's numbers: searches on one frame, and frames to a plan (`docs/grenades.md` G16).
-const CAP := 3
-const WITHIN_FRAMES := 3
+## The spec's numbers: the most a frame spends over the pool (one candidate: a snap, a verdict and a
+## route, and the candidates round a burst), the frames from knowing the frag to its plan, and the
+## fuse's frames the plan must beat by `ARRIVE_MARGIN` (`docs/grenades.md` G16).
+const OVER := 7 + EscapeSearch.AROUND_UNITS
+const WITHIN_FRAMES := 20
 const LANDING := Vector2(470, 350)
 const THROWER_AT := Vector2(700, 350)
 const NPC_COUNT := 10
@@ -31,10 +32,11 @@ const LATE_BLIND := 1.0
 
 func describe() -> Dictionary:
 	return {
-		"name": "The escape cap spreads ten NPCs' plans over three frames",
-		"description": "Ten defenders caught by one frag on one frame: no frame runs more than "
-			+ "three escape searches, each has its plan within 3 frames of first knowing the "
-			+ "grenade, and every one is clear when it goes off.",
+		"name": "The escape pool spreads ten NPCs' plans over frames, nearest the burst first",
+		"description": "Ten defenders caught by one frag on one frame: no frame spends more "
+			+ "escape units than the pool, the nearest the burst plan first, each has its plan "
+			+ "within the bound of first knowing the grenade, and every one is clear when it "
+			+ "goes off.",
 		"tags": ["ai", "grenade", "evade", "perf"],
 		"timeout": 40.0,
 	}
@@ -42,6 +44,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Maps.warehouse(s, false)
+	EscapePool.reset()
 	s.von_script([])
 	s.switch(&"ai.hostile_on_trespass", false)
 	for i in NPC_COUNT:
@@ -64,7 +67,7 @@ func run(t: TestContext) -> void:
 	if not t.require(Probe.count(thrower, Probe.FRAG) == 1, "the thrower carries a frag"):
 		return
 	await t.seconds(0.6)
-	var record := { "frames": {}, "prev": {}, "first_known": {}, "planned": {} }
+	var record := { "frames": {}, "prev": {}, "first_known": {}, "planned": {}, "away": {} }
 	var late := LateProbe.new()
 	late.process_physics_priority = 1000
 	late.each = func() -> void: _sample(t, record)
@@ -104,6 +107,9 @@ func _sample(t: TestContext, record: Dictionary) -> void:
 			at = int(plan["at"])
 		if known and not (record["first_known"] as Dictionary).has(id):
 			record["first_known"][id] = frame
+			# How far it stood from the grenade where it knew it: the order's distance.
+			var point: Vector2 = (brain.call("debug_grenades")["known"] as Array)[0]["point"]
+			record["away"][id] = (t.actor(id) as Node2D).global_position.distance_to(point)
 		if at != -1 and not (record["planned"] as Dictionary).has(id):
 			record["planned"][id] = frame
 		if at != int(prev.get(id, -1)):
@@ -127,51 +133,67 @@ func _check_wave(t: TestContext, record: Dictionary) -> void:
 		"set-up: all ten know the frag on one frame (the most on one frame: %d, %s; knew it: %s)"
 			% [wave, starts, first],
 	)
-	var frames: Dictionary = record["frames"]
-	var busiest := 0
-	for frame: int in frames:
-		var row: Dictionary = frames[frame]
-		busiest = maxi(busiest, int(row["fresh"]) + int(row["replan"]))
-	t.check(busiest <= CAP, "no frame ran more than %d searches (the most: %d)" % [CAP, busiest])
+	t.check(
+		EscapePool.peak_spent >= EscapePool.per_frame,
+		"premise: the wave used the whole pool (%d of %d units)"
+			% [EscapePool.peak_spent, EscapePool.per_frame],
+	)
+	t.check(
+		EscapePool.peak_spent <= EscapePool.per_frame + OVER,
+		"no frame spent more than the pool and one candidate (the most: %d, pool %d)"
+			% [EscapePool.peak_spent, EscapePool.per_frame],
+	)
 	var late: Array = []
+	var waits: Array = []
 	for id in first:
 		var planned: int = record["planned"].get(id, 1_000_000)
+		waits.append(planned - int(first[id]))
 		if planned - int(first[id]) > WITHIN_FRAMES:
 			late.append("%s %d" % [id, planned - int(first[id])])
-	t.check(late.is_empty(), "every NPC has its plan within 3 frames of first knowing: %s" % [late])
+	waits.sort()
+	t.check(late.is_empty(), "every NPC has its plan within %d frames of knowing: %s"
+			% [WITHIN_FRAMES, late])
 	t.check(
 		record["planned"].size() == NPC_COUNT + LATE_COUNT,
 		"all %d planned (%d)" % [NPC_COUNT + LATE_COUNT, record["planned"].size()],
 	)
-	_check_fresh_first(t, frames)
+	_check_nearest_first(t, record)
+	_check_order_rule(t)
 
 
-## A replan fell due on a frame a fresh plan waited (the late four, hearing the frag land as the
-## ten's replans are due): the fresh plan still had a search that frame, and while one waited no
-## replan took a search the next.
-func _check_fresh_first(t: TestContext, frames: Dictionary) -> void:
-	var clash := -1
-	for frame: int in frames:
-		if int(frames[frame]["replan"]) > 0 and int(frames[frame]["waiting"]) > 0:
-			clash = frame
-	if not t.require(clash != -1, "set-up: a replan fell due on a frame a fresh plan waited"):
-		return
-	var row: Dictionary = frames[clash]
-	t.check(
-		int(row["fresh"]) >= 1 and int(row["replan"]) < CAP,
-		"on that frame a fresh plan still had a search (%s)" % [row],
+## The ten were all known on one frame, so the pool served them nearest the burst first: no NPC
+## planned before one nearer the burst.
+func _check_nearest_first(t: TestContext, record: Dictionary) -> void:
+	var rows: Array = []
+	for i in NPC_COUNT:
+		rows.append({
+			"id": _id(i),
+			"d": float(record["away"].get(_id(i), 0.0)),
+			"at": int(record["planned"].get(_id(i), 1_000_000)),
+		})
+	var inverted: Array = []
+	for a: Dictionary in rows:
+		for b: Dictionary in rows:
+			if float(a["d"]) + 1.0 < float(b["d"]) and int(a["at"]) > int(b["at"]):
+				inverted.append("%s (%d px) after %s (%d px)" % [a["id"], a["d"], b["id"], b["d"]])
+	t.check(inverted.is_empty(), "no NPC planned after one farther from the burst: %s" % [inverted])
+
+
+## The pool's order on its keys `[replan, deadline, distance, seq]`.
+func _check_order_rule(t: TestContext) -> void:
+	var keys := [[true, 100, 5.0, 1, 0], [false, 200, 90.0, 2, 0], [false, 100, 90.0, 3, 0],
+			[false, 100, 20.0, 4, 0], [false, 100, 20.0, 5, 0]]
+	var searches: Array[EscapeSearch] = []
+	for key: Array in keys:
+		var search := EscapeSearch.new(RID(), Vector2.ZERO, [], 0.0, Callable())
+		search.key = key
+		searches.append(search)
+	searches.sort_custom(EscapePool._before)
+	t.expect_eq(
+		searches.map(func(s: EscapeSearch) -> int: return s.key[3]),
+		[4, 5, 3, 2, 1],
+		"fresh before replan, the soonest fuse, the nearest runner, the first begun",
 	)
-	var greedy: Array = []
-	for frame: int in frames:
-		if int(frames[frame]["replan"]) > CAP - 1:
-			greedy.append(frame)
-	t.check(greedy.is_empty(), "no frame gave replans all %d searches: %s" % [CAP, greedy])
-	var held_up: Array = []
-	for frame: int in frames:
-		if frames.has(frame - 1) and int(frames[frame - 1]["waiting"]) > 0:
-			if int(frames[frame]["replan"]) > 0:
-				held_up.append(frame)
-	t.check(held_up.is_empty(), "no replan took a search while a fresh plan waited: %s" % [held_up])
 
 
 func _check_clear(t: TestContext) -> void:

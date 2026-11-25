@@ -30,23 +30,12 @@ const CALLED_NEAR := 150.0
 ## through a pause).
 const REPLAN_DIST := 48.0
 const REPLAN_EVERY := 0.15
-## How many escape searches (`AgentThrow.escape`) run on one physics frame across every NPC. A wave
-## of NPCs caught by one grenade plans over the next frames (ten of them within 3: 3 + 3 + 3 + 1);
-## one search costs about 3 ms (measured: the first on a frame 3 to 5, the rest 1 to 1.6), so more
-## would pile a wave onto one frame. See `_escape_allowed`.
-const ESCAPE_CAP := 3
 ## A grenade that came to rest this far (px) from where it was first called is called again, so the
 ## allies plan from the real spot.
 const RECALL_DIST := 30.0
 ## The callout statuses that name a live grenade, and the kind each means (`&""`: the callout names
 ## it).
 const CALL_KINDS := { &"grenade": &"", &"frag_out": &"frag", &"bang_out": &"stun" }
-
-## What `_escape_allowed` keeps across every NPC: the physics frame `_escapes` counts the searches
-## of, and the last physics frame a fresh plan was refused for want of one.
-static var _escape_frame := -1
-static var _escapes := 0
-static var _refused_at := -1000
 
 ## Whether the NPC reacts to grenades at all (the NPC's `tuning.grenades.enabled`, set by the
 ## perception).
@@ -62,6 +51,11 @@ var _known := {}
 ## Grenade node instance id -> { id, point, kind, radius, spot, crouch, at (the `GameClock` frame it
 ## was made in) }.
 var _plans := {}
+## Grenade node instance id -> its escape search under way (`EscapeSearch`: `replan`, the plan it
+## would replace, in `_replacing`), which lands frames later when the pool is short.
+var _searches := {}
+## Grenade node instance id -> { id, point, kind, radius } the search under way was begun for.
+var _asked := {}
 ## Grenade node instance id -> { point, rested }: where it was last radioed, and whether that was
 ## after it came to rest.
 var _told := {}
@@ -231,6 +225,10 @@ func _drop(id: int) -> void:
 	_known.erase(id)
 	_plans.erase(id)
 	_told.erase(id)
+	if _searches.has(id):
+		EscapePool.cancel(_searches[id])
+		_searches.erase(id)
+		_asked.erase(id)
 
 
 ## Whether the NPC knows of any live grenade.
@@ -298,9 +296,9 @@ func plan(space: PhysicsDirectSpaceState3D, map: RID, exclude: Array) -> Diction
 
 ## The plan for known grenade `id` now, for a body in `posture` where the NPC stands: its plan,
 ## made again when it is due (`_replan_due`); a fresh one when it has none and the NPC is inside its
-## zone; else {}. Only so many searches run on one physics frame across every NPC
-## (`_escape_allowed`): an NPC over it gets no fresh plan this frame ({}: it carries on
-## as it was, and asks again the next), and one due a replan keeps its plan a frame longer.
+## zone; else {}. The search for a plan is a job against the frame's pool shared by every NPC
+## (`EscapeSearch`): one that cannot finish this frame continues the next, and meanwhile the NPC
+## carries on as it was (no plan, or the old one).
 func _current_plan(
 	space: PhysicsDirectSpaceState3D,
 	map: RID,
@@ -310,14 +308,18 @@ func _current_plan(
 ) -> Dictionary:
 	var rec: Dictionary = _known[id]
 	var plan_: Dictionary = _plans.get(id, {})
+	if _searches.has(id):
+		if EscapePool.serving(_searches[id]) or _searches[id].done:
+			return _landed(id, plan_)
+		_searches.erase(id)
+		_asked.erase(id)
 	if plan_.is_empty():
 		var self_pos: Vector2 = _character.global_position
-		if (throw.in_zone(space, _threat_of(rec, rec["point"]), self_pos, posture)
-				and _escape_allowed(true)):
-			return _make(space, map, exclude, id)
+		if throw.in_zone(space, _threat_of(rec, rec["point"]), self_pos, posture):
+			return _begin(space, map, exclude, id, plan_)
 		return {}
-	if _replan_due(space, rec, plan_) and _escape_allowed(false):
-		return _make(space, map, exclude, id)
+	if _replan_due(space, rec, plan_):
+		return _begin(space, map, exclude, id, plan_)
 	return plan_
 
 
@@ -381,41 +383,53 @@ static func _threat_of(rec: Dictionary, at: Vector2) -> GrenadeThreat:
 	return threat
 
 
-## Whether an NPC may run an escape search on this physics frame: no more than `ESCAPE_CAP` run on
-## one across every NPC (a count, so which NPC waits is the order they ask in). A `fresh` plan (the
-## NPC has none yet) takes any free search, and when none is free it is refused and asks again the
-## next frame; a replan takes only a search short of the last, and none while a fresh plan was
-## refused this frame or the one before, so the plans of NPCs newly in danger come first. Always
-## true outside a physics frame, where nothing is counted.
-static func _escape_allowed(fresh: bool) -> bool:
-	if not Engine.is_in_physics_frame():
-		return true
-	var frame := Engine.get_physics_frames()
-	if frame != _escape_frame:
-		_escape_frame = frame
-		_escapes = 0
-	if fresh:
-		if _escapes < ESCAPE_CAP:
-			return true
-		_refused_at = frame
-		return false
-	return _escapes < maxi(ESCAPE_CAP - 1, 1) and frame - _refused_at > 1
-
-
-## A fresh plan for known grenade `id` from where the NPC stands.
-func _make(space: PhysicsDirectSpaceState3D, map: RID, exclude: Array, id: int) -> Dictionary:
+## Begin the escape search for known grenade `id` from where the NPC stands, and serve the pool
+## (outside a physics frame it runs whole, at once). Its answer, when it lands, is `_landed`.
+func _begin(
+	space: PhysicsDirectSpaceState3D,
+	map: RID,
+	exclude: Array,
+	id: int,
+	old: Dictionary,
+) -> Dictionary:
 	var rec: Dictionary = _known[id]
 	var threat := _threat_of(rec, rec["point"])
 	threat.fuse_left = float(rec["node"].call("fuse_left"))
 	var runner := GrenadeRunner.new()
 	runner.from = _character.global_position
 	runner.speed = throw.run_speed()
-	var found: Dictionary = throw.escape(space, map, threat, runner, exclude)
-	if Engine.is_in_physics_frame():
-		_escapes += 1
-	return {
+	var search := throw.begin_escape(space, map, threat, runner, exclude)
+	_searches[id] = search
+	_asked[id] = {
 		"id": id, "point": rec["point"], "kind": rec["kind"], "radius": rec["radius"],
+		"from": runner.from, "began_fuse": threat.fuse_left,
+	}
+	if not Engine.is_in_physics_frame():
+		search.run_whole()
+		return _landed(id, old)
+	EscapePool.begin(
+		search,
+		not old.is_empty(),
+		threat.fuse_left,
+		runner.from.distance_to(threat.burst),
+	)
+	return _landed(id, old)
+
+
+## The plan of the search for `id` when it has finished (and the search forgotten), else `old`
+## (serving the pool first).
+func _landed(id: int, old: Dictionary) -> Dictionary:
+	var search: EscapeSearch = _searches[id]
+	if not search.done and not EscapePool.ask(search):
+		return old
+	var found: Dictionary = search.best
+	var asked: Dictionary = _asked[id]
+	_searches.erase(id)
+	_asked.erase(id)
+	return {
+		"id": id, "point": asked["point"], "kind": asked["kind"], "radius": asked["radius"],
 		"spot": found["spot"], "crouch": found["crouch"], "at": GameClock.frame(),
+		"from": asked["from"], "began_fuse": asked["began_fuse"],
 	}
 
 

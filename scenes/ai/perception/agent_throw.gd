@@ -32,7 +32,7 @@ const RUN_RELIABILITY := 0.85
 ## Seconds before the burst the NPC should be in place (it must also turn and crouch).
 const ARRIVE_MARGIN := 0.4
 ## How far (px) a candidate may be pulled by navmesh snapping before it is dropped.
-const SNAP_TOLERANCE := 40.0
+const SNAP_TOLERANCE := EscapeSearch.SNAP_TOLERANCE
 ## Candidates: the circle beyond the zone and the shadows behind what stands near the burst
 ## (directions each), how far (px) behind an obstacle a shadow spot is put, and the rings round the
 ## NPC (radii, directions).
@@ -67,12 +67,12 @@ const REACH_SLACK := 15.0
 ## How far (px) short of an escape spot its route may end and still reach it (`_nearest_in_time`):
 ## the spots are snapped onto the navmesh, so a route that reaches one ends on it, while one to a
 ## region the NPC cannot walk to (past a wall with no door) ends at the nearest point it can reach.
-const ROUTE_REACH := 2.0
+const ROUTE_REACH := EscapeSearch.ROUTE_REACH
 ## How far (px) past the best route (or the distance it may run) a candidate's straight line may lie
 ## and still be taken (snapped, judged, routed), beyond what `_nearest_in_time` allows for a
 ## runner off the navmesh, a route ending short and the snap's pull (`SNAP_TOLERANCE`): float noise
 ## in a path's length must never prune a candidate that ties or wins.
-const PRUNE_SLACK := 0.01
+const PRUNE_SLACK := EscapeSearch.PRUNE_SLACK
 ## The inventory slot of each kind of grenade (Items: `ItemRegistry`).
 const SLOTS := { &"frag": ItemRegistry.FRAG_SLOT, &"stun": ItemRegistry.STUN_SLOT }
 ## A spot's verdict in `escape`: not judged yet, out of the zone or shielded standing, shielded only
@@ -232,6 +232,22 @@ func escape(
 	runner: GrenadeRunner,
 	exclude: Array,
 ) -> Dictionary:
+	var search := begin_escape(space, map, threat, runner, exclude)
+	var found := search.run_whole()
+	escape_routes_measured = search.work["routes"]
+	return found
+
+
+## The escape search of `escape` as a job (`EscapeSearch`): the work that depends on the burst is
+## done here (shared on the physics frame), the walk over the candidates is left to be stepped, a
+## few at a time, against the frame's pool (`EscapePool.serve`).
+func begin_escape(
+	space: PhysicsDirectSpaceState3D,
+	map: RID,
+	threat: GrenadeThreat,
+	runner: GrenadeRunner,
+	exclude: Array,
+) -> EscapeSearch:
 	var shared := _shared_burst(space, threat, exclude)
 	var judging := {
 		"space": space,
@@ -239,32 +255,45 @@ func escape(
 		"threat": threat,
 		"judged": shared["judged"],  # spot -> its verdict
 		"on_mesh": _shared_snaps(map),  # candidate -> its spot on the navmesh
+		"from": runner.from,
 	}
 	var points := _candidates(runner.from, shared["around"])
-	return _nearest_in_time(
+	var search := EscapeSearch.new(
 		map,
 		runner.from,
 		points,
 		maxf(threat.fuse_left - ARRIVE_MARGIN, 0.0) * runner.speed,
 		func(i: int) -> Dictionary: return _safe_spot(judging, points[i]),
 	)
+	judging["work"] = search.work
+	search.space = space
+	# The candidates round the burst cost units once, to the search that built them.
+	search.work["built"] = EscapeSearch.AROUND_UNITS if shared["built"] else 0
+	shared["built"] = false
+	return search
 
 
 ## Candidate `p` as a safe spot, `{ spot, crouch }`, or {} when it is dropped: it snaps (`judging`'s
-## shared `on_mesh`) farther than `SNAP_TOLERANCE` off it, or the spot it lands on is `NOT_SAFE`.
+## shared `on_mesh`) farther than `SNAP_TOLERANCE` off it, or the spot it lands on is `NOT_SAFE`, or
+## it lies past what the search could still use (`work["bound"]`: no route to it can win, so it is
+## not judged).
 func _safe_spot(judging: Dictionary, p: Vector2) -> Dictionary:
 	var on_mesh: Dictionary = judging["on_mesh"]
+	var work: Dictionary = judging["work"]
 	var q: Vector2 = on_mesh.get(p, Vector2.INF)
 	if q == Vector2.INF:
 		q = NavBuilder.snap(judging["map"], p)
 		on_mesh[p] = q
-	if q.distance_to(p) > SNAP_TOLERANCE:
+		work["snaps"] += 1
+	if (q.distance_to(p) > SNAP_TOLERANCE
+			or (judging["from"] as Vector2).distance_to(q) > work["bound"]):
 		return {}
 	var judged: Dictionary = judging["judged"]
 	var verdict: int = judged.get(q, UNJUDGED)
 	if verdict == UNJUDGED:
 		verdict = _judge(judging["space"], judging["threat"], q)
 		judged[q] = verdict
+		work["judges"] += 1
 	return {} if verdict == NOT_SAFE else { "spot": q, "crouch": verdict == SAFE_CROUCHED }
 
 
@@ -332,9 +361,10 @@ func _judge(space: PhysicsDirectSpaceState3D, threat: GrenadeThreat, q: Vector2)
 ## point. So the points are taken nearest first (by straight line, the order among equals) and
 ## the search stops at the first whose straight line, less `SNAP_TOLERANCE`, is more than that
 ## past both the best route so far and `allowed` (and `PRUNE_SLACK` for float noise): the points
-## after it are never resolved, and the answer is the one resolving and measuring every point
-## gives, a tie going to the first of the `points`. `escape_routes_measured` counts the routes it
-## measured.
+## after it are never resolved, and a spot whose own straight line is that far is never routed:
+## the answer is the one resolving and measuring every point gives, a tie going to the first of
+## the `points`. `escape_routes_measured` counts the routes it measured. The walk is
+## `EscapeSearch` (whole here; stepped by the plan).
 func _nearest_in_time(
 	map: RID,
 	from: Vector2,
@@ -342,43 +372,10 @@ func _nearest_in_time(
 	allowed: float,
 	resolve: Callable,
 ) -> Dictionary:
-	var best := { "spot": Vector2.INF, "crouch": false, "route": INF }
-	var best_index := -1
-	var slack := from.distance_to(NavBuilder.snap(map, from)) + ROUTE_REACH + PRUNE_SLACK
-	escape_routes_measured = 0
-	# Vector2 sorts by x, then y: (straight distance, index in `points`), a native sort.
-	var order: Array = []
-	for i in points.size():
-		order.append(Vector2(from.distance_to(points[i]), i))
-	order.sort()
-	var lengths := {}  # spot -> its route's length, INF when the route ends short of it
-	for entry: Vector2 in order:
-		if entry.x - SNAP_TOLERANCE > minf(allowed, best["route"]) + slack:
-			break
-		var index := int(entry.y)
-		var s: Dictionary = resolve.call(index)
-		if s.is_empty():
-			continue
-		var length := _route_length(map, from, s["spot"], lengths)
-		if length <= allowed and (length < best["route"]
-				or (length == best["route"] and index < best_index)):
-			best = { "spot": s["spot"], "crouch": s["crouch"], "route": length }
-			best_index = index
-	return best
-
-
-## The length of the route from `from` to `spot` on `map`, INF when it ends short of the spot
-## (`ROUTE_REACH`); measured once, then read from `lengths`.
-func _route_length(map: RID, from: Vector2, spot: Vector2, lengths: Dictionary) -> float:
-	if lengths.has(spot):
-		return lengths[spot]
-	var path := NavBuilder.route(map, from, spot)
-	escape_routes_measured += 1
-	var length := (NavBuilder.path_length(path)
-			if path[path.size() - 1].distance_to(spot) <= ROUTE_REACH
-			else INF)
-	lengths[spot] = length
-	return length
+	var search := EscapeSearch.new(map, from, points, allowed, resolve)
+	var found := search.run_whole()
+	escape_routes_measured = search.work["routes"]
+	return found
 
 
 ## The cover rule of a body in `posture`, furniture counting within `reach` px of the body
@@ -406,7 +403,15 @@ func _shared_burst(
 			else [])
 	var entry: Dictionary = _bursts.get(key, {}) if keep else {}
 	if entry.is_empty():
-		entry = { "around": _around(space, threat.point(), out_r, exclude, kind), "judged": {} }
+		entry = {
+			"around": _around(
+				space,
+				threat.point(),
+				out_r,
+				exclude,
+				kind,
+			), "judged": {}, "built": true,
+		}
 		if keep:
 			_bursts[key] = entry
 	return entry

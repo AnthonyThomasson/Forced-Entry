@@ -4,7 +4,8 @@ extends GameTest
 ## and the crouching probe often meet the same wall, so many candidates are the same point). This
 ## pins its answer to the plain loop, over frags and stuns going off all round a furnished house
 ## with the NPC at many places, so the spot an NPC runs to, whether it crouches and the length of
-## its route are unchanged.
+## its route are unchanged. The search stepped a few units at a time (`EscapeSearch.step`, as the
+## pool serves it) gives the same answer as the whole one.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
@@ -50,13 +51,12 @@ func run(t: TestContext) -> void:
 		"exclude": GrenadeAi.character_rids(t),
 		"rng": rng,
 	}
-	var rooms: Array = t.rooms
 	var tally := {
-		"compared": 0, "found": 0, "existence": 0, "out_zone_routes": -1, "differing": [],
+		"compared": 0, "found": 0, "steps": 0, "existence": 0, "out_zone_routes": -1,
+		"differing": [],
 	}
 	for n in CASES:
-		var room: Dictionary = rooms[n % rooms.size()]
-		_compare_case(ctx, tally, room["rect"])
+		_compare_case(ctx, tally, (t.rooms[n % t.rooms.size()] as Dictionary)["rect"])
 	_fixed_cases(ctx, tally)
 	var compared: int = tally["compared"]
 	var found: int = tally["found"]
@@ -68,6 +68,11 @@ func run(t: TestContext) -> void:
 	t.check(
 		tally["existence"] == CASES * 2 + 6,
 		"existence answers compared, including the six fixed fixtures",
+	)
+	t.check(
+		int(tally["steps"]) > compared,
+		"premise: a search takes several steps of 3 units (%d steps, %d searches)"
+			% [tally["steps"], compared],
 	)
 	t.check(
 		tally["out_zone_routes"] == 1,
@@ -131,9 +136,26 @@ func _compare_kind(
 	if fast != plain:
 		tally["differing"].append("%s at %s from %s: %s, plain %s"
 				% [kind, burst.round(), from.round(), fast, plain])
+	_compare_sliced(ctx, tally, fast, [
+		GrenadeAi.escape_threat(kind, radius, burst, fuse), GrenadeAi.escape_runner(from, speed),
+	])
 	_compare_existence(ctx, tally, {
 		"kind": kind, "burst": burst, "from": from, "fuse": fuse, "speed": speed,
 	})
+
+
+## The sliced search (a few units a step, as the pool serves it) of the same question `asked`
+## (`[threat, runner]`) lands on `whole`'s answer.
+func _compare_sliced(ctx: Dictionary, tally: Dictionary, whole: Dictionary, asked: Array) -> void:
+	var sliced: EscapeSearch = ctx["geometry"].begin_escape(
+		ctx["space"], ctx["map"], asked[0], asked[1], ctx["exclude"]
+	)
+	while not sliced.done:
+		sliced.step(3)
+		tally["steps"] += 1
+	if sliced.best != whole:
+		tally["differing"].append("sliced %s from %s: %s, whole %s"
+				% [asked[0].kind, asked[1].from.round(), sliced.best, whole])
 
 
 ## Six named arrangements of the same existence question, including immediate safety, no time to

@@ -8,11 +8,10 @@ extends GameTest
 ## its spot is checked against the plain search (every candidate snapped, judged and routed, nothing
 ## shared) run for it on that same frame, from where it stood when it planned.
 ##
-## The plain search's inputs are the ones the NPC planned with: its position, its pace and the fuse
-## are read at the start of the frame (the NPC plans in its controller, before its body moves and
-## before the grenade, added to the world after it, ticks), the grenade's spot is the one the NPC
-## knows (`debug_grenades`), and the search runs after every body has processed, before the physics
-## step, so the walls, the furniture and the navigation map are the ones the NPC's plan saw.
+## The plain search's inputs are the ones the NPC began its search with, which its plan carries (a
+## search is served the frame after it begins: where it stood, the fuse left and the grenade's
+## spot), and its pace; the search runs after every body has processed, before the physics step,
+## so the walls, the furniture and the navigation map are the ones the NPC's plan saw.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
@@ -48,6 +47,9 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Maps.house(s)
+	# The premise: the pool is not short (a search lands the frame it begins, as the plain search is
+	# run for that frame; the sliced search's own pin is `escape_sliced_matches_whole`).
+	s.set_static(EscapePool, "per_frame", 1_000_000)
 	# Von is down: a defender with nothing to decide holds where it stands, so where the frag finds
 	# it is where the set-up put it, however the decisions are spread over frames.
 	s.von_down()
@@ -132,7 +134,8 @@ func _check_plan(t: TestContext, ctx: Dictionary, npc: Node, grenade: Node) -> v
 	var known: Array = seen.get("known", [])
 	if known.is_empty():
 		return
-	var plain := _plain_for(t, ctx, npc, grenade, known)
+	var plans: Dictionary = brain.get("_perception").grenades.live.get("_plans")
+	var plain := _plain_for(t, ctx, npc, grenade, plans.values()[0])
 	var checked: Array = ctx["checked"]
 	checked.append({
 		"npc": npc.name,
@@ -148,21 +151,19 @@ func _plain_for(
 		ctx: Dictionary,
 		npc: Node,
 		grenade: Node,
-		known: Array,
+		plan: Dictionary,
 ) -> Dictionary:
 	var g = ctx["own"][npc]
 	var space: PhysicsDirectSpaceState3D = ctx["space"]
 	var map: RID = ctx["map"]
-	var start: Dictionary = ctx["start"]
 	g.learn_carried()
 	g.learn(grenade.call("throw_stats"))
-	var kind: StringName = known[0]["kind"]
-	var at: Dictionary = start[npc]
+	var kind: StringName = plan["kind"]
 	var search := { "space": space, "map": map, "exclude": GrenadeAi.character_rids(t) }
 	var threat := GrenadeAi.escape_threat(
-		kind, g.radius_of(kind), known[0]["point"], float(start["fuse"]),
+		kind, g.radius_of(kind), plan["point"], float(plan["began_fuse"]),
 	)
-	var runner := GrenadeAi.escape_runner(at["from"], float(at["speed"]))
+	var runner := GrenadeAi.escape_runner(plan["from"], float(ctx["start"][npc]["speed"]))
 	return GrenadeAi.plain_escape(g, search, threat, runner)
 
 
