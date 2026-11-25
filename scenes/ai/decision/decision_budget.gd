@@ -13,7 +13,7 @@ extends RefCounted
 ##
 ## One unit is about half a millisecond of the piece's work, measured per piece in the 10v10 match
 ## (`decision-prices.md`): a decision lands over a few frames and a frame's decision work stays
-## near the pool's 2 ms. A piece that costs nothing is too cheap to price (the order-refusal step,
+## near the pool's 3 ms. A piece that costs nothing is too cheap to price (the order-refusal step,
 ## a planner level, each well under a millisecond), so it runs whenever its turn comes. A test that
 ## means a decision to run whole in one frame sets the pool to one and every piece but the claim's
 ## start to nothing (`tests/_ai/job_fakes.gd`).
@@ -24,8 +24,9 @@ extends RefCounted
 
 const Roster := preload("res://scenes/ai/decision/decision_roster.gd")
 
-## Work units that may be spent in one physics frame: about 2 ms of decision work (a unit is about
-## half a millisecond), a typical decision landing over three to five frames. A test raises it to
+## Work units that may be spent in one physics frame: about 3 ms of decision work (a unit is about
+## half a millisecond), a typical decision landing over three to four frames (four to five at the
+## pool of 4 it was, #194 pool6). A test raises it to
 ## see the pieces of many decisions run in one frame; it never lets two decisions start in one
 ## (`decision_roster.gd`).
 static var per_frame: int = 6
