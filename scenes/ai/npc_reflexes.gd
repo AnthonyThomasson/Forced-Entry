@@ -53,10 +53,10 @@ func prime() -> void:
 		body.process_physics_priority = priority
 
 
-## Whether the NPC owes its beat a look at blindness: it is blind, or was last beat (its sight
-## returning re-decides it at once, G15).
+## Whether the NPC owes its beat a look at blindness it has just lost: it was blind last beat (its
+## sight returning re-decides it at once, G15). Being blind now is `gait.needs_every_frame`'s.
 func blind_pending() -> bool:
-	return _was_blind or controller._character.stun.is_blind()
+	return _was_blind
 
 
 ## The squad's follow reads, every tick (LD19, LD23): whether the NPC follows its leader (the

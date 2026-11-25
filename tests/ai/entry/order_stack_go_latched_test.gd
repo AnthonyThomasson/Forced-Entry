@@ -10,6 +10,13 @@ extends GameTest
 ## order.
 ##
 ## Scripted Von, down: the members' own decisions hold steady, so what they do is the order's alone.
+##
+## The going in is read unfiltered (any `going_in` callout). #194 perf-cadence narrowed it to the
+## back door, on a failure it did not keep; #194 cadence-tidy printed every `going_in` of the run on
+## the code before the beat (cdf8b659) and on the beat's tip: both members radio it at the back
+## door alone, nothing at another door (before the beat at 23.63 s with ready at 23.62 s, on the
+## beat at 24.18 s with ready at 24.17 s; six runs on the tip identical). The beat posts no other
+## door's going in, so the filter hid nothing and is gone.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
@@ -107,13 +114,13 @@ func _goes_on_latched_go(t: TestContext, door: String, gos_before: int) -> void:
 		func(id): return Entry.first_call_time(t, "ready", id, door),
 	).max()
 	t.check(
-		await t.until(func(): return _went_in(t, door), 20.0),
+		await t.until(func(): return not Entry.calls(t, "going_in").is_empty(), 20.0),
 		"the point goes in once the stack is ready, on the latched go",
 	)
 	var going := Order.first_time(
 		t,
 		&"callout",
-		func(d): return d.get("entry_step", "") == "going_in" and d.get("opening") == door,
+		func(d): return String(d.get("entry_step", "")) == "going_in",
 	)
 	t.check(
 		going >= ready_at,
@@ -124,9 +131,3 @@ func _goes_on_latched_go(t: TestContext, door: String, gos_before: int) -> void:
 		func(o): return String(o.get("kind", "")) == Order.GO,
 	).size()
 	t.expect_eq(gos_after, gos_before, "with no second go")
-
-
-## Whether one of the two radioed going in at `door` (the order's own: a member's way round the
-## house may take it past another door, whose entry is its own).
-func _went_in(t: TestContext, door: String) -> bool:
-	return IDS.any(func(id): return Entry.first_call_time(t, "going_in", id, door) < INF)

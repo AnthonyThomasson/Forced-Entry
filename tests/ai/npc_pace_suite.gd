@@ -70,5 +70,7 @@ func test_awake_runs_the_beat_at_once_with_what_it_owes() -> void:
 	assert_float(pace.step(1, DT, false)).is_less(0.0)
 	assert_float(pace.step(1, DT, true)).is_equal_approx(DT * 2.0, 0.0001)
 	assert_float(pace.owed).is_equal(0.0)
-	# The beat is not moved: the next frame is a coast again, the one after it a beat.
+	# The phase is not moved: a frame 1 woken, frame 2 is a beat on its own turn and frame 3 a
+	# coast, as if it had never been woken.
 	assert_float(pace.step(2, DT, false)).is_greater(0.0)
+	assert_float(pace.step(3, DT, false)).is_less(0.0)
