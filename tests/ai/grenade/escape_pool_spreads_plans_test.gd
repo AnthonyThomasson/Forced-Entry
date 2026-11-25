@@ -1,10 +1,11 @@
 extends GameTest
 ## G16, an evade wave under the escape pool (`EscapePool`): the escape searches of every NPC fleeing
 ## one grenade share `per_frame` units a physics frame, so thirty defenders caught by one frag on
-## one frame have their plans over the next frames, the one nearest the burst first, no frame spends
-## more than the pool and one candidate's work (7 units), every plan lands well inside the fuse and
-## every one of them is clear of the burst. Thirty defenders stand in the open warehouse in six rows
-## either side of the frag's flight, all facing the thrower and inside the frag's zone as it
+## one frame have their plans over the next frames, the one nearest the burst first, no frame serves
+## more than the pool, the urgent extra and one candidate's work (80 + 80 + 7 units), every plan
+## lands well inside the fuse and every one of them is clear of the burst. Thirty defenders stand in
+## the open warehouse in six rows either side of the frag's flight, all facing the thrower and
+## inside the frag's zone as it
 ## leaves its hand, so they see it and need a plan on the same frame (the premise: it is known to
 ## all thirty on one frame). Each frame, after every NPC has processed, each one's evade plan (the
 ## grenade perception's `_plans`: `at` is the frame it was made) is read. Four more are blinded as
@@ -17,13 +18,13 @@ const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const AgentThrow := preload("res://scenes/ai/perception/agent_throw.gd")
 ## The spec's numbers: the most a frame serves over the pool and its urgent extra (one candidate: a
-## snap, a verdict and a route), the frames from knowing the frag to its plan (the most measured is
-## 15, with the thirty and four, 16 for the half that sees the frag a beat later (`beat.md`: an NPC
-## off its beat sees a new grenade on its next, one frame on); 19 without the urgent extra, when one
-## of them was caught), and the
-## frames before the burst the plan must beat by `ARRIVE_MARGIN` (`docs/grenades.md` G16). The
-## candidates round a burst are paid when a search begins, whatever the pool has left, and are not
-## served (`peak_served`).
+## snap, a verdict and a route), the frames from knowing the frag to its plan (`WITHIN_FRAMES` is
+## the most measured: 15 with the thirty and four, 16 for the half that sees the frag a beat later
+## (`beat.md`: an NPC off its beat sees a new grenade on its next, one frame on); 19 without the
+## urgent extra, when one of them was caught), and the frames before the burst the plan must beat by
+## `ARRIVE_MARGIN` (`docs/grenades.md` G16). The candidates round a burst are paid when a search
+## begins and are not served: they take nothing from a frame's pool (`peak_served` is the served
+## units, `peak_spent` those and the candidates).
 const OVER := 7
 const WITHIN_FRAMES := 16
 const LANDING := Vector2(470, 350)
@@ -151,9 +152,9 @@ func _check_wave(t: TestContext, record: Dictionary) -> void:
 			% [EscapePool.peak_spent, EscapePool.per_frame],
 	)
 	t.check(
-		EscapePool.peak_served <= EscapePool.per_frame + EscapePool.urgent_extra + OVER,
-		"no frame served more than the pool and one candidate (the most: %d, pool %d)"
-			% [EscapePool.peak_served, EscapePool.per_frame],
+		EscapePool.peak_served <= 80 + 80 + OVER,
+		"no frame served more than the pool, the urgent extra and one candidate (the most: %d)"
+			% [EscapePool.peak_served],
 	)
 	var late: Array = []
 	var waits: Array = []
