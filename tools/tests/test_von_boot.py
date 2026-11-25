@@ -188,23 +188,25 @@ class CheckTests(BootCase):
 
 class StartTests(BootCase):
     def start(self, boot: Boot, *extra, **over) -> tuple:
+        if not hasattr(self, "servers"):
+            self.servers = {}  # script pid -> the server's own pid
         port = free_port()
         proc = subprocess.Popen(boot.command(["--port", str(port), *extra]), env=self.env(**over),
                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         self.addCleanup(proc.stdout.close)  # runs after stop
         self.addCleanup(self.stop, proc)
         self.assertTrue(wait_for(lambda: answers(port), 60), f"{boot.name}: no answer on {port}; exit {proc.poll()}")
+        # Read now: a later start in the same test (the other boot script) overwrites served.json with its own pid.
+        try:
+            self.servers[proc.pid] = json.loads((self.fake.von_home / "served.json").read_text()).get("pid")
+        except (OSError, ValueError):
+            pass
         return proc, port
 
     def stop(self, proc: subprocess.Popen) -> None:
         """What the game does (a kill of the script's pid), then whatever server is left: a script that does not end its
         server (bash on Windows, where exec starts a child) must not leave one behind the tests."""
-        served = self.fake.von_home / "served.json"
-        pid = None
-        try:
-            pid = json.loads(served.read_text()).get("pid")
-        except (OSError, ValueError):
-            pass
+        pid = getattr(self, "servers", {}).get(proc.pid)
         if proc.poll() is None:
             proc.kill()
         proc.wait(timeout=30)

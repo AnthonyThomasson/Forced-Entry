@@ -972,7 +972,7 @@ HOLDER = (
     + HOLDER_LOCK
     + "os.write(fd, sys.argv[2].encode())\n"
     "print('held', flush=True)\n"
-    "time.sleep(300)\n"
+    "sys.stdin.buffer.read()\n"  # holds until the test lets go (it kills it, or ends and the pipe closes), not on a timer
 )
 
 
@@ -1057,6 +1057,7 @@ class SlotPoolTests(unittest.TestCase):
             h.kill()
             h.wait()
             h.stdout.close()
+            h.stdin.close()
 
     def env(self, **extra):
         env = {k: v for k, v in os.environ.items() if k not in ("GAME_TEST_JOBS", "GAME_TEST_CHANGED_FILES")}
@@ -1084,7 +1085,7 @@ class SlotPoolTests(unittest.TestCase):
     def hold(self, index, pid):
         """A live process holding slot `index` whose lock file names `pid`."""
         proc = subprocess.Popen([sys.executable, "-c", HOLDER, str(self.slots / f"slot{index}.lock"), str(pid)],
-                                stdout=subprocess.PIPE, text=True)
+                                stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
         self.holders.append(proc)
         self.assertEqual(proc.stdout.readline().strip(), "held")
         return proc
@@ -1173,10 +1174,10 @@ class SlotPoolTests(unittest.TestCase):
         gone = dead_pid()
         slow = (HOLDER.replace("os.write(fd, sys.argv[2].encode())\n",
                                "os.write(fd, sys.argv[2].encode())\nprint('held', flush=True)\ntime.sleep(0.03)\n"
-                               "os.ftruncate(fd, 0)\nos.lseek(fd, 0, os.SEEK_SET)\nos.write(fd, str(os.getpid()).encode())\n").replace("print('held', flush=True)\ntime.sleep(300)", "time.sleep(300)"))
+                               "os.ftruncate(fd, 0)\nos.lseek(fd, 0, os.SEEK_SET)\nos.write(fd, str(os.getpid()).encode())\n").replace("print('held', flush=True)\nsys.stdin.buffer.read()", "sys.stdin.buffer.read()"))
         for i in range(size):
             proc = subprocess.Popen([sys.executable, "-c", slow, str(self.slots / f"slot{i}.lock"), str(gone)],
-                                    stdout=subprocess.PIPE, text=True)
+                                    stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
             self.holders.append(proc)
             self.assertEqual(proc.stdout.readline().strip(), "held")
         self.assertEqual(self.slot_tool("free"), (0, "0"), "every slot is held by a process that is alive")

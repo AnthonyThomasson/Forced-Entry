@@ -5,7 +5,9 @@ started, is stopped when it has not finished in time, when it is stuck, and when
   python3 tools/lint_engine.py LOG [--timeout SECONDS] -- ENGINE-COMMAND...
 
 The engine's exit code, 124 (as timeout(1)) when it was stopped, 2 for a bad command line; the reason it was stopped
-is on stderr. SECONDS defaults to $LINT_ENGINE_TIMEOUT, else 900 (the pass takes ~14 s on a Mac).
+is on stderr. An access violation at exit (ACCESS_VIOLATION below) after the scene printed `LINT-DONE` is the engine's
+own, known crash on Windows (Godot 4.4.1 ends so after the lint scene, whose log is complete): exit 0 and a note on
+stderr; without `LINT-DONE` it stays the failure it is. SECONDS defaults to $LINT_ENGINE_TIMEOUT, else 900 (the pass takes ~14 s on a Mac).
 
 Why: a script with a parse error puts a `--debug` Godot at its `debug>` prompt (lint.sh gives it no stdin, so a
 script error cannot park it there). On Windows, Godot 4.4.1 then answers the closed stdin by breaking at the same
@@ -35,6 +37,9 @@ BREAK = b"Debugger Break, Reason:"
 BANNER = (b"*Frame", b'Enter "help"', b"debug>")
 # Lines of anything else allowed between two breaks of one loop (the banner is three; a stray line or two may come).
 MAX_GAP = 8
+DONE = b"LINT-DONE"
+# An access violation (0xC0000005) as Python reports it on Windows, as Git Bash makes it (128 + SIGSEGV), and signed.
+ACCESS_VIOLATION = (3221225477, 139, -1073741819)
 
 
 def run(cmd: List[str], log: Path, timeout: float = DEFAULT_TIMEOUT, stuck_after: int = STUCK_AFTER,
@@ -42,6 +47,7 @@ def run(cmd: List[str], log: Path, timeout: float = DEFAULT_TIMEOUT, stuck_after
     """Run `cmd` with its output in `log`; its exit code, or TIMED_OUT after stopping it (the reason on stderr)."""
     stop = threading.Event()
     why: List[str] = []
+    done = threading.Event()  # the scene printed LINT-DONE
 
     program = godot_slot.find_program(cmd[0])
     if program is None:
@@ -58,6 +64,8 @@ def run(cmd: List[str], log: Path, timeout: float = DEFAULT_TIMEOUT, stuck_after
         last, repeats, gap = None, 0, 0  # gap: the lines since the last break line
         with open(log, "wb") as out:
             for line in proc.stdout:
+                if line.startswith(DONE):
+                    done.set()
                 if line.startswith(BREAK):
                     repeats = repeats + 1 if line == last and gap <= MAX_GAP else 1
                     last, gap = line, 0
@@ -86,6 +94,10 @@ def run(cmd: List[str], log: Path, timeout: float = DEFAULT_TIMEOUT, stuck_after
             try:
                 code = proc.wait(timeout=0.25)
                 reader.join(10)
+                if code in ACCESS_VIOLATION and done.is_set():
+                    print(f"lint engine: exit code {code} (access violation) after LINT-DONE: the engine's crash at "
+                          "exit, not the lint's", file=sys.stderr)
+                    return 0
                 return code
             except subprocess.TimeoutExpired:
                 pass

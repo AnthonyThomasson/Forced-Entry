@@ -1,6 +1,8 @@
 """tools/lint_engine.py: the engine pass of tools/lint.sh runs bounded. A script with a parse error puts a `--debug`
 Godot 4.4.1 on Windows at its `debug>` prompt, where it answers the closed stdin by breaking again and again (a log of
 561,000 lines and 26 MB in three minutes) and never exits, so lint.sh waited forever and left the engine running."""
+import contextlib
+import io
 import os
 import subprocess
 import sys
@@ -45,6 +47,13 @@ if mode == "spin_noisy":  # the real log's lines (CRLF), and a stray line or two
         out.write(b"debug> \r\n")
         out.flush()
         time.sleep(0.001)
+if mode.startswith("crash"):  # an access violation at exit: after LINT-DONE ("crash_done"), or before it
+    print("LINT-PASS2")
+    if mode == "crash_done":
+        print("LINT-DONE 3")
+    sys.stdout.flush()
+    code = int(os.environ["CRASH_CODE"])
+    os._exit(code - 2**32 if code > 2**31 else code)  # the C int of an exit code
 if mode == "breaks_then_goes_on":
     for i in range(150):
         print("Debugger Break, Reason: 'Parser Error: script %d'" % i)
@@ -69,7 +78,10 @@ class LintEngineRunTests(unittest.TestCase):
         self.addCleanup(os.environ.pop, "MODE", None)
         self.addCleanup(os.environ.pop, "PIDFILE", None)
         started = time.monotonic()
-        code = lint_engine.run([sys.executable, str(self.engine)], self.log, timeout=timeout, stuck_after=stuck_after)
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            code = lint_engine.run([sys.executable, str(self.engine)], self.log, timeout=timeout, stuck_after=stuck_after)
+        self.stderr = err.getvalue()  # the reason the engine was stopped
         return code, time.monotonic() - started
 
     def pid_gone(self, pid_file):
@@ -92,19 +104,53 @@ class LintEngineRunTests(unittest.TestCase):
         self.assertTrue(self.pid_gone(str(self.pidfile) + ".kid"), "and what it started")
 
     def test_an_engine_stuck_breaking_at_the_same_error_is_stopped_at_once_and_the_log_stays_small(self):
-        code, took = self.run_engine("spin", timeout=60)
+        # Not a wall-clock bound of its own: ending a process tree takes seconds to minutes on a loaded Windows box (the
+        # process snapshot alone 6-26 s), so the proof is the reason it gives, and that it ended before the deadline.
+        code, took = self.run_engine("spin", timeout=300)
         self.assertEqual(code, lint_engine.TIMED_OUT)
-        self.assertLess(took, 30, "stopped when it began to repeat itself, not at the deadline")
+        self.assertIn("stuck at the same debugger break", self.stderr, "stopped by the spin detector")
+        self.assertNotIn("did not finish within", self.stderr, "not by the deadline")
+        self.assertLess(took, 250, "stopped when it began to repeat itself, long before the deadline")
         self.assertTrue(self.pid_gone(self.pidfile))
         text = self.log.read_text()
         self.assertIn("Parser Error: Expected expression", text, "the reason of the break is in the log")
         self.assertLess(text.count("Debugger Break"), 400, "the endless repeat is not written down")
 
     def test_a_stray_line_between_the_breaks_does_not_hide_the_loop(self):
-        code, took = self.run_engine("spin_noisy", timeout=120)
+        code, took = self.run_engine("spin_noisy", timeout=300)
         self.assertEqual(code, lint_engine.TIMED_OUT)
-        self.assertLess(took, 100, "stopped when it began to repeat itself, not at the deadline")
+        self.assertIn("stuck at the same debugger break", self.stderr, "stopped by the spin detector")
+        self.assertNotIn("did not finish within", self.stderr, "not by the deadline")
+        self.assertLess(took, 250, "stopped when it began to repeat itself, long before the deadline")
         self.assertTrue(self.pid_gone(self.pidfile))
+
+    @staticmethod
+    def violations():
+        """The access-violation codes a fake engine can really exit with here (a POSIX exit code is one byte, so only
+        Windows has 0xC0000005 and its signed form; Git Bash's 139 is the one a Mac can have too)."""
+        return lint_engine.ACCESS_VIOLATION if sys.platform == "win32" else (139,)
+
+    def test_an_access_violation_after_lint_done_is_a_pass_with_a_note(self):
+        for code in self.violations():
+            with self.subTest(code=code):
+                os.environ["CRASH_CODE"] = str(code)
+                self.addCleanup(os.environ.pop, "CRASH_CODE", None)
+                self.assertEqual(self.run_engine("crash_done")[0], 0)
+                self.assertIn("access violation", self.stderr)
+                self.assertIn("LINT-DONE 3", self.log.read_text())
+
+    def test_an_access_violation_before_lint_done_stays_a_failure(self):
+        for code in [c for c in self.violations() if c > 0]:
+            with self.subTest(code=code):
+                os.environ["CRASH_CODE"] = str(code)
+                self.addCleanup(os.environ.pop, "CRASH_CODE", None)
+                self.assertEqual(self.run_engine("crash_early")[0], code)
+                self.assertNotIn("access violation", self.stderr)
+
+    def test_another_failure_after_lint_done_stays_a_failure(self):
+        os.environ["CRASH_CODE"] = "7"
+        self.addCleanup(os.environ.pop, "CRASH_CODE", None)
+        self.assertEqual(self.run_engine("crash_done")[0], 7)
 
     def test_a_missing_engine_is_exit_127(self):
         code = lint_engine.run([str(self.dir / "no-such-engine")], self.log)
