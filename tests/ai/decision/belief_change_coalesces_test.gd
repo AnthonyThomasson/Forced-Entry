@@ -6,6 +6,14 @@ extends GameTest
 ## One mechanism, scripted Von (COMBAT > ENGAGE > from where it stands). The short contact memory
 ## makes a hidden hostile leave the known set quickly; the defender and puppets cannot move or die,
 ## so only the second hostile's sightings change the salient key.
+##
+## The end does not lean on the legs' last change (#194 pool6). The first fixture hid and showed
+## the mover once more after the legs and waited for the decision that fired the window's end; at
+## a pool of 6 (decisions land sooner) the legs' last change had already been decided, and it
+## failed with "the coalesced change fired when its window ended": no belief decision came within
+## 0.7 s (nor, widened to 2.0 s, at all), so the check of its delay was never reached. The second
+## waited for the decision the legs left pending, which is luck of the frame a decision's pieces
+## land on. This one opens its own window (see `_check_pending`).
 
 const ENGAGED_AT := Vector2(400, 100)
 const OPEN_AT := Vector2(650, 100)
@@ -83,30 +91,37 @@ func run(t: TestContext) -> void:
 	await _check_pending(t, brain, belief_times)
 
 
-## End the fixture with changes inside a window, then no more. The windows open when a belief
-## decision starts, whatever frame its pieces land on, so wait for the one the legs' last changes
-## left pending: the mover is known (the last leg showed it), so it leaves inside the window
-## that decision opened, and nothing changes after.
+## End the fixture on its own, whatever the legs left pending: hide the mover and let any pending
+## decision and its window pass (nothing is left open); show it, which changes belief and opens a
+## window by the decision that starts (its claim is seen the frame it is made, whichever frame its
+## pieces land on); hide it inside that window; nothing changes after. The change inside the window
+## is held and must fire when the window ends, 0.5 s after the decision that opened it.
 func _check_pending(t: TestContext, brain: Node, belief_times: Array) -> void:
+	t.actor(&"mover").global_position = HIDDEN_AT
+	if not t.require(await t.until(func(): return not _known(brain, &"mover"), 0.4),
+			"the mover's sighting expired after the legs"):
+		return
+	await _watch(t, brain, 0.8, belief_times)
 	var seen: int = belief_times.size()
+	t.actor(&"mover").global_position = OPEN_AT
 	var opened := await t.until(func():
 		_record(brain, belief_times)
 		return belief_times.size() > seen, 0.7)
-	if not t.require(opened, "the legs' last changes opened a window with a decision"):
+	if not t.require(opened, "showing the mover started a belief decision, which opened a window"):
 		return
+	var opening: float = belief_times[-1]["at"]
 	t.actor(&"mover").global_position = HIDDEN_AT
 	if not t.require(await t.until(func(): return not _known(brain, &"mover"), 0.4),
-			"the mover's last sighting expired inside the window"):
+			"the mover's sighting expired inside the window"):
 		return
 	_record(brain, belief_times)
 	var before: int = belief_times.size()
-	var previous: float = belief_times[-1]["at"]
 	var fired := await t.until(func():
 		_record(brain, belief_times)
 		return belief_times.size() > before, 0.7)
 	if not t.require(fired, "the coalesced change fired when its window ended"):
 		return
-	var delay: float = belief_times[-1]["at"] - previous
+	var delay: float = belief_times[-1]["at"] - opening
 	t.check(
 		delay >= 0.49 and delay <= 0.65,
 		"the pending decision fired at the 0.5 s window's end (after %.3f s)" % delay,

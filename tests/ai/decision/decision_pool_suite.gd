@@ -104,6 +104,44 @@ func test_the_throw_works_difference_does_not_follow_what_the_process_counted_be
 		assert_int(one).is_equal(worked[0])
 
 
+## One block of the throw search ends where its work says (#194 replfix, the case the difference
+## test above stands for, run through `scan_step`): a raw candidate is a quarter-unit and the
+## planner's question four (the lob test, stubbed here to ask once and refuse), so the block cut at
+## 80 quarters ends after 16 candidates and has charged exactly 80, whatever `tested` and the
+## planner's total stood at when it began. The first scan starts them at a residue of one, the
+## second at another; a block cut on a floor of the running totals would end elsewhere in one of
+## them.
+func test_a_throw_block_ends_at_the_same_candidate_whatever_the_process_counted_before() -> void:
+	var kept_tested := ThrowSpots.tested
+	var kept_asked := GrenadeArc.work
+	assert_int(ThrowSpots.block_work).is_equal(80)
+	var ends := []
+	var charges := []
+	for residue: Array in [[0, 0], [3, 2]]:
+		ThrowSpots.tested = 1000 + residue[0]
+		GrenadeArc.work = 5000 + residue[1]
+		var spots := ThrowSpots.new()
+		spots.spot_walk = 1000.0
+		var aim := ThrowAim.new()
+		aim.spot = Vector2.ZERO
+		aim.reach = 1000.0
+		aim.lob = func(_from: Vector2) -> bool:
+			GrenadeArc.work += 1
+			return false
+		var tactics := StubTactics.new()
+		var ctx := { "self_pos": Vector2.ZERO }
+		var scan: RefCounted = ThrowSpots.ThrowScan.new(tactics, ctx, aim, [])
+		var started := ThrowSpots.work()
+		spots.scan_step(tactics, scan, 48)
+		ends.append(scan.cursor)
+		charges.append(ThrowSpots.work() - started)
+	ThrowSpots.tested = kept_tested
+	GrenadeArc.work = kept_asked
+	for i in 2:
+		assert_int(ends[i]).is_equal(16)
+		assert_int(charges[i]).is_equal(80)
+
+
 ## The frames a decision's build takes to land at the shipped prices (the planner begins its walk),
 ## counted from the frame it is claimed (frame 1): the cadence the docs' frame counts rest on
 ## (`decision-prices.md`). Each hostile is a run of pieces (`ANALYSIS`), an ambush's ranking
@@ -344,3 +382,14 @@ func test_a_step_that_did_more_work_than_its_price_is_charged_the_rest() -> void
 	assert_bool(DecisionBudget.take(1)).is_true()
 	DecisionBudget.charge(500, 0)  # a free piece is never charged
 	assert_bool(DecisionBudget.take(1)).is_true()
+
+
+## A stand-in for the `AgentTactics` facade the cheap tests read: every candidate snaps to itself
+## and is no nearer the NPC than a stride, so each reaches the lob test.
+class StubTactics:
+	extends RefCounted
+	const SNAP_TOLERANCE := 4.0
+	const STRIDE := 0.0
+
+	func snap(_ctx: Dictionary, r: Vector2) -> Vector2:
+		return r
