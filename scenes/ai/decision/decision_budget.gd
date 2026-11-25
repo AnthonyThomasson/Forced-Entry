@@ -46,12 +46,12 @@ static var cost_throw_route: int = 2
 ## one unit of work, a lead's route, a doorway's pick, one kind's throw spot step (about a
 ## millisecond), and the finish that sorts and caps what the units made (free: no price to set).
 static var cost_group_unit: int = 2
-## The throw search's work (`ThrowSpots.work()`, a count: planner questions asked, memo hits
-## included, and a quarter of the raw candidates tested, not a time: about 0.04 ms each) one unit
-## holds: a priced step that did more than its price's worth (a throw block of 20 is 2 units) is
+## The throw search's work (`ThrowSpots.work()`, a count in quarter-units: four a planner question
+## asked, memo hits included, one a raw candidate tested, not a time: about 0.01 ms each) one unit
+## holds: a priced step that did more than its price's worth (a throw block of 80 is 2 units) is
 ## charged the rest once it has run (`charge`), so a frame holds one such block, not four heavy ones
 ## from four NPCs. 0: no charge.
-static var work_unit: int = 10
+static var work_unit: int = 40
 ## Where the frame number comes from, when not the engine's physics frame: a unit test steps frames
 ## by it, with no engine running them (the way `DecisionStub.source` stands in for the server).
 static var frame_source := Callable()

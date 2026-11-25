@@ -82,7 +82,26 @@ func test_the_shipped_pool_never_lets_one_frame_run_a_whole_decision() -> void:
 	assert_bool(whole > _shipped["per_frame"]).is_true()
 	for price in PIECE_PRICES:
 		assert_bool(_shipped[price] <= _shipped["per_frame"] - _shipped["cost_start"]).is_true()
-	assert_bool(ThrowSpots.block_work <= 24).is_true()
+	assert_bool(ThrowSpots.block_work <= 96).is_true()
+
+
+## What a throw search worked is a difference of the planner's and the scan's own counts, so it is
+## the same whatever the process counted before it (#194 replfix): `tested` is a total that runs
+## on through every play and test of a process, and the search's block ends at a work cap, so a
+## floor of that total (a quarter of it, as an integer) made a block's end follow the total's
+## residue: the same match, one play later or one frame off, cut its blocks elsewhere and decided
+## on other frames (`perf/match_npc_vision_replay`).
+func test_the_throw_works_difference_does_not_follow_what_the_process_counted_before() -> void:
+	var kept_tested := ThrowSpots.tested
+	var worked := []
+	for counted in 8:
+		ThrowSpots.tested = counted
+		var started := ThrowSpots.work()
+		ThrowSpots.tested += 6
+		worked.append(ThrowSpots.work() - started)
+	ThrowSpots.tested = kept_tested
+	for one: int in worked:
+		assert_int(one).is_equal(worked[0])
 
 
 ## The frames a decision's build takes to land at the shipped prices (the planner begins its walk),

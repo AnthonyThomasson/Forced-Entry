@@ -16,13 +16,15 @@ const DIRECTIONS := 16
 const ROUTES := ThrowScan.ROUTES
 
 ## Raw candidates a block step of a priced search works through at most, and the work (`work()`, a
-## count, memo hits included, not a time) at which it ends the block earlier: a stretch of
+## count in quarters of a raw candidate, memo hits included, not a time) at which it ends the block
+## earlier (80: 20 planner questions, or 80 raw candidates): a stretch of
 ## candidates that fail the cheap tests is one step, a stretch that asks the planner many (each
 ## that passes the cheap tests asks it) is a few, so a unit the decision budget prices
 ## (`DecisionBudget.cost_throw_block`) is about the same work whichever it is.
 static var block_size: int = 48
-static var block_work: int = 20
-## Raw candidates run through the cheap tests so far (a count; `work()` takes a quarter of it).
+static var block_work: int = 80
+## Raw candidates run through the cheap tests so far (a count; `work()` adds each as one
+## quarter-unit).
 static var tested: int = 0
 
 ## Longest walk (px of route) to a throw spot (the perception's `apply_config` sets it).
@@ -30,11 +32,15 @@ var spot_walk: float
 
 
 ## What the throw search has worked so far, in the unit the budget prices by
-## (`DecisionBudget.work_unit`): the arc planner's questions (`GrenadeArc.work`) and a quarter of
-## the raw candidates through the cheap tests (a snap, a room test; one planner question costs about
-## as much as four of them, measured). A count, never a time: the same on every machine.
+## (`DecisionBudget.work_unit`): a quarter-unit each raw candidate through the cheap tests (a snap,
+## a room test) and four the arc planner's question (`GrenadeArc.work`: one costs about as much as
+## four candidates, measured). A count, never a time: the same on every machine. Both are totals the
+## process keeps running, so only a difference of two reads means anything, and in whole
+## quarter-units it is exact: a floor of a running total (a quarter of `tested`) made a block end
+## where the total's residue said, so the same match cut its blocks elsewhere one play or one frame
+## later.
 static func work() -> int:
-	return GrenadeArc.work + (tested >> 2)
+	return GrenadeArc.work * 4 + tested
 
 
 ## How a throw spot ranks (lower first): hidden from the burst spot, then covered against it, then

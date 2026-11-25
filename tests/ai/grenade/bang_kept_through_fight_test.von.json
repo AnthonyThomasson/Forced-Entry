@@ -273,7 +273,7 @@
 				"lead_ally_2": 1.0
 			},
 			"question": "What should you check first? Prefer the freshest lead that matters most to your goal.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are crouching. You are unhurt.\nCurrent activity: COMBAT - h - ENGAGE - where you stand (waiting, for 1s).\nNobody else is in sight or known.\na (ally) — last seen just now — north of you, outside the house — was standing still.\nc (ally) — in sight — south-west of you, in the kitchen — moving north, toward you — looks hurt.\na (radio, just now): SEARCH - STUN ENTRY - the doorway to the west.\nc (radio, just now): COMBAT - h - ADVANCE - close to them; under fire, hurt.\nGunfire heard to the north-west, in the kitchen, just now.\nFootsteps heard to the north-west, in the kitchen, recently.\nDecided so far: INVESTIGATE."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are outside the house, holding a Pistol. You are crouching. You are unhurt.\nCurrent activity: COMBAT - h - ENGAGE - where you stand (waiting, for 1s).\nNobody else is in sight or known.\na (ally) — last seen just now — north of you, outside the house — was standing still.\nc (ally) — in sight — south-west of you, in the kitchen — moving north, toward you — looks hurt.\nc (radio, just now): COMBAT - h - ADVANCE - close to them; under fire, hurt.\na (radio, just now): COMBAT - h - ADVANCE - halfway to them.\nGunfire heard to the north-west, in the kitchen, just now.\nFootsteps heard to the north-west, in the kitchen, recently.\nDecided so far: INVESTIGATE."
 		}
 	],
 	"version": 1
