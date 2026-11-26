@@ -109,6 +109,8 @@ clear is one the flight then makes. **What a plan costs** (#194, perf-arc): a pl
 sweeps the same lob more than once, so a plan works each arc out once (its flight time, the heights its five chords end at, its reach, what it rests as) and sweeps each lob (an arc at a reach) once:
 the flat arc `_flattest` tries, the arcs `_faced` compares and the first step of the search are the same sweeps. `GrenadeArc.work` is the price the AI's search is charged by, in quarter-units (four per planner question, one per raw candidate tested; `ThrowSpots.work()` sums them) and it is **not** the
 casts made: a sweep answered from what the plan already found still counts one, so a cheaper plan is no less work and the AI's budgets, block sizes and cadence stay what they were.
+Tests: `items/grenade_course_forgets_its_last_plan` (a course planned again answers as a new one),
+`items/grenade_arc_remembered_sweep_counts` (a remembered sweep still counts one).
 Real limits follow: under a roof a lob can come down only so steeply, so a target within about 50 px
 behind a 31 px desk, or in the lee of a 78 px wardrobe far from the thrower, is out of a throw's reach indoors; in the open the same target is reached.
 Tests: `items/grenade_bounces_off_wall`, `items/grenade_bounces_in_3d` (a wall struck in the air, the floor, rest on it), `items/grenade_lobs_over_furniture`

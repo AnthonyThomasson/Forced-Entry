@@ -330,7 +330,7 @@ func cast(space: PhysicsDirectSpaceState3D, from: Vector2, to: Vector2) -> Dicti
 
 
 ## The height (px above the floor) a blocker stands to for sight: the top of its twin
-## (`TwinShapes.top_of`: a wall 96, a table 31, a wardrobe 90 or more). A `transparent` surface (a
+## (`TwinShapes.top_of`: a wall 96, a table 31, a wardrobe 78). A `transparent` surface (a
 ## glass-panel door) and a character (looked over, as it always was: a body does not hide what lies
 ## behind it) stand to 0. A collider with no twin, or none that can say, blocks like a wall:
 ## `INF`.

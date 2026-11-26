@@ -1,6 +1,6 @@
 extends GameTest
 ## A defender fighting from behind cover fires by rising over it (docs/cover-and-stance.md A1, P6).
-## A crouched defender with a hostile in view behind a wardrobe, which no pose clears (90 px): it
+## A crouched defender with a hostile in view behind a wardrobe, which no pose clears (78 px): it
 ## does not rise, and its rounds meet the wardrobe. Server down.
 
 const COVER_AT := Vector2(340, 150)

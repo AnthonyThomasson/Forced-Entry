@@ -499,8 +499,8 @@ side ("" for an exterior door). The member waits in that room for whoever comes 
   asks for no decision while its order stands (on the way, the walk's commit cap).
 - **Primed (D37).** While it holds the ambush of its live order at its post (`Behavior.orders.primed`: the running primitive `ambush`,
   arrived, its order still live), the controller's reflexes prime it each tick before it observes (`npc_reflexes.gd` `prime`): its sight
-  tests every character in its view cone every physics frame instead of every `NpcPace.SIGHT_EVERY_BEATS` beats (4 frames), and its beat runs every
-  frame (`perception_sight.gd` `primed`); its
+  tests every character in its view cone every physics frame instead of every `NpcPace.SIGHT_EVERY_BEATS` beats (4 frames;
+  `perception_sight.gd` `primed`), and its beat runs every frame (`behavior_gait.gd` `needs_every_frame`, `orders.primed`); its
   body's `process_physics_priority` is `PRIMED_PRIORITY` (1), so it moves after every other body in the frame. It then sees an entrant at
   the spot the entrant's own step just reached, on the frame that step opens the line, while the entrant's controller acted before the
   step: a same-frame tie is the ambusher's, the entrant firing back the next frame at the earliest. Both are undone once it is no longer

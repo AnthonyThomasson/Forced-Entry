@@ -10,7 +10,7 @@ extends RefCounted
 
 ## Physics frames between two beats of one NPC.
 const BEAT := 2
-## Beats between two sight tests of a character that stays in view (`PerceptionSight.every_beats`):
+## Beats between two sight tests of a character that stays in view (`PerceptionSight.beat.y`):
 ## `BEAT * SIGHT_EVERY_BEATS` frames old at most.
 const SIGHT_EVERY_BEATS := 2
 

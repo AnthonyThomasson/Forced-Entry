@@ -114,7 +114,7 @@ body's posture sets its heights (#194 D9). **The NPCs' sight** (`AgentVision`) i
 seen if any one is clear, the head tried first (the first clear point ends the ask). Walls, doors, furniture and vehicles block it where
 they stand, at the height they stand: a standing NPC (eye 69 px) looks over a table (31 px) and sees a standing body close behind a sofa
 (back 38 px), a ducked body (head 32 px, chest 24, hips 18) right behind that sofa is hidden from it, and a ducked NPC (eye 32 px) cannot
-look over a counter (38 px) at all; a car (body 40 px, roof 60) is looked over standing and blocks ducked, the same, and a van's roof (78) blocks a standing eye level with it; bodies never block, so a character in the way hides nothing; a `transparent` surface (a glass-panel
+look over a counter (38 px) at all; a car (body 40 px, roof 60) is looked over standing and blocks ducked, the same, and a van's roof (78) stands over a standing eye and blocks it; bodies never block, so a character in the way hides nothing; a `transparent` surface (a glass-panel
 door) is looked through however tall (the glass front of a shop's fridge or snack machine is a collider, not `transparent`: it blocks sight as the solid fridge did, though the stock behind it is drawn; the shelf aisle's bays are open, so a ducked eye sees through between its boards, which the old solid aisle did not allow: `docs/stacked-items.md` SI16). A body in the open is seen from anywhere its lines are clear, so a ducked one far behind cover is
 seen over it (the eye looks down). The query behind it is public (`SightRay.visible_parts(viewer, target)`: the heights of the target's
 points the viewer's eye sees, and `visible_centre`: the middle of them, -1 when none: what an aim at the visible part reads). **The
