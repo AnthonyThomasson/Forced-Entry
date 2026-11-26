@@ -404,8 +404,16 @@ static func planning_region(planning_map: RID) -> NavigationRegion3D:
 ## re-baked (the old mesh answers meanwhile) when the planning bake has been redone since. One
 ## nobody has asked for in `avoid_idle_frames` (1200 `GameClock` frames, 20 s) is freed by the next
 ## ask for another key on the same planning map, and every one is freed with its region (its world).
-## Invalid when the region has no bake to start from.
-static func avoid_map(region: NavigationRegion3D, key: String, holes: Array) -> RID:
+## Invalid when the region has no bake to start from. A bake past `NavBakeConfig.at_once` in flight
+## waits its turn (`NavBake`) and takes the planning bake as it is when it starts. With `repeats`
+## (the asker asks again every beat for as long as it wants the map), a waiting bake nobody has
+## asked for in `NavBakeConfig.held_ask_frames` when its turn comes is dropped: the next ask bakes.
+static func avoid_map(
+	region: NavigationRegion3D,
+	key: String,
+	holes: Array,
+	repeats := false,
+) -> RID:
 	if region == null or not region.has_meta(SOURCE_META):
 		return RID()
 	var planning_map := region.get_navigation_map()
@@ -423,8 +431,9 @@ static func avoid_map(region: NavigationRegion3D, key: String, holes: Array) -> 
 		var kept: Dictionary = entries[key]
 		kept["asked_frame"] = now
 		if not bool(kept["baking"]) and int(kept["version"]) != int(stored["version"]):
-			avoid_rebakes += 1
-			_bake_avoid(region, kept, holes)
+			if int(kept["version"]) >= 0:  # not a first bake that was dropped
+				avoid_rebakes += 1
+			_bake_avoid(region, kept, holes, repeats)
 		return kept["map"]
 	var map := NavSource.new_map()
 	var avoid_region := NavigationRegion3D.new()
@@ -442,7 +451,7 @@ static func avoid_map(region: NavigationRegion3D, key: String, holes: Array) -> 
 	NavReady.await_region(map, avoid_region, NavPlan.plan_of(region.global_position))
 	avoid_region.tree_exited.connect(_on_avoid_region_exited.bind(planning_map, key, map))
 	avoid_starts += 1
-	_bake_avoid(region, entry, holes)
+	_bake_avoid(region, entry, holes, repeats)
 	return map
 
 
@@ -458,22 +467,40 @@ static func _on_avoid_region_exited(planning_map: RID, key: String, map: RID) ->
 	NavigationServer3D.free_rid(map)
 
 
-## Bake `entry`'s avoid region on a worker thread: the planning source geometry kept by
-## `NavSource.remember`, with `holes` (world space) added as obstructions, fused and snapped like
-## the furniture's. The polygon is assigned on the fixed frame the bake lands on (`NavBake`).
-static func _bake_avoid(region: NavigationRegion3D, entry: Dictionary, holes: Array) -> void:
-	var stored: Dictionary = region.get_meta(SOURCE_META)
+## Bake `entry`'s avoid region on a worker thread (`NavBake`): the planning source geometry kept by
+## `NavSource.remember` as it is when the thread starts, with `holes` (world space) added as
+## obstructions, fused and snapped like the furniture's. The polygon is assigned on the fixed frame
+## the bake lands on.
+static func _bake_avoid(
+	region: NavigationRegion3D,
+	entry: Dictionary,
+	holes: Array,
+	repeats: bool,
+) -> void:
 	var origin := NavPlan.plan_of(region.global_position)
-	var source := NavigationMeshSourceGeometryData2D.new()
-	source.set_traversable_outlines(stored["traversable"])
-	source.set_obstruction_outlines(stored["obstructions"])
-	NavSource.add_holes(source, origin, holes)
-	var nav_poly := NavSource.new_polygon(float(stored["agent_radius"]))
+	var carved := holes.duplicate()
+	var planning: WeakRef = weakref(region)
+	var job := {
+		"gather": func() -> Dictionary:
+			var stored: Dictionary = (planning.get_ref() as Node).get_meta(SOURCE_META)
+			var source := NavigationMeshSourceGeometryData2D.new()
+			source.set_traversable_outlines(stored["traversable"])
+			source.set_obstruction_outlines(stored["obstructions"])
+			NavSource.add_holes(source, origin, carved)
+			entry["version"] = int(stored["version"])
+			return {
+				"poly": NavSource.new_polygon(float(stored["agent_radius"])),
+				"source": source,
+			},
+	}
+	if repeats:
+		job["wanted"] = func() -> bool:
+			return GameClock.frame() - int(entry["asked_frame"]) <= NavBakeConfig.held_ask_frames
+		job["dropped"] = func() -> void: entry["baking"] = false
 	entry["baking"] = true
-	entry["version"] = int(stored["version"])
 	NavBake.start(
 		entry["region"] as NavigationRegion3D,
-		{ "poly": nav_poly, "source": source },
+		job,
 		origin,
 		func() -> void: entry["baking"] = false,
 		NavBake.frames_for(region, true),

@@ -19,23 +19,29 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
   tick's `_apply` (it starts the gather, if the footprints still move against the baseline as it stands: a bake that landed meanwhile carved them) to the landing: a move meanwhile waits for the next tick. A lone house's
   gather stays in its tick (`_rebake_planning`, walls shared with its steering bake). The fusing (`NavUnion`, on a worker) is nine tenths
   of the gather.
-- **A district's steering tiles start baking a frame each and land together** (`nav_updater.gd`, `nav_tile_burst.gd` (`NavTileBurst`), `NavTiles.due_tiles` /
-  `parse_for` / `prepare` / `land` / `walking_at`; `navigation/tile_rebake_one_a_frame`, `district_steering_rebake_lands_in_its_tick`): a tick's due tiles are started baking a frame each, each on a worker thread (`NavTiles.threaded_total`), and **landed in one**
-  (`steering-edge-connections.md`). Order: tiles holding a **moving walker** first (a living character moving at `REST_SPEED` or more),
-  by squared distance from the nearest walker to the tile's rect (0 inside it), then the rest, ties and a still scene in the grid's order, fixed at the tick.
-  The tick starts the first (`prepare` gathers its source on the main thread), `_physics_process` one more a `GameClock` frame (none on a frame that started one), and the frame `NavBakeConfig.tile_frames` (3) after the last started `land`s them all, on a frame no bake landed on, slipping up to `MOST_SLIP` (3) then whatever (`NavTiles.late_total` counts a thread not done): k tiles land k-1+`tile_frames` frames after the tick's own (`tick.md`); a walker sees a body that stopped up to that many frames later (accepted). A tile on its thread keeps its last mesh: no gap, still ready (`nav_ready_follows_the_tiles`). The walls are
-  parsed once per burst. A lone house's region is baked whole in its tick, as are `rebake_steering` and `build`'s first.
-  `tile_due_order` pins the order; a tick lands an open burst before reading what is due.
 - **A bake lands on a fixed frame** (`nav_bake.gd`, `nav_bake_config.gd`; `navigation/rebake_lands_on_its_frame`, `avoid_map_lands_on_its_frame`,
   `rebake_waits_for_a_late_thread`, `landings_one_a_frame`, `perf/nav_rebake_lands_in_a_match`). One a frame: a bake due on a taken frame slips to the next, in start order (a planning bake's ring after it). `NavRebake._bake_async` and `NavBuilder._bake_avoid` start the bake on a
-  `WorkerThreadPool` task (the server's sync bake) through `NavBake.start`, which takes its result in (assign to the
-  region, `landed`) on the physics frame the caller's count says after the start, not when the thread finishes. A thread not done by then is waited for, which holds that frame (`NavBake.was_late` of that bake, `late_total` of all; the match
+  `WorkerThreadPool` task through `NavBake.start`, which takes its result in (assign to the region, `landed`) on the physics
+  frame the caller's count says after the thread's start (the ask, unless it waited its turn, below), not when it finishes. A thread not done by then is waited for, which holds that frame (`NavBake.was_late` of that bake, `late_total` of all; the match
   guards log `PERF <label> nav bakes late N of M, gather fusings late K`); on time costs the frame its assignment only. `NavBake.frames_for(region, avoid, ring)`
   picks the count from `NavBakeConfig`, a district's planning bake `district_frames` 36 (a 120 to 140 ms thread; `perf/ambush_order_stress` sets 50: its frames are 3 ms), its avoid
   maps `avoid_frames` 22 (the AI waits on a chain), the planning ring `ring_frames` 7
   (a 14 ms thread, an `urgent` job: a high-priority task, never queued behind busy threads), a lone house's bakes `house_frames` 3.
   Remeasure when a bake or a frame changes. A region freed meanwhile is left
   alone and `landed` still called; a game closing finishes every bake in flight.
+- **A bake waits its turn** (`nav_turns.gd` (`NavTurns`); `navigation/bakes_wait_their_turn`, `crowded_bakes_are_not_late`,
+  `held_bake_nobody_asks_for_is_dropped`, `held_avoid_bake_takes_the_newest_source`). Every bake but the urgent ring's holds one of
+  `NavBakeConfig.at_once` (3) places from start to landing. One asked with none free is not started: it starts at the landing that frees
+  one, **oldest first** (district and avoid alike), and counts from there, so it lands later instead of holding a frame. None starves:
+  with `q` waiting ahead it starts within `q / 3 + 1` times the longest count (plus the one-a-frame slips); with none piled up nothing
+  changes. Measured on the match guards: held bakes land 1 to 32 frames late. A waiting avoid bake is made from the planning source as
+  it is when it starts (a planning re-bake meanwhile is in it, no second bake). `avoid_map(…, repeats = true)` (a hold's body maps,
+  asked every beat while wanted): a waiting one nobody asked for in `held_ask_frames` (4) when its turn comes is dropped, and the next
+  ask bakes it (without this a burst of moved bodies queued maps nobody read: 168 frames late). A bake whose region is gone holds no
+  place, and a waiting one is never started (nothing carries over from a torn-down world).
+  **The limit:** 3 is the pool's width for normal-priority tasks on a 10 to 13 thread machine (0.3 of the threads, rounded down), a fixed
+  number so every machine lands a bake on the same frame. Below 10 threads (an 8-thread box runs 2, a 4-thread one 1) a started bake can
+  still queue in the pool, and its landing then waits for it as before this rule. From 14 threads up the rule is narrower than the pool.
 - **A map syncs on the main thread** (`project.godot`, `navigation/world/map_use_async_iterations` off; `navigation/map_syncs_without_a_thread`): the server's
   async sync would show a landed bake on a frame that follows the machine's load, so a match was a different fight run to run whatever the landing frames.
   It costs the main thread within 0.4 ms of the async average.
@@ -46,15 +52,6 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
   `rebake_async` gathers the geometry on the main thread and assigns the polygon on the bake's fixed frame, then runs `done`; the
   landing holds the region by a `WeakRef` (a lambda capturing a node freed before it runs logs an engine error:
   `tests/navigation/rebake_outlives_region_test.gd`).  The sync `rebake` is for a test that needs the map now.
-- `furniture_holes` (`NavHoles.furniture`, a tracker per house, a `Reader` per read) keeps each piece's hull with what it was cut from (its twin
-  and the twin's pose, `NavTwins.stamp_of`), and cuts only a piece whose twin moved, turned or tipped, or that was twinned or added; a
-  quiet tick reads one transform a piece and walks no tree. A footprint a script moves by hand reaches the twin up to
-  `TwinSpace.PARK_SPREAD` frames later. The pieces are found again (`find_children`) only after one
-  was added under the house (`SceneTree.node_added`) or left it, so the order is a walk's. `NavHoles.plain` cuts every piece afresh, the reference
-  (`furniture_holes_cache_matches_recut_test.gd`, `furniture_holes_follow_the_pieces_test.gd`; `NavHoles.walks` and `cuts` count the work);
-  the simplified outline is pinned to the plain
-  version by `outline_simplify_matches_plain_test.gd`. Tile binning likewise remembers an outline's bounds by its contents:
-  unchanged outlines cost no new measurement, while any moved point makes a fresh key.
 - After each re-bake, and again when the planning one lands, it calls the overlay's `setup` so the overlay re-snapshots.
 - **Between re-bakes bulldozing is the behaviour** (and for non-solid decor, never carved): a piece just shoved is run over by the
   character's push physics until the next re-bake routes round its new position.

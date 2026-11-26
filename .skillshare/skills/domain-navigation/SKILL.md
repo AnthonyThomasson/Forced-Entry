@@ -19,7 +19,7 @@ A leaf: it builds the maps; all else pathfinds. Takes a plain `rooms` array and 
 | `nav_gather.gd` (`NavGather`), `nav_fuse.gd` | A district's planning re-bake gathered a step a physics frame, swapped in whole (`NavRebake.swap`); `NavFuse`: its fusing on a worker, inline if none began. |
 | `nav_source.gd` (`NavSource`), `nav_border.gd` (`NavBorder`) | `NavSource`, all static: what a bake is gathered from (the walls from the twins, the `job` of polygon and source: 2D plan outlines, projected into the 3D baker's at the bake) and running it (`bake_polygon`, `CELL_SIZE` 4 px). `NavBorder`: the raster of a steering tile's border cells (`runs`). |
 | `nav_rebake.gd` (`NavRebake`) | All static: the updater's re-bakes, the planning one (its `swap` onto a worker thread) and the steering one. |
-| `nav_bake.gd` (`NavBake`), `nav_bake_config.gd` (`NavBakeConfig`) | `NavBake`: one planning bake's worker thread and its landing on a fixed `GameClock` frame (not `Engine.get_physics_frames()`, which runs through a pause). `NavBakeConfig`: that count by kind of bake (`district_frames`, `avoid_frames`, `ring_frames`, `house_frames`, `tile_frames`: a steering burst's landing). |
+| `nav_bake.gd` (`NavBake`), `nav_turns.gd`, `nav_bake_config.gd` | `NavBake`: one planning bake's thread and landing on a fixed `GameClock` frame (not `Engine.get_physics_frames()`: it runs through a pause). `NavTurns`: 3 bake at once, the rest wait. `NavBakeConfig`: the frames per kind of bake. |
 | `nav_tiles.gd` (`NavTiles`), `nav_tile_bake.gd`, `nav_tile_burst.gd`, `nav_seams.gd`, `nav_settle.gd` | A district's steering tiles (each baked on a worker thread), the wall cache. `NavTileBake`: a bake in flight. `NavTileBurst`: a tick's tiles started a frame each, landed together. `NavSeams`: border welds. `NavSettle`: settling under 0.1 px is no change. |
 | `nav_ring.gd` (`NavRing`) | A district's planning ring: a small map of the match building. |
 | `nav_ready.gd`, `nav_snaps.gd`, `nav_plan.gd`, `nav_world.gd` | `NavReady`: does a map answer yet. `NavSnaps`: what `snap` learned. `NavPlan`: queries. `NavWorld`: a node's map. |
@@ -76,7 +76,7 @@ The map carves every body at rest; which a walk accounts for is the walker's bus
 
 ## Keeping the holes current (`nav_updater.gd`)
 
-A bake is a snapshot and furniture is shoved in play: `nav_updater.gd` re-bakes the planning and steering regions on an interval, only when something moved past `move_threshold`. The tick, the test seams `rebake` / `rebake_async` / `rebake_steering`, what `furniture_holes` keeps and bulldozing between re-bakes: `rebake.md`.
+A bake is a snapshot and furniture is shoved in play: `nav_updater.gd` re-bakes the planning and steering regions on an interval, only when something moved past `move_threshold`. The tick, the test seams `rebake` / `rebake_async` / `rebake_steering`, bulldozing between re-bakes: `rebake.md` (what `furniture_holes` keeps: `twins.md`).
 
 ## Map queries (`ready` / `snap` / `route` / `path_length`)
 

@@ -21,7 +21,7 @@ stopping re-bakes one to four tiles: ~5 ms a tick, not ~57
   order. Reaches that are not a steering-tile grid (the planning ring's one large footprint) keep the every-reach scan. Bounds
   are remembered by outline contents, so unchanged furniture is not measured again and a moved outline gets a fresh bound.
   Test: `navigation/steering_bins_match_full_scan`.
-- **A district's steering tiles bake one a frame and land together** (`rebake.md`): a tick with several tiles due starts their bakes a physics frame each, on worker threads (a moving walker's own first), and lands them in one frame `NavBakeConfig.tile_frames` after the last start, one steering-map sync.
+- **A district's steering tiles bake one a frame and land together** (`tick.md`): a tick with several tiles due starts their bakes a physics frame each, on worker threads (a moving walker's own first), and lands them in one frame `NavBakeConfig.tile_frames` after the last start, one steering-map sync.
 - **A lone house's steering re-bake lands in its tick's frame** (`nav_updater.gd`; `steering_rebake_lands_in_its_tick_test.gd`; a district's
   tiles land as a burst, above): a held walker re-looks for a way round a body every `RECHECK` s and the map answers a frame after the
   re-bake, so a late one costs a whole `RECHECK`. A district's planning gather is not in the tick: it runs a step a physics frame after it (`NavGather`, `rebake.md`) and its
@@ -30,10 +30,10 @@ stopping re-bakes one to four tiles: ~5 ms a tick, not ~57
 ## Avoid maps (`avoid_map`)
 
 A walk that should keep out of some floor (the AI's doorway views, `docs/tactical-entry.md` E18) plans on a map with it carved out:
-`avoid_map(region, key, holes) -> RID` (`region` is the planning region, `planning_region(planning_map)` finds it; `holes` closed
+`avoid_map(region, key, holes, repeats = false) -> RID` (`region` is the planning region, `planning_region(planning_map)` finds it; `holes` closed
 world-space polygons; `key` names the set). The planning bake keeps its source on its region, so the avoid
 bake is the same geometry plus the holes, fused, snapped, welded. Each key gets a map of its own with one child region `NavAvoid`,
-baked on a worker thread and landed on the fixed frame `NavBake.frames_for` after the ask (`avoid_frames` in a district, `house_frames` in a house) (`NavBake`; `ready(map)` is false until it answers). Asking again returns the same map and marks it
+baked on a worker thread and landed `NavBake.frames_for` frames after its start (the ask, unless it waits its turn: `rebake.md`) (`NavBake`; `ready(map)` is false until it answers). Asking again returns the same map and marks it
 asked; once the planning bake is redone it is baked again in place, the old mesh answering meanwhile. A map nobody asked for in
 `avoid_idle_frames` (`GameClock` frames, 1200 = 20 s, so a run frees the same maps on the same frame) is freed with its region by the next ask for another key on the same planning map (the sweep runs only inside
 `avoid_map`), and every one is freed with its world. Invalid when the region has no bake. Test:

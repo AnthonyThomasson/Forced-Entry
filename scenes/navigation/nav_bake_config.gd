@@ -30,6 +30,19 @@ static var district_frames := 36
 ## same every run of a count. Measured again 2026-11-23 (73 avoid bakes of the guards above): done
 ## on frame 3 to 20, p95 19; 22 holds.
 static var avoid_frames := 22
+## The most background bakes (every one but the urgent ring's) between their start and their
+## landing (`NavBake`): one asked past that waits its turn, the oldest first, and its count runs
+## from its start. 3 is what the worker pool runs at once for normal-priority tasks on a machine of
+## 10 to 13 threads (its share is 0.3 of them, rounded down; measured on a 12-thread Mac: sleepers
+## start three at a time), so a bake that has started has a thread. A fixed number, not the
+## machine's: the frame a bake lands on is the same on every machine. On one with fewer than 10
+## threads the pool runs 1 or 2 at once, a started bake may still queue behind the others, and a
+## frame that waits for it waits as it did before this rule (`rebake.md`).
+static var at_once := 3
+## A held bake whose asker asks every beat while it wants the map (`NavBuilder.avoid_map`'s
+## `repeats`) is dropped, when its turn comes, if nobody has asked for it in this many frames: two
+## of the NPC's beats (`AgentBeat`: every second frame).
+static var held_ask_frames := 4
 ## The planning ring (`NavRing`): a small map of the match building, read by every snap and route
 ## in the building, so it lands as soon as it safely can. It is a high-priority task
 ## (`NavBake.start`, `urgent`: queued with the others it waited 46 ms behind three district bakes

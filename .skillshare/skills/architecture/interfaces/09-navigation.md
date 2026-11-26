@@ -10,7 +10,7 @@
 	 doorway stays open past it and a path goes round the leaf in the room it swings into. `NavBuilder.leaf_in_map(door) -> bool` tells
 	 whether a door's leaf is in the map so (any other door: a clean gap or opened, DR14).
    - **Re-bake** is the Navigation domain's own: `nav_updater.gd` (built by `MatchBuilder.stage`) re-carves the furniture holes at
-	 the pieces' **current** positions, only when a piece has moved, the planning bake on a worker thread, landing on a fixed frame (`NavBakeConfig`). The steering re-bake lands in the tick's frame in a house; a district's tick is a job over frames (`NavTick`), its due tiles are baked on threads and land together `tile_frames` after the last; its planning re-bake is `NavGather` steps, swapped in whole when complete (`domain-navigation` (`rebake.md`)).
+	 the pieces' **current** positions, only when a piece has moved, the planning bake on a worker thread, landing on a fixed frame (`NavBakeConfig`; a turn first when bakes pile up). The steering re-bake lands in the tick's frame in a house; a district's lands over frames, its planning one swapped in whole (`domain-navigation` (`rebake.md`, `tick.md`)).
 	 `NavBuilder.rebake` / `rebake_async` / `rebake_steering` are test-facing seams, not this surface: `rebake_async`,
 	 `NavRebake.planning` and `swap` return `Array[NavBake]` (`was_late`); the perf probe reads `NavBake.*_total`, `NavTiles.baked_total` / `threaded_total`, `NavBuilder.avoid_starts` / `avoid_rebakes`. A bake lands on a `GameClock` frame.
    - `NavBuilder.furniture_holes(house) -> Array` — the carved footprints (anchored pieces, open doors and leaning fallen ones, `NavLeaves.fallen_hole`, included) as world-space polygons: what
@@ -36,14 +36,13 @@
 	 inside it (`NavRing.MARGIN`), else from the world's map, and a route the ring cannot finish is asked of the world's map; `ready(map)` also
 	 waits for the ring. A lone house has no ring and one planning map. Walking, steering and the avoid maps stay on the world's maps.
    - **Avoid maps**, for a walk that keeps out of some floor (the AI's doorway views, E18):
-	 `NavBuilder.avoid_map(region, key, holes) -> RID` (`region`: the planning region `build` returned, found from a world map by
+	 `NavBuilder.avoid_map(region, key, holes, repeats = false) -> RID` (`region`: the planning region `build` returned, found from a world map by
 	 `NavBuilder.planning_region(planning_map) -> NavigationRegion3D`; `holes`: world-space polygons; `key` names the set): a map of its own
-	 with the planning bake plus those holes, baked on a worker thread, landed on a fixed frame, cached by `key` (re-baked when the planning bake has been redone),
-	 freed by the next ask for another set once nobody has asked for `avoid_idle_frames` (1200), and with its world; `ready` as any
+	 with the planning bake plus those holes, baked on a worker thread, landed a fixed count after its start, cached by `key` (re-baked after a planning re-bake). Past 3 in flight one waits its turn (`domain-navigation` (`rebake.md`)); `repeats` (asked every beat while wanted) drops a waiting one no longer asked for.
+	 Freed by the next ask for another set once idle `avoid_idle_frames` (1200), and with its world; `ready` as any
 	 map. The world's and the steering map are untouched. `Locomotion` walks it and `AgentDoorViews.walk_route` measures on it.
 
-   `MatchBuilder.stage` (interface 23) calls `build` once after the house is built (then builds the
-   `nav_debug.gd` overlay, the `nav_updater.gd` re-baker, ticking after the wait), then, with the spec's `wait_nav` (default on), waits until both maps are
-   `ready`. A `NavigationAgent3D` (the NPC's, on its `NavAnchor`, kept at `(x, 0, y)` by `Locomotion`: `loco_agent.gd`) then pathfinds against the world's map (the AI sets `target_position` and steers at
+   `MatchBuilder.stage` (interface 23) calls `build` once the house is built (then the overlay and the
+   re-baker), then, with the spec's `wait_nav` (default on), waits until both maps are `ready`. A `NavigationAgent3D` (the NPC's, on its `NavAnchor`, kept at `(x, 0, y)` by `Locomotion`: `loco_agent.gd`) then pathfinds against the world's map (the AI sets `target_position` and steers at
    `get_next_path_position()`). RVO is off: shoved furniture is re-carved by the periodic re-bake, and in between (and for
    non-solid decor) a displaced piece is bulldozed by the character's push physics.

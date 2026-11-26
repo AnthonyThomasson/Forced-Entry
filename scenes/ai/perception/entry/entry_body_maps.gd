@@ -56,7 +56,9 @@ static func of(region: NavigationRegion3D, asked: Array, radius: float) -> RID:
 		for i in SEGMENTS:
 			hole.append(b + Vector2.from_angle(TAU * i / SEGMENTS) * radius)
 		holes.append(hole)
-	return NavBuilder.avoid_map(region, made["key"], holes)
+	# The hold asks every beat while it wants the map (`EntryApproach.tick_approach`): a set the
+	# bodies have moved off before its bake's turn came is not baked.
+	return NavBuilder.avoid_map(region, made["key"], holes, true)
 
 
 ## The kept set each of `bodies` stands within `TOLERANCE` of one of (one body each), or {}.

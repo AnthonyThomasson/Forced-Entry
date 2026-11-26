@@ -24,3 +24,15 @@ frame for its twin.
   fewer (889 against 888; the house 114 against 113); every recorded route (90 on the district) found, none over 3 % longer or shorter. It also checks the walls
   against each `Wall`'s own outlines, the navmesh's clearance from them and every doorway open on a walls-only bake.
 - Found by group, not engine type: the walls by `walls`, the pieces by `TwinSpace.PIECES`; a fallen door's `fallen_footprint` is polygon data on the door.
+
+## What `furniture_holes` keeps
+
+- `furniture_holes` (`NavHoles.furniture`, a tracker per house, a `Reader` per read) keeps each piece's hull with what it was cut from (its twin
+  and the twin's pose, `NavTwins.stamp_of`), and cuts only a piece whose twin moved, turned or tipped, or that was twinned or added; a
+  quiet tick reads one transform a piece and walks no tree. A footprint a script moves by hand reaches the twin up to
+  `TwinSpace.PARK_SPREAD` frames later. The pieces are found again (`find_children`) only after one
+  was added under the house (`SceneTree.node_added`) or left it, so the order is a walk's. `NavHoles.plain` cuts every piece afresh, the reference
+  (`furniture_holes_cache_matches_recut_test.gd`, `furniture_holes_follow_the_pieces_test.gd`; `NavHoles.walks` and `cuts` count the work);
+  the simplified outline is pinned to the plain
+  version by `outline_simplify_matches_plain_test.gd`. Tile binning likewise remembers an outline's bounds by its contents:
+  unchanged outlines cost no new measurement, while any moved point makes a fresh key.
