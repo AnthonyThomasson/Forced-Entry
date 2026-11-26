@@ -66,7 +66,7 @@ Tests: `flank_corridor_dead_end`, `flank_side_behind_wall`, `flank_rear_route_cr
 
 **B6. The flank spot is a firing position.** It has a clear shot at the target (the real 3D line of fire from a standing muzzle,
 `docs/gaze-and-fire.md` W2: over a table, not through a sofa's back), and cover beside it is reported ("cover close by (the pillar)"): a piece
-whose real top hides a ducked head, `AgentTactics.is_cover`, so a sofa, a counter or a wardrobe is cover and a coffee table or a dining table is
+whose real top hides a ducked head, `AgentCover.is_cover`, so a sofa, a counter or a wardrobe is cover and a coffee table or a dining table is
 not. A point with the line blocked, such as outside a wall or behind a
 tall shelf, is still weighed (and worded "line blocked from there") but is not offered as a flank.
 Why: a flank that cannot shoot only ends the NPC somewhere pointless; F.E.A.R.'s flanks were cover-to-cover

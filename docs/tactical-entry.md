@@ -249,7 +249,7 @@ capped by `max_options_per_level`. The engaged hostile always takes a slot witho
 slots go to the nearest others. Every known hostile remains in contacts, shared facts and the hostile bind, but those beyond the cap
 receive only their cheap line facts, not fire, flank, advance, melee or grenade groups and no per-target sections. Test:
 `ai/decision/analyses_engaged_and_nearest` (the farthest engaged hostile and the nearest other are analysed; the third stays known).
-An NPC that is not engaged with any hostile analyses ONE, the nearest, whatever the cap (the second slot is for the one it is fighting); the others are listed with their line only. Test: `ai/decision/analyses_one_when_not_engaged`.
+An NPC that is not engaged with any hostile analyses ONE, whatever the cap (the second slot is for the one it is fighting): the nearest in sight now, else the nearest by its last known spot, so a remembered hostile behind a wall does not take the slot from a farther one in view; the others are listed with their line only. Test: `ai/decision/analyses_one_when_not_engaged`.
 
 Tests: `entry_guard_explore`, `entry_guard_search_room`, `entry_guard_advance`, `entry_guard_cleared_room_free`,
 `entry_guard_under_fire_exempt` (shot at from behind, in the garden: straight through), `entry_guard_shot_from_room_ahead` (shot at from the
@@ -622,7 +622,7 @@ the stack toward the door's axis, clear of the slots.
   While crossing, the controller holds every decision (`Behavior.committed()`); a hit or a hostile seen
   in the doorway is acted on once the NPC is through. So it does while the bang's thrower is between its call and the stun leaving its
   hand (`Entry.throwing()`, E17), and a decision that came back meanwhile is taken again once the stun is away (`Behavior.task.held`). The room is cleared by sight with
-  `search_coverage.gd`. Posture and running stay code-owned: it stands throughout and never runs, not even
+  `search_coverage.gd`. Posture and running stay code-owned: it stands throughout (but for a frag stack's slot hold, crouched: E17) and never runs, not even
   under fire, because a running character cannot shoot (test `entry_never_runs`).
 - **The guard (E9).** `Behavior.entries.guard` (`behavior_entries.gd`) runs after the running primitive has steered and reads the
   walk the nav agent was just given (`Locomotion.path_ahead()`), not the order's destination, so it sees every walk: a
@@ -680,8 +680,8 @@ Interpretations and the game's own rules, where the sources leave a choice:
 - E14 applies whatever tactic the fight takes: a rush, an advance or a flank into a room whose hostile is in view with a line of
   fire first clears the gun on the door from outside (kills it, or loses sight of it), and goes in after. The rush tests (`entry_guard_advance`,
   `entry_guard_fires_from_outside`) give the target normal health and assert it was shot dead from outside before the invader
-  went in, and `flank_walks_to_chosen_side` has a low coffee table across the lines from the hall (sight looks over it, a bullet
-  does not), so the flank is the only way to a shot.
+  went in, and `flank_walks_to_chosen_side` has a glass-panel door shut in the hall doorway (sight looks through its panes, no
+  line of fire passes it), so the flank is the only way to a shot.
 - A room crossed in a retreat or under fire (not the shots' own room) is visited, not cleared: ENTER offers it again once the NPC is outside, and an
   entry the guard began there and gave up is not started again for `tuning.entry_guard.rearm` s. Search ranking still goes by
   `visited_room` (stood in it lately); the guard and ENTER go by `cleared_room`.

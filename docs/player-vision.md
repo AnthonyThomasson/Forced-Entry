@@ -32,9 +32,9 @@ round its facing and the bubble round it); the **memory** is where the viewer ha
 
 **V1. The cone.** The human sees what the NPCs see, by their default numbers: a 110° cone round its `facing` out to 2520, a 48
 bubble all round, and a line of sight over real heights: the cone stays a floor-plan polygon, but only a piece whose twin top
-(`TwinSpace`, interface 29: a wall 96 px, a wardrobe 90 or more, a counter 38, a table 31) is above the viewer's **eye** breaks it; a
+(`TwinSpace`, interface 29: a wall 96 px, a wardrobe 78, a counter 38, a table 31) is above the viewer's **eye** breaks it; a
 lower piece is looked over. The eye is the height of the posture the viewer is in (`BodyHeights.eye`, 1.64 m at 42.3 px a metre:
-standing 69 px, ducked 32 px), so ducking behind a counter closes the cone behind it and standing opens it again; a car (its belt, 47 px; a van's 56) is looked over by a standing player and blocks a ducked one, as a counter does; a piece that hangs above the eye (a mirror from 46 to 80 px: its base over a ducked eye's 32) is looked under, as a doorway's lintel is, so the cone passes beneath it; a character is
+standing 69 px, ducked 32 px), so ducking behind a counter closes the cone behind it and standing opens it again; a car (its body 40 px, its cabin's roof 60) is looked over by a standing player and blocks a ducked one, as a counter does, while a van's cabin (roof 78) stops a standing eye too (its bonnet, 46, does not); a piece that hangs above the eye (a mirror from 46 to 80 px: its base over a ducked eye's 32) is looked under, as a doorway's lintel is, so the cone passes beneath it; a character is
 looked over at any height, as it always was (a body does not hide what lies behind it from the cone). The numbers are a Character holder's (`CharacterVisionConfig`, read through
 `character.sight()`, which adds `eye_height`, the eye of the posture it is in; the native suite `character/character_vision_config_suite`
 holds the three numbers to the spec and equal to the NPCs' default `NpcSensesTuning`), so any character carries the same view. The cone is exact at corners: nothing behind a wall corner
@@ -114,7 +114,7 @@ body's posture sets its heights (#194 D9). **The NPCs' sight** (`AgentVision`) i
 seen if any one is clear, the head tried first (the first clear point ends the ask). Walls, doors, furniture and vehicles block it where
 they stand, at the height they stand: a standing NPC (eye 69 px) looks over a table (31 px) and sees a standing body close behind a sofa
 (back 38 px), a ducked body (head 32 px, chest 24, hips 18) right behind that sofa is hidden from it, and a ducked NPC (eye 32 px) cannot
-look over a counter (38 px) at all; a car (47 px) is looked over standing and blocks ducked, the same; bodies never block, so a character in the way hides nothing; a `transparent` surface (a glass-panel
+look over a counter (38 px) at all; a car (body 40 px, roof 60) is looked over standing and blocks ducked, the same, and a van's roof (78) blocks a standing eye level with it; bodies never block, so a character in the way hides nothing; a `transparent` surface (a glass-panel
 door) is looked through however tall (the glass front of a shop's fridge or snack machine is a collider, not `transparent`: it blocks sight as the solid fridge did, though the stock behind it is drawn; the shelf aisle's bays are open, so a ducked eye sees through between its boards, which the old solid aisle did not allow: `docs/stacked-items.md` SI16). A body in the open is seen from anywhere its lines are clear, so a ducked one far behind cover is
 seen over it (the eye looks down). The query behind it is public (`SightRay.visible_parts(viewer, target)`: the heights of the target's
 points the viewer's eye sees, and `visible_centre`: the middle of them, -1 when none: what an aim at the visible part reads). **The
@@ -136,7 +136,7 @@ cone's edge is cut per pixel (the shader reads the live mask, which is feathered
 (the live window and its blur), `vision/vision_mask_3d_windowed` (a mover on the edge: some of it drawn on the lit side and none beyond the cut),
 `vision/ducked_enemy_behind_sofa_not_drawn` (a standing enemy behind a sofa in the cone is drawn, a ducked one not, a ducked one in the
 open is, and it is drawn again as it stands) and `vision/cone_height_by_posture` (standing, the cone passes over a counter, a car and a coffee
-table and stops at a wardrobe; ducked, it stops at the counter and the car and passes over the coffee table; standing again reopens it).
+table and stops at a wardrobe and a van's cabin; ducked, it stops at the counter and the car and passes over the coffee table; standing again reopens it).
 
 **V4. Outside the cone** each place is drawn **as the human last saw it**, the memory, in the picked look: greyscale (`grey`
 1.0), contrast 0.9 about 0.3, brightness 0.55, tint (0.88, 0.96, 1.12), "Darkwood cool". A place never seen is **black**. The edge
@@ -164,14 +164,16 @@ it), `projectile/casing_hidden_out_of_view`.
 parked vehicle, and the house and street (floors, walls, doors, furniture where last seen, settled blood, scorch, debris chips).
 A door is always `WORLD`: it is remembered where it stands at whatever angle, mid-swing included. Once at rest a thing is shown
 only after the cone has reached it, and then it stays shown where it lies, dimmed and grey (V12); moved again, it is moving again
-(hidden outside the cone, and to be reached again where it comes to rest). Only a body and a vehicle can be moved again: a dropped item, a
-casing and a grenade at rest stay at rest for good (nothing shoves them: a dropped item stops its physics for good, a casing's
-flight ends once, a resting grenade does nothing but wait for its fuse), so the "moved again" case is the corpse a blast wakes.
+(hidden outside the cone, and to be reached again where it comes to rest). A body, a vehicle and a grenade can be moved again: a
+dropped item and a casing at rest stay at rest for good (nothing shoves them: each stops its physics for good), so the "moved
+again" cases are the corpse a blast wakes, a parked car driven or shoved, and a grenade whose piece is pushed or blasted out from
+under it (it falls, on `MOVING` until it rests again; `SmallFlight.unsupported`, `docs/grenades.md` G8).
 Tests: `vision/at_rest_remembered` (a dead body on `MOVING` until its ragdoll sleeps, on `WORLD` after and on `MOVING` again from
 the frame a blast wakes it; a dropped gun, a casing and a frag lying still on `WORLD`, in flight on `MOVING`; in a world of its
 own a wooden door swung open and shut is on `WORLD` in every frame of its swing), `vision/vehicle_rest_remembered` (a car driven,
 then parked), `art/mirror_hides_unseen_movers` (at rest and never seen: hidden; once reached: stays shown; moved out of view and
-resting there: hidden until reached again), `projectile/casing_hidden_out_of_view`.
+resting there: hidden until reached again), `projectile/casing_hidden_out_of_view`,
+`projectile/frag_falls_when_its_support_is_pushed_away` (the fall).
 
 **V7. Debug overlays and markers are drawn over the view, in colour:** the AI debug overlays (an NPC's own too, out of view),
 the navigation and leader overlays, the contact, stack and order markers. Each is an overlay (`ViewLayers.overlay`), which

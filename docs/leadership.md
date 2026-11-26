@@ -17,8 +17,9 @@ The pieces: `general/game_clock.gd` (the pausable clock every AI timer reads), `
 (`ai/team/squad_ambush.gd`: the defenders' ambush rule, LD29, over `ai/team/attack_door.gd`, the attack doorway, and the static holder
 `SquadAmbushConfig`, `ai/team/squad_ambush_config.gd`), `goal_controller.gd`
 (the order intake, the `ordered → order` and `follows → follow` entry rules, the progress radio, the squad's follow reads, the confinement it
-refreshes each tick, `npc_reflexes.gd` `refresh_confinement`, with the leash for a follower holding no order, and the leash break; its radio
-part, `npc_comms.gd`, the INVESTIGATE callout's `lead_pos`; its reflexes part's `prime`, the primed ambusher), `agent_perception.gd` (its `orders` part, `perception_orders.gd`: the live order, its end, the ambush's end on contact; its `views` part, `perception_views.gd`: `_stack_room`; its `sight` part, `perception_sight.gd`: a primed
+refreshes each beat (a frame the NPC senses on, one in two, `docs/gaze-and-fire.md` "The beat"), `npc_reflexes.gd`
+`refresh_confinement`, with the leash for a follower holding no order, and the leash break; its radio part, `npc_comms.gd`, the
+INVESTIGATE callout's `lead_pos`; its reflexes part's `prime`, the primed ambusher), `agent_perception.gd` (its `orders` part, `perception_orders.gd`: the live order, its end, the ambush's end on contact; its `views` part, `perception_views.gd`: `_stack_room`; its `sight` part, `perception_sight.gd`: a primed
 ambusher's sight every frame; the `follows` fact), `entry/entry_posts.gd` (`defend_spot`, `ambush_spot`, the post
 shielded from an entry's grenade), `entry/entry_landings.gd` (where an entry's grenade lands, the one rule its thrower aims by and an
 ambush post is shielded by), `stack/` (`stack_layout.gd`'s `slots`, `door_stack.gd`'s `layout` and `released`), the snapshot
@@ -164,12 +165,12 @@ radioed done is held no more and the menu offers no cancel for it; a refused one
 **LD8. Defend a room.** Ordered to defend a room, the members share out its doorways (D2): member `n` of the order's recipients (in the
 order `to` names them) takes doorway `n` (by id) of the room, the extras doubling up on the other side of the doorways in turn. Each walks
 to a spot back in the room, off its doorway's axis and out of every doorway's fatal funnel, with a sight line to its doorway and low cover
-(a piece whose real top hides a ducked head, `AgentTactics.is_cover`) on that line where there is some (`EntryPosts.defend_spot`): a guarded walk for an invader, as any of its walks, and a plain one for a
+(the real 3D lines from a standing eye at the doorway to a body ducked at the spot all stopped, `AgentVision.hiding_piece`, `docs/cover-and-stance.md` A4) on that line where there is some (`EntryPosts.defend_spot`): a guarded walk for an invader, as any of its walks, and a plain one for a
 defender. There it holds, still, its gun on its doorway; a lone member of a room with several doorways takes the spot from which it sees
 the most of them and turns among them. The watch stage turns it to a threat in sight and shoots, as in every primitive. A fight its own
 shots begin (a hostile in its sector) is the decision's to weigh, as is one where it is shot at: in a fight Von still picks the tactic, but
 only among the options inside that room: the room is a rule of the member's **confinement** (perception's `confinement.room`, refreshed each
-tick from the live order), and the planner's COMBAT filter, on the snapshot's frozen copy, drops every option it does not allow where the option
+beat from the live order), and the planner's COMBAT filter, on the snapshot's frozen copy, drops every option it does not allow where the option
 acts (`params.from`, else `params.point`): the engage, flank, advance, retreat and locate spots outside the room, and a throw made from
 outside it. In the fight the behaviour asks the live confinement: `fight.hold_ground` holds it where it is against a contact outside the room,
 `Combat`'s peek and cover spots are always kept inside the room, and with no fire spot the peek holds where it stands when the contact is
@@ -366,7 +367,7 @@ not once the go came, the squad's or the leader stepping in (D14).
   (`docs/tactical-entry.md` E14). A combat decision forced on it (a hostile seen, under fire) drops the options placed in the room the stack
   goes into: the perception names that room while the member's stack is held (`AgentPerception.orders.held_room()`: its live stack order
   holds for a go that has not come, `DoorStack.held`), and it is a rule of the member's confinement (`keep_out`, `GLOSSARY.md`
-  Confinement), refreshed each tick: the planner's COMBAT filter drops an option that acts in that room (where it acts, `params.from`, else
+  Confinement), refreshed each beat: the planner's COMBAT filter drops an option that acts in that room (where it acts, `params.from`, else
   `params.point`), as a defender's confinement drops the options outside its room (LD8); the fight's spots keep out of that room
   (`Combat`'s spots ask the confinement), a contact in it is fought from where the member stands, never chased in, and a walk whose plain way goes
   into that room (an engage's reposition, a retreat, under fire too; not an evade) goes round it and its doorway's view as an ordered
@@ -471,7 +472,7 @@ side ("" for an exterior door). The member waits in that room for whoever comes 
   that doorway, as laid out before they are snapped: `geometry`'s `lookouts`; hidden only when it is hidden from the 8 points
   `AMBUSH_SLACK`, 12 px, round it too, since the ambusher stops a few px off its post), then by how few landings of an entry's grenade
   reach it (a frag's burst counted first, then a stun's flash: below), then out of every doorway's fatal funnel, then low cover on its
-  line to the threshold (a piece of furniture the first thing that line meets, tall enough to hide a ducked head: a sofa or a counter, not a coffee table), then nearest `AMBUSH_DEPTH` (110 px, E8's `COVER_DEPTH`) back: with no hidden post, the least seen. Each rank
+  line to the threshold (from a standing eye at the threshold every 3D line to a body ducked at the post is stopped, `AgentVision.hiding_piece`, `docs/cover-and-stance.md` A4: a piece too low to hide a ducked head, a coffee table, never counts), then nearest `AMBUSH_DEPTH` (110 px, E8's `COVER_DEPTH`) back: with no hidden post, the least seen. Each rank
   outweighs everything the ranks below it can add up to (`RANK_SEEN`, `RANK_FRAG`, `RANK_STUN`, `RANK_FUNNEL`, `RANK_NO_COVER`), and the
   side of the axis (`RANK_SIDE`, 1e9) outweighs them all: a post on the member's own side wins over any post on the other, however many
   lookouts see it. Members alternate sides of the axis by their place in `to` (the side with more wall first), two on one side at least
@@ -498,7 +499,8 @@ side ("" for an exterior door). The member waits in that room for whoever comes 
   asks for no decision while its order stands (on the way, the walk's commit cap).
 - **Primed (D37).** While it holds the ambush of its live order at its post (`Behavior.orders.primed`: the running primitive `ambush`,
   arrived, its order still live), the controller's reflexes prime it each tick before it observes (`npc_reflexes.gd` `prime`): its sight
-  tests every character in its view cone every physics frame instead of every `SIGHT_EVERY_FRAMES` (`perception_sight.gd` `primed`), and its
+  tests every character in its view cone every physics frame instead of every `NpcPace.SIGHT_EVERY_BEATS` beats (4 frames), and its beat runs every
+  frame (`perception_sight.gd` `primed`); its
   body's `process_physics_priority` is `PRIMED_PRIORITY` (1), so it moves after every other body in the frame. It then sees an entrant at
   the spot the entrant's own step just reached, on the frame that step opens the line, while the entrant's controller acted before the
   step: a same-frame tie is the ambusher's, the entrant firing back the next frame at the earliest. Both are undone once it is no longer
@@ -597,7 +599,7 @@ only one; with the human's reserved doorway alone, its slots and its own highlig
 
 **LD19. Who follows.** A member follows its leader (`Squad.follows(member)`) while it is alive, its squad has a leader, it is not the
 leader and an NPC controller drives it (a child in the group `npc_controllers` when the squad is set up): a human member who does not lead
-is never given a spot, and a squad of one has no followers. Each tick the controller's reflexes read it (`follow_squad`) into the perception's
+is never given a spot, and a squad of one has no followers. Each beat the controller's reflexes read it (`follow_squad`) into the perception's
 `follows` (a snapshot fact and a `quick_facts()` entry) and forces a decision when it changes ("follows its leader" / "leads its squad").
 The rule is the same whoever leads: an AI leader, the human (its AI teammates follow the human and ring it when it stops, LD21), or a
 defenders' crew's first spawned, from the start of the match. When the leader dies (LD4) the squad starts its trail afresh at the new
@@ -675,7 +677,7 @@ and reloads there, at rest, while its decision walks put no question to Von).
 (defending a room, an ambush, a stack, a held one or a join included) is not leashed: it fights where its order takes it, whatever the
 distance to its leader, and is leashed again once its order ends. It still follows (LD19: its follow spot, its place in the file); only the
 leash is dropped. The leash is a rule of the follower's **confinement** (perception's `confinement`, `perception_confinement.gd`): the
-controller's reflexes refresh it each tick after the whole order intake, `leash_center` the live position of its leader (`leash_lead`)
+controller's reflexes refresh it each beat after the whole order intake, `leash_center` the live position of its leader (`leash_lead`)
 while its order is empty, `Vector2.INF` otherwise, and `leash` `SquadFollowConfig.leash`, beside the territory and the ordered room. For a
 leashed follower:
 - **Its options.** Inside a `confine` subtree (COMBAT) the planner, on the snapshot's frozen copy of the confinement, drops every option
@@ -1027,7 +1029,7 @@ standard (`Perf.SMOOTH_*`: average 16.7 ms, p95 20 ms, max 33.4 ms a frame; the 
 Tests: `perf/match_5v5_stress`, `perf/match_10v10_stress`, `perf/grenade_match_stress`.
 
 **An ambush order** (LD29). The ranking of a doorway's ambush posts is worked out once a navigation map, not once a member: every NPC on the
-map shares it, keyed by the geometry's and the sight's tunables and the crouched height, until the house changes. The grenade landings are
+map shares it, keyed by the geometry's and the sight's tunables, until the house changes. The grenade landings are
 counted only for the posts still open that tie on the least `seen` and side (`_best_post`): every rank below `seen` adds up to less than one
 `RANK_SEEN`, so the picks are those of the full ranking.
 Tests: `ai/combat/ambush_posts_capture_terrace`, `ai/combat/ambush_posts_capture_house`, `perf/ambush_order_stress`.
