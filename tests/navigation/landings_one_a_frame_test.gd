@@ -7,7 +7,8 @@ extends GameTest
 ## next frame, in the order the bakes were started, so the same frames on every run.
 ## Here five avoid maps and a re-bake are started in one frame: all are due on the same frame
 ## (`NavBakeConfig.house_frames` on), and they land one a frame in the order they were asked, the
-## first on its due frame, the last `ASKED - 1` frames after it.
+## first on its due frame, the last `ASKED - 1` frames after it. No bake waits its turn here
+## (`NavBakeConfig.at_once` raised): that rule is `bakes_wait_their_turn`'s.
 
 const ARENA := Rect2(0, 0, 800, 500)
 ## Avoid maps asked in the one frame; the re-bake is one more landing.
@@ -17,9 +18,9 @@ const ASKED := 5
 func describe() -> Dictionary:
 	return {
 		"name": "Bakes land one a frame, in the order they were started",
-		"description": "Five avoid maps and a re-bake started in one frame come due on one frame: "
-			+ "no frame takes in two, they land in the order asked, the first on its due frame "
-			+ "and the last within the number of bakes of it.",
+		"description": "With a place for every one, five avoid maps and a re-bake started in one "
+			+ "frame come due on one frame: no frame takes in two, they land in the order asked, "
+			+ "the first on its due frame and the last within the number of bakes of it.",
 		"tags": ["navigation", "bake", "rebake", "avoid"],
 		"timeout": 20.0,
 	}
@@ -28,6 +29,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.arena(ARENA)
 	s.switch(&"nav.rebake", false)
+	s.set_static(NavBakeConfig, &"at_once", ASKED + 1)
 
 
 func run(t: TestContext) -> void:

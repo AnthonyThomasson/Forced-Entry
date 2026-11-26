@@ -35,10 +35,11 @@ const SEEN_FRESH := 0.5
 ## How long (s) before a reader of the verdict on the slot (`_slot_sealed`: the held walk's re-plan,
 ## the end of a wait on the stack forming at `HELD_BY_FORMING_CAP`, a waypoint put back that the
 ## hold sealed) the entry asks for the map the verdict is read from (`_verdict_due`): the bake of an
-## avoid map lands `NavBakeConfig.avoid_frames` (22 frames, 0.37 s) after its start, its ask unless
-## bakes have piled up (`NavTurns`), and a margin. A
-## verdict read on a map not up yet (-1) pulls the walk's next re-plan in by this much too
-## (`Locomotion`'s `crowd.pull_replan`), where it is asked for again.
+## avoid map lands `NavBakeConfig.avoid_frames` (22 frames, 0.37 s) after its start, which leaves 14
+## frames of margin. A bake held longer than that, waiting its turn (`NavTurns`; the wait has no
+## bound), misses the reader: a first bake reads -1, a re-bake the old mesh (`ready`). A verdict
+## read on a map not up yet (-1) pulls the walk's next re-plan in by this much too (`Locomotion`'s
+## `crowd.pull_replan`), where it is asked for again.
 const WARM_LEAD := 0.6
 ## Most seconds one entry spends topping its gun off before the crossing (a reload that will not
 ## start is not waited on forever).

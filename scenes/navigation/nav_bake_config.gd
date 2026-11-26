@@ -34,8 +34,10 @@ static var avoid_frames := 22
 ## landing (`NavBake`): one asked past that waits its turn, the oldest first, and its count runs
 ## from its start. 3 is what the worker pool runs at once for normal-priority tasks on a machine of
 ## 10 to 13 threads (its share is 0.3 of them, rounded down; measured on a 12-thread Mac: sleepers
-## start three at a time), so a bake that has started has a thread. A fixed number, not the
-## machine's: the frame a bake lands on is the same on every machine. On one with fewer than 10
+## start three at a time), so a bake that has started has a thread, except just after a world
+## starts: the sound pre-warm (`Sound.warm`) and the pixel-art pre-warm (`PixelArt.warm`) are
+## normal-priority tasks too and share those 3, so a bake may queue behind them. A fixed number, not
+## the machine's: the frame a bake lands on is the same on every machine. On one with fewer than 10
 ## threads the pool runs 1 or 2 at once, a started bake may still queue behind the others, and a
 ## frame that waits for it waits as it did before this rule (`rebake.md`).
 static var at_once := 3

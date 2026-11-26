@@ -30,18 +30,24 @@ stopped, set off, appeared or died re-bakes the steering region in place. An at-
   Remeasure when a bake or a frame changes. A region freed meanwhile is left
   alone and `landed` still called; a game closing finishes every bake in flight.
 - **A bake waits its turn** (`nav_turns.gd` (`NavTurns`); `navigation/bakes_wait_their_turn`, `crowded_bakes_are_not_late`,
-  `held_bake_nobody_asks_for_is_dropped`, `held_avoid_bake_takes_the_newest_source`). Every bake but the urgent ring's holds one of
+  `held_bake_nobody_asks_for_is_dropped`, `held_avoid_bake_takes_the_newest_source`, `ring_bake_takes_no_turn`,
+  `freed_waiting_bake_never_starts`). Every bake but the urgent ring's holds one of
   `NavBakeConfig.at_once` (3) places from start to landing. One asked with none free is not started: it starts at the landing that frees
   one, **oldest first** (district and avoid alike), and counts from there, so it lands later instead of holding a frame. None starves:
   with `q` waiting ahead it starts within `q / 3 + 1` times the longest count (plus the one-a-frame slips); with none piled up nothing
-  changes. Measured on the match guards: held bakes land 1 to 32 frames late. A waiting avoid bake is made from the planning source as
-  it is when it starts (a planning re-bake meanwhile is in it, no second bake). `avoid_map(…, repeats = true)` (a hold's body maps,
+  changes. **A held avoid map can miss its reader:** a hold asks its body maps `WARM_LEAD` (36 frames) ahead and the count is 22,
+  so one held over 14 frames lands late (match guards: held 1 to 32 frames, 22 and 32 among them). The reader then gets -1 for a
+  first bake (one more pulled re-plan, ~0.6 s) or, for a re-bake, the OLD mesh with `ready` true; a dropped re-bake leaves the old
+  mesh answering until asked again. 32 is a sample, not a bound: `q` is uncapped (3 places per 22 frames; a redone planning bake
+  re-queues every map asked again; door-view maps are never dropped; the district's bake waits in the same line).
+  A waiting avoid bake is made from the planning source as it is when it starts (a planning re-bake meanwhile is in it, no second bake). `avoid_map(…, repeats = true)` (a hold's body maps,
   asked every beat while wanted): a waiting one nobody asked for in `held_ask_frames` (4) when its turn comes is dropped, and the next
   ask bakes it (without this a burst of moved bodies queued maps nobody read: 168 frames late). A bake whose region is gone holds no
   place, and a waiting one is never started (nothing carries over from a torn-down world).
   **The limit:** 3 is the pool's width for normal-priority tasks on a 10 to 13 thread machine (0.3 of the threads, rounded down), a fixed
   number so every machine lands a bake on the same frame. Below 10 threads (an 8-thread box runs 2, a 4-thread one 1) a started bake can
-  still queue in the pool, and its landing then waits for it as before this rule. From 14 threads up the rule is narrower than the pool.
+  still queue in the pool, as can one on any machine behind the sound and pixel-art pre-warms just after a world starts; its
+  landing then waits for it as before this rule. From 14 threads up the rule is narrower than the pool.
 - **A map syncs on the main thread** (`project.godot`, `navigation/world/map_use_async_iterations` off; `navigation/map_syncs_without_a_thread`): the server's
   async sync would show a landed bake on a frame that follows the machine's load, so a match was a different fight run to run whatever the landing frames.
   It costs the main thread within 0.4 ms of the async average.

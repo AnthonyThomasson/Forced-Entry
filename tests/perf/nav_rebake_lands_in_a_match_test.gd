@@ -8,6 +8,8 @@ extends GameTest
 ## `NavBakeConfig.district_frames` after the start, fit under `Perf.SMOOTH_MAX_MS` when its thread
 ## is on time (a late thread holds the frame, by design, so a late attempt is tried again, up to
 ## `ATTEMPTS`).
+## The count is from the start, so no bake waits its turn here (`NavBakeConfig.at_once` raised
+## past any number the match asks at once).
 ## Headless measures CPU only.
 ## No budget is set here: the standard is the frame standard.
 
@@ -16,6 +18,8 @@ const PER_SIDE := 5
 const ATTEMPTS := 4
 ## Frames measured past the landing's.
 const TAIL := 4
+## Places for more bakes than a match has in flight: none is held.
+const UNHELD := 1000
 
 
 func describe() -> Dictionary:
@@ -31,6 +35,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Perf.configure_match(s, PER_SIDE)
+	s.set_static(NavBakeConfig, &"at_once", UNHELD)
 
 
 func run(t: TestContext) -> void:

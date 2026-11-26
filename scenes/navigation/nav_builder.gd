@@ -61,8 +61,10 @@ static var _avoid_maps: Dictionary = {}
 ## in frames so a run frees the same maps on the same frame whatever the machine's speed) is freed
 ## by the next ask for another set (`avoid_map`).
 static var avoid_idle_frames: int = 1200
-## How many avoid maps have been made (their first bake started) and how many re-baked after the
-## planning bake changed, since the process began (a perf probe's read).
+## How many avoid maps have been made (their first bake asked) and how many re-bakes asked after
+## the planning bake changed, since the process began (a perf probe's read). Asks, not bakes
+## started: one still waiting its turn or dropped counts, and a dropped re-bake counts again at its
+## next ask.
 static var avoid_starts := 0
 static var avoid_rebakes := 0
 
@@ -306,9 +308,9 @@ static func _steering_map_for(planning_map: RID) -> RID:
 ## `rebake` with the bake itself on a worker thread, so a frame never pays for it: the source
 ## geometry is gathered on the main thread now (the walls are read from the scene tree, the
 ## furniture from its live positions), the bake runs in the background, and the polygon is assigned
-## to `region` on the game frame `NavBakeConfig.district_frames` after the call (`NavBake`), when
-## `done` is called. A region freed meanwhile is left alone. `done` is called even when there is
-## nothing to bake. The planning region only: the
+## to `region` on the game frame `NavBakeConfig.district_frames` after the bake starts (`NavBake`:
+## at this call unless it waits its turn), when `done` is called. A region freed meanwhile is left
+## alone. `done` is called even when there is nothing to bake. The planning region only: the
 ## steering one is re-baked by `rebake_steering`. A test-facing seam that measures its own
 ## footprints; `nav_updater.gd` drives `NavRebake.planning`. Returns the bakes started (`NavBake`:
 ## the planning region's, then the ring's), to read each one's `was_late`.

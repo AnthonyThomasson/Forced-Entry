@@ -82,8 +82,8 @@ static func steering(
 
 
 ## `job` (`NavSource.job`) baked on a worker thread and assigned to `region` on the physics frame
-## `frames` after this call, then `landed` called (`NavBake`: not when the thread finishes, so the
-## frame is the same every run). Returns the bake.
+## `frames` after the bake starts (this call unless it waits its turn), then `landed` called
+## (`NavBake`: not when the thread finishes, so the frame is the same every run). Returns the bake.
 static func _bake_async(
 	region: NavigationRegion3D,
 	job: Dictionary,
