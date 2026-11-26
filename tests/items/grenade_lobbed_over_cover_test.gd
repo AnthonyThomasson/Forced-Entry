@@ -16,7 +16,7 @@ const SOFA_FAR_FACE := 455.0
 ## 25 px past that face, 380 px from the thrower: in range
 const AIM := Vector2(480, 150)
 ## how far past its aim a lob that touches down beyond it may roll (G2)
-const ROLL_ON := 120.0
+const ROLL_ON := 100.0
 
 
 func describe() -> Dictionary:

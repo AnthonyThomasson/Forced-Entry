@@ -25,23 +25,20 @@ const SMOOTH_MAX_MS := 33.4
 ## catalogue holds, and a plan added or dropped changes no seed's load. A small flat would put both
 ## sides in each other's sight from the start, which is a different load. The district is the load
 ## the game plays in: a navigation map about seven times a house's polygons, a few hundred solid
-## furniture footprints and a defender's house that is one of nine (at seed 2: 939 polygons, 406
-## footprints, about 7,700 nodes; the seed 7 it had been: 1,006, 404 and 7,400).
-## Seed 2 since the match plays the same fight on every run (perf-determinism-causes.md): a seed's
-## fight is one fixed fight, and seed 7's (the seed until then, where a run's luck had put contact
-## at 6 to 30 s) became the slow one, the invaders clearing the living room for 18 s before they met
-## the defenders in ambush, so the grenade guard never saw contact within `MATCH_CONTACT_WITHIN`.
-## Seed 2 meets at 7.7 s in the 5v5, 8.1 s in the grenade guard and 6.0 s in both 10v10s, with no
-## late nav bake (seed 13 had four or five in the 5v5, each a 30 to 50 ms frame).
+## furniture footprints and a defender's house that is one of nine.
+## The seed is 23: a seed plays one fixed fight, the same on every run
+## (perf-determinism-causes.md). The rule that picked it is in the last of the dated notes below,
+## just above `MATCH_SEED`; the earlier ones were measured on the seeds before it.
 ## Re-pick tried on the real-height fragments and escape judgments (#194, 2026-11-18), seeds 1 to 28
 ## (1 to 5 runs each, the five match guards and `perf/ambush_order_stress`): none holds them all and
-## their replays, so the seed stays 2. Seed 5 holds the four match guards (5v5 4.8 / 6.7, grenade
-## 6.1 / 10.7, 10v10 11.0 / 17.5 to 18.4, viewed NPC 13.0 to 13.3 / 17.9 to 18.9 ms avg / p95, three
-## runs, no late bake) but meets at 0.78 s in the opening: its window is 348 frames, under the 360
-## `perf/match_10v10_opening_replay` asks, and the opening guard's max is 40 to 42 ms. The seeds
-## that meet at once (1, 9, 12, 14, 16, 18, 20, 22 to 28) fail the same way or on p95; 17 holds
-## four guards and the opening but the viewed invader dies; 19 holds four but a late bake is a 65
-## to 68 ms frame in the opening and the ambush guard; 3, 13, 15, 21 have late bakes or meet late.
+## their replays, so the seed stayed 2 then. Seed 5 holds the four match guards (5v5 4.8 / 6.7,
+## grenade 6.1 / 10.7, 10v10 11.0 / 17.5 to 18.4, viewed NPC 13.0 to 13.3 / 17.9 to 18.9 ms avg /
+## p95, three runs, no late bake) but meets at 0.78 s in the opening: its window is 348 frames,
+## under the 360 `perf/match_10v10_opening_replay` asks, and the opening guard's max is 40 to 42 ms.
+## The seeds that meet at once (1, 9, 12, 14, 16, 18, 20, 22 to 28) fail the same way or on p95; 17
+## holds four guards and the opening but the viewed invader dies; 19 holds four but a late bake is a
+## 65 to 68 ms frame in the opening and the ambush guard; 3, 13, 15, 21 have late bakes or meet
+## late.
 ## Accepted drift (#194, 2026-11-18): `perf/grenade_match_stress` reads +5.5% and +5.9% of the
 ## base's average (42a14e18, two A/B runs, different fights) over its 5% bar. Changing
 ## either fragment number (damage, flatness: tried 7.5/12, 12/6, 7.5/6, 12/12) re-rolls the fight

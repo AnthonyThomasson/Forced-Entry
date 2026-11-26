@@ -14,8 +14,8 @@ shows), the quiet gate that counts only busy engines (`perf.md`) and `tools/perf
 turn since #192 (`look_phases.gd`); the sight cadence, the give-way order and the AI's other orders are keyed on spawn order (`WorldRng`).
 
 **The cadences-and-clock job:** a match plays the same fight whatever ran before it in the process, with or without padding: the AI's cadences
-count the world's own frames (`WorldRng.frame_of`), `GameClock.seconds()` and `msec()` no longer follow the frame a timer started on, the guards' seed is 2, and four replay tests
-pin it. The split #192 saw at frame 64 reproduces, as a kind, on the tip before this job (the replays split at frames 8 to 61, 260 to 610 on one phase) and not after it; padding alone never split a fight. The causes, the tests and the seed: `perf-determinism-causes.md`.
+count the world's own frames (`WorldRng.frame_of`), `GameClock.seconds()` and `msec()` no longer follow the frame a timer started on, the guards' seed is 23 (`Perf.MATCH_SEED`), and four replay tests
+pin the same fight. The split #192 saw at frame 64 reproduces, as a kind, on the tip before this job (the replays split at frames 8 to 61, 260 to 610 on one phase) and not after it; padding alone never split a fight. The causes, the tests and the seed: `perf-determinism-causes.md`.
 
 **The navigation job:** a re-bake and an avoid map land on a fixed game-frame count after they start, the thread
 waited for only when late (`NavBake`, `NavBakeConfig`; `domain-navigation`, its re-bake side file), and a navigation map syncs on the main

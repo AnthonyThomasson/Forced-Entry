@@ -10,6 +10,10 @@ extends GameTest
 const SLEEPERS := 24
 const SLEEP_MS := 700
 const RING_FRAMES := 30
+## Each frame is stretched by this, so the ring's count is at least `RING_FRAMES * FRAME_MS`
+## (150 ms) of wall time, about ten of its thread: an unstretched headless frame is about half a
+## millisecond, and 32 of them (15 ms) left the 14 ms bake no margin.
+const FRAME_MS := 5
 
 
 func describe() -> Dictionary:
@@ -48,6 +52,7 @@ func run(t: TestContext) -> void:
 	var landed_before := NavBake.landed_total
 	var started := Time.get_ticks_msec()
 	for _frame in RING_FRAMES + 2:
+		OS.delay_msec(FRAME_MS)
 		await t.frames(1)
 	var waited := Time.get_ticks_msec() - started
 	t.expect_eq(
