@@ -107,7 +107,7 @@ one that rolled on). One that no arc brings near is thrown on the arc that rests
 strikes what is in the way (`ok` is false). The AI asks the same question without flying the skid (`GrenadeArc.clear`, G17), so a throw it judges
 clear is one the flight then makes. **What a plan costs** (#194, perf-arc): a plan is mostly casts, and a failing one (nearly every plan the AI's throw-spot search asks: 95 % in the vision guard's window)
 sweeps the same lob more than once, so a plan works each arc out once (its flight time, the heights its five chords end at, its reach, what it rests as) and sweeps each lob (an arc at a reach) once:
-the flat arc `_flattest` tries, the arcs `_faced` compares and the first step of the search are the same sweeps. `GrenadeArc.work` is the price the AI's search is charged by, in quarter-units (four per planner question, one per raw candidate tested; `ThrowSpots.work()` sums them) and it is **not** the
+the flat arc `_flattest` tries, the arcs `_faced` compares and the first step of the search are the same sweeps. `GrenadeArc.work` is the price the AI's search is charged by: one per sweep of a lob and one per level cast (the search's own figure, `ThrowSpots.work()` = `GrenadeArc.work` x 4 + the raw candidates tested, is in quarter-units). It is **not** the
 casts made: a sweep answered from what the plan already found still counts one, so a cheaper plan is no less work and the AI's budgets, block sizes and cadence stay what they were.
 Tests: `items/grenade_course_forgets_its_last_plan` (a course planned again answers as a new one),
 `items/grenade_arc_remembered_sweep_counts` (a remembered sweep still counts one).
