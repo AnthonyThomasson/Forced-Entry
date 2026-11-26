@@ -1,13 +1,16 @@
 extends GameTest
-## Probe of #193's pixel post (windowed only: headless draws nothing): what the real 3D view costs a
-## frame, in the downtown district `perf/match_10v10_stress` builds. The 10v10 match plays on; in
-## blocks, round after round, the camera walks the same fixed route around the centre house,
-## turning through a full circle as it goes, and each block's frame times are sampled with the CPU
-## render times of the root viewport and the 3D view's (Godot 4.4 on Metal reports the GPU render
-## time as 0, so frame time is the measure) and the slowest of the frames just after the block
-## starts. The view is Main's `View3D` (the toon material, the outline pass, the internal
-## resolution of `RenderConfig`, the supersample of `PixelPostConfig`) over the real `MeshCarrier`,
-## the 2D world hidden (its scripts still running).
+## Frame-time budget of the 3D view with the pixel post (windowed only: headless draws nothing):
+## what a frame of the match costs with it, in the downtown district `perf/match_10v10_stress`
+## builds. The 10v10 match plays on; in blocks, round after round, the camera walks the same fixed
+## route around the centre house, turning through a full circle as it goes, and each block's frame
+## times are sampled with the CPU render times of the root viewport and the 3D view's (Godot 4.4 on
+## Metal reports the GPU render time as 0, so frame time is the measure) and the slowest of the
+## frames just after the block starts. The view is Main's `View3D` (the toon material, the outline
+## pass, the internal resolution of `RenderConfig`, the supersample of `PixelPostConfig`) over the
+## real `MeshCarrier`, the 2D world hidden (its scripts still running).
+## At both window sizes the frames must meet the match standard (`Perf.SMOOTH_*`: 16.7 ms avg, 20
+## p95, 33.4 max). The probe's own mid-route screen readback (and the PNG it saves) runs between
+## two samples, in none of them.
 ## Run: `tools/run_tests.sh --windowed --quiet --id=perf/render_3d_post_cost` (add `--verbose`);
 ## the numbers print as `POST` lines and, with `POST_PROBE_OUT=<file>` set, as JSON;
 ## `POST_PROBE_SHOTS=<dir>` saves each mode's mid-route frame.
@@ -20,7 +23,6 @@ const FRAMES := 240
 const ROUNDS := 3
 const SETTLE := 20
 const ROUTE_RADIUS := 520.0
-const LIMIT_MS := 33.4
 ## The least mean brightness a lit frame of the district has (measured lit 0.27, unlit 0.002).
 const LIT := 0.1
 ## The seed the view's lights flicker by.
@@ -36,9 +38,10 @@ var _root_rid: RID
 
 func describe() -> Dictionary:
 	return {
-		"name": "The 3D view with the pixel post, frame cost (probe)",
+		"name": "The 3D view with the pixel post, frame cost",
 		"description": "The same camera route in the 10v10 district under the real 3D view with "
-			+ "the pixel post, frame times at two resolutions. Windowed only.",
+			+ "the pixel post: frame times at two resolutions within the match standard. "
+			+ "Windowed only.",
 		"tags": ["perf", "render", "3d", "pixel"],
 		"timeout": 900.0,
 		"allowed_logs": Perf.MATCH_LOGS,
@@ -86,8 +89,8 @@ func _restore() -> void:
 	_camera.set_physics_process(true)
 
 
-## Every mode at every size recorded all its frames, each a finite positive time, and the view drew
-## the lit district (not black).
+## Every mode at every size recorded all its frames and met the standard, and the view drew the lit
+## district (not black).
 func _check(t: TestContext, results: Dictionary) -> void:
 	t.check(not _brightness.is_empty(), "a mid-route frame was read")
 	for light: float in _brightness:
@@ -103,12 +106,9 @@ func _check(t: TestContext, results: Dictionary) -> void:
 				int(frame["count"]) == FRAMES * ROUNDS,
 				"%s: %d frames recorded (%d)" % [label, int(frame["count"]), FRAMES * ROUNDS],
 			)
-			for key: String in ["mean", "p95", "max"]:
-				var value: float = frame[key]
-				t.check(
-					is_finite(value) and value > 0.0,
-					"%s: %s frame time is %s" % [label, key, value],
-				)
+			Perf.within(t, "%s avg ms" % label, frame["mean"], Perf.SMOOTH_AVG_MS)
+			Perf.within(t, "%s p95 ms" % label, frame["p95"], Perf.SMOOTH_P95_MS)
+			Perf.within(t, "%s max ms" % label, frame["max"], Perf.SMOOTH_MAX_MS)
 
 
 func _set_up(t: TestContext) -> void:
@@ -157,9 +157,6 @@ func _block(t: TestContext, mode: String, centre: Vector2, into: Dictionary) -> 
 	for i in FRAMES:
 		_route(centre, float(i) / float(FRAMES))
 		await t.frames(1)
-		if i == int(FRAMES * 0.5):
-			_shot(t, mode)
-			_brightness.append(_mean_brightness(t))
 		var now := Time.get_ticks_usec()
 		into["frame"].append((now - last) / 1000.0)
 		last = now
@@ -170,6 +167,10 @@ func _block(t: TestContext, mode: String, centre: Vector2, into: Dictionary) -> 
 		cpu += RenderingServer.viewport_get_measured_render_time_cpu(view_rid)
 		into["gpu"].append(gpu)
 		into["cpu"].append(cpu)
+		if i == int(FRAMES * 0.5):
+			_shot(t, mode)
+			_brightness.append(_mean_brightness(t))
+			last = Time.get_ticks_usec()  # the readback and the PNG are the probe's, no frame's
 
 
 ## The mean brightness (0 to 1) of the root viewport's frame, sampled on a 48 x 32 grid.
@@ -220,7 +221,9 @@ func _stats(values: Array, over_limit: bool) -> Dictionary:
 		"max": sorted[sorted.size() - 1],
 	}
 	if over_limit:
-		out["over_33_4"] = sorted.filter(func(v: float) -> bool: return v > LIMIT_MS).size()
+		out["over_33_4"] = sorted.filter(
+			func(v: float) -> bool: return v > Perf.SMOOTH_MAX_MS
+		).size()
 	return out
 
 
