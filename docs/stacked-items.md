@@ -1,10 +1,10 @@
 # Stacked items
 
 Small pieces that rest on any flat top and on each other: tableware on tables, books, lamps and monitors on shelves and
-desks, boxes and crates stacked two or three high. Decision D20 of #194 (rule 9, the phase-3 gate). Rules SI1 to SI8; each is
+desks, boxes and crates stacked two or three high. Decision D20 of #194 (rule 9, the phase-3 gate). Rules SI1 to SI16; each is
 enforced by the tests named under it (`tools/run_tests.sh <id>`), following the convention of `docs/doors.md`. This is the
 **piece** half (job `stack-a`): the catalogue rows, the bodies, the walk-over rule and the bullets; SI9 to SI12 are the **world**
-half (job `stack-b`): placing them in houses and districts, the AI's cover by the stack's height, a car among them and the perf re-pin.
+half (job `stack-b`): placing them in houses and districts, the AI's cover by the stack's height, a car among them and their cost.
 
 An item is a free piece (`docs/adr/0014-twin-staging-and-plan-space.md`): the 3D body in the twin space is the truth, its 2D
 node a footprint. Scale: 1 px a 3D unit, 42.3 px a metre.
@@ -12,7 +12,7 @@ node a footprint. Scale: 1 px a 3D unit, 42.3 px a metre.
 ## SI1. The items
 
 Eight catalogue rows (`ItemsCatalog`, World-Gen), in no recipe: plate (12 px across, 1.5 high), cup (7, 5), bowl (10, 4), book
-(9 x 12, 2.5), desk lamp (10, 14), monitor (18 x 8, 14), box (14, 12) and crate (20, 16). Art id `item` (`ItemPainter`,
+(9 x 12, 2.5), desk lamp (10, 14), monitor (24 x 8, 14), box (14, 12) and crate (20, 16). Art id `item` (`ItemPainter`,
 `ItemMesh`; heights in `ObjectMeshItemConfig`, one number for the mesh and `PieceHeights`). Materials: ceramic (plate, cup,
 bowl), paper, metal, electronics, cardboard, wood.
 
@@ -139,13 +139,12 @@ flat item's mask leaves out `TWIN_VEHICLE` as it leaves out `TWIN_CHARACTER`.
 
 Tests: `vehicle/car_drives_over_plates_and_shoves_a_stack`.
 
-## SI12. Cost: the fights moved, perf3d re-picks
+## SI12. Cost: items are bodies
 
-Items add bodies (the match district of seed 2: 785 twin bodies, 729 before, 56 of them items; Jolt's cap is 10240 bodies, and a build
-that nears it aborts the engine, it does not degrade: `worldgen/house_turns`, about fifty houses in one frame, shows it, so it
-builds them bare) and change the four match guards' fights (a round meets a plate or a box stack): `perf_probe.gd`
-records the A/B numbers. No budget is loosened; `perf3d` re-picks the 10v10 guards' fight over at least 24 seeds on a quiet machine
-and the `match_npc_vision` premise.
+Items add bodies to a district, and Jolt's cap is 10240: a build that nears it aborts the engine, it does not degrade
+(`worldgen/house_turns`, about fifty houses in one frame, would, so it builds them bare). A round meets a plate or a box
+stack, so items change a fight; the match guards play seed 23 (`perf_probe.gd`, `MATCH_SEED`), and no budget was loosened
+for them. The measurements are in ADR 0017.
 
 ## SI13. Unbake: what a piece built in is loose items (job `unbake-b`, shelves and stock; D21)
 
@@ -324,9 +323,10 @@ monitor wall's screens (part of the wall: a screen is a lit pane of its band, no
 **The old look** (D21: a piece looks as it did, its parts now real). The noodle counter's pots carry their broth (`well` on the row, `ItemStockMesh._pot` and `ItemStockPainter._pot`; the item's flat art is laid over its mesh top, so the flat art carries the broth too: `objects/noodle_pot_paints_its_broth`). A noodle bowl is a row's item, so `plain`, and paints as the old noodle painter's: a rim of its own colour to the footprint's edge and the broth two pixels in, no outline ring, its mesh the old plain cylinder (`objects/noodle_bowl_is_the_old_size`). A run's top is painted pack by pack (`spines` reach the flat art); the cyberware's lid is a rim; the tool cart's diagnostic screen is its own item, `screen` (a dark body with a lit pane in the piece's neon).
 The **oracle** is the old code itself, kept as `tests/_art/old_*.gd`: `old_shop_look.gd` holds what the shop, noodle, clinic and tech painters drew of each thing and `old_shop_pieces.gd` builds a shop piece with the old `shop_mesh`, `noodle_mesh`, `clinic_mesh`, `tech_mesh` and painters. It is a geometry and shape oracle that reads the live tunables (`ObjectMeshShopConfig`, `ObjectArtShopConfig` and the rest), not a frozen picture: retune a colour or a height and the old and the new move together. Two windowed tests set old against new at one spot in turn under one light: `art/shop_items_lit_windowed` (each kind of item alone: its mean colour, the pixels it changes within a least and most share, its bright and saturated pixels, a pot's middle) and `art/shop_pieces_lit_windowed` (the nine whole pieces: bright and saturated pixels, mean luminance and colour, and the stock's shape: on the fridge the runs of dark stock a scan line of the front crosses, 8 against the old 10, on the snack machine the runs of lit pack colour, 4 where the old front and the front before its flush pane had none). Each bar is its kind's measured result less a little for the GPU, and each that sits at its result states a cause in the test.
 
-**Bodies, and the rule for grouping.** `TwinSpace.bodies()` 120 frames after `s.district(Perf.MATCH_SEED, "garage_home")` is built: seed 2 held 1165 bodies and seed 13 1410 when the shops' items landed, and the guards' seed 23 holds 1247 now (#194 perf-final); a quiet district's physics step costs about a tenth of a millisecond more than without the shops' items, all asleep. Nothing is grouped beyond **a run is one body** (up to four like bottles or
-packs, `ShopStock.RUN`, as a `book_stood` run is). The rule: where a room's free bodies would make a fight frame cost show, group
-like items into runs of one body per row (a row is what stands in a line on one board); a shelf of cyberware (26 bodies) is not one.
+**Bodies, and the rule for grouping.** Nothing is grouped beyond **a run is one body** (up to four like bottles or
+packs, `ShopStock.RUN`, as a `book_stood` run is). The rule: where a room's free bodies would make a fight frame cost
+show, group like items into runs of one body per row (a row is what stands in a line on one board); a shelf of cyberware
+(26 bodies) is not one.
 Tests: `worldgen/old_looks_keep_their_items`
 (`COMMERCIAL`: each piece carries exactly its row and paints none of it), `objects/furniture_commercial_mesh`,
 `objects/piece_heights`, `objects/stocked_fridge_keeps_its_stock`, `objects/lit_front_shows_its_stock`, `objects/shop_stock_paints_its_packs`, `objects/emptied_shelves_keep_their_things`,

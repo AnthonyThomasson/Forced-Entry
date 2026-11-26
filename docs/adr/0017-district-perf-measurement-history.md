@@ -852,3 +852,12 @@ the 5v5 6.02 / 9.37 / 14.30. An earlier run at 03:06 also passed 11 of 11 and is
 
 The dated sections of `docs/grenades.md`, `docs/player-vision.md` and `docs/leadership.md` above were moved here the same way (#194,
 the last docs pass): the specs keep the current rules.
+
+## Stacked items: bodies and fight changes (moved from `docs/stacked-items.md` SI12 and SI16)
+
+- **When the items landed (job `stack-b`).** The match district of seed 2 held 785 twin bodies, 729 before, 56 of them items. The items
+  changed the four match guards' fights (a round meets a plate or a box stack); `perf_probe.gd` records the A/B figures. No budget was
+  loosened, and the re-pick of the guards' seed was left to `perf3d`, which picked seed 23 (`perf_probe.gd`, `MATCH_SEED`).
+- **Bodies after the unbake jobs.** `TwinSpace.bodies()` 120 frames after `s.district(Perf.MATCH_SEED, "garage_home")` is built: seed 2
+  held 1165 bodies and seed 13 1410 when the shops' items landed; the guards' seed 23 held 1247 (#194 perf-final). A quiet district's
+  physics step cost about a tenth of a millisecond more than without the shops' items, all asleep.

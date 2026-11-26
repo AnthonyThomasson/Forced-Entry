@@ -206,7 +206,7 @@ a soft panel).
   `look(style)`, `view`), `LoadoutConfig` (`outfit_options`, `outfit_of`, `random_outfit`, `default_outfit`, the outfit in `normalize` / `apply` /
   `random`, and the style `apply` passes on), `Item.art.style` (stamped by `ItemRegistry.inventory_for`).
 - **Character**: `wardrobe.outfit` (`set_ids`, `view()`), `get_surface_at`, `_hit_zone`, `_hit_side`, and `take_hit`'s zone, armour, wear and
-  blast steps; the weight in `movement`'s `_speed_in` and the run's stamina; the zone numbers in `CharacterHitConfig` and the weight's in `CharacterPaceConfig`. The style (`character_wardrobe.gd`): `style`,
+  blast steps; the weight in `movement`'s `_speed_in` and the run's stamina; the zone damage and side angles in `CharacterHitConfig` (the zone bands are `BodyHeights.zones`) and the weight's numbers in `CharacterPaceConfig`. The style (`character_wardrobe.gd`): `style`,
   `look_seed`, `rank`, `set_style`, `CharacterStyleConfig.styles`. The look (`character/body/`: `body_dress.gd`, `character_style.gd` which
   resolves the style's look, and the painters, `vest_painter.gd` among them, whose flat renders the 3D body wears) is built from `wardrobe.outfit.look(style)`.
 - **Projectile**: `_surface_for` asks `get_surface_at`, the armour step in `_resolve`, `HitInfo.height` filled; `Explosion`'s blast hits carry
