@@ -1,11 +1,11 @@
 class_name CharacterTwin
 extends CharacterBody3D
-## Character domain, the 3D body of a character in the twin space (`TwinSpace`, interface 29, #194
-## chars3d-a, D13): an upright cylinder on `PhysicsLayers.TWIN_CHARACTER`, the radius of the body's
-## circle and the real height of the posture it is in (`BodyHeights`: standing the stature, ducked
-## the duck, a ducked body risen over its cover the pose it rose to), so a ray at head height hits
+## Character domain, the 3D body of a character in the twin space (`TwinSpace`, interface 29): an
+## upright cylinder on `PhysicsLayers.TWIN_CHARACTER`, the radius of the body's circle and the real
+## height of the posture it is in (`BodyHeights`: standing the stature, ducked the duck, a ducked
+## body risen over its cover the pose it rose to), so a ray at head height hits
 ## a standing body and passes over a ducked one. Its wall is straight up (a round meets the body
-## square on at any height, as the old 2D circle did: a rounded top would turn a head shot's damage
+## square on at any height: a rounded top would turn a head shot's damage
 ## down by the slant it strikes).
 ##
 ## **It is the truth of where the character stands.** The character's walk (`CharacterMovement`)

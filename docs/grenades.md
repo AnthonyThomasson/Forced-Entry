@@ -327,7 +327,7 @@ walk. `debug_zones()` lists every throw weighed (dropped ones too) as zones of c
 Whether a legal throw exists at all (`grenade_ready`, the fact that gates the tactic and the unbound level's throw onto the shots' origin) is answered
 by a search that stops at the first spot the NPC could throw from, and the answer is always the one the full search gives ("it found a spot"); the full
 options, with their tags and wording, are built only when the decision's walk reads them. The decision job runs that search as its throw piece,
-in steps of a fixed count of candidates (#195) and a work cap (`ThrowSpots.block_work` of `ThrowSpots.work()`, a count in quarter-units: four a planner question, one a raw candidate tested; a throw spot's rank and each of its routes are steps of their own), and its answer is the one-shot search's at every step size. Tests: `ai/grenade/grenade_ready_matches_full_search`,
+in steps of a fixed count of candidates (#195) and a work cap (`ThrowSpots.block_work` of `ThrowSpots.work()`, a count in quarter-units: four per `GrenadeArc.work`, one per sweep or level cast, and one a raw candidate tested; a throw spot's rank and each of its routes are steps of their own), and its answer is the one-shot search's at every step size. Tests: `ai/grenade/grenade_ready_matches_full_search`,
 `ai/decision/lazy_groups_match_eager`, `ai/decision/throw_piece_matches_whole`.
 Its options are one per kind it carries (`frag`, `stun`). Measured with `tools/von_probe.py` (`tools/von_scenarios/grenade_*.json`, captured from the
 recorded-Von tests): the barricaded holder of a doorway GRENADE 0.49 to 0.51 against ENGAGE 0.32 to 0.40 (dropping the exposure sentence or the desc's

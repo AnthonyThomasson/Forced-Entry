@@ -1,6 +1,6 @@
 class_name SightRay
 extends RefCounted
-## General domain: the one sight rule (interface 11, #194 D9), shared by the NPCs' sight
+## General domain: the one sight rule (interface 11), shared by the NPCs' sight
 ## (`AgentVision`), the player's view (`ViewCone`) and what the view draws (`SeenArea`). Sight is
 ## geometry, not a rating: what blocks a line of sight is what stands in the way at that height,
 ## and a body's posture sets the height of its eye and of the points it is seen by.
@@ -225,7 +225,7 @@ static func visible_centre(viewer: Node2D, target: Node2D) -> float:
 ## The height (px) `viewer` aims at on `target`: the middle of the part of it that shows
 ## (`visible_centre`: the head when only the head does), else the middle of its torso at its posture
 ## (a body no point of which shows: the round meets what hides it). The one aim an NPC's shot and
-## its line of fire share (#194 D8).
+## its line of fire share.
 static func aim_height(viewer: Node2D, target: Node2D) -> float:
 	return aim_at(viewer, eye_of(viewer), target, target.global_position)
 

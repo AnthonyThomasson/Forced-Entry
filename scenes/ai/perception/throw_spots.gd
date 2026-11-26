@@ -16,10 +16,10 @@ const DIRECTIONS := 16
 const ROUTES := ThrowScan.ROUTES
 
 ## Raw candidates a block step of a priced search works through at most, and the work (`work()`, a
-## count in quarters of a raw candidate, memo hits included, not a time) at which it ends the block
-## earlier (80: 20 planner questions, or 80 raw candidates): a stretch of
-## candidates that fail the cheap tests is one step, a stretch that asks the planner many (each
-## that passes the cheap tests asks it) is a few, so a unit the decision budget prices
+## count in quarters of a raw candidate, not a time) at which it ends the block earlier (80: 20 of
+## `GrenadeArc.work` at four each, or 80 raw candidates): a stretch of candidates that fail the
+## cheap tests is one step, a stretch that asks the planner many (each that passes the cheap tests
+## asks it) is a few, so a unit the decision budget prices
 ## (`DecisionBudget.cost_throw_block`) is about the same work whichever it is.
 static var block_size: int = 48
 static var block_work: int = 80
@@ -33,12 +33,11 @@ var spot_walk: float
 
 ## What the throw search has worked so far, in the unit the budget prices by
 ## (`DecisionBudget.work_unit`): a quarter-unit each raw candidate through the cheap tests (a snap,
-## a room test) and four the arc planner's question (`GrenadeArc.work`: one costs about as much as
-## four candidates, measured). A count, never a time: the same on every machine. Both are totals the
-## process keeps running, so only a difference of two reads means anything, and in whole
-## quarter-units it is exact: a floor of a running total (a quarter of `tested`) made a block end
-## where the total's residue said, so the same match cut its blocks elsewhere one play or one frame
-## later.
+## a room test) and four per `GrenadeArc.work` (one per sweep or level cast, which costs about as
+## much as four candidates, measured). A count, never a time: the same on every machine. Both are
+## totals the process keeps running, so only a difference of two reads means anything, and in whole
+## quarter-units it is exact. Never divide a running total down: a block would end where the total's
+## residue says, and the same match would cut its blocks elsewhere from one play to the next.
 static func work() -> int:
 	return GrenadeArc.work * 4 + tested
 

@@ -98,7 +98,7 @@ static func _vase(kit: MeshKit, spec: FurnitureSpec, radius: float, high: float)
 
 ## A bowl heaped with fruit: a footed round of ceramic and a flat-topped fruit standing at each
 ## spot the painter draws one (`ItemHomePainter.FRUIT_AT`), so the lit top reads as the painted
-## fruit: bright and as big as the old prop's.
+## fruit, as bright and as big.
 static func _fruit_bowl(kit: MeshKit, spec: FurnitureSpec, radius: float, high: float) -> void:
 	kit.cylinder(Vector3.ZERO, radius * 0.5, high * 0.3, spec.color)
 	kit.cylinder(Vector3(0.0, high * 0.3, 0.0), radius, high * 0.55, spec.color)
@@ -110,9 +110,8 @@ static func _fruit_bowl(kit: MeshKit, spec: FurnitureSpec, radius: float, high: 
 		)
 
 
-## The tools: a hammer, a wrench and a screwdriver laid apart, each slim, as the old prop drew
-## them (`props.gd`): the hammer's wooden handle and iron head, the wrench's bar and ring, the
-## screwdriver's yellow handle and bright shaft.
+## The tools: a hammer, a wrench and a screwdriver laid apart, each slim: the hammer's wooden handle
+## and iron head, the wrench's bar and ring, the screwdriver's yellow handle and bright shaft.
 static func _tools(kit: MeshKit, _spec: FurnitureSpec, foot: Rect2, high: float) -> void:
 	var palette: Dictionary = ObjectArtDecorConfig.prop_colors
 	var metal: Color = palette["metal"]
@@ -133,7 +132,7 @@ static func _tools(kit: MeshKit, _spec: FurnitureSpec, foot: Rect2, high: float)
 	)
 
 
-## A bench vise as the old prop drew it: a small stand with a bright jaw across it, and its screw
+## A bench vise: a small stand with a bright jaw across it, and its screw
 ## handle out of the front (a stem and a cross bar).
 static func _vise(kit: MeshKit, spec: FurnitureSpec, foot: Rect2, high: float) -> void:
 	var metal: Color = ObjectArtDecorConfig.prop_colors["metal"]
@@ -146,7 +145,7 @@ static func _vise(kit: MeshKit, spec: FurnitureSpec, foot: Rect2, high: float) -
 	kit.box(MeshKit.volume(Rect2(o.x - 3.0, o.y + 4.5, 6.0, 1.0), 0.0, high * 0.3), metal)
 
 
-## Keys lying in a bowl `high` tall (the plain bowl's, the old prop's): a metal ring and the bar of
+## Keys lying in a bowl `high` tall (the plain bowl's): a metal ring and the bar of
 ## a key across the well.
 static func keys(kit: MeshKit, high: float) -> void:
 	var metal: Color = ObjectArtDecorConfig.prop_colors["metal"]

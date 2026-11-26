@@ -2,7 +2,7 @@ class_name Knockback extends Node
 ## Physics System: the shove component of a shoveable body, a child of the body that holds its mass
 ## and shoves it. Its `apply_impulse(v, at_world, height)` is how the owner's `take_hit` shoves the
 ## body. The "pushable" contract is `apply_impulse(v, at)` / `get_mass()` on the body, but a piece
-## whose truth is a free 3D body (`TwinSpace.leader_of`, interface 29: furniture, #194 furn3d) is
+## whose truth is a free 3D body (`TwinSpace.leader_of`, interface 29: furniture) is
 ## shoved through that body, at the point's real height, so a push goes through `Knockback.push`,
 ## which every pusher of the contract (interface 5) calls: it answers to the 3D body when there is
 ## one and to the body's own `apply_impulse` otherwise. The engine integrates motion, collisions,

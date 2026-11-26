@@ -77,6 +77,7 @@ func see(rooms: Array) -> void:
 	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(own)
 	var eye: float = vision.eye_height()
 	var now := GameClock.msec()
+	# Whole beats since the world began: the part of a beat is dropped on purpose.
 	@warning_ignore("integer_division")
 	var frame := WorldRng.frame_of(own) / beat.x
 	var order := WorldRng.order_of(own.get_instance_id())

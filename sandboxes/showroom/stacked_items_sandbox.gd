@@ -1,5 +1,5 @@
 extends GameTest
-## A showroom of the small items (#194 stack-a, D20, `docs/stacked-items.md`): you are the player,
+## A showroom of the small items (`docs/stacked-items.md`): you are the player,
 ## with a pistol (3) and fists (2), in a room that holds a table of tableware, a desk with a
 ## monitor, a lamp and a book, a bookcase with books and a cup on top of it, a stack of boxes on
 ## crates, and a row of plates, cups and a book lying on the floor.
@@ -11,7 +11,7 @@ extends GameTest
 ## stepped over and stay where they lie; the crate at its end is shoved. Throw nothing at the
 ## stack unless you mean to see it fall.
 ##
-## Nothing is asserted. Temporary showroom: it goes with the ticket's last job.
+## Nothing is asserted. Temporary showroom.
 
 const ARENA := Rect2(0, 0, 1000, 640)
 const TABLE := Vector2(300, 140)

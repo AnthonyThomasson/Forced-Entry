@@ -25,9 +25,8 @@ extends RefCounted
 const Roster := preload("res://scenes/ai/decision/decision_roster.gd")
 
 ## Work units that may be spent in one physics frame: about 3 ms of decision work (a unit is about
-## half a millisecond), a typical decision landing over three to four frames (four to five at the
-## pool of 4 it was, #194 pool6). A test raises it to
-## see the pieces of many decisions run in one frame; it never lets two decisions start in one
+## half a millisecond), a typical decision landing over three to four frames. A test raises it
+## to see the pieces of many decisions run in one frame; it never lets two decisions start in one
 ## (`decision_roster.gd`).
 static var per_frame: int = 6
 ## What the order-refusal step (0.01 ms) and one planner level (0.1 ms, the odd level that builds a
@@ -47,11 +46,11 @@ static var cost_throw_route: int = 2
 ## one unit of work, a lead's route, a doorway's pick, one kind's throw spot step (about a
 ## millisecond), and the finish that sorts and caps what the units made (free: no price to set).
 static var cost_group_unit: int = 2
-## The throw search's work (`ThrowSpots.work()`, a count in quarter-units: four a planner question
-## asked, memo hits included, one a raw candidate tested, not a time: about 0.01 ms each) one unit
-## holds: a priced step that did more than its price's worth (a throw block of 80 is 2 units) is
-## charged the rest once it has run (`charge`), so a frame holds one such block, not four heavy ones
-## from four NPCs. 0: no charge.
+## The throw search's work (`ThrowSpots.work()`, a count in quarter-units: four per
+## `GrenadeArc.work`, one a raw candidate tested, not a time: about 0.01 ms each) one unit holds: a
+## priced step that did more than its price's worth (a throw block of 80 is 2 units) is charged the
+## rest once it has run (`charge`), so a frame holds one such block, not four heavy ones from four
+## NPCs. 0: no charge.
 static var work_unit: int = 40
 ## Where the frame number comes from, when not the engine's physics frame: a unit test steps frames
 ## by it, with no engine running them (the way `DecisionStub.source` stands in for the server).

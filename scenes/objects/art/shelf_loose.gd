@@ -5,8 +5,8 @@ extends RefCounted
 ## seeded from the look (the footprint, the contents, the boards), so every shelf of one look
 ## carries the same things: a walk along each board, a thing then a gap, books in runs, a pair of
 ## shoes as one item. They are as `shelf_mesh.gd` builds into a shelf whose `art_opts.loose` is
-## off (the old look), at its own seeding, and each is drawn like it: the boxes and tins in size
-## and colour, the books by their spines; the shoes are drawn as a pair.
+## off (the built-in look), at its own seeding, and each is drawn like it: the boxes and tins in
+## size and colour, the books by their spines; the shoes are drawn as a pair.
 ## A row is `{ key, at, size, lift, height, color }`: the item's catalogue key, its centre from the
 ## shelf's centre in the canonical frame (x across, the front toward +y), its footprint, the board's
 ## top it stands on and how tall it is. A run of books (`RUN` at most, side by side on one board) is
@@ -149,7 +149,7 @@ static func _box(
 	return at.x + bw + 1.0
 
 
-## The odd paint tin of a board of boxes (the old painter's: as wide as the board's depth allows,
+## The odd paint tin of a board of boxes (as wide as the board's depth allows,
 ## at most 5 px a side of radius, against the back); the x past it.
 static func _tin(
 	spec: FurnitureSpec,

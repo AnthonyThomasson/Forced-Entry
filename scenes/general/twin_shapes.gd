@@ -1,6 +1,6 @@
 class_name TwinShapes
 extends RefCounted
-## General domain, the lifting of a 2D collision shape into the 3D twin space (#194, D3/D4,
+## General domain, the lifting of a 2D collision shape into the 3D twin space (D3/D4,
 ## `docs/adr/0014-twin-staging-and-plan-space.md`): the same footprint, from a base height to a top,
 ## on the one scale and mapping of `PlanSpace`. A domain building the twin of one of its bodies
 ## (`TwinSpace.builders`) lifts one footprint shape with `lift`, or a rectangle with `box`, from
@@ -10,7 +10,7 @@ extends RefCounted
 ## with none (a segment, a world boundary) is left out, with a warning.
 ## Heights are px above the floor (`BodyHeights`, `PieceHeights`).
 
-## The sides a round shape's footprint is cut into (as the 2D circle was).
+## The sides a round shape's footprint is cut into.
 const ROUND_SIDES := 16
 
 ## The cosines and sines of the `ROUND_SIDES` angles of a ring, made on first use.

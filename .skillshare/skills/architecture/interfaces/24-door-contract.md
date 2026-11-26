@@ -2,7 +2,7 @@
     it through 2, the Space key and the AI drive it through this one)
     A `Door` is a plain `Node2D` plan handle (no 2D shape or layer) in the groups `doors` and `TwinSpace.BODIES` / `HARD` (the one name Navigation, Testing and the AI find a door
     by), one per doorway, driven by code (`docs/adr/0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md`): the 2D follower of a 3D
-    leader in the twin space (#194 doors3d: standing, an `AnimatableBody3D` `DoorBody` its swing turns, the leaf 84 px high under the
+    leader in the twin space (standing, an `AnimatableBody3D` `DoorBody` its swing turns, the leaf 84 px high under the
     lintel; knocked down, a free `DoorSlab` rigid body, D18, `docs/doors.md` DR11); its origin is the middle of
     its leaf, angles are degrees from shut. A caller reads and calls only what is listed here.
     - **State:** `hinge` (the world point on the jamb the leaf turns about), `swing_into` (unit vector into the room it swings into: that

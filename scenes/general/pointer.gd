@@ -129,7 +129,7 @@ static func world_mouse(node: Node) -> Vector2:
 	return world_of(node, screen_mouse(node))
 
 
-## What the cursor's line of sight meets in the 3D render (`is_3d`), for the player's aim (#194 D8).
+## What the cursor's line of sight meets in the 3D render (`is_3d`), for the player's aim.
 ## The line is the camera's own, through the ground point under the mouse (an orthographic view's
 ## rays are parallel), cast into the twin space (`TwinSpace`, interface 29). It answers a dictionary
 ## of `kind`, `plan` (the 2D point) and `height` (px above the floor). Kind `&"body"`: the line

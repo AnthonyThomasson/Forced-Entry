@@ -138,7 +138,7 @@ class FakeCharacter:
 
 
 ## The behaviour's side of the gait: the parts it reaches, all at rest.
-@warning_ignore("unused_private_class_variable")
+@warning_ignore("unused_private_class_variable")  # the gait under test reads them from outside
 class FakeBehavior:
 	extends Node
 	var task := RunningLeaf.new()

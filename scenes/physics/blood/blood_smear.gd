@@ -30,7 +30,7 @@ var _fingers: Array[Dictionary] = []
 var _spacing := 6.0
 ## Smooth noise the ribbons wander on.
 var _noise := FastNoiseLite.new()
-## The free 3D body that moves the piece when there is one (furniture, #194 furn3d): the piece is
+## The free 3D body that moves the piece when there is one (furniture): the piece is
 ## then its plan handle, and it is that body's speed and sleep that decide whether the piece
 ## smears.
 var _lead: RigidBody3D = null

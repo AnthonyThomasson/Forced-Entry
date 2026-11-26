@@ -1,9 +1,9 @@
 class_name HomeItemsCatalog
 ## World Generation domain: the small items the home's tops carry (`docs/stacked-items.md`
-## SI13, #194 D21 unbake): a keyboard, papers, a clock, a vase, a fruit bowl, a cutting board, a
+## SI13): a keyboard, papers, a clock, a vase, a fruit bowl, a cutting board, a
 ## tool roll and a vise, beside the monitor, mug (`cup`), book and bowl of `ItemsCatalog`. A desk,
 ## a nightstand, a counter and the rest hold them in their own `carries` rows (`RoomItems.carry`),
-## set where the drawing had them. Each is a free piece (Objects' `item` painter and mesh); sizes
+## set at the rows' places. Each is a free piece (Objects' `item` painter and mesh); sizes
 ## are footprints in px (42.3 px a metre) and the heights are `ObjectMeshHomeItemConfig`'s. The
 ## thin ones (a keyboard, papers, a board, a tool roll) lie within a step, so a walker steps over
 ## one on the floor.

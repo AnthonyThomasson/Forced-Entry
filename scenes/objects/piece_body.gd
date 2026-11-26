@@ -1,6 +1,6 @@
 class_name PieceBody
 extends RigidBody3D
-## Objects domain, the free 3D body of a piece of furniture (#194 furn3d, D13/D14,
+## Objects domain, the free 3D body of a piece of furniture (D13/D14,
 ## `docs/adr/0014-twin-staging-and-plan-space.md`): a `RigidBody3D` in the twin space (`TwinSpace`),
 ## shaped from the piece's real parts (`PieceHeights`: boxes, a cylinder for a round piece), its
 ## mass the catalogue's `weight`. It slides, spins and, struck or shoved high enough, **tips**:

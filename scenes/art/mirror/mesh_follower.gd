@@ -1,7 +1,7 @@
 class_name MeshFollower
 extends Node3D
-## Art domain, the small follower for drawn things that are no physics body (#194 del2d-b3b,
-## interface 27): a floor stencil, a dropped item, a thrown grenade, plain `Node2D`s of a tracked
+## Art domain, the small follower for drawn things that are no physics body (interface
+## 27): a floor stencil, a dropped item, a thrown grenade, plain `Node2D`s of a tracked
 ## group, which no twin carries a mesh for. `track(node, builder)` shows one node by the mesh
 ## `builder(node)` makes (a `Node3D` in 3D units whose origin is the node's), `track_group(group,
 ## builder)` every node of a group under the world `follow(root)` is given, those already there and

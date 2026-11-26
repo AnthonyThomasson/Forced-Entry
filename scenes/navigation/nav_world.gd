@@ -1,8 +1,9 @@
 class_name NavWorld extends RefCounted
-## Navigation domain: which navigation map a sim node stands on (#194 nav3d-b, D4). The nav is 3D:
-## every region and agent is on the navigation map of the 3D world of the node's twin space
+## Navigation domain: which navigation map a sim node stands on (D4,
+## `docs/adr/0016-the-nav-mesh-is-baked-by-the-3d-baker-from-projected-plan-footprints.md`). The nav
+## is 3D: every region and agent is on the navigation map of the 3D world of the node's twin space
 ## (`TwinWorlds.world_in`, interface 29), the map of the sim's own viewport where no twin space
-## stands beside it (a world built by hand), which a bare `World2D` has no map of any more.
+## stands beside it (a world built by hand), which a bare `World2D` has no map of.
 
 ## The worlds with no twin space `map_of` found a map in: `[World2D weak ref, World3D weak ref]` by
 ## the `World2D`'s instance id, what `map_in` answers for a reader that holds the world and no node.

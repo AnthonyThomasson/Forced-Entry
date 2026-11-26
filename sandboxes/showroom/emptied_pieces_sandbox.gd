@@ -1,17 +1,15 @@
 extends GameTest
-## A showroom of the emptied pieces (#194 unbake-b, D21, `docs/stacked-items.md` SI13): you are the
+## A showroom of the emptied pieces (`docs/stacked-items.md` SI13): you are the
 ## player, with a pistol (3) and fists (2), in a room of three rows.
-##
-## The back row is the OLD look: a bookshelf, garage shelving, a linen shelf and a shoe rack with
-## their books, boxes, towels... built into one mesh (`art_opts.loose` off): a solid piece, shot or
-## shoved as one. The middle row is the same four pieces EMPTIED (what a house builds now): hollow
-## boards, with the books (in runs), boxes and shoes loose on them: shoot a book and it alone
+## The back row is the built-in look: a bookshelf, garage shelving, a linen shelf and a shoe rack
+## with their books, boxes, towels... built into one mesh (`art_opts.loose` off): a solid piece,
+## shot or shoved as one. The middle row is the same four pieces EMPTIED (what a house builds):
+## hollow boards, with the books (in runs), boxes and shoes loose on them: shoot a book and it alone
 ## drops; shove a shelf and its things slide with it, tip it and they spill. The front row is the
-## stock: two crates stacked (the old stack's stand-in, plain crates), a crate stack as a stockroom
-## has it (2 or 3 loose crates), a pallet with its four wrapped boxes, and the hotplate (the crate,
-## a hob that glows and a pan).
+## stock: two plain crates stacked, a crate stack as a stockroom has it (2 or 3 loose crates), a
+## pallet with its four wrapped boxes, and the hotplate (the crate, a hob that glows and a pan).
 ##
-## Nothing is asserted. Temporary showroom: it goes with the ticket's last job.
+## Nothing is asserted. Temporary showroom.
 
 const ARENA := Rect2(0, 0, 960, 640)
 const OLD_ROW := 130.0

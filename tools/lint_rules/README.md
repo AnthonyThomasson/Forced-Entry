@@ -27,7 +27,7 @@ The rules:
 
 | Rule | Checks |
 |---|---|
-| `comment_ticket_refs` | no `ticket #N` / `issue #N` in a comment under `scenes/` (tests may name the ticket whose spec they check) |
+| `comment_ticket_refs` | no `#NN` ticket reference (`ticket #N` / `issue #N` too) in a comment under `scenes/` or `sandboxes/` (tests may name the ticket whose spec they check) |
 | `coverage_isolation` | nothing in `scenes/`, `tests/`, `addons/` or `project.godot` names the coverage tool (`tools/coverage/`) |
 | `timing_in_perf` | `Time.get_ticks_usec()` under `tests/` only in `tests/perf/` and `tests/_perf/`: a wall-clock budget is a perf guard, which the pre-commit hook leaves out |
 | `doc_comments` | every function (lifecycle overrides exempt) and every top-level `var` / `@export` / `@onready` / `signal` under `scenes/` has a `##` doc comment: above a function, trailing a member or above its run of declarations |

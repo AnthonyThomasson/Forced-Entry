@@ -1,6 +1,6 @@
 class_name TwinSpace
 extends SubViewport
-## General domain, the twin 3D space (#194, D3, `docs/adr/0014-twin-staging-and-plan-space.md`,
+## General domain, the twin 3D space (D3, `docs/adr/0014-twin-staging-and-plan-space.md`,
 ## interface 29): the 3D physics space of the simulation (which has no 2D physics), holding a 3D
 ## twin of each solid plan handle, the sim's 2D node (walls, floors, furniture, doors, vehicles,
 ## characters), each with a real height, kept in step with its plan handle every physics frame, or
@@ -284,9 +284,9 @@ static func twin_for(body: Object) -> Node3D:
 
 
 ## Twin the 2D `body` again, as its domain's builder now answers: a door that was led by a
-## kinematic body (`DoorBody`) is a free one once it is knocked down (`DoorSlab`, #194 doors3d,
-## D18). The old twin leaves every query at once and is freed; the new one stands where the 2D body
-## does. A body with no twin, or in no twin space, is left as it is.
+## kinematic body (`DoorBody`) is a free one once it is knocked down (`DoorSlab`, D18,
+## `docs/doors.md` DR11). The old twin leaves every query at once and is freed; the new one stands
+## where the 2D body does. A body with no twin, or in no twin space, is left as it is.
 static func retwin(body: Node2D) -> void:
 	var twin := twin_for(body)
 	var stand := twin.get_parent() as TwinSpace if twin != null else null
@@ -309,7 +309,7 @@ static func share_space(a: Object, b: Object, shared: bool) -> void:
 		first.remove_collision_exception_with(second)
 
 
-## The free 3D body that is the truth of the 2D `body` (furniture, #194 furn3d): its twin when that
+## The free 3D body that is the truth of the 2D `body` (furniture): its twin when that
 ## is a `RigidBody3D` with a `push`, else null. A pusher shoves such a piece through it
 ## (`Knockback.push`).
 static func leader_of(body: Object) -> RigidBody3D:
@@ -321,7 +321,7 @@ static func leader_of(body: Object) -> RigidBody3D:
 	return null
 
 
-## The 3D body that walks the 2D character `body` (a `CharacterBody3D`, #194 chars3d-a): its twin
+## The 3D body that walks the 2D character `body` (a `CharacterBody3D`): its twin
 ## when that is a `CharacterBody3D` with a `walk`, else null. The character moves it, and the 2D
 ## body is written from it (interface 29).
 static func walker_of(body: Object) -> CharacterBody3D:

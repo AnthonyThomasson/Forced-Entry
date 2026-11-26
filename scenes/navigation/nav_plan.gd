@@ -1,5 +1,5 @@
 class_name NavPlan extends RefCounted
-## Navigation domain: the plan-space face of `NavigationServer3D` (#194 nav3d-b, D4). A plan point
+## Navigation domain: the plan-space face of `NavigationServer3D` (D4). A plan point
 ## `Vector2` (x, y) is the point (x, 0, y) of the nav's 3D floor, on the one plane every mesh is
 ## baked and held on (`NavSource.bake_polygon`, in px as the plan is, whatever `RenderConfig.unit`
 ## the render scales by), so a map's answer is lifted in and read back out here and `NavBuilder`'s

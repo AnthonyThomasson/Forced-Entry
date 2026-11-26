@@ -1,7 +1,7 @@
 class_name ObjectTwins
 extends RefCounted
-## Objects domain, the 3D twins of its bodies for the twin space (`TwinSpace`, interface 29, #194
-## D3): a wall and a door lifted from their outline data to their meshes' real heights
+## Objects domain, the 3D twins of its bodies for the twin space (`TwinSpace`, interface 29): a wall
+## and a door lifted from their outline data to their meshes' real heights
 ## (`ObjectStructureMeshConfig`; a wall also carries a lintel over each doorway, from a door
 ## leaf's height to the wall's top), a floor as a slab, a piece of furniture as one box per part of
 ## `PieceHeights` (a sofa's seat, arms and back; a round piece's full-footprint part a cylinder),
@@ -48,7 +48,7 @@ static func _world(body: CollisionObject3D) -> CollisionObject3D:
 
 
 ## A door's twin: the leaf as a box (its length, its thickness, a leaf's height). A standing door
-## is led by a `DoorBody` (an `AnimatableBody3D` its swing turns, #194 doors3d); a knocked-down one
+## is led by a `DoorBody` (an `AnimatableBody3D` its swing turns); a knocked-down one
 ## by a free `DoorSlab` (D18), which a door asks the twin space for when it falls
 ## (`TwinSpace.retwin`).
 static func _door(door: Door) -> Node3D:
@@ -98,7 +98,7 @@ static func _lintels(wall: Wall, twin: CollisionObject3D) -> void:
 
 
 ## A solid piece's twin: a box per part (see `PieceHeights`). A piece that stands on the floor and
-## is not anchored is a free `PieceBody` (a `RigidBody3D`, #194 furn3d, D13): the piece's truth,
+## is not anchored is a free `PieceBody` (a `RigidBody3D`): the piece's truth,
 ## which the 2D body then follows. An anchored piece, and one that hangs off the floor (a mirror, a
 ## menu board), is a static body the space moves with the piece (a kinematic body is always active
 ## in the 3D step, and a district holds hundreds of pieces).

@@ -10,7 +10,7 @@ extends RefCounted
 ## A point is visible when it is (a) within `view_distance`, AND (b) either within
 ## `awareness_radius` of the agent — a near bubble you sense regardless of which way you face — or
 ## inside the forward cone of half-angle `fov_degrees / 2` around the agent's facing, AND (c)
-## reachable by a clear line. For SIGHT that line is a 3D eye ray (General's `SightRay`, #194 D9):
+## reachable by a clear line. For SIGHT that line is a 3D eye ray (General's `SightRay`):
 ## from the agent's eye, at the height of its posture (a standing eye looks over a table and a
 ## sofa, a ducked one does not), to a few points on the target (the head, chest and hips at the
 ## target's posture), seen if any one is clear. Only what stands in the way at that height blocks

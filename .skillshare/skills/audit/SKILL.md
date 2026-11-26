@@ -94,7 +94,7 @@ The rules every audit uses (`m-audit-everything` points here). Concise, present-
    whose name carries its domain's stem (ADR 0003, `architecture`'s holder list: `CharacterMovement`, `BloodSprayConfig`,
    `NpcEntryTuning`) names its domain by that stem, so its header need not say it again.
 
-Rule 3, and no ticket number in a game comment (`ticket #N` / `issue #N` under `scenes/`), are lint rules (`doc_comments`,
+Rule 3, and no ticket number in a game comment (`#NN`, `ticket #N` under `scenes/`, `sandboxes/`), are lint rules (`doc_comments`,
 `comment_ticket_refs`): run them, then grep the changed `.gd` files for history:
 
 ```bash

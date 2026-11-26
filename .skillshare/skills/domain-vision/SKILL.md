@@ -80,7 +80,7 @@ read through `character.sight()`: any character can be the viewer.
 - **`ViewWatch` reads a collider's top once, at `_classify`** (`SightRay.top_of`, its twin's top; a character's is 0, it is looked over at any height), and does not watch it. That
   holds because a piece's top is set once from its mesh's real size and a door's is always 84 with `transparent` fixed at spawn
   (`look.material == "glass"`; a shatter changes only `look.broken`). Objects promises neither changes in play (interface 03);
-  the `rebuild_every` backstop bounds the stale cone should either ever change (a tipped piece, #194 D14). A collider with no twin yet
+  the `rebuild_every` backstop bounds the stale cone should either ever change (a tipped piece). A collider with no twin yet
   (a body twins a frame after it joins) blocks like a wall and is asked again, not kept. A feature that changes either in play must tell
   `ViewShapes` and `ViewWatch`. The viewer's own posture changes what it looks over (`sight()["eye_height"]`): `ViewWatch` sorts every
   collider again when it changes (from the tops it kept, not a read of the tree: 16 ms the other way), and the cone is rebuilt. A living character in the cone that the eye sees no point of is hidden by Art's

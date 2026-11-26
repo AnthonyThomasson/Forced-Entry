@@ -1,5 +1,5 @@
 class_name CharacterRiseConfig
-## Rise to fire (scenes/character/, #194 D7 and D7a, `docs/cover-and-stance.md` P6): how a ducked
+## Rise to fire (scenes/character/, `docs/cover-and-stance.md` P6): how a ducked
 ## character that fires behind cover rises over it. A `class_name` holder of `static var`s, read as
 ## `CharacterRiseConfig.<name>`; there is no instance and no autoload.
 

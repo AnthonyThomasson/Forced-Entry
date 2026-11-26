@@ -1,6 +1,6 @@
 class_name VehicleBody
 extends RigidBody3D
-## Vehicles domain, the 3D body of a vehicle (#194 vehicles3d, D13,
+## Vehicles domain, the 3D body of a vehicle (D13,
 ## `docs/adr/0014-twin-staging-and-plan-space.md`): a `RigidBody3D` in the twin space (`TwinSpace`,
 ## interface 29), locked upright (it cannot roll or pitch: it turns about up and slides on the
 ## floor, gravity and the floor under it), shaped from the vehicle's real body (`VehicleTwins`: the

@@ -18,12 +18,12 @@ const WELL := 0.4
 ## The node an item `piece` is shown by, in 3D units with its origin at the piece's origin.
 static func build(piece: Node2D) -> Node3D:
 	var spec := FurnitureSpec.of(piece)
-	if spec.opts.get("plain", false):  # An old prop's own colour, not the run-down grade.
+	if spec.opts.get("plain", false):  # A plain item's own colour, not the run-down grade.
 		spec.color = spec.paint
 	var rig := FurnitureMesh.show(piece, FurnitureMesh.fetch(
 		"item", spec, _tuning(spec), func() -> Mesh: return _mesh(spec)
 	))
-	if _kind(spec) == "hob":  # Its left ring glows hot: the hotplate's old look.
+	if _kind(spec) == "hob":  # Its left ring glows hot.
 		var foot := spec.within(Rect2(Vector2.ZERO, spec.size))
 		rig.add_glow(
 			FurnitureMesh.fetch_glow("item", spec, _tuning(spec), func() -> Mesh:
@@ -103,7 +103,7 @@ static func _mesh(spec: FurnitureSpec) -> Mesh:
 		"cup":
 			_cup(kit, spec, radius, high)
 		"bowl":
-			if spec.opts.has("well"):  # A noodle bowl: the old plain cylinder.
+			if spec.opts.has("well"):  # A noodle bowl: a plain cylinder.
 				kit.cylinder(Vector3.ZERO, radius, high - WELL, spec.color)
 			else:
 				kit.cylinder(Vector3.ZERO, radius * 0.6, high * 0.4, spec.color)
@@ -136,7 +136,7 @@ static func _mesh(spec: FurnitureSpec) -> Mesh:
 
 ## A cup: the body, its coffee and the handle nub on its right.
 static func _cup(kit: MeshKit, spec: FurnitureSpec, radius: float, high: float) -> void:
-	# The painter sets a mug that is not the old prop's 1 px left of the middle, its nub with it.
+	# The painter sets a mug that is not `plain` 1 px left of the middle, its nub with it.
 	var dx := 0.0 if spec.opts.get("plain", false) else -1.0
 	kit.cylinder(Vector3(dx, 0.0, 0.0), radius - 0.5, high, spec.color)
 	kit.cylinder(
@@ -170,7 +170,7 @@ static func _monitor(kit: MeshKit, spec: FurnitureSpec, foot: Rect2, high: float
 	kit.box(MeshKit.volume(screen, 3.0, high - 3.0), spec.color, spec.color.lightened(0.2))
 
 
-## The monitor's lit edge (the old prop's glowing bar: a 1 px lit line on the screen's front edge):
+## The monitor's lit edge (a 1 px lit line on the screen's front edge):
 ## a strip along the top of the screen's front and a panel proud of its front face, emissive so the
 ## room's light does not swamp them.
 static func _monitor_glow(spec: FurnitureSpec, foot: Rect2, high: float) -> Mesh:

@@ -4,7 +4,7 @@ class_name StockroomCatalog
 ## painter). Shared clutter (cardboard, trash) lives in GeneralCatalog.
 ## The crates and the pallet are no piece of furniture (decision D21, `docs/stacked-items.md`
 ## SI13): `crate_stack` and `wrapped_pallet` are bare places (non-solid, no art) that carry loose
-## items where the old stack and pallet drew theirs (`carries`: the crates of `ItemsCatalog` and the
+## items at their rows' places (`carries`: the crates of `ItemsCatalog` and the
 ## pallet and wrapped boxes of `LooseStockCatalog`; `at` from the place's centre, `lift` the height
 ## it stands on, px; `maybe`: there for about half of the places, so a crate stack is two or three
 ## crates). A place keeps its `examine`, and its footprint is in `RoomSite.solids` (the room's

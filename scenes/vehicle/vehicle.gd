@@ -7,7 +7,7 @@ extends Node2D
 ## plain `Node2D` in the groups `vehicles` and `TwinSpace.BODIES` (no 2D shape, no 2D layer) that
 ## the twin space writes from the 3D body each frame, so everything that reads where a vehicle is
 ## reads it here; its `linear_velocity`, `angular_velocity`, `mass`, `apply_impulse` and
-## `sleeping` are the old rigid body's reads and writes, answered by the 3D body. Its `cabin`
+## `sleeping` are a rigid body's reads and writes, answered by the 3D body. Its `cabin`
 ## (vehicle_cabin.gd) holds its doors (vehicle_door.gd) and seats, and the rides of the characters
 ## getting in and out (vehicle_boarding.gd, stepped by each character's CharacterVehicleUse). The 3D
 ## mirror shows it (`VehicleMeshRig`, `art/`).
@@ -44,7 +44,7 @@ var cabin: VehicleCabin
 var _deformable: Deformable
 ## Its contacts: the crashes, and the characters and furniture it strikes (`VehicleContacts`).
 var contacts := VehicleContacts.new(self)
-## Its mass (kg-ish: the kind's row), as the old rigid body had it.
+## Its mass (kg-ish: the kind's row).
 var mass := 1.0
 ## The engine runs: the body may not sleep (the wheels and revs follow the driver even at rest).
 var can_sleep := true:

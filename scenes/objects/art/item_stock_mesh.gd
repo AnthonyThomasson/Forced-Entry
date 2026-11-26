@@ -77,7 +77,7 @@ static func build(
 			_pot(kit, foot, high, colour, spec.opts.get("well"))
 
 
-## The hot ring of the `hob`: a glowing disc on the left of its plate (the hotplate's old look).
+## The hot ring of the `hob`: a glowing disc on the left of its plate.
 static func glow(spec: FurnitureSpec, foot: Rect2, high: float) -> Mesh:
 	var kit := spec.kit()
 	var radius := maxf(3.0, floorf(foot.size.y * 0.5) - 2.0)
@@ -154,7 +154,7 @@ static func _pan(kit: MeshKit, foot: Rect2, high: float, colour: Color) -> void:
 	kit.box(MeshKit.volume(grip, high - 1.5, 1.5), colour)
 
 
-## A sandbag: a filled sack, its sides a shade darker than its top (the barricade's old look).
+## A sandbag: a filled sack, its sides a shade darker than its top.
 static func _sandbag(kit: MeshKit, foot: Rect2, high: float, colour: Color) -> void:
 	kit.box(MeshKit.volume(foot, 0.0, high), MeshKit.tone(colour, &"dark"), colour)
 

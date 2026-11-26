@@ -77,7 +77,7 @@ a crouch carries them with the sleeves; the hands are held `body_crouch_hand_ahe
 beyond the arm's reach draws its shoulder after it.
 A gun against a wall: a pistol's hand is pushed back by the wall in every posture. A long gun's barrel is raised
 (hands drawn in, barrel shortened) and it cannot fire until it is clear.
-Tests: `crouch_rig`, `crouch_arms_attached`, `crouch_draws_the_duck`, `standing_body_repaints_on_change`.
+Tests: `crouch_rig`, `crouch_arms_attached`, `crouch_draws_the_duck`.
 
 **P4. Turning takes time.** A standing body faces its aim at once; a crouched one swings round at no more than
 its posture's `turn` rate (5 rad/s, about 0.6 s for a half turn). The aim

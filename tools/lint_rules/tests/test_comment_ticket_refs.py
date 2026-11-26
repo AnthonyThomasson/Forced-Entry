@@ -1,10 +1,10 @@
 """Tests for the `comment_ticket_refs` lint rule (tools/lint_rules/rules/comment_ticket_refs.py): game comments say what
 the code is, never which ticket asked for it.
 
-It fails on `ticket #N` or `issue #N` (any case, `tickets` / `issues` too) in a comment (`#` or `##`, whole-line or
-trailing) of a script under scenes/, and passes on the same words inside a string, on a bare `#N`, on a folder Godot
-ignores (`.gdignore`), and on tests/ and everything else outside scenes/. Every reference is reported with its file and
-line.
+It fails on `ticket #N` or `issue #N` (any case, `tickets` / `issues` too) and on a bare `#NN` (two to five digits) in a
+comment (`#` or `##`, whole-line or trailing) of a script under scenes/ or sandboxes/, and passes on the same words
+inside a string, on a one-digit `#N` (a numbered slot), on another repo's `name#N`, on a folder Godot ignores
+(`.gdignore`), and on tests/ and everything else. Every reference is reported with its file and line.
 """
 import unittest
 
@@ -27,6 +27,18 @@ class FindTests(unittest.TestCase):
                 write(root, "scenes/ai/brain.gd", f"extends Node\n\n{comment}\nvar x := 1  ## the x\n")
                 found = [(f.path, f.line) for f in the_rule().check(root, None)]
                 self.assertEqual(found, [("scenes/ai/brain.gd", 3)])
+
+    def test_a_bare_ticket_number_is_found(self):
+        for comment in ("# the twin space (#194, D3)", "## (#54): the yard.", "# see #194."):
+            with self.subTest(comment=comment), TempTree() as root:
+                write(root, "scenes/a.gd", f"extends Node\n\n{comment}\n")
+                self.assertEqual([f.line for f in the_rule().check(root, None)], [3])
+
+    def test_sandboxes_are_scanned(self):
+        with TempTree() as root:
+            write(root, "sandboxes/showroom/a.gd", "extends Node\n## A showroom (#194 stack-a)\n")
+            found = [(f.path, f.line) for f in the_rule().check(root, None)]
+        self.assertEqual(found, [("sandboxes/showroom/a.gd", 2)])
 
     def test_a_trailing_comment_counts(self):
         with TempTree() as root:
@@ -60,9 +72,14 @@ class PassTests(unittest.TestCase):
             write(root, "scenes/a.gd", 'extends Node\n\nvar c := Color("#123456")  ## ticket #9\n')
             self.assertEqual([f.line for f in the_rule().check(root, None)], [3])
 
-    def test_a_bare_number_and_other_words_pass(self):
+    def test_a_one_digit_number_and_other_words_pass(self):
         with TempTree() as root:
             write(root, "scenes/a.gd", "extends Node\n# slot #2 of the stack; the ticket's rule; issue a go\n")
+            self.assertEqual(the_rule().check(root, None), [])
+
+    def test_another_repo_s_issue_and_a_colour_pass(self):
+        with TempTree() as root:
+            write(root, "scenes/a.gd", "extends Node\n# (godotengine/godot#110724), grey #9aa7b4 and #123456\n")
             self.assertEqual(the_rule().check(root, None), [])
 
     def test_tests_and_docs_are_not_scanned(self):

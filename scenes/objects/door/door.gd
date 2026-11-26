@@ -4,7 +4,7 @@ extends Node2D
 ## in the groups `doors` and `TwinSpace.BODIES`: no 2D shape, no 2D layer). A driven body, not a
 ## physics hinge (`docs/adr/0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md`): the code
 ## turns its leaf about the hinge, so a swing is exact and never knocked about by what leans on it.
-## The leaf is led in 3D (#194 doors3d, D13): its truth is a `DoorBody` in the twin space (an
+## The leaf is led in 3D: its truth is a `DoorBody` in the twin space (an
 ## `AnimatableBody3D` locked upright, `TwinSpace`, interface 29) that the swing turns, and this
 ## handle is its follower, written from it in the same step (`_drive`). Knocked down (0 HP) the leaf
 ## comes off its hinges as a free `DoorSlab` (D18, `docs/doors.md` DR11) that falls and lies as

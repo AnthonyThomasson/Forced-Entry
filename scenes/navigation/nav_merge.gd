@@ -1,7 +1,7 @@
 class_name NavMerge extends RefCounted
 ## Navigation domain: the polygon merge pass after a bake. The grid baker cuts the floor into a
 ## region a ridge of its distance field apart, so a district's mesh has about 3 times the polygons
-## of the outline partition the 2D baker made, and the server's path query pays for each one it
+## an outline partition of the same floor has, and the server's path query pays for each one it
 ## crosses. Two polygons that share an edge are one polygon when their union is still convex and
 ## holds at most `MAX_CORNERS` corners: the area walked is the same, the polygons are fewer. Every
 ## vertex stays (a merged polygon keeps its collinear ones), so the edges the map joins regions

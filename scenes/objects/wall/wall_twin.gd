@@ -1,13 +1,12 @@
 class_name WallTwin
 extends StaticBody3D
-## Objects domain, the 3D body of a wall (`ObjectTwins`, interface 29, #194 walls3d): its truth for
-## the 3D reads (the dent state itself stays in the 2D `Wall` until the 2D space is deleted, where
-## the cut moves here) (a bullet's ray, a fragment, a lob, a sight line). A static body, built once
-## from the wall's segments, a box (or the convex pieces of a dented outline) from the floor to the
-## wall's top for each segment the wall owns, and a lintel over each doorway it owns. When a hit
-## dents a segment (`Wall.segment_rebuilt`) the segment's shapes are cut again from the same dents
-## as the wall's outlines, so the 3D wall, the 3D mesh and the nav bake (`NavTwins`) keep one
-## outline.
+## Objects domain, the 3D body of a wall (`ObjectTwins`, interface 29): its truth for the 3D reads
+## (a bullet's ray, a fragment, a lob, a sight line; the dent state itself stays in the `Wall`, its
+## plan handle). A static body, built once from the wall's segments, a box (or the convex pieces of
+## a dented outline) from the floor to the wall's top for each segment the wall owns, and a lintel
+## over each doorway it owns. When a hit dents a segment (`Wall.segment_rebuilt`) the segment's
+## shapes are cut again from the same dents as the wall's outlines, so the 3D wall, the 3D mesh and
+## the nav bake (`NavTwins`) keep one outline.
 
 ## The wall this is the body of.
 var _wall: Node2D

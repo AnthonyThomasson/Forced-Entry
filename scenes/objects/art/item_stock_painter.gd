@@ -5,7 +5,7 @@ extends RefCounted
 ## `book_stood`: a book's top (its cover and the page edge); `shoes`: a pair of shoes, each a sole
 ## with its dark opening at the heel;
 ## `sandbag`: a filled sack with its seam; `hat`: a brim round a crown; `hob`: a plate with a hot
-## ring (the ring glows: `hotplate_painter.gd`'s old look);
+## ring (the ring glows);
 ## `paint_tin`: a can with its label ring; `pan`: a dish with a handle; `pot`: a round pot with two
 ## handles.
 ## Canonical frame: the front toward +y; the catalogue colour is the item's own.

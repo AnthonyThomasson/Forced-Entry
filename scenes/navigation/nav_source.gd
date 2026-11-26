@@ -12,7 +12,8 @@ class_name NavSource extends RefCounted
 ## The box round an outline is this much (px) larger than the polygon, so outlines that merely touch
 ## still count as overlapping.
 const BOUNDS_EPSILON := 0.5
-## The bake's voxel grid (px): D16 measured a district's bake at 113 ms at 4 px against 2.0 s at 1.
+## The bake's voxel grid (px). A finer grid costs far more (a district's bake at 1 px is about 18
+## times its bake at 4: ADR 0016).
 const CELL_SIZE := 4.0
 ## The grid's height (px), the agent's and what a body stands over: only the floor's plane is baked,
 ## so these only need a few cells.
@@ -165,8 +166,8 @@ static func bake(baked: Dictionary, origin: Vector2) -> NavigationPolygon:
 ## walkable outlines are the floor of a plan-space world (x, 0, z), each obstruction outline a
 ## projected obstruction standing on it, so no piece, wall or body has a walkable top and no
 ## height of a lintel or a door can close a doorway. The agent's radius (`poly.agent_radius`) is
-## taken off in the plan, as the 2D baker did (obstructions grown by it with round joins, the
-## floor shrunk by it): the voxel baker's own erosion measures in whole cells and leaves a wall's
+## taken off in the plan (obstructions grown by it with round joins, the floor shrunk by
+## it): the voxel baker's own erosion measures in whole cells and leaves a wall's
 ## end a third nearer than its radius. The mesh is voxelised on a `CELL_SIZE` px grid laid on the
 ## WORLD's (`origin`: the region's offset), so every region's vertices fall on the cells the map
 ## merges by; its polygons (merged where the union is convex: `NavMerge`) and vertices are set on

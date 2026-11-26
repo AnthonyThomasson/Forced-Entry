@@ -1,7 +1,7 @@
 extends RefCounted
 ## Top-down pixel-art painter of the small items the shops and special rooms give up
-## (`item_painter.gd` hands a kind it does not know here; `docs/stacked-items.md` SI16), the old
-## counter's and cart's drawing: `till` (a body with a lit screen and four keys), `jar`, `pack` (a
+## (`item_painter.gd` hands a kind it does not know here; `docs/stacked-items.md` SI16), what
+## counters and carts carry: `till` (a body with a lit screen and four keys), `jar`, `pack` (a
 ## flat colour each), `instruments` (four chrome blades with their dark tips) and `syringe` (a
 ## chrome barrel with a sticker), `bottles` and `snacks` (a run of four, a seam between). Canonical
 ## frame: the front toward +y. A till, a jar and a pack are painted in their own colour (the row's,
@@ -73,7 +73,7 @@ static func _run(c: PixelCanvas, base: Color, spines: Array) -> void:
 		Kit.fill_rect(c, Rect2i(roundi(spine[0]) - 1, 0, 1, c.h), colour.darkened(0.5), 9)
 
 
-## The old shelf's cyberware: an arm (two chrome lines and the red joint), an eye (a pale disc with
+## A shelf's cyberware: an arm (two chrome lines and the red joint), an eye (a pale disc with
 ## its dark pupil), a chip (its body, a pin at every second pixel along both long edges) or a jar
 ## (a disc with a chrome ring) in `base`.
 static func _cyberware(c: PixelCanvas, base: Color, kind: String) -> void:

@@ -53,7 +53,7 @@ func control(character: Node2D, _delta: float) -> void:
 	_interact(character)
 
 
-## The cursor's aim (#194 D8): where its line meets a character's body, at that height; else, over
+## The cursor's aim: where its line meets a character's body, at that height; else, over
 ## cover that hides a body, that point on the cover; else the floor point under it, the shot flying
 ## level at the muzzle's height.
 func _aim(character: Node2D) -> void:

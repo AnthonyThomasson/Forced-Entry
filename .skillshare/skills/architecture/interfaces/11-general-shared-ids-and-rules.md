@@ -27,7 +27,7 @@
 	  world by. `WORLD` 1 (Godot's default: the house, what has come to rest) and `MOVING` 2 (what moves: Art's mirror hides its mesh outside the cone).
 	  `set_moving(item, moving)` (written only on change; Character, Items, Projectile, Physics, Vehicles call it) and
 	  `overlay(item)` (AI debug overlays, Navigation, the UI: hands `item` to `GroundLayer.adopt`, which lays it flat on the ground over the 3D view, 27; no z or bit).
-    - `SightRay` (`general/sight_ray.gd`, `RefCounted`): the one sight rule, real heights (#194 D9). **The eye ray**, in the twin space (29):
+    - `SightRay` (`general/sight_ray.gd`, `RefCounted`): the one sight rule, real heights. **The eye ray**, in the twin space (29):
 	  `SightRay.hit(space3d, from: Vector3, to: Vector3, exclude := []) -> Dictionary` is the first blocker (`TWIN_WORLD`, `TWIN_VEHICLE`, never a
 	  character; a `transparent` surface and the rids in `exclude` are looked through), {} when clear.
 	  `sees(space3d, eye: Vector3, to: Vector2, heights, exclude := []) -> bool` (first clear point ends the ask), `visible_heights(...)`,

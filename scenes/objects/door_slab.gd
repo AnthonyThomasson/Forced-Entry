@@ -1,6 +1,6 @@
 class_name DoorSlab
 extends PieceBody
-## Objects domain, a door knocked down (#194 doors3d, D18, `docs/doors.md` DR11): the free 3D body
+## Objects domain, a door knocked down (D18, `docs/doors.md` DR11): the free 3D body
 ## its leaf became when it came off its hinges, a `PieceBody` (the furniture machinery: Jolt,
 ## `push` at a real height, the tip test, the hull of its projected shape for a footprint, sleeping,
 ## the strike hand-over) shaped as the leaf, with the door's weight. It falls, tumbles and lies as

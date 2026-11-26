@@ -1,5 +1,5 @@
 extends RefCounted
-## AI BEHAVIOUR sub-domain — LOCOMOTION's agent, its part `agent` (#194 nav3d-b S3): the walk's
+## AI BEHAVIOUR sub-domain — LOCOMOTION's agent, its part `agent` (D4): the walk's
 ## `NavigationAgent3D` in plan terms. The nav is 3D (a plan point is the point (x, 0, y) of its
 ## floor, `NavPlan`), and this is the walk's seam where the agent's `Vector3`s become plan
 ## `Vector2`s and back: every consumer of a walk (`aim`, `give_way`, `leaves`) asks it what a

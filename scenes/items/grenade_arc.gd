@@ -92,8 +92,8 @@ static var _sweeps := {}
 ## How many plans have been made since the process began: a running total a test reads to see what
 ## a build asked (`tests/ai/decision/throw_groups_built_before_the_walk_test.gd`).
 static var plans := 0
-## The planner's work since the process began, in about 50 us each (before a plan remembered a
-## sweep): an arc swept (`_strike`) or a cast held level (`_level_cast`). A lob the plan has already
+## The planner's work since the process began: an arc swept (`_strike`) or a cast held level
+## (`_level_cast`), each about 50 us when it is cast. A lob the plan has already
 ## swept counts again when it is asked again, so what a plan is worth to the AI does not shrink with
 ## what it remembers. What a plan cost, counted and never timed: the AI prices its throw-spot scan
 ## by it (`ThrowSpots.block_work`), a test reads what a question took.

@@ -115,8 +115,8 @@ static func _counter(spec: FurnitureSpec, kit: MeshKit) -> void:
 
 ## What glows: the lit front of a fridge (pale blue) or a snack machine (its glass colour), a thin
 ## panel just inside the glass with a window cut for each bottle or pack (`ShopStock.windows`), so
-## the free stock stands behind it and shows against the glow round it, as the old front's bottles
-## stood against its pane. Nothing is drawn where the glass is: a clear pane has no mesh.
+## the free stock stands behind it and shows against the glow round it. Nothing is drawn where the
+## glass is: a clear pane has no mesh.
 static func _glass(spec: FurnitureSpec) -> Mesh:
 	var kit := spec.kit()
 	var area: Rect2 = ShopHollow.bays(spec)[0]["area"]
@@ -175,8 +175,8 @@ static func _pack_faces(spec: FurnitureSpec, colour: Color) -> Mesh:
 
 
 ## Where the lit pane of `spec` stands (px from the back, in the bay `area`'s frame): a fridge's
-## just inside its glass, a snack machine's flush with its face, in the light of the room as the old
-## strip was, not in the shade of the band above.
+## just inside its glass, a snack machine's flush with its face, in the light of the room, not in
+## the shade of the band above.
 static func _pane_y(spec: FurnitureSpec, area: Rect2) -> float:
 	if kind_of(spec) == "snack":
 		return area.end.y + ShopHollow.GLASS - PROUD

@@ -1,6 +1,6 @@
 class_name MeshCarrier
 extends Node3D
-## Art domain, the carrier of the bodies' meshes (#194 del2d-b3c, interface 27 and 29): the view
+## Art domain, the carrier of the bodies' meshes (interface 27 and 29): the view
 ## draws the twins' `World3D`, so every body that has a twin (a wall, a floor, a piece, a door, a
 ## vehicle, a character) shows by a mesh its domain's builder makes (`builders`: key -> `Callable`
 ## `(body: Node2D) -> Node3D`, a node of the body's own mesh in a frame whose origin is the body's;

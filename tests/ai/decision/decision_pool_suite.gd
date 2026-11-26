@@ -105,8 +105,8 @@ func test_the_throw_works_difference_does_not_follow_what_the_process_counted_be
 
 
 ## One block of the throw search ends where its work says (#194 replfix, the case the difference
-## test above stands for, run through `scan_step`): a raw candidate is a quarter-unit and the
-## planner's question four (the lob test, stubbed here to ask once and refuse), so the block cut at
+## test above stands for, run through `scan_step`): a raw candidate is a quarter-unit and one of
+## `GrenadeArc.work` four (the lob test, stubbed here to count one and refuse), so the block cut at
 ## 80 quarters ends after 16 candidates and has charged exactly 80, whatever `tested` and the
 ## planner's total stood at when it began. The first scan starts them at a residue of one, the
 ## second at another; a block cut on a floor of the running totals would end elsewhere in one of

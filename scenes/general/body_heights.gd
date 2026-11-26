@@ -1,8 +1,8 @@
 class_name BodyHeights
-## General domain, the one holder of a body's real proportions (#194, D5; the sources and the
-## method are `docs/research/3d-cover-heights.md`): the scale between metres and the sim's px, and
-## each posture's eye, muzzle (bore) and head-top height and its hit-zone bands. A `class_name`
-## holder of `static var`s, read as `BodyHeights.<name>` (ADR 0003), so a test can `set_static`.
+## General domain, the one holder of a body's real proportions (the sources and the method:
+## `docs/research/3d-cover-heights.md`): the scale between metres and the sim's px, and each
+## posture's eye, muzzle (bore) and head-top height and its hit-zone bands. A `class_name` holder
+## of `static var`s, read as `BodyHeights.<name>` (ADR 0003), so a test can `set_static`.
 ##
 ## **Scale.** 1 3D unit is 1 px (`RenderConfig.unit`) and a 1.75 m person stands 74 px, so a metre
 ## is 74 / 1.75 = 42.3 px. Every height here is px above the floor; a mesh or a collider is built

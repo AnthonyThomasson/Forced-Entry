@@ -1,13 +1,13 @@
 class_name PieceBodyConfig
-## A free piece of furniture's 3D body (`PieceBody`, #194 furn3d, D13/D14), for the Objects domain:
+## A free piece of furniture's 3D body (`PieceBody`), for the Objects domain:
 ## how it falls, rests, slides and is judged tipped. A `class_name` holder of `static var`s, read as
 ## `PieceBodyConfig.<name>` (ADR 0003). Lengths are px, 1 3D unit = 1 px (`BodyHeights`).
 
-## Gravity on a piece (px/s^2): 9.8 m/s^2 at the sim's 42.3 px a metre is 415; 412 is the figure the
-## phase-1 spike measured Jolt's pile at.
+## Gravity on a piece (px/s^2): 9.8 m/s^2 at the sim's 42.3 px a metre is 415; 412 is the figure
+## Jolt's pile is measured at.
 static var gravity: float = 412.0
 ## The floor's grip on a sliding piece (Jolt multiplies it with the floor's own): a shoved sofa
-## stops within a few px of travel as it did under the 2D drag, a tipped piece does not skate.
+## stops within a few px of travel, a tipped piece does not skate.
 static var friction: float = 0.4
 ## How springy a piece is against a wall or another piece.
 static var bounce: float = 0.05

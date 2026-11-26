@@ -65,7 +65,7 @@ Everything not listed here is private to its domain. A signature lives only in i
 25. **Main / Testing → Vision: the player's view.** Read to build or read a view: `interfaces/25-vision.md`
 26. **Any domain → General: `Pointer`.** Read to convert a screen point to a world point (and back), read the mouse's world point or the visible rect, or inject one: `interfaces/26-pointer.md`
 27. **Main → Art: `MeshCarrier`, `MeshFollower`, `CameraRig`: the 3D render.** Read for the 3D render (carried meshes, the hook) and the camera rig: `interfaces/27-render-3d.md`
-28. **Objects → World Generation: `PieceHeights`.** Read for a piece's real top and parts: `interfaces/28-piece-heights.md`
+28. **Objects ↔ World Generation: `PieceHeights`, `PieceCarries`.** Read for a piece's top, parts, carries: `interfaces/28-piece-heights.md`
 29. **Main → General, Objects, Vehicle, Character: `TwinSpace`.** Read for the twin 3D space: `interfaces/29-twin-space.md`
 
 ## Dependency graph

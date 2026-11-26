@@ -1,6 +1,6 @@
 class_name DoorBody
 extends AnimatableBody3D
-## Objects domain, the 3D leader of a standing house door (#194 doors3d, D13, interface 24 and 29,
+## Objects domain, the 3D leader of a standing house door (interface 24 and 29,
 ## `docs/adr/0014-twin-staging-and-plan-space.md`): an `AnimatableBody3D` in the twin space
 ## (`TwinSpace`), shaped as the leaf (its length, its thickness,
 ## `ObjectStructureMeshConfig.door_height` tall, built from the real leaf), locked upright and

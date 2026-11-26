@@ -35,9 +35,8 @@ extends RefCounted
 ## grenade can have fuse frames 1 apart, and the order takes them as two fuses. The trade: a search
 ## with a long fuse waits behind searches begun after it with a sooner fuse, so a far search behind
 ## a stream of sooner fuses has only its deadline for a bound, not `AGE_FRAMES` plus the work before
-## it (`escape_pool_bounds_wait`'s stream held one 60 frames of its 66; the first-begun order had
-## held it 12), and a frag thrown 20 frames after a wave of 60 round a stun is served before the
-## wave's tail (its plans landed within 9 frames, not 28).
+## it (`escape_pool_bounds_wait`), and a frag thrown just after a wave round a stun is served before
+## the wave's tail.
 
 const AgentThrow := preload("res://scenes/ai/perception/agent_throw.gd")
 ## How many physics frames a search may go unasked before it is dropped (an NPC asks every second

@@ -1,12 +1,12 @@
 class_name VehicleTwins
 extends RefCounted
-## Vehicles domain, the 3D body of a vehicle for the twin space (`TwinSpace`, interface 29, #194
-## D3/D13): a `VehicleBody`, a free 3D body locked upright that leads its 2D body, with the
-## vehicle's real shape: its whole outline from the ground to the top of its body
-## (`VehicleMeshConfig.heights`' `belt`), and the cabin, its own footprint (the `roof` rectangle of
-## the kind's `looks`), on from the belt to the roof, so a grenade rests on a roof, a bullet strikes
-## the glass and a sight line is stopped by a roof, at the real heights. On
-## `PhysicsLayers.TWIN_VEHICLE`. A dent does not reshape the body.
+## Vehicles domain, the 3D body of a vehicle for the twin space (`TwinSpace`, interface 29): a
+## `VehicleBody`, a free 3D body locked upright that leads its 2D body, with the vehicle's real
+## shape: its whole outline from the ground to the top of its body (`VehicleMeshConfig.heights`'
+## `belt`), and the cabin, its own footprint (the `roof` rectangle of the kind's `looks`), on from
+## the belt to the roof, so a grenade rests on a roof, a bullet strikes the glass and a sight line
+## is stopped by a roof, at the real heights. On `PhysicsLayers.TWIN_VEHICLE`. A dent does not
+## reshape the body.
 
 
 ## Add the hook to `space` (a `TwinSpace`).

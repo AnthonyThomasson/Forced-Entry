@@ -5,11 +5,11 @@ extends RefCounted
 ## face with two hands), `vase` (a glazed round with flowers), `fruit_bowl` (a rim ring and four
 ## fruits), `cutting_board` (grained wood and a knife), `tools` (a hammer, a wrench and a
 ## screwdriver) and `vise` (jaws and a screw handle).
-## Canonical frame: the front toward +y. The colours are the old props' (the prop palette,
-## `ObjectArtDecorConfig.prop_colors`), not the catalogue colour's run-down grade (`base`).
+## Canonical frame: the front toward +y. The colours are the prop palette's
+## (`ObjectArtDecorConfig.prop_colors`), not the catalogue colour's run-down grade (`base`).
 
 const Kit = preload("res://scenes/objects/art/paint_kit.gd")
-## Where the fruits lie from the bowl's middle, px: the old prop's four.
+## Where the four fruits lie from the bowl's middle, px.
 const FRUIT_AT: Array[Vector2i] = [
 	Vector2i(-2, -1), Vector2i(2, -2), Vector2i(1, 2), Vector2i(-2, 2),
 ]

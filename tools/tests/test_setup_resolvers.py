@@ -216,6 +216,10 @@ class GodotTests(Scratch):
         self.assert_found(binary)
 
     def test_another_version_in_the_install_folder_is_not_used(self):
+        # /Applications is the one place the lookups search that the test's environment cannot move.
+        apps = list(Path("/Applications").glob("Godot*.app/Contents/MacOS/Godot")) if MACOS else []
+        if apps:
+            self.skipTest(f"this Mac has a Godot of its own, which the lookups rightly answer with: {apps[0]}")
         write_exe(self.home / "godot" / "3.0-stable" / "Godot_v3_win64_console.exe")
         for impl, got in self.find_godot().items():
             if not got:
@@ -269,11 +273,11 @@ class GodotTests(Scratch):
 
 class PythonTests(Scratch):
     """fe_find_python's order: $PYTHON, python3.14/3.13/3.12 (PATH, then Homebrew's folders), python3, py -3, python,
-    each only if it runs and is PYTHON_MIN (3.12) or newer. PATH is the fakes plus the folder of `tr` and `cygpath` (all
-    it runs), so only a fake answers; FE_PYTHON_EXTRA_DIRS (Homebrew's folders) is a folder of the test's own."""
+    each only if it runs and is PYTHON_MIN (3.12) or newer. PATH is the fakes plus the folders of `tr`, `uname`, `cygpath`
+    (all it runs) and `bash` (a fake's `env bash` looks for it; macOS keeps it in /bin), so only a fake answers; FE_PYTHON_EXTRA_DIRS (Homebrew's folders) is a folder of the test's own."""
 
     def env(self, **over) -> dict:
-        tools = {Path(shutil.which(n)).parent for n in ("tr", "uname") if shutil.which(n)}
+        tools = {Path(shutil.which(n)).parent for n in ("tr", "uname", "bash") if shutil.which(n)}
         # A folder that holds a real Python (macOS's /usr/bin) comes after the fakes, which shadow it.
         path = os.pathsep.join([str(self.bin)] + [str(d) for d in sorted(tools)])
         return child_env(**{"PATH": path, "FE_PYTHON_EXTRA_DIRS": "", **over})

@@ -7,7 +7,7 @@ extends RefCounted
 ##   `book`: a cover with a spine along the left and the page edge on the right;
 ##   `desk_lamp`: a round shade with a bright bulb at its middle;
 ##   `monitor`: a screen seen from above, its dark back with the lit front edge (glowing, in the
-##     screen's green or the piece's neon) and a stand's foot, in the old prop's palette;
+##     screen's green or the piece's neon) and a stand's foot, in the prop palette;
 ##   `box`: a cardboard box with tape across its lid;
 ##   `crate`: a wooden crate with a slat each way.
 ## Canonical frame: the front toward +y; the catalogue colour is the item's own.
@@ -71,7 +71,7 @@ static func _plate(c: PixelCanvas, base: Color) -> void:
 
 ## A cup: the body, a dark well and a nub for the handle.
 static func _cup(c: PixelCanvas, base: Color, plain: bool) -> void:
-	if plain:  # The old mug: a ceramic round full to the rim with its coffee, a handle nub.
+	if plain:  # A plain mug: a ceramic round full to the rim with its coffee, a handle nub.
 		var mug := _middle(c)
 		Kit.disc(c, mug, _round(c), base, 5)
 		Kit.disc(c, mug, maxi(1, _round(c) - 1), ObjectArtDecorConfig.prop_colors["coffee"], 5)
@@ -84,16 +84,16 @@ static func _cup(c: PixelCanvas, base: Color, plain: bool) -> void:
 	Kit.disc(c, at, maxi(1, radius - 1), base.darkened(0.55), 5)
 
 
-## A bowl: the rim and a dark well. A bowl a row gives a `well` (`given`: a noodle bowl's broth) is
-## the old noodle painter's: a rim of its own colour out to the footprint's edge and the well two
-## pixels in, no outline ring (the rim read a pixel smaller each side).
+## A bowl: the rim and a dark well. A bowl a row gives a `well` (`given`: a noodle bowl's broth) has
+## a rim of its own colour out to the footprint's edge and the well two pixels in, no outline ring
+## (with one the rim reads a pixel smaller each side).
 static func _bowl(c: PixelCanvas, base: Color, plain: bool, well: Color, given: bool) -> void:
 	var at := _middle(c)
 	if given:
 		Kit.disc(c, at, _round(c), base, 4)
 		Kit.disc(c, at, maxi(1, _round(c) - 2), well, 4)
 		return
-	if plain:  # The old bowl: a ceramic round, its outline darker, a slightly darker inside.
+	if plain:  # A plain bowl: a ceramic round, its outline darker, a slightly darker inside.
 		Kit.disc(c, at, _round(c), base.darkened(0.35), 4)
 		Kit.disc(c, at, maxi(1, _round(c) - 1), base, 4)
 		Kit.disc(c, at, maxi(1, _round(c) - 2), well, 4)
@@ -104,7 +104,7 @@ static func _bowl(c: PixelCanvas, base: Color, plain: bool, well: Color, given: 
 	Kit.disc(c, at, maxi(1, _round(c) - 3), base.darkened(0.4), 4)
 
 
-## Keys lying in a bowl centred on `at`: a metal ring and the line of a key (the old prop's).
+## Keys lying in a bowl centred on `at`: a metal ring and the line of a key.
 static func _keys(c: PixelCanvas, at: Vector2i) -> void:
 	var metal: Color = ObjectArtDecorConfig.prop_colors["metal"]
 	Kit.disc(c, at + Vector2i(-1, 0), 1, metal, 5)
@@ -128,7 +128,7 @@ static func _desk_lamp(c: PixelCanvas, base: Color) -> void:
 	Kit.disc(c, at, 1, Color(1.0, 0.95, 0.7), 14)
 
 
-## A monitor from above, as the old prop was drawn (`props.gd`): the screen's dark back, its lit
+## A monitor from above: the screen's dark back, its lit
 ## front edge (glowing, the screen's green or `opts`'s neon), a neck and the stand's foot. Its
 ## colours are the prop palette's, not the catalogue colour's run-down grade.
 static func _monitor(c: PixelCanvas, opts: Dictionary) -> void:

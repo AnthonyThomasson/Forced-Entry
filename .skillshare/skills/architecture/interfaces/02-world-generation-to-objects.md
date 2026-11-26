@@ -1,4 +1,5 @@
 2. **World Generation → Objects** (the only way world-gen makes entities)
+   - What an emptied piece carries (`PieceCarries`, the prop palette): `interfaces/28-piece-heights.md`.
    - `SharedTextures.requests() -> Array` — the complete PixelArt request dictionaries every district shares:
 	 road glyphs, crossings, podiums, awnings and glyph signs, shell decor, and the tower shadows derived from the supplied
 	 `{ size, half, length, depth, podium }` footprints (`podium`: the segment lengths a plan stands with). `WorldGen.prewarm` hands these to Art; no nodes are built. `ObjectArt.flat_request(art, size, color, opts)` and `tile_flat_request(art, color, material, opts)` are the flat (`"flat": true`, no `facing`) twins of a request, for the 3D render's textures (`flat`, `tile_flat` paint them; empty for an unknown art id).
