@@ -20,6 +20,10 @@ carrier hangs it on the body's twin (`TwinSpace.twinned`), which stands and turn
   use `MeshNodes.batch` with a `MeshPool` (its places taken and given back, no hole; Projectile's `ShotLayer` does) instead of a node and a mesh each. `follower.md`.
 - Tests: `tests/art/mirror_mesh_hook_test.gd`, `mirror_hook_keys_test.gd`, `mirror_mesh_lifecycle_test.gd`, `mirror_follows_rebuilt_colliders_test.gd`.
 
+**Still meshes** (`still_rows.gd`). A mesh with no `mirror_update`, turn or rider, of a body in none of `MirrorVisionConfig.seen_first` (nearly every piece of a district), is
+held apart: each frame it is asked only whether its body or mesh is gone, its body's `visible` changed or it is on `ViewLayers.MOVING`, and then it gets the full look the others get. A shown rule
+that would make a still mesh depend on anything else must be asked there too. Test: `tests/art/mirror_still_piece_shown_rules_test.gd`.
+
 ## Keeping a mesh in step: which to use
 
 | The mesh changes by | Use |

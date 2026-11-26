@@ -21,7 +21,9 @@ extends Node3D
 ## The carrier keeps the shown rules each frame: a mesh is hidden while its body's `visible` is
 ## off, its character is seated in a vehicle or the player's view does not reach it
 ## (`MirrorSight`), and marked moving for the shaders (`MeshNodes.moving`). A body that dies has its
-## mesh hidden unless the mesh says to stay.
+## mesh hidden unless the mesh says to stay. A still mesh (no hook, turn or rider, of a body the
+## view remembers: `StillRows`) is looked at in full only when the one thing that can change what it
+## shows did: nearly every piece of a district is one.
 ##
 ## A mesh that changes without its body's transform changing (a limb, a crouch, a wheel's spin) has
 ## two ways: a `mirror_update(body)` method on the mesh node, called each frame the mesh shows, or
@@ -32,6 +34,8 @@ extends Node3D
 ## A builder made `mesh` for the physics body `body` (again when the body's mesh is built again):
 ## what a domain-blind watcher of the meshes (the wall fade) connects to.
 signal built(body: Node, mesh: Node3D)
+
+const StillRows := preload("res://scenes/art/mirror/still_rows.gd")
 
 ## The mesh hook: key (a kind, or a finer key) -> `Callable(node) -> Node3D`. Set before `carry()`.
 var builders: Dictionary = {}
@@ -44,8 +48,10 @@ var _root: Node
 var _twins: TwinSpace
 ## Body instance id -> its rows (one per mesh: see `MeshKinds.row_of`, plus `twin` and `turns`).
 var _rows: Dictionary = {}
-## The rows that need a look each frame, swap-removed when a body leaves.
+## The rows that need a full look each frame, swap-removed when a body leaves.
 var _moving: Array[Dictionary] = []
+## The still rows, which need one only when what they show can have changed.
+var _still := StillRows.new()
 ## Bodies whose mesh is to be built (again) on the next update.
 var _pending: Dictionary = {}
 ## What the player's view has seen and what it hides (`MirrorSight`).
@@ -60,6 +66,7 @@ func _exit_tree() -> void:
 	for id: int in _rows.keys():
 		for row: Dictionary in _rows[id]:
 			row["gone"] = true
+			_still.remove(row)
 			if is_instance_valid(row["node"]):
 				(row["node"] as Node).queue_free()
 			count -= 1
@@ -126,8 +133,10 @@ func remirror(node: Node2D) -> void:
 ## its shown state, a character's turn and the mesh's own update.
 func update() -> void:
 	_mesh_pending()
-	followed = 0
+	followed = _still.size()
 	written = 0
+	for row: Dictionary in _still.changed():
+		_look(row)
 	var i := 0
 	while i < _moving.size():
 		var row: Dictionary = _moving[i]
@@ -145,6 +154,20 @@ func update() -> void:
 		var hook: Callable = row["update"]
 		if hook.is_valid() and row["shown"]:
 			hook.call(row["body"])
+
+
+## The full look at a still row that changed: gone with its body, built again when its mesh was
+## lost, else shown as the rules say.
+func _look(row: Dictionary) -> void:
+	if row.get("gone", false):
+		return
+	if not is_instance_valid(row["body"]):  # untyped: may be freed
+		_free_row(row)
+	elif not is_instance_valid(row["node"]):
+		_lost(row)
+	else:
+		_sync_shown(row)
+		_still.looked(row)
 
 
 ## Show or hide `row`'s mesh as the rules say (`_shown`) when that changed, and mark the mesh as a
@@ -176,9 +199,14 @@ func _shown(row: Dictionary) -> bool:
 func _retire(row: Dictionary, index: int) -> void:
 	_moving[index] = _moving.back()
 	_moving.pop_back()
-	if row.get("gone", false):
-		return
+	if not row.get("gone", false):
+		_free_row(row)
+
+
+## A body freed with no exit signal: its mesh and its row go at once.
+func _free_row(row: Dictionary) -> void:
 	row["gone"] = true
+	_still.remove(row)
 	var mesh: Variant = row["node"]
 	if is_instance_valid(mesh):
 		(mesh as Node).queue_free()
@@ -263,16 +291,31 @@ func _carry(body: Node2D) -> void:
 	if row["turns"]:
 		_turn(row)
 	count += 1
-	# a character, a piece, a door or a vehicle (a plan handle in HARD that is no wall)
+	_file(body, row)
+	_rows[body.get_instance_id()] = [row]
+	_watch(body)
+
+
+## File `row` among those looked at each frame, if it needs a look at all: a character, a piece, a
+## door or a vehicle (a plan handle in HARD that is no wall), one hidden now or one with an update.
+## It is a still one when nothing of it runs each frame (no hook, turn or rider) and its body is
+## none the view shows only once it has been seen (`MirrorVisionConfig.seen_first`).
+func _file(body: Node2D, row: Dictionary) -> void:
+	var hooked := (row["update"] as Callable).is_valid()
 	var moving := (
 		body.is_in_group(&"characters")
 		or body.is_in_group(TwinSpace.PIECES)
 		or (body.is_in_group(TwinSpace.HARD) and not body.is_in_group(TwinSpace.WALLS))
 	)
-	if moving or not row["shown"] or (row["update"] as Callable).is_valid():
+	if not (moving or hooked or not row["shown"]):
+		return
+	var seen_first := MirrorVisionConfig.seen_first.any(
+		func(group: StringName) -> bool: return body.is_in_group(group)
+	)
+	if hooked or row["turns"] or row["rides"] != null or seen_first:
 		_moving.append(row)
-	_rows[body.get_instance_id()] = [row]
-	_watch(body)
+	else:
+		_still.add(row)
 
 
 ## A carried body's twin was replaced (`TwinSpace.retwin`: a knocked-down door's `DoorBody` by a
@@ -341,6 +384,7 @@ func _drop(body: Node) -> void:
 	var id := body.get_instance_id()
 	for row: Dictionary in _rows.get(id, []):
 		row["gone"] = true
+		_still.remove(row)
 		var node: Variant = row["node"]  # untyped: a carried mesh goes with its freed twin
 		if is_instance_valid(node):
 			if (node as Node).get_parent() != null:
@@ -389,3 +433,4 @@ func _on_body_died(body: Node) -> void:
 			continue
 		mesh.visible = false
 		row["gone"] = true  # no longer looked at: the update drops it from the list
+		_still.remove(row)
