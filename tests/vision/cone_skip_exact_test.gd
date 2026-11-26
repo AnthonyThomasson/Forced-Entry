@@ -156,7 +156,7 @@ func _still(t: TestContext, checker: Checker) -> void:
 
 ## The fewest cones published (and frames the cone changes in, and jobs started) over the 90
 ## frames of the turning viewer: a job of these houses is two frames (the corners,
-## `VisionSliceConfig.cost_shape` 225 units, and the first rays fill a slice, the rest of the rays
+## priced about 200 units, and the first rays fill a slice, the rest of the rays
 ## are the next), so a cone is published every other frame, 45 of them (40: it was 60 when the
 ## corners were priced as one unit and a house's job was one frame; the longer lag is the user's
 ## choice, 2026-11-12, #195, and its price 2026-11-19); sliced, a cycle of a job is

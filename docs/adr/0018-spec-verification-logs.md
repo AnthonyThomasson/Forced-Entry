@@ -2,8 +2,8 @@
 
 Recorded for #194 (docs sweep, job 20). `docs/grenades.md`, `docs/outfits.md` and `docs/vehicles.md` opened with a dated **Verification** paragraph each: what a
 feature's wrap-up ran (lint, the suite, repeats, loads) and read in October 2026. They are history, not behaviour, so they left the specs; they are kept here
-unedited. Every count, test id and number was true of that commit and none is a claim about the code now: `general/fill_batch_matches_draw_calls`, `general/use_vehicle_key`
-and `_harness/catalog_selection` no longer exist (the second was renamed `general/space_vehicle_key`), and the perf figures are of the 2D build.
+unedited. Every count, test id and number was true of that commit and none is a claim about the code now: `general/fill_batch_matches_draw_calls` and `general/use_vehicle_key`
+no longer exist (the second was renamed `general/space_vehicle_key`), and the perf figures are of the 2D build.
 
 **Decision.** A behaviour spec says what the code does and which tests assert it; the log of one run of the checks belongs to the commit or the pull request, and where
 it is kept for the record it goes in an ADR, not in the spec.
@@ -29,7 +29,8 @@ real Von server: 53 passed, 0 failed. `general/fill_batch_matches_draw_calls` an
 wrap-up before the audit's fixes saw one 94 ms frame of `perf/hit_overload_stress` in the whole suite (load 4.5 to 5.2, its average 12.1 and p95
 14.0 within); it did not come back in 16 runs alternated with origin/main under a parallel load of 4.0 to 7.6, 3 more each alone at a load of 3 or
 less (the branch at or below origin/main: avg 10.4-10.6 against 11.3-12.2), nor in this suite or the `--domain=perf` run below. The perf numbers
-are under Performance below.
+are under Performance below. *(Added 2026-11: that section of the spec is now in `docs/adr/0017-district-perf-measurement-history.md`,
+"From `docs/grenades.md`".)*
 
 ## From `docs/outfits.md`
 

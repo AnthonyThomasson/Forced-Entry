@@ -20,21 +20,24 @@ extends RefCounted
 ## about is dropped after `STALE_FRAMES` (and is not served again if asked about), one whose NPC
 ## is gone is cancelled. The order is made once a frame.
 ##
-## **The bound on a wait** (for an owner asking at least every `STALE_FRAMES`: one that does not
-## has its search dropped and begins another). A search's deadline is its grenade's fuse frame less
+## **The bound on a wait** (for an owner asking at least every `STALE_FRAMES`: one that does not has
+## its search dropped and begins another). A search's deadline is its grenade's fuse frame less
 ## `ARRIVE_MARGIN`: the latest its plan may land and still arrive. Once urgent, a search is behind
-## only the urgent searches whose grenade goes off sooner (or as soon, and begun first), so it
-## lands when the work of those has been served: within `AGE_FRAMES` (until it is urgent) plus
-## that work over the pool and the urgent extra. So (1) among searches of one fuse (or of a fuse no
-## sooner than the searches begun before it) a search lands within `AGE_FRAMES` plus the work of
-## the searches begun before it or on its frame, over the pool, whatever begins after it; (2) a
-## search lands by its deadline whenever the work of the searches whose fuse is no later than its
-## own fits in the time (the sooner fuse first is the order that misses fewest). The trade: a
-## search with a long fuse waits behind searches begun after it with a sooner fuse, so a far search
-## behind a stream of sooner fuses has only its deadline for a bound, not `AGE_FRAMES` plus the
-## work before it (`escape_pool_bounds_wait`'s stream held one 60 frames of its 66; the first-begun
-## order had held it 12), and a frag thrown 20 frames after a wave of 60 round a stun is served
-## before the wave's tail (its plans landed within 9 frames, not 28).
+## only the urgent searches whose grenade goes off sooner (or as soon, and begun first), so it lands
+## when the work of those has been served: within `AGE_FRAMES` (until it is urgent) plus that work
+## over the pool and the urgent extra. So (1) among searches of one fuse (or of a fuse no sooner
+## than the searches begun before it) a search lands within `AGE_FRAMES` plus the work of the
+## searches begun before it or on its frame, over the pool, whatever begins after it; (2) a search
+## lands by its deadline whenever the work of the searches whose fuse is no later than its own fits
+## in the time. Under overload nothing is promised: a search past its deadline has the soonest fuse
+## of the urgent ones, so it heads them, ahead of searches that could still make theirs. A fuse
+## frame is the fuse left rounded to frames from the frame the search began, so two NPCs fleeing one
+## grenade can have fuse frames 1 apart, and the order takes them as two fuses. The trade: a search
+## with a long fuse waits behind searches begun after it with a sooner fuse, so a far search behind
+## a stream of sooner fuses has only its deadline for a bound, not `AGE_FRAMES` plus the work before
+## it (`escape_pool_bounds_wait`'s stream held one 60 frames of its 66; the first-begun order had
+## held it 12), and a frag thrown 20 frames after a wave of 60 round a stun is served before the
+## wave's tail (its plans landed within 9 frames, not 28).
 
 const AgentThrow := preload("res://scenes/ai/perception/agent_throw.gd")
 ## How many physics frames a search may go unasked before it is dropped (an NPC asks every second

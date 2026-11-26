@@ -39,8 +39,13 @@ static func map_in(world: World2D) -> RID:
 	return RID()
 
 
-## Note that `world`'s map is `world3d`'s, dropping the notes of worlds that are gone.
+## Note that `world`'s map is `world3d`'s, dropping the notes of worlds that are gone. A note
+## already held is left alone, so a `map_of` asked again does no work (the dead notes go at the next
+## new one).
 static func _remember_bare(world: World2D, world3d: World3D) -> void:
+	var held: Array = _bare.get(world.get_instance_id(), [])
+	if held.size() == 2 and held[0].get_ref() == world and held[1].get_ref() == world3d:
+		return
 	for id: int in _bare.keys():
 		var entry: Array = _bare[id]
 		if entry[0].get_ref() == null or entry[1].get_ref() == null:

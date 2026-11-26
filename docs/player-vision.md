@@ -56,7 +56,7 @@ mix and never extrapolated** (the memory, V4, never holds area no eye saw). It i
 in tick f publishes in tick f+k-1 and the next starts in f+k, so the cone shown is at most 2 (k - 1) frames old. **Usually that is 2 ticks, up to 2
 frames; a job of 3 ticks is up to 4 frames old, and the longest of a district's grid (5 ticks) up to 8** (`vision/pose_lag_bounds` still holds a job to 6 ticks, 10 frames). In the 10v10 district's grid of eyes (`perf/cone_corner_cost`, 2026-11-19, under load: 5.35, 2 busy Godot) a job was a median 2 ticks, 10 % took more
 than 3 and the most took 5 (the rays of a district job were a median 495 units, so at a slice of 450 the median job is the start tick, the corners and a first part of the rays, and one more). The bound was longer than the 2 to 4 of the cone as first
-sliced (a job of 6 ticks, 10 frames, from 2026-11-12) because its corners were priced at a slice; the user chose, on 2026-11-19, to price them at what they cost in the twin space. **The corners are priced at their cost** (`cost_shape` 105 and `cost_hits` 35 a chunk, 210 for a median read, the user's 225 held by `perf/cone_corner_cost`: the region shape query and its
+sliced (a job of 6 ticks, 10 frames, from 2026-11-12) because its corners were priced at a slice; the user chose, on 2026-11-19, to price them at what they cost in the twin space. **The corners are priced at their cost** (`cost_shape` 95 and `cost_hits` 35 a chunk, 200 for a median read, the user's 225 held by `perf/cone_corner_cost`: the region shape query and its
 polygons are about 200 to 225 units of ray work, 1.4 to 1.5 ms with the machine loaded, about 1 ms quiet), so the tick that starts a job does the corners and then the first rays up to the slice (a crowded region asked again is priced for each ask, and can fill the slice with them): a start tick is about a slice, not the 6 to 7 ms of corners priced as one unit, and a job is a start tick plus its remaining rays' ticks (a house's is one or two ticks, a 10v10 district's two for most eyes). What the viewer's pose does meanwhile is not asked: **a change of
 the eye or the facing alone lets the job finish on the pose it started from**, and the next job starts from the live pose. **A change
 of the world between slices restarts the job from the live pose** (a blocker within reach moved by more than `ViewWatch.STILL_PX`, 0.05 px, from where the job's snapshot has it, changed shape, joined or left, a
@@ -263,6 +263,8 @@ side and none beyond the cut; a moving box outside the cone casts no shadow on t
 **Sound.** There is no on-screen hint for gunfire or footsteps heard out of view; sound stays as it is (`docs/hearing.md` is the
 AI's side).
 
+An emptied shelf (`docs/stacked-items.md` SI13) is hollow: a viewer in front looks into a compartment between its boards and sees the back, as a shelf's front is open; its back and its sides stop sight at every height. Test: `objects/hollow_shelf_compartments_are_open`.
+
 ## Out of scope
 
 Any view in Main's Watch and Endless (no spectator view, no side views), a view for NPCs in Main's matches (a test world can view
@@ -306,7 +308,7 @@ frames later, the backstop that bounds it; a feature that makes one change must 
 `feather` 16; `cone_rays` 64, `bubble_rays` 48, `corner_offset` 0.0002 rad; `far_depth` 120, `far_bleed` 14;
 `rebuild_every` 10. `VisionGroundConfig` (the masks, V12): `live_side` 768, `window_margin` 1.25, `window_slack` 1.8,
 `seen_scale` 0.5, `seen_max_side` 2048, `unseen_brightness` 0, `settle_frames` 2. `VisionSliceConfig`: `slice_units` 450 (about 3.5 ms of engine work a physics tick; a unit is a ray cast, a region shape
-query or a far-face probe, priced `cost_cast` 1, `cost_shape` 105 and `cost_probe` 1, and the corners' polygons and dedupe `cost_hits` 35 a chunk of `hit_chunk` 32 hits: the corners are priced at their cost in the twin space, **210 units as the code prices them** (`cost_shape` 105 for the query + 3 chunks of `cost_hits` 35, the median read of a district), **225 the price `perf/cone_corner_cost` pins them at** (the user's, 2026-11-19: it holds the measured cost within a 15 % band of it, and a read measures about 213). The split of the 210 between query and chunks is a choice that is not the honest cost (query 60, chunk 50): it holds a crowded region's cone at the 4 frames of `vision/view_on_npc`, where the honest split makes it 6, a crowded region (7 chunks) costing about 0.5 ms over its nominal slice), `restart_cap` 2, `jump_px` 48, `settle_px` 1. `CharacterVisionConfig`: `fov_degrees` 110, `view_distance` 2520, `awareness_radius` 48 (what the eye looks over is `BodyHeights.eye` of its
+query or a far-face probe, priced `cost_cast` 1, `cost_shape` 95 and `cost_probe` 1, and the corners' polygons and dedupe `cost_hits` 35 a chunk of `hit_chunk` 32 hits: the corners are priced at their cost in the twin space, **200 units as the code prices them** (`cost_shape` 95 for the query + 3 chunks of `cost_hits` 35, the median read of a district), **225 the price `perf/cone_corner_cost` pins them at** (the user's, 2026-11-19: it holds the measured cost within a 15 % band of it, and a read measures about 213). The split of the 200 between query and chunks is a choice that is not the honest cost (query 60, chunk 50): the chunk's 35 holds a crowded region's cone at the 4 frames of `vision/view_on_npc` (37 gives 5, the honest 55 gives 6), so a crowded region (7 chunks) costs about 0.5 ms over its nominal slice), `restart_cap` 2, `jump_px` 48, `settle_px` 1. `CharacterVisionConfig`: `fov_degrees` 110, `view_distance` 2520, `awareness_radius` 48 (what the eye looks over is `BodyHeights.eye` of its
 posture, 69 px standing and 32 px ducked, no number of its own). The reach of a mover hidden by the view is `MirrorVisionConfig`'s (`moving_reach` 60, `vehicle_reach` 130). The look and the 16 px edge were picked by eye,
 against a flat 45 % grey (too dark and flat), a full-brightness grey (too close to the live world), a hard edge (a harsh line) and
 a 40 px feather (it smears the cone).
@@ -314,167 +316,24 @@ Tests: `vision/pose_lag_bounds` (`slice_units`, `jump_px`), `vision/cone_restart
 
 ## Measured cost
 
-**2026-11-24, perf-view2: the settling job, and the corners' list reused (tried, not kept) (#194 perf3d, same window, seed 23, load 8 to 55 so the ms are noisy and the counters exact; three alternating pairs against the ticket's tip).** The fight and the counters are the same in both arms. **Kept: the settling job** (V1): at the restart cap a change that is slow moves only goes on as a job instead of a whole build: whole builds (`cap`) **8 -> 3-4 in 301 frames**, units 279 -> 269 a frame, the cone's p99 **9.6 to 11.1 -> 7.4 ms**, avg 2.91, 2.98, 3.26 (tip) against 2.89, 3.02 (settling only), p95 6.2 to 6.9 against 6.3 to 6.6; the worst frame stays about 11.6 to 12 ms (a cap that is not slow moves, and a start tick that costs a full slice, 4.5 to 5 ms loaded). The lags at the restarts were all under 1 px (0.0 to 0.95: a settling shelf), which is why `settle_px` is 1. **Not kept: the corners list reused across jobs** (the lever the last pass named, about -1 ms). Built exact (a list read once for the eye +-24 px and the facing +-0.3 rad, used while the next jobs stay inside, nothing it holds moved or changed, under `rebuild_every` frames old; the whole vision suite and `vision/cone_skip_exact`'s checker held every cone to the reference), it reused the list in 42 of 124 jobs (the others read one: a wall dented by the fight 21 times, a blocker that moved in reach 30, the age cap 13, a facing turn 7) and the extra the wider region costs (about +40 % corners to read and to walk for every job, 1.3 ms more on a read) took what it saved: avg 3.07 against 2.95, p95 7.2 against 6.4, with margins of 10 px and 0.1 rad (28 of 121 jobs reused) no better (2.97, 2.99 against 2.91, 3.26 tip; p95 6.6, 6.8 against 6.2, 6.9). The corners' 2.2 ms per job is 0.8 ms of the shape query and **1.4 ms of the loop over its hits** (227 hits, 1,337 points, a polygon check and a dedupe cell each), so a lever that pays is a cheaper loop (a polygon the watch knows is unmoved needs no check; a keyed dedupe) or the polygons of a hit kept across jobs, not the query. `ViewWatch` keeps no list today.
+The corners are two stages (`ViewCone`: the region query, then its hits folded 32 at a time), so a slice can end between them (`cost_shape` 95 a query, `cost_hits` 35 a chunk: a median 3 chunks, 200 units, near the sum a read measures; the polygon is the same vertex for vertex, `vision/cone_sliced_matches_whole`, `vision/cone_same_after_savings`). A shape's dedupe cells (half-pixel cell to corner, the lesser of two in a cell) are made once with its polygon and kept with it, and the fold merges them into the job's one dictionary a shape in one step (only a shape that shares a cell with one met before is looked at corner by corner); the distinct corners are that dictionary's values, in the order first met. `ViewWatch.built` skips a blocker that stands where it did.
+The prices are `VisionSliceConfig`'s (Tunables, above): the corners' 225 is held by `perf/cone_corner_cost` for the whole, the query and the
+chunks each within 2x of what they measure.
+Tests: `vision/cone_corners_priced` (the query and chunks priced, the rays after what is left of the slice), `vision/cone_slice_units`, `perf/cone_corner_cost`.
 
-**2026-11-24, where the view's frame goes in the guard (#194 perf3d, seed 23, the `perf/match_npc_vision` window, a probe of its own, a physics-tick bracket round the view, loaded machine).** The cone cost **3.73 ms a frame** (p95 8.4, max 10.5). Its parts: a start tick or restart is a slice (450 units, 4.1 to 4.8 ms); the corners are 2.2 ms of a job's 735 units (262 jobs, about 880 corners each: the dedupe loop and the polygons, so `cost_shape` 225 is the right price); a check with no job in flight costs 0.45 ms (a walk of 482 blockers, 267 us, and 311 colliders with no twin asked again, 146 us). **The tail is restarts, not slices:** 76 of the run's 164 restarts ended in a whole build (`cap`, 8 to 10 ms, 956 units), every fourth frame for stretches of 30 frames, because a shoved bookshelf that was settling moved 0.0005 to 0.003 px a frame and each move restarted the job (`moved_then`, 212 of 240 restarts; the world watch names no move too small). The twin-space word above takes the 146 us; the blocker walk is 150 us now (no call in a frame nothing moved). **Landed, on the user's word (2026-11-24): the creep rule of V1** (a blocker that moved under 0.05 px is where it was): the same window read 3.07 ms, p95 6.4, 18 whole builds for 76, the fight unchanged. Next lever: the corners' list reused by the next job while the eye and facing stay within a margin and no blocker moved (about -1 ms, the 2.2 ms off every second tick).
+A collider's top is read once and kept (`ViewWatch`; it does not change in play), so a viewer that ducks or rises moves bodies between the
+blockers and the looked-over by it and measures only those that start to block; no collider is sorted again from nothing.
+Suite: `tests/vision/view_watch_posture_suite.gd`.
 
-**2026-11-24, the cone's one-off frames (#194 perf-view3, `perf/match_npc_vision`, seed 23, a probe round each cone tick, loaded machine: three alternating plays each of the tip and the change).** The window's worst frames were the cone's: a frame of 26 to 33 ms (cone 24 to 28 ms) that followed four to nine frames of no cone work. **Cause:** the viewer, idle in a fight, changed posture (ducked or rose to fire), the eye height changed, and `ViewWatch` sorted every collider of the tree again from scratch (`_read_new` cleared and classified all of them: a twin read, a top, a measure, signals, 16 ms of the 26 in a 1,300-body district) before the 450-unit start slice. **Now** a collider's top is kept (`_known`, id to top; it does not change in play, as `ViewWatch` already assumed) and a new eye height moves bodies between the blockers and the looked-over by it, measuring only those that start to block (`vision/view_watch_posture_suite`, which the old sort fails). The cone's max over three plays fell from 26 to 33 ms to 15 to 20; what is left is the whole builds past the restart cap (2 in 300 frames, 1,500 to 1,800 units, 9 to 14 ms: the cap's rule stands, one exact cone in one frame; a cone built across frames from a moving world is not exact, and is a decision for the spec).
-The corners are two stages (`ViewCone`: the region query, then its hits folded 32 at a time), so a slice can end between them (`cost_shape` 105 a query, `cost_hits` 35 a chunk: a median 3 chunks, 210 units, the sum a read measures (2026-11-24, below); the polygon is the same vertex for vertex, `vision/cone_sliced_matches_whole`, `vision/cone_same_after_savings`). A shape's dedupe cells (half-pixel cell to corner, the lesser of two in a cell) are made once with its polygon and kept with it, and the fold merges them into the job's one dictionary a shape in one step (only a shape that shares a cell with one met before is looked at corner by corner); the distinct corners are that dictionary's values, in the order first met. `ViewWatch.built` skips a blocker that stands where it did. Test: `vision/cone_corners_priced` (the query and chunks priced, the rays after what is left of the slice), `vision/cone_slice_units`.
+The live cone is held vertex for vertex to `tests/_vision/reference_view_cone.gd`, the plainest form of V1's rule: it keeps nothing between
+builds and casts every ray plainly. It is the yardstick: change it only with this spec.
+Test: `vision/cone_same_after_savings`.
 
-**2026-11-19, the corners re-priced for the twin space (#194 del2d; the user chose A, to price them at what they cost: `cost_shape` 225, not a slice).** `perf/cone_corner_cost` (the 10v10 district, 168 reads, load 5.35, 2 busy Godot, so the times are inflated and the ratio is what is read): the corners took **1,428 µs** against **7.02 µs** a unit of the rest of the job, so **198 units** (p25 104, p75 304; 203 on an earlier run at load 13; the 2D query had been 372 to 374), `cost_shape` 450 would have been 2.3 times that, outside the test's 2x, and 225 is within it. A job at the default slice is a median **2 ticks (max 5; 10 % over 3)** (3, 6 and 26 % before, below), so a cone shown is up to 2 times (ticks - 1) frames old: usually up to 2, at most 8 in the grid. The tick figures were measured loaded and not on a quiet machine: perf3d re-measures them (`--quiet`). `perf_ab.sh` of the twin-space cone, 29e423bc against 0fa52306 (before this re-pricing), 4 rounds: `perf/match_npc_vision` avg -0.5 %, the 10v10 guard -2.1 %, 5v5 -0.2 %, grenade -1.1 %; not re-run for the price (it moves when a rebuild's rays are cast, not how many).
-
-**2026-11-12, the corners priced at a slice (#195, cone-start; superseded by the re-pricing above; `--quiet` runs, none marked loaded, load 4.7 to 7.5, 0 busy Godot).**
-`perf/cone_corner_cost` (the 10v10 district, 168 reads: a grid of eyes and facings, each the median of 5): the corners (`begin` and the first
-step: the region shape query, its polygons, the dedupe) took **1,982 and 1,937 µs** against **5.51 and 5.35 µs** a unit of the rest of the job
-(rays, far-face probes, visibility casts), so **372 to 374 units** (p25 168, p75 627 by eye), where `cost_shape` had been 1. It is 450 now, a
-slice, so the tick that starts a job holds the corners (about 2 ms) and no rays, not the corners plus 449 units (about 6 to 7 ms). The
-cost is a tick more a job: at the default slice a district job was a median 2 ticks (max 5; 11 % over 3) and is a median **3 (max 6; 26 % over
-3)**; the cone shown is 2 times (ticks - 1) frames old at most (V1 has the figures). `perf_ab.sh` same-fight, base `5343aa38`,
-tip `dc3fa0dc`, 4 rounds, the fight unchanged (the cone steers no NPC): `perf/match_npc_vision` avg 16.94 to 16.29 ms (-0.65), p95 28.83 to
-28.52, max 43.52 to 39.19 (-4.33); the three guards with no view moved by noise (avg +0.03, +0.06, +0.34). `perf/match_npc_vision_relative`, one run:
-parked -0.13 ms, ratio 0.08; moving 1.34 ms (2.0 to 2.1 before), ratio 0.19 (0.25 to 0.26 before).
-Tests: `perf/cone_corner_cost`, `vision/cone_corners_priced`, `perf/match_npc_vision`, `perf/match_npc_vision_relative`.
-
-**2026-11-12, the cone as a sliced job (#195; `--quiet` runs, none marked loaded, load 3.9 to 5.9, 0 to 2 busy Godot).** The same fight
-at the commit before the pipeline (`d3f40a8f`) and at it. `perf/match_npc_vision_relative`, three runs before and six after: the moving view's cost over
-the unviewed match **4.49, 4.67 and 4.36 ms before, 2.05, 2.00, 2.00, 1.94, 2.04 and 2.14 after (six runs)** (the job is one slice, about 3.5 ms, a frame, where the
-whole rebuild fell in every moving frame), its cone 0.44 to 0.45 of the reference cone's before and 0.25 to 0.26 after; the parked view
--0.14, -0.14 and -0.08 ms before, -0.17, -0.32, -0.23, -0.07, -0.32 and -0.09 after (no change: it rebuilds for its backstop only). `MOVING_BUDGET_MS` is
-3.5 ms, 1.7 times the median of six runs of the sliced cone (2.05, 2.00, 2.00, 1.94, 2.04, 2.14 ms) and below the 4.36 to 4.67 of the cone before. `perf_ab.sh` in same-fight mode (`--ids=perf/match_npc_vision`, 3 rounds, the fight is unchanged since
-the view steers no NPC): the absolute guard's median avg frame 19.12 ms before and 17.75 after (-1.37 ms, -7.2 %), p95 31.70 and 29.17,
-max 47.44 and 42.37. (That guard's gain is smaller than the relative guard's: what share of its frame the view's cone is was not separated.) The age of the cone shown is V1's.
+`perf/match_npc_vision_relative` holds the view's cost over the same match unviewed: at most **3.2 ms** a frame with the viewer parked (set
+from eight quiet runs on a house, the highest plus 25 %, the user's choice; kept, not loosened, on the district), at most **3.5 ms** with a
+viewer that walks and turns (`MOVING_BUDGET_MS`: 1.7x the median of six quiet runs of the sliced cone, not `perf.md`'s 4x rule, which a
+per-frame cost would never trip), and the live cone at most **0.75** of the reference cone's cost from the same eye. `perf/match_npc_vision`
+is the absolute guard on the same match. Headless runs see the CPU side only; the GPU side is measured by hand in a window.
 Tests: `perf/match_npc_vision_relative`, `perf/match_npc_vision`.
 
-**2026-11-07, the pose lag and the fan table (not `--quiet`: load 10 to 12, 29 other Godot).** `perf/match_npc_vision_relative` with the parked
-viewer moved to the district's outer corner facing away from the fight (a viewer in the centre house's largest room rebuilt on 28 to 100 %
-of the frames, shoved and dented by the fight): the parked view read -0.82 and -0.64 ms against 3.2, rebuilding only for its backstop; the
-moving rounds, whose turning aim (6 degrees a frame) is past the lag's bounds and so still rebuild every frame, read 6.74 and 5.02 ms
-(11.9 and 10.9 on 2026-11-07 before). `MOVING_BUDGET_MS` is 8.5, about 1.4x of their mean.
-Test: `perf/match_npc_vision_relative`.
-
-The perf tests run headless and see only the CPU side, so the GPU side was measured by hand, windowed, as `docs/lighting.md`
-"Measured cost" does. **Each figure below says where it comes from.** *Recorded* means a commit's test header or message holds it
-(the commit is named). *Not reproduced* means it comes from the ticket's own measurements and its slices' notes, was first
-written down in this document (commit 6ecb4659) and has been re-run by no one since: take it as the order of magnitude it
-gave, not as a number to hold the code to.
-
-**When the perf figures were measured.** Every perf figure below but the last two bullets (the district, 2026-11-02) was taken before commit 6bd7cc63 (a blood pool's repaint
-decided on the frame's view, by its box), and **no perf test was run after it or after the later fixes of the review, until the district run of 2026-11-02 (the bullet below)**. 6bd7cc63
-does not touch the cone, the change check or the ratio the second guard reads, so the cone figures and the ratio stand. It does
-touch the frame the first guard reads: a pool then asked `SeenArea.reaches_rect` (a box, since removed, a little cheaper to refuse than the
-circle) and draws in `_process`, not `_physics_process`; that moves the view's cost by about the pool skip's own size (0.13 to
-0.5 ms, below) or less, which is inside the spread between runs, but it was not measured. Two later changes to the change check
-are unmeasured too: `ViewWatch` no longer rebuilds for a blocker that is moving outside the eye's reach (the cone test
-`vision/cone_skip_exact` counts it) and no longer measures a moving blocker's shapes anew each frame (it keeps each blocker's
-extent, and compares the key field by field without building an Array), which can only cost less; and after a rebuild made while
-a blocker within reach moved it rebuilds once more the next frame (a query in the frame a body moved can read it where it was),
-which costs one rebuild a move that ends within reach.
-
-- **Before the savings, the view on an NPC in a 10v10 (not reproduced).** The ticket measured about +7.4 ms a frame windowed,
-  "4 to 5 ms of it the cone's CPU, about 3 ms the second world render (the capture) and about 2 ms GPU". Those three parts
-  sum to 9 to 10 ms, not 7.4: they are separate estimates from separate measurements, so read them as the shape of the cost
-  (the cone, then the capture, then the GPU) and not as a breakdown of the 7.4.
-- **A measurement of the same match before slices 13 and 14 (not reproduced)** on a shared, loaded machine (load average 1.2 to 4.0;
-  Vulkan, 1152×648, `--fixed-fps 60`, vsync off): the median frame was 18.78 ms headless and 29.95 ms windowed, the cone's rebuild
-  4.86 ms headless and 3.81 ms windowed, the characters' visual update 3.78 and 7.00 ms, blood 1.69 and 1.51 ms (0.73 and 0.50 ms
-  of it pools wholly outside the cone). The cone's cost depends on where the viewer stands (2.6 to 6.0 ms between runs).
-- **Slice 11, the cone's own caches (not reproduced):** the ticket put the view's cost at 5.68 ms before and 3.65 ms after, and the
-  cone's headless bench down 45 %. Both sit inside the 2.92 to 5.46 ms the ten quiet runs below spread over, so the pair is not
-  evidence of a saving by itself; the saving the code makes is held by `vision/cone_same_after_savings` (the same polygon) and
-  the ratio below.
-- **Ten quiet runs before the savings (recorded, commit 46b929e4, and the header of
-  `perf/match_npc_vision_relative`):** the view's cost over the unviewed match was 2.92 to 5.46 ms, median 4.36.
-- **After slices 13 and 14** (unseen characters not repainted; the cone rebuilt only when its inputs changed), **eight quiet runs of
-  `perf/match_npc_vision_relative` (recorded, commit a7f3b67c, and that test's header)** (the `--quiet` gate passed, none marked
-  loaded) gave the view's cost over the unviewed match as 0.33, 0.36, 0.63, 1.18, 1.58, 1.70, 2.50 and 2.51 ms, median 1.38.
-  **The budget is 3.2 ms**: the highest quiet run plus 25 %, rounded, by the user's choice. Median plus 25 % (1.73 ms) was not
-  chosen, because the spread is between runs (each plays a different fight) and it would fail two of these eight correct runs;
-  3.2 ms still fails the cost before the savings, every one of whose runs was over it. The second check is a ratio: the live cone's
-  per-frame cost (the change check, and the rebuild when there was one) over the reference cone's, built from the same eye in
-  blocks of its own, at most **0.75**. The same eight runs gave 0.27, 0.31, 0.39, 0.39, 0.40, 0.42, 0.49 and 0.59, median 0.40;
-  with the savings off it reads 1.00 to 1.02 and with only the skip off about 0.65 (all recorded, a7f3b67c).
-- **Windowed, after the savings (not reproduced):** Vulkan, `--fixed-fps 60`, vsync off, 1152×648, the same 10v10 with the view on
-  an NPC, interleaved on and off, three runs: the view on minus off was −4.74, −1.54 and −2.18 ms a frame, with the cone ratio 0.47,
-  0.22 and 0.35. The ticket read this as a net gain windowed because unseen characters are not repainted while the off blocks
-  repaint everyone; the GPU was not separated from the CPU in these runs, and three runs are too few to say a sign, so the claim is
-  only that the view was not seen to cost windowed.
-- **The pool skip (not reproduced)** alone measured 0.13 to 0.5 ms a frame (12 to 25 % of the pools' draw time), the whole frame's
-  change within noise. It is kept for what it saves in the pools' own draw, not for a frame it was seen to speed up.
-- **Dropped, not measured to hold:** the single world draw (V3). An earlier probe that drew only what moves in the main viewport
-  read +2.6 to +6.2 ms windowed and about 3 to 4 ms of GPU saved; it is unverified, since by the ancestor rule above it probably drew
-  none of the characters' children.
-- **On the district, 2026-11-02 (recorded, `perf/match_npc_vision_relative` and `perf/match_npc_vision`).** Both guards now play the
-  10v10 in a downtown district whose centre house is the largest plan (`Perf.configure_match`), not in a house. A quiet run (load 3.6, no other
-  Godot) of the relative guard read **0.88 ms** (median of 12 rounds, rounds from -9.0 to +7.1) and the cone at 0.11 of the reference
-  cone's, against the 3.2 ms and 0.75 budgets. **The budget was set on a house** (the eight runs above) and has not been set again for the
-  district; it is kept, not loosened. The view's cost rose with `5204e489`, the district-cost commit (the bisect read 3.9 ms before it,
-  10.4 at it and 13.7 after the planning ring), and the Vision change that followed brought it back to 4.9 and 5.2 ms: the even fan is cast
-  once, the shape query takes the cone's sector, `ViewWatch` rebuilds only for a blocker where a ray can pass, and a corner beyond the
-  view distance adds no ray (`vision/cone_hidden_corners_not_cast`, `cone_reads_only_its_sector`, `cone_beyond_reach_exact`). **What in
-  `5204e489` raised it was not isolated**: with `environment_object_visuals.gd` and `blood_smear.gd` put back to their older form it read
-  4.25 ms, with only one of the two 9 to 16, and `reask_frames` 1 changed nothing. The district had 3208 corners a rebuild against 480 on
-  main, which is what the Vision change removed.
-- **The cone rewrite is beyond the district brief (#182).** The even fan cast once, the shape query on the cone's sector and the
-  watcher's blocker check (`view_cone.gd`, `view_sector.gd`, `view_shapes.gd`, `view_watch.gd`, the reference cone and four
-  equivalence tests) were made to cut the view's cost on a district. The ticket's brief had no vision line. The cone is vertex for
-  vertex the reference cone's (V-tests above), and it changes the lone house's view cost too.
-- **The moving viewer, #192 (recorded, `perf/match_npc_vision_relative`, `vision/cone_same_after_savings`).** The relative guard parks
-  its viewer, so it never measured the cone that rebuilds about every frame while its viewer walks (6 to 9 ms a frame in
-  `perf/match_npc_vision`). #192 made that rebuild cheaper without changing a vertex: static blockers' corner polygons are kept
-  across rebuilds until the collider moves, is dented or is re-cut, and each is checked against its body once a rebuild (a memo
-  in front of the lookup, dropped at each rebuild, when polygons are cleared and when a collider leaves the tree: a rebuild asks for
-  a polygon about 1,300 times and uses few); the angles are built without lambda sort or map. A first form also reused the previous
-  ray's blocker shapes for the far face; a profile found it fired on 0.2 % of the far-face reads (298 of 146,583) and cost more than
-  it saved (its isolation query, point test and settled check ran on the other 99.8 %), so it was removed. `vision/cone_same_after_savings`
-  holds a walking, turning eye past moved, dented and re-cut blockers, and past a body that moves every frame, to
-  `tests/_vision/reference_view_cone.gd`, frame by frame, counts the cross-rebuild reuses and the memo's hits, and checks no polygon
-  is checked twice in a rebuild. The guard also plays rounds where the viewer walks a scripted loop (eye and facing change every timed
-  frame, a premise it checks) and holds the moving view's median cost to `MOVING_BUDGET_MS`, **20 ms**: about 1.4x the quiet moving
-  median of about 13 ms (11.89 and 10.90 ms in the two runs of 2026-11-07, so about 1.7x). It departs from `perf.md`'s 4x rule because the
-  cost is a cone rebuilt every frame, and 4x of a per-frame cost would never trip. (Before the memo the quiet median was 13.9 ms, against 12.2 at the base of the story; the profile put the
-  difference on the polygon re-checks and the far-face reuse.)
-- **The perf matches run with `worldgen.doors` off** until #178 and #159 make the entry door-aware, which the shared perf probe
-  (`tests/_perf/perf_probe.gd`) says. `perf/match_npc_vision`, the absolute guard on the same match, is still red on the district after
-  #192 (2026-11-07, two runs that were not `--quiet`: avg 22.53 and 20.13, p95 35.97 and 31.25, max 46.69 and 42.67 ms). Its excess over
-  the 10v10 is the moving view's cone, rebuilt almost every frame (about 11 ms a frame in the moving rounds), and a follow-up; the 10v10's
-  own tail is the grenades' escape search. The relative guard's parked view read 5.64 and 4.77 ms against its 3.2 ms (rounds 1.0 to 11.7),
-  red as it was on 2026-11-02 (4.9 and 5.2). Numbers and loads: `domain-testing` (`perf-district.md`).
-  Tests: `vision/cone_same_after_savings`, `perf/match_npc_vision_relative`, `perf/match_npc_vision`.
-
-## Played in a window
-
-The headless tests never open a window, so the change was played in one (2026-11-01, Metal, Apple M2 Max, a shared machine with
-load averages of 4 to 7). Each run had its own `--log-file`, and its whole log was read with
-`python3 tools/scan_godot_log.py <log> --from=0`. The matches ran on `a9bb08d7`, the tests on `cd92abf4`; the two commits hold the
-same `scenes/` and `addons/`, `cd92abf4` changing one test only. Perf was not re-run at either (see "When the perf figures were
-measured").
-
-- **Five played matches of Main** (Start pressed by a scratch driver once the setup menu was up, 40 s of play, the game then quit by
-  `get_tree().quit()`): all five exited 0 and every scan came back empty (no error, no warning). The view, in the group
-  `player_view`, was there 8 s into each match and at its end.
-- **Five windowed runs of the change's game tests** (the 20 `*_test.gd` added or changed since `origin/main`, except `perf/*`, which
-  these runs do not play, and `_harness/log_gate_probe`, which logs an error on purpose), each played whole in the test runner's
-  window with the log gate on (`--log-file <out>/godot.log`, the file the runner follows). On `cd92abf4`: 19 passed and 1 failed in
-  each of the five, the one failure `ui/leader_overlay_draw`, and no engine error or warning in any log up to its `Queue done:`
-  line. `ui/leader_overlay_draw` is not this change's: the same test fails the same way (its first checks read `[]` where a crown
-  should be) played in a window from an `origin/main` checkout, and passes headless; its cause was not looked into.
-- **What they found.** An earlier set of five, on `a9bb08d7`, passed 19 of 20 four times and failed `vision/at_rest_remembered` once
-  ("a gun was seen both moving (0 frames) and at rest (694)", 3 frames not on `WORLD`) besides `ui/leader_overlay_draw`. The shooter's
-  frag grenade sends fragments ricocheting round the arena, and one killed the victim (50 hp) at 5.9 s, before the test killed it on
-  the run: a body that dies standing lets its gun go with no skid, which no change of place shows moving, so the test judged the gun at
-  rest after 90 still frames while it still spun on `MOVING`. Alone the test passed ten of ten windowed runs, so it was not
-  reproduced by waiting; a 60 hp hit standing in for the fragments made the old test fail the same way, in a headless run. The victim
-  has 100 000 hp now and the test kills it with its own health: green with the stand-in, ten of ten headless runs, five of five in the
-  windowed queue above. Nothing in the player's view was wrong: the gun was on `MOVING` while it spun and on `WORLD` after.
-- **The shutdown noise.** Every log shows `BUG: Unreferenced static string to 0: ...` (33 or 34 lines) and three
-  `Pages in use exist at exit in PagedAllocator` lines, all after the `Queue done:` line: the engine's shutdown noise when it is
-  ended by a signal, not this change's. The test runner scene has no command server to quit through, so these runs ended by `SIGTERM`
-  to the pid they started, and the same lines come out of an `origin/main` checkout ended the same way, in a count that varies from
-  run to run on both, because the signal lands at a different point of the teardown. One of the five logs also holds about thirty-five
-  `Can't emit non-existing signal ""` / `Attempt to connect nonexistent signal ''` lines, again after `Queue done:`, in the same
-  teardown; it was not compared with `origin/main` (it came once in five and did not come again). The five matches of Main, which
-  quit through the game, print none of this.
-
-An emptied shelf (`docs/stacked-items.md` SI13) is hollow: a viewer in front looks into a compartment between its boards and sees the back, as a shelf's front is open; its back and its sides stop sight at every height. Test: `objects/hollow_shelf_compartments_are_open`.
-
-**2026-11-24, the corners' parts priced at what they measure (#194 fixes3).** `perf/cone_corner_cost` (207 reads, load 5 to 6, so the ratio is what is read) measured the query at **57 to 61 units** against `cost_shape` 120 (2.05 to 2.1x: outside the test's 2x) and the chunks at **198 to 208 units** against 105 priced; the whole (225) passed because the two errors cancelled. The user's rule: the guard and the 225 stay, the code gets cheaper. The test's job begins on a fresh `ViewShapes`, so the chunks are the cold fold: each shape's entry is built (the polygon, its cells, the signal hooks). Cuts, all exact (the polygon is the same vertex for vertex): `TwinShapes.footprint_of` moves a shape's extreme points in one product and builds the box and the rings without allocations (bit-identical, `general/twin_footprint_matches_frozen` against a frozen copy over every twin of the district, 5.2 to 3 us a shape), the polygon's cells are a dictionary merged into the job's in one step (a fold that was 0.25 us a corner is one engine call a shape), `_watch_polygon_shape` hooks a collider's signals once, not once a shape, and a hit's `looks_through` is read off its meta. A cold fold of the district's median read went from **1,144 to 910 us**, the chunks to **151 to 152 units** (a chunk about 50), the query still **59 to 61**, the whole **211 to 213** (225 priced before: the test's band holds it). **The split is the open choice.** At the honest split (`cost_shape` 60, `cost_hits` 50 to 55) `vision/view_on_npc` shows a cone **6 frames old** against its bound of 4 (60 / 45: 6; 60 / 40: 5; 60 / 35 and 105 / 35 and 120 / 35: within 4), because a crowded region folds about 7 chunks, not the median 3: at 60 + 3 x 55 = 225 a chunk costs 1.7 units a hit where 120 + 3 x 35 had 1.1. So the prices are `cost_shape` 105 (1.8 to 1.9x the query: inside the test's 2x) and `cost_hits` 35: 210 summed, within the 15 % band of 225 and 1 to 3 % under what the read measures, the chunks priced at 70 % of theirs, the cone's age as it was. The honest split, or the whole honest sum with an older cone in crowded regions, is the user's to choose (cone age against per-frame cost). Test: `perf/cone_corner_cost`, `vision/cone_corners_priced`, `vision/view_on_npc`.
+The dated measurements, the choices they led to and the windowed play-through are `docs/adr/0017-district-perf-measurement-history.md`.

@@ -78,6 +78,7 @@ func run(t: TestContext) -> void:
 	_check_order(t)
 	await _check_stale(t)
 	await _check_owner_gone(t)
+	await _check_owner_gone_mid_frame(t)
 
 
 ## An arrival: `count` searches begun `at` (from 1) frames after the scenario's start, their runners
@@ -365,6 +366,32 @@ func _check_owner_gone(t: TestContext) -> void:
 	t.check(gone.done and gone.left == WORK,
 			"a search whose owner is gone is dropped unserved (left %d of %d)" % [gone.left, WORK])
 	t.check(kept.left < WORK, "the pool serves the search of an owner that is alive")
+	EscapePool.reset()
+
+
+## A search whose owner dies after the frame's order was made is cancelled at the next ask of the
+## same frame, not served from the order kept. It is the second in the order: the first live one is
+## looked for before the pool is given out, and would cancel a dead first one on that way.
+func _check_owner_gone_mid_frame(t: TestContext) -> void:
+	EscapePool.reset()
+	var pool := EscapePool.per_frame
+	var owner_alive := [true]
+	var kept := FakeSearch.new(WORK)
+	var gone := FakeSearch.new(WORK)
+	gone.alive = func() -> bool: return owner_alive[0]
+	EscapePool.begin(kept, false, SHORT_FUSE, 10.0)
+	EscapePool.begin(gone, false, SHORT_FUSE, 400.0)
+	await t.frames(1)
+	EscapePool.per_frame = 0
+	EscapePool.ask(kept)
+	t.check(kept.left == WORK and gone.left == WORK, "premise: the order is made, nothing served")
+	owner_alive[0] = false
+	EscapePool.per_frame = WORK * 4
+	EscapePool.ask(kept)
+	EscapePool.per_frame = pool
+	t.check(kept.done, "premise: the same frame's second ask serves the pool")
+	t.check(gone.done and gone.left == WORK,
+			"a search whose owner died mid-frame is not served (left %d of %d)" % [gone.left, WORK])
 	EscapePool.reset()
 
 

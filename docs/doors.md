@@ -329,7 +329,7 @@ furniture stops the leaf at once (the latch is heard to give); a blast that shat
 it also throws the door open or fells it, `burst` or `down` too: the shattering and the bang are two sounds.
 
 **No spam.** A gradual scroll (DR7) turns the door a notch at a time, each notch a swing opening it a little further; only the first
-of a movement sounds its latch. The door remembers when it last began opening (`_opened_at`); a swing opening it within
+of a movement sounds its latch. The door remembers when it last began opening (`DoorSwing.opened_at`); a swing opening it within
 `DoorConfig.latch_gap` (0.6 s) of that carries on the same movement and posts no `open`, and every opening swing renews the time, so
 a run of notches is one latch sound (the clip is 0.3 s) however long the scroll lasts. A movement ends when the door rests for the
 gap, or when a closing swing begins (a reversal): a notch after a rest, and an open, shut, open in quick succession, sound at each

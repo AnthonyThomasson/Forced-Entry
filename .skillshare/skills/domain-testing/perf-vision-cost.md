@@ -1,6 +1,6 @@
 # Perf · What the player's view costs, held as a difference
 
-`perf/match_npc_vision_relative` (read from `perf.md`; the numbers' story is `docs/player-vision.md` "Measured cost"): one 10v10 in
+`perf/match_npc_vision_relative` (read from `perf.md`; the budgets are `docs/player-vision.md` "Measured cost", their story ADR 0017): one 10v10 in
 one process, blocks of frames with the view working and blocks with it switched off (node disabled, viewports not rendering),
 interleaved on, off, off, on, because two plays of the match differ from each other by far more than the view costs.
 

@@ -268,7 +268,7 @@ right against the far face of whatever stands near the burst). If it cannot get 
 back-turned share only). Allies within `callout_range` who are in that zone react the same way to the call, even when they neither saw nor heard the
 grenade. A grenade it threw itself it knows about: in flight, at the spot it aimed at (no further than a throw reaches), not at the hand it just left,
 and once it has come down wherever it lies. The spot is chosen again as the grenade moves: after 48 px, and after any move at all that brings
-the spot into the grenade's line (a grenade that rolls on a few px by a doorway can put a spot round the jamb in view of it). *(Amended by issue #192: a cap on the plans; by #194: a pool of work, not a count.)* The escape searches of every NPC share a pool of **80 units a physics frame** (about 2 ms: a new navmesh snap and a new verdict cost 1 each, a route 5, the candidates round a burst 16, once), so when many are caught at once an NPC may start its run some frames after it could: a search is served the frame after it begins, in this order: an **urgent** search first (one begun 12 frames ago or more, or whose grenade goes off within the margin and 12 frames: the one whose grenade goes off first, then the one begun first), then a plan an NPC has none of yet before a replan, the grenade that goes off first, the NPC nearest the burst (most in danger), the search begun first; one that cannot finish this frame continues the next from where it stopped, and its plan is made from where the NPC stood, with the fuse left, when it began. **The wait is bounded** (for an NPC that asks after its search at least every 30 frames): a search lands by its grenade's fuse less the margin whenever the work of the searches whose grenade goes off no later than its own fits in the time (the sooner fuse is served first, so a frag thrown 20 frames after a stun wave of 60 is planned before the wave's tail: within 9 frames, not 28), and among searches of one fuse within 12 frames plus the work of the searches begun before it or on its frame, over the pool, however many more begin after it (the trade: a far search with a long fuse waits behind searches begun after it with a sooner fuse, so behind a stream of them it has only its fuse for a bound, not 12 frames); and while any search is urgent a frame holds 80 more units (twice the pool, about 4 ms), so a wave too big for the pool is served at twice its rate once it has waited 12 frames (a wave of N searches of about 110 units lands within about 0.7 frames each after that, N = 80 before a stun's 66 frames of fuse less the margin). Of the grenade tests the median wait is 3 frames, the p90 19 and the most 21 (the 34-NPC wave below, the replans among them); 34 NPCs (30 and four more) round one frag waited up to 16 frames of knowing the frag (the most measured, the pinned bound: 15, and one more for the half off their beat, who see it a frame later) and none was caught (at the pool alone the most was 19 and one was: a 300 px run planned to the margin's edge, begun 19 frames late, since a plan is for the fuse left when its search began). The NPC carries on as it was until it has a plan (a replan keeps the old plan meanwhile); a search its NPC has not asked after for 30 frames is dropped and begun again, and one whose NPC has died is dropped. A frame serves at most 167 units (the pool, the urgent extra and one more candidate, 7 units; 87 while no search is urgent); a new burst's candidates (16 units) are paid by the search that begins it on top of that, and take nothing from the searches waiting, so a frame spends 167 and 16 for each new burst. The NPC walks all
+the spot into the grenade's line (a grenade that rolls on a few px by a doorway can put a spot round the jamb in view of it). *(Amended by issue #192: a cap on the plans; by #194: a pool of work, not a count.)* The escape searches of every NPC share a pool of **80 units a physics frame** (about 2 ms: a new navmesh snap and a new verdict cost 1 each, a route 5, the candidates round a burst 16, once), so when many are caught at once an NPC may start its run some frames after it could: a search is served the frame after it begins, in this order: an **urgent** search first (one begun 12 frames ago or more, or whose grenade goes off within the margin and 12 frames: the one whose grenade goes off first, then the one begun first), then a plan an NPC has none of yet before a replan, the grenade that goes off first, the NPC nearest the burst (most in danger), the search begun first; one that cannot finish this frame continues the next from where it stopped, and its plan is made from where the NPC stood, with the fuse left, when it began. **The wait is bounded** (for an NPC that asks after its search at least every 30 frames): a search lands by its grenade's fuse less the margin whenever the work of the searches whose grenade goes off no later than its own fits in the time (the sooner fuse is served first, so a frag thrown 20 frames after a stun wave of 60 is planned before the wave's tail: within 9 frames, not 28; when it does not all fit, nothing is promised: a search already past its deadline has the soonest fuse and is still served ahead of ones that could make theirs), and among searches of one fuse within 12 frames plus the work of the searches begun before it or on its frame, over the pool, however many more begin after it (the trade: a far search with a long fuse waits behind searches begun after it with a sooner fuse, so behind a stream of them it has only its fuse for a bound, not 12 frames); and while any search is urgent a frame holds 80 more units (twice the pool, about 4 ms), so a wave too big for the pool is served at twice its rate once it has waited 12 frames (a wave of N searches of about 110 units lands within about 0.7 frames each after that, N = 80 before a stun's 66 frames of fuse less the margin). Of the grenade tests the median wait is 3 frames, the p90 19 and the most 21 (the 34-NPC wave below, the replans among them); 34 NPCs (30 and four more) round one frag waited up to 16 frames of knowing the frag (the most measured, the pinned bound: 15, and one more for the half off their beat, who see it a frame later) and none was caught (at the pool alone the most was 19 and one was: a 300 px run planned to the margin's edge, begun 19 frames late, since a plan is for the fuse left when its search began). The NPC carries on as it was until it has a plan (a replan keeps the old plan meanwhile); a search its NPC has not asked after for 30 frames is dropped and begun again, and one whose NPC has died is dropped. A frame serves at most 167 units (the pool, the urgent extra and one more candidate, 7 units; 87 while no search is urgent); a new burst's candidates (16 units) are paid by the search that begins it on top of that, and take nothing from the searches waiting, so a frame spends 167 and 16 for each new burst. The NPC walks all
 the way into its spot (6 px), since a spot is out of the line with only a little room to spare either side of it. The callout is `status = &"grenade"` with `point` (the landing) and `kind`;
 `GoalController.debug_grenades()` reports
 `{ known: [{ point, kind, fuse_left, radius, source: &"seen" | &"heard" | &"called" | &"own" }], escape: Vector2 (Vector2.INF when it is
@@ -280,7 +280,7 @@ its spot shoots at an invader in view before the burst), `ai/grenade/evade_frag_
 with no spot in time shoots at the thrower before the burst),
 `ai/grenade/evade_replans_when_spot_in_line` (scripted: a frag by the living room's doorway rolls on under 48 px and puts the planned spot in its line; a new
 spot out of the line is planned before the burst), `ai/grenade/evade_waits_for_own_windup` (scripted: a teammate's stun lands beside an invader winding up its
-own throw: its stun still goes onto its spot, then it runs), `ai/grenade/escape_pool_spreads_plans` (thirty and four NPCs caught by one frag: no frame serves more than the pool, its urgent extra and a candidate, the nearest the burst plan first among those that knew it on one frame (the NPCs sense on a beat, so half of the thirty know the frag a frame after the other half), every plan within 16 frames and before the margin, all clear of the burst; the order rule on its keys), `ai/grenade/escape_pool_bounds_wait` (the wait's bound: 20 NPCs on two grenades, 34 round one, a stream the pool cannot keep up with; the urgent rule on its keys), `ai/grenade/escape_search_owner` (a stale search is begun again, a dead NPC's dropped), `ai/grenade/escape_spot_matches_plain` (the sliced search lands on the plain search's answer), `ai/grenade/evade_wave_spots_match_own_plan` (five defenders round a frag an ally throws
+own throw: its stun still goes onto its spot, then it runs), `ai/grenade/escape_pool_spreads_plans` (thirty and four NPCs caught by one frag: no frame serves more than the pool, its urgent extra and a candidate, the nearest the burst plan first among those that knew it on one frame (the NPCs sense on a beat, so half of the thirty know the frag a frame after the other half), every plan within 16 frames and before the margin, all clear of the burst; the order rule on its keys), `ai/grenade/escape_pool_bounds_wait` (the wait's bound: 20 NPCs on two grenades, 34 round one, a stream the pool cannot keep up with; the urgent rule on its keys; a search whose owner dies mid-frame is not served), `ai/grenade/escape_search_owner` (a stale search is begun again, a dead NPC's dropped), `ai/grenade/escape_spot_matches_plain` (the sliced search lands on the plain search's answer), `ai/grenade/evade_wave_spots_match_own_plan` (five defenders round a frag an ally throws
 into the hall plan their escape together, at least three begin a search on one frame (a decision lands over a few frames since #194 perf-decide2, so a defender that fought the thrower first may look away or stand clear, and at least four plan at all): the work that depends on the burst alone is shared among them on that frame,
 and every plan's spot is the one the NPC's own search, nothing shared, picks on that frame).
 *Former gap (found by issue #205's recordings, `evade_wave_spots_match_own_plan`):* with every Von answer landing a fixed 12 frames after its ask, the wave's defender nearest the landing (`d2`, about 67 px from it, among the five the test stands round it) held no evade spot on any frame of the wave and was caught by the frag still evading, while the other four each held one. The test passes since #194's duck-rise changed the thrower's picks (advance / advance_close became fire_here): an incidental effect of the rise rule (`docs/cover-and-stance.md` P6), not a fix of the 12-frame-latency behaviour, so its `gap` tag is gone but the premise (the 12-frame hold starving the nearest defender of a plan) is no longer exercised. A follow-up ticket decides whether the AI or the premise was wrong.
@@ -503,95 +503,11 @@ characters (blood, debris, hit particles and sound on). Measured over the burst 
 **How they measure.** Each test frames the whole fight with the test camera, as a player's screen would show it, so every body is drawn.
 Headless (the default) the frame time is the CPU's work, the drawing calls included; `tools/run_tests.sh --windowed` runs the same test in a
 window with vsync off, so the render is in each frame too. The absolute budgets stay as they are in both modes: a red windowed run is the
-honest state of the game's performance, not a test to loosen. P1's p95 of 25 and worst frame of 37 are the only budgets moved, by the decisions on #195 (item 4, rule 13); the
-dated windowed p95 of 21.98 below was read against 20, the budget of that day.
+honest state of the game's performance, not a test to loosen. P1's p95 of 25 and worst frame of 37 are the only budgets moved, by the decisions on #195 (item 4, rule 13).
+Tests: `perf/grenade_match_stress`, `perf/grenade_burst_stress`.
 
-**Before** (origin/main `7428c4a`, before issue #56's fixes; one run each at a 1-minute load of about 2.9, ms a frame):
-
-| Test | Mode | avg | p95 | max |
-|---|---|---|---|---|
-| P1 | headless | 10.78 | 17.51 | **34.30** |
-| P2 | headless | 5.73 | 10.08 | 32.27 |
-| P1 | windowed | **23.37** | **32.44** | **50.19** |
-| P2 | windowed | 12.69 | **20.13** | **41.59** |
-
-**After** (16 October 2026, issue #56 on origin/main `f0e4f8e`; each run started at a 1-minute load of 3.0 or less, one Godot at a time, the
-load before → after each run; bold misses its budget). The headless runs are of the whole of issue #56, the audit's fixes included. The
-windowed runs were made just before those fixes and not repeated: the fixes change nothing that is drawn (comments, and a worker's cut making
-its own circle ring), and the headless runs after them stayed within the noise of the runs before them (P1 avg 9.08-10.49, p95 15.03-16.31, max
-22.73-31.60; P2 avg 5.80-6.56, p95 8.20-8.86, max 23.08-23.88):
-
-| Test | Mode | Run | Load | avg | p95 | max |
-|---|---|---|---|---|---|---|
-| P1 | headless | 1 | 2.94 → 2.86 | 9.97 | 14.64 | 23.26 |
-| P1 | headless | 2 | 2.86 → 2.96 | 9.80 | 15.28 | 21.57 |
-| P1 | headless | 3 | 2.96 → 2.88 | 9.35 | 13.85 | 22.12 |
-| P2 | headless | 1 | 2.88 → 2.90 | 5.84 | 7.96 | 23.45 |
-| P2 | headless | 2 | 2.90 → 3.79 | 7.02 | 9.56 | 27.38 |
-| P2 | headless | 3 | 3.00 → 2.77 | 6.57 | 9.03 | 22.74 |
-| P1 | windowed | 1 | 2.78 → 2.79 | 16.15 | **22.76** | **39.64** |
-| P1 | windowed | 2 | 2.79 → 2.81 | **17.65** | **22.98** | 28.71 |
-| P1 | windowed | 3 | 2.81 → 2.99 | 14.51 | 19.64 | 27.18 |
-| P2 | windowed | 1 | 2.99 → 3.88 | 10.64 | 14.61 | **38.33** |
-| P2 | windowed | 2 | 2.73 → 3.18 | 12.00 | 14.62 | **36.55** |
-| P2 | windowed | 3 | 2.49 → 2.87 | 10.24 | 13.25 | **35.99** |
-
-Headless, both pass in every run, and `tools/run_tests.sh --domain=perf` (one run, load 2.78 → 2.94) passed all eleven perf tests (P1 8.59 /
-13.21 / 24.53, P2 5.58 / 7.47 / 22.66). Windowed, P1 came down from 23.4 / 32.4 / 50.2 to 14.5-17.7 / 19.6-23.0 / 27.2-39.6 and passes now
-and then; P2 from 12.7 / 20.1 / 41.6 to 10.2-12.0 / 13.3-14.6 / 36.0-38.3, its average and p95 well within, its worst frame still over.
-
-**Where the time went** (the profile of issue #56, its fixes pinned each by a test that holds the new code to the plain one, all without a change
-to what is drawn, when or how anything behaves): the bodies' drawing was about 70 % of a rendered frame, each plain-coloured polygon a vertex
-buffer of its own, so they go out as General's `FillBatch` (one triangle array) and the limbs are built once a frame for body and shadow; furniture
-moves its drop shadow instead of repainting on a turn and walls repaint the struck segment alone; spreading pools blur separably; dented colliders
-are cut and a spray's splats merged side by side on worker threads; navigation re-bakes measure and parse once a tick; the escape search judges each
-spot once (and, since issue #65, shares what depends on the burst alone among the NPCs planning on one physics frame: `docs/leadership.md`,
-Performance); and weapon art is painted ahead of time.
-
-**Issue #78** (19 to 21 October 2026) kept the same budgets windowed, no exemption, and fixed the window's costs at their cause, each fix
-pinned to the old pixels or bytes: the sound library's pre-warm renders on a worker thread instead of about 10 ms a frame on the main
-thread (`domain-audio`); a debris chip lands as a record in its layer; and a hit's spray no longer waits for its splats' merges, which finish later in the
-frame (`domain-physics` (`blood.md`)). The limb outlines as kept meshes were measured and dropped (exact, but no faster). Three windowed
-`tools/run_tests.sh --windowed --domain=perf` runs on 21 October 2026, each alone (no other Godot during it); this machine's quiet
-baseline that day was a 1-minute load of about 5 (ordinary apps), load before → after (peak) 4.46 → 4.64 (5.87), 4.83 → 3.89 (4.83),
-2.79 → 4.70 (5.26) (avg / p95 / max ms; bold misses):
-
-| Test | Run 1 | Run 2 | Run 3 |
-|---|---|---|---|
-| P1 | 16.54 / **22.84** / 32.42 | 16.31 / **23.74** / **33.97** | 15.60 / **21.81** / **33.46** |
-| P2 | 9.41 / 12.10 / 30.09 | 9.77 / 13.40 / 26.86 | 11.01 / 13.99 / **39.85** |
-
-P1 does not meet the standard windowed: its average is under the budget and its p95 2-4 ms over. P2 holds its average and p95 and missed
-once on one frame (39.85; 26.9-31.4 in the other five windowed runs since 19 October). Headless the same build passes (P1 10.61 / 15.80 /
-25.29, P2 6.44 / 8.40 / 22.50, load 4.00 → 3.61). The other perf tests' windowed numbers are in the `domain-testing` skill (Performance
-tests, "Rendered too"), with the latest windowed runs of all twelve, from before issue #95.
-
-**The GdUnit panel.** One **Run overall** from the editor's GdUnit panel on 21 October 2026 (every suite, an hour; no other Godot but the
-editor and its runner; the perf suite at a 1-minute load of 3.9-5.1) gives the windowed verdicts: P1 15.59 / **21.98** / 31.88, its p95
-over as in every windowed run; P2 10.49 / 13.08 / **40.50**, its worst frame over as in two of the three latest windowed runs in
-`domain-testing`. Of the twelve perf tests nine pass and three fail (P1, P2 and `match_10v10`'s p95 at 20.87), each on a measure the
-windowed CLI runs miss too; the panel's numbers for all twelve are beside the windowed table in `domain-testing`.
-
-**What is left.** Of P1's windowed frame (15.6-16.5 ms on average) about 10.6 ms is paid headless too: the characters' physics frame
-with the AI it drives (6.4 ms, 0.41 ms a body in both modes, measured with a timer on every `_process`, `_physics_process` and `_draw`),
-the ragdolls, and the fallen bodies, which repaint every frame until they settle (about 2 ms a repaint, mostly the trunk's outline built
-twice, body and shadow; only 3-5 % of those repaints change nothing). The window adds the rest: the standing bodies' drawing on the
-script side (5.3 ms against 3.5 headless) and the engine's render of the frame. Closing it needs work on the AI and the fallen bodies,
-outside #78. P2's worst frame is the frag's own frame, about 23 ms of CPU and about 12 ms more of rendering what the burst adds in it
-(not a first use, not the flash lights: both ruled out by measurement in the profile). An atlas for the limb art was built and measured
-and gained nothing in P1, so it was not kept. What would surely close the rest is only what the user ruled out: visible or timing
-changes (fewer splats per blast, the blast's work spread over frames, simpler art).
-
-**Issue #95** builds P1's match through `MatchBuilder`, so its invaders carry their plates and grenades, are styled and ranked and follow
-their squad's leader, from beside the front door. Re-baselined headless only (`tools/run_tests.sh --domain=perf --verbose --summary
---no-lint`, three valid runs a side, each started at a 1-minute load under 3.5 with no other headless Godot, a run whose load went over 4
-discarded; before 4af0b43, after 91400e6's guard code, measured before the branch was rebased onto #81), P1's medians went from 10.16 /
-15.09 / 24.20 to 10.58 / 17.29 / 33.18, and P2's from 6.41 / 8.47 / 22.10 to 6.89 / 8.90 / 22.50. P1's median passes; its max missed in one run of three (34.52). Not yet re-measured windowed; the other
-guards' numbers are in the `domain-testing` skill.
-
-**The prepaint's cost.** A gun or grenade paints its art ahead of time once per weapon style per process (`ItemRegistry.inventory_for`, every
-raise step, both lying sides, every lighting step: the very draws it will make), about **230 ms** once, when the first inventory in that style
-is made at a match's spawns; later inventories cost about 0.05 ms. It moves 0.3-0.5 ms first paints out of a fight's busiest frames.
+The measured history of these two guards (the runs before and after #56, #78 and #95, headless and windowed, and the profiles they
+were cut from: 2D build) is `docs/adr/0017-district-perf-measurement-history.md`.
 
 ## How the rules are enforced
 

@@ -101,5 +101,5 @@ read through `character.sight()`: any character can be the viewer.
   cone to it vertex for vertex, so change it only with the spec (`docs/player-vision.md`, "Measured cost").
   Its far-face pick and corner dedupe do not depend on which overlapping shape the engine names, as the live cone's.
 - **A viewport nested in another logs an engine error**: the live and seen viewports are siblings under the view's `Ground`.
-- **The view costs the CPU of the cone and the masks' draw on request** (budget and numbers: `docs/player-vision.md`, "Measured
+- **The view costs the CPU of the cone and the masks' draw on request** (budgets: `docs/player-vision.md`, "Measured
   cost"; the guards `perf/match_npc_vision` and `perf/match_npc_vision_relative`, `domain-testing` (`perf.md`)).

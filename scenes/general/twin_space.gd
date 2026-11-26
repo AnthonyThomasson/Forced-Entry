@@ -1,18 +1,19 @@
 class_name TwinSpace
 extends SubViewport
 ## General domain, the twin 3D space (#194, D3, `docs/adr/0014-twin-staging-and-plan-space.md`,
-## interface 29): a 3D physics space beside the 2D simulation, holding a 3D twin of each solid 2D
-## body (walls, floors, furniture, doors, vehicles, characters), each with a real height, kept in
-## step with its plan handle every physics frame, or leading it: a free piece and a character are
-## 3D bodies that move and write their handle (the footprint); a door and a vehicle drive theirs, a
-## wall is written once. Bullets, sight lines and sweeps read the twins.
+## interface 29): the 3D physics space of the simulation (which has no 2D physics), holding a 3D
+## twin of each solid plan handle, the sim's 2D node (walls, floors, furniture, doors, vehicles,
+## characters), each with a real height, kept in step with its plan handle every physics frame, or
+## leading it: a free piece and a character are 3D bodies that move and write their handle (the
+## footprint); a door and a vehicle drive theirs, a wall is written once. Bullets, sight lines and
+## sweeps read the twins.
 ##
 ## **Where it lives.** The twins are children of this node, a `SubViewport` (never drawn) with a
-## `World3D` of its own: the 3D counterpart of the 2D space the sim runs in, so it exists wherever a
-## match or a test world is staged (`MatchBuilder.stage`), headless too, and needs no view. A space
-## of its own matters: Jolt solves contacts in the order of the slots its bodies hold and reuses a
-## freed body's slot, so worlds that shared one space (the main window's) gave results that
-## depended on what the process ran before. The 3D view (Main's `View3D`) draws this world: its
+## `World3D` of its own: the 3D counterpart of the `World2D` the sim's nodes stand in, so it exists
+## wherever a match or a test world is staged (`MatchBuilder.stage`), headless too, and needs no
+## view. A space of its own matters: Jolt solves contacts in the order of the slots its bodies hold
+## and reuses a freed body's slot, so worlds that shared one space (the main window's) gave results
+## that depended on what the process ran before. The 3D view (Main's `View3D`) draws this world: its
 ## picture's viewport takes it as its own once it is told of the world (`of_world`), so the meshes
 ## and lights stand where the bodies are. The 3D engine is Jolt (`project.godot`).
 ##
@@ -21,29 +22,30 @@ extends SubViewport
 ## order for each body, the first answer that is a node wins, null (not this domain's body) passes
 ## on. The node is a `CollisionObject3D` with its collision shapes built in code, in the frame of
 ## the 2D body's origin (`TwinShapes`, `PlanSpace`); this node places it by the body's transform. A
-## plain `StaticBody3D` is placed once, and written again whenever its body moves (a shoved piece):
-## a twin is followed by what its body is, not by what the twin is, and a static body keeps Jolt's
-## step free of one more always-active body. A house door is led from 3D (a `DoorBody` its swing
-## turns writes the 2D door); a door that falls is given a fresh twin, a free body, by `retwin`. A
-## twin node may have
-## `twin_update(body: Node2D) -> void`, run each frame after it has followed (a
-## character's cylinder follows its posture). A body is found when it is in the tree
-## under the root `watch` was given (a member of `BODIES`, and each node of a group `track_group`
-## names, a floor having no body), on the next update after it entered, once its own
-## `_ready` has built its collision shapes; a body that leaves the tree loses its twin.
+## plain `StaticBody3D` is placed once; a piece's (an anchored or hung one: a free piece is a rigid
+## body that leads) is written again when a script moves its handle: a twin is followed by what its
+## body is, not by what the twin is, and a static body keeps Jolt's step free of one more
+## always-active body. A house door is led from 3D (a `DoorBody` its swing turns writes the 2D
+## door); a door that falls is given a fresh twin, a free body, by `retwin`. A twin node may have
+## `twin_update(body: Node2D) -> void`, run each frame after it has followed (a character's cylinder
+## follows its posture). A body is found when it is in the tree under the root `watch` was given (a
+## member of `BODIES`, and each node of a group `track_group` names, a floor having no body), on the
+## next update after it entered, once its own `_ready` has built its collision shapes; a body that
+## leaves the tree loses its twin.
 ##
-## **The update rule.** Once per physics frame, before every body's own `_physics_process`
-## (priority `PRIORITY`), a body a 3D body leads (a free piece, a character) is written from the 3D
-## pose **only when it changed**; a sleeping `RigidBody3D` is read once more as it falls asleep and
-## then parked off the list until its `sleeping_state_changed` says it woke, with a slow look
+## **The update rule.** Once per physics frame, before every body's own `_physics_process` (priority
+## `PRIORITY`), a body a 3D body leads (a free piece, a character) is written from the 3D pose
+## **only when it changed**; a sleeping `RigidBody3D` is read once more as it falls asleep and then
+## parked off the list until its `sleeping_state_changed` says it woke, with a slow look
 ## (`PARK_SPREAD` frames round) for the script that moves a sleeping body without waking it; a
-## handle nothing leads (a wall, a floor) is written once, when twinned. A twin is on its layer
-## only while its owner says so (a dead character's `twin_update`, a door knocked down). So a
-## reader in a frame's scripts finds a rigid body's twin exactly where the engine's step left it;
-## a door or a character, which a script moves, is one frame behind where that script puts it
-## (1/60 s), and a sleeping body a script teleports up to `PARK_SPREAD` frames; a twin joins the
-## frame after its body does. A write is pushed to Jolt at once (`force_update_transform`: a
-## `Node3D` would push it only at the frame's end), so a ray after the write meets the new pose.
+## handle nothing leads (a wall, a floor) is written once, when twinned. A twin is on its layer only
+## while its owner says so (a dead character's `twin_update`, a door knocked down). So a reader in a
+## frame's scripts finds a rigid body's twin exactly where the engine's step left it; a door's swing
+## and a character's walk move the 3D body and write the handle in one step, so the two agree; a
+## handle a script writes by itself is read at the next update, a frame later (1/60 s), and a
+## sleeping body's up to `PARK_SPREAD` frames later; a twin joins the frame after its body does. A
+## write is pushed to Jolt at once (`force_update_transform`: a `Node3D` would push it only at the
+## frame's end), so a ray after the write meets the new pose.
 ##
 ## **What a reader does.** `space()` / `space_of(node)` is the `PhysicsDirectSpaceState3D` to cast
 ## into; `owner_of(collider)` maps a hit twin (a result's `collider`) to the 2D body it stands for
