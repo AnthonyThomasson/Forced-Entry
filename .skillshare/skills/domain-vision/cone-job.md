@@ -16,7 +16,7 @@ height the plan ray runs at), a far-face probe (`far_exit`).
 225, held by `perf/cone_corner_cost` for the whole, the query and the chunks each within 2x of their own; a read measures the query
 at 54 to 61 units and the chunks at about 150, 50 each: `ViewShapes.fold_corners` merges a shape's kept cells in one step and
 `TwinShapes.footprint_of` builds a shape's polygon in one product). `cost_hits` 35 is what `vision/view_on_npc`'s 4-frame bound holds
-at (37 and 40 give 5 frames, 55 gives 6: the honest chunk price makes a crowded region, about 7 chunks, a tick longer). The query
+at (37 and 40 give 5 frames, 55 gives 6: that price makes a crowded region, about 7 chunks, a tick longer). The query
 (stage `CORNERS`) and then its polygons and the dedupe (stage `HITS`, a chunk a piece of work, so a slice may end between them) are
 both counted, so `begin` and the first step do the corners and then the first rays up to the slice (`vision/cone_corners_priced`); a
 region asked again is priced for each ask and can fill the slice with them, and then no ray is cast. A job is ceil((corners + rays) / slice) ticks, and its cone is at most 2 (ticks - 1) frames old: 2 ticks is up to 2, 3 ticks 4, the longest district job in the grid (5 ticks) 8
