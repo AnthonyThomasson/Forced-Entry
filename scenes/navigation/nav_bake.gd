@@ -72,8 +72,8 @@ static func frames_for(region: NavigationRegion3D, avoid := false, ring := false
 	return NavBakeConfig.avoid_frames if avoid else NavBakeConfig.district_frames
 
 
-## Bake `job` (`NavSource.job`) on a worker thread; on the game frame `frames` after the thread's
-## start (see `frames_for`), bake it (`origin` is the region's offset), assign it to `region` and
+## Bake `job` (`NavSource.job`; `origin` is the region's offset) on a worker thread; on the game
+## frame `frames` after the thread's start (see `frames_for`), assign the polygon to `region` and
 ## call `landed`. The thread starts now, or, with no place free, when one is (the class doc). Held
 ## weakly: a region freed meanwhile is left alone (a lambda that captures a node freed before it
 ## runs logs an engine error: a world torn down mid-bake), `landed` is still called, and it holds
