@@ -34,8 +34,10 @@ extends SubViewport
 ## leaves the tree loses its twin.
 ##
 ## **The update rule.** Once per physics frame, before every body's own `_physics_process` (priority
-## `PRIORITY`), a body a 3D body leads (a free piece, a character) is written from the 3D pose
-## **only when it changed**; a sleeping `RigidBody3D` is read once more as it falls asleep and then
+## `PRIORITY`), a body a `RigidBody3D` leads (a free piece) is written from the 3D pose **only when
+## it changed**. A character is not written here: its walk writes its handle, and the update only
+## has its lead take up a script's move (`CharacterTwin.follow`). A sleeping `RigidBody3D` is read
+## once more as it falls asleep and then
 ## parked off the list until its `sleeping_state_changed` says it woke, with a slow look
 ## (`PARK_SPREAD` frames round) for the script that moves a sleeping body without waking it; a
 ## handle nothing leads (a wall, a floor) is written once, when twinned. A twin is on its layer only
