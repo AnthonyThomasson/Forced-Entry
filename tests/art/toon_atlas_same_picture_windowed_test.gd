@@ -83,7 +83,7 @@ func _grow(t: TestContext) -> void:
 			Image.create(side, side, false, Image.FORMAT_RGBA8)
 		)
 		_fill.append(MeshNodes.textured(BoxMesh.new(), texture, Rect2(0, 0, 8, 8)))
-	await RenderingServer.frame_post_draw
+	await Frozen.drawn(t.world.get_tree())
 	t.require(
 		ToonAtlas.array().get_layers() > layers,
 		"premise: the array was made anew (%d layers, were %d)" % [

@@ -43,11 +43,24 @@ static func hold(t: TestContext, shown: CanvasLayer, turn: float) -> void:
 	shown.lighting.set_process(false)
 
 
+## Wait until the frame being processed now is drawn. Never waits for the draw signal alone: a
+## window the desktop covers is not drawn and `frame_post_draw` never comes (the stopped world would
+## spin for ever, its test's clock stopped too), so a frame that ended undrawn is drawn here.
+static func drawn(tree: SceneTree) -> void:
+	var seen := [false]
+	var mark := func() -> void: seen[0] = true
+	RenderingServer.frame_post_draw.connect(mark)
+	await tree.process_frame
+	RenderingServer.frame_post_draw.disconnect(mark)
+	if not seen[0]:
+		RenderingServer.force_draw(false)
+
+
 ## The window's picture after the next few frames of the stopped world.
 static func picture(t: TestContext) -> Image:
 	for i in 4:
 		await t.world.get_tree().process_frame
-	await RenderingServer.frame_post_draw
+	await drawn(t.world.get_tree())
 	var image := t.world.get_viewport().get_texture().get_image()
 	image.convert(Image.FORMAT_RGB8)
 	return image

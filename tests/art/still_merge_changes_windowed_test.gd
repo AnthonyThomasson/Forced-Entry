@@ -113,7 +113,7 @@ func _late_frame(t: TestContext, change: Callable) -> Image:
 	t.world.add_child(late)
 	await late.done
 	late.queue_free()
-	await RenderingServer.frame_post_draw
+	await Frozen.drawn(t.world.get_tree())
 	var image := t.world.get_viewport().get_texture().get_image()
 	image.convert(Image.FORMAT_RGB8)
 	return image
