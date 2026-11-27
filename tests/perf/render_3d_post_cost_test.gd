@@ -11,6 +11,10 @@ extends GameTest
 ## At both window sizes the frames must meet the match standard (`Perf.SMOOTH_*`: 16.7 ms avg, 20
 ## p95, 33.4 max). The probe's own mid-route screen readback (and the PNG it saves) runs between
 ## two samples, in none of them.
+## Every sampled frame must have been drawn: a window that is covered, occluded or minimized draws
+## nothing, and an undrawn frame costs next to nothing. The engine's drawn-frame count is read at
+## every sample, and one that did not move fails the test; no sample is dropped. The window is kept
+## above the others while the probe runs (where it sits among them; what a frame draws is the same).
 ## Run: `tools/run_tests.sh --windowed --quiet --id=perf/render_3d_post_cost` (add `--verbose`);
 ## the numbers print as `POST` lines and, with `POST_PROBE_OUT=<file>` set, as JSON;
 ## `POST_PROBE_SHOTS=<dir>` saves each mode's mid-route frame.
@@ -28,6 +32,12 @@ const LIT := 0.1
 ## The seed the view's lights flicker by.
 const LIGHT_SEED := 10
 
+## The engine's count of drawn frames: one more for each main-loop iteration (one a sample, under
+## `--fixed-fps`) whose frame was drawn, none while the window cannot draw. A variable so the
+## self-test `_harness/render_3d_post_undrawn` can put its own counter here.
+var frames_drawn: Callable = Engine.get_frames_drawn
+## The drawn-frame count at the last sample.
+var _drawn_at := 0
 var _view: CanvasLayer
 ## The mean brightness (0 to 1) of each mid-route frame: a view with no light draws outlines on
 ## black.
@@ -58,6 +68,7 @@ func run(t: TestContext) -> void:
 	if DisplayServer.get_name() == "headless":
 		t.skip("windowed only: headless draws nothing (tools/run_tests.sh --windowed)")
 		return
+	_keep_on_top(t)
 	Perf.warm_sounds()
 	var characters: Array = t.world.match_handle.get("combatants", [])
 	if not t.require(characters.size() == 20, "twenty combatants spawned"):
@@ -83,14 +94,39 @@ func run(t: TestContext) -> void:
 	_check(t, results)
 
 
+## Keep the window above the others until the test ends, however it ends, so none covers it.
+func _keep_on_top(t: TestContext) -> void:
+	var flag := DisplayServer.WINDOW_FLAG_ALWAYS_ON_TOP
+	var was := DisplayServer.window_get_flag(flag)
+	DisplayServer.window_set_flag(flag, true)
+	t.finished.connect(
+		func() -> void: DisplayServer.window_set_flag(flag, was),
+		CONNECT_ONE_SHOT,
+	)
+
+
+## Count drawn frames from here.
+func start_noting() -> void:
+	_drawn_at = frames_drawn.call()
+
+
+## Note into `noted` the frame since the last sample: sampled, and undrawn if the count stood still.
+func note_drawn(noted: Dictionary) -> void:
+	var now: int = frames_drawn.call()
+	noted["sampled"] += 1
+	if now == _drawn_at:
+		noted["undrawn"] += 1
+	_drawn_at = now
+
+
 ## The window and the world as the probe found them: the camera's own scripts on.
 func _restore() -> void:
 	_camera.set_process(true)
 	_camera.set_physics_process(true)
 
 
-## Every mode at every size recorded all its frames and met the standard, and the view drew the lit
-## district (not black).
+## Every mode at every size drew every sampled frame, recorded all its frames and met the standard,
+## and the view drew the lit district (not black).
 func _check(t: TestContext, results: Dictionary) -> void:
 	t.check(not _brightness.is_empty(), "a mid-route frame was read")
 	for light: float in _brightness:
@@ -102,6 +138,7 @@ func _check(t: TestContext, results: Dictionary) -> void:
 		for mode: String in results[size]:
 			var frame: Dictionary = results[size][mode]["frame"]
 			var label := "%s %s" % [size, mode]
+			_check_drawn(t, label, results[size][mode]["drawn"])
 			t.check(
 				int(frame["count"]) == FRAMES * ROUNDS,
 				"%s: %d frames recorded (%d)" % [label, int(frame["count"]), FRAMES * ROUNDS],
@@ -111,6 +148,21 @@ func _check(t: TestContext, results: Dictionary) -> void:
 				label,
 				{ "avg_ms": frame["mean"], "p95_ms": frame["p95"], "max_ms": frame["max"] },
 			)
+
+
+## Each settle and measured frame was looked at and was drawn.
+func _check_drawn(t: TestContext, label: String, noted: Dictionary) -> void:
+	var sampled := int(noted["sampled"])
+	var undrawn := int(noted["undrawn"])
+	var expected := ROUNDS * (SETTLE + FRAMES)
+	t.check(
+		undrawn == 0 and sampled == expected,
+		(
+			"%s: every sampled frame was drawn (%d of %d sampled frames not drawn, %d expected). "
+			+ "An undrawn frame costs next to nothing, so these times cannot be judged: keep the "
+			+ "window visible (not covered, occluded or minimized) and run again"
+		) % [label, undrawn, sampled, expected],
+	)
 
 
 func _set_up(t: TestContext) -> void:
@@ -133,7 +185,13 @@ func _set_up(t: TestContext) -> void:
 func _rounds(t: TestContext, centre: Vector2) -> Dictionary:
 	var samples := {}
 	for mode in MODES:
-		samples[mode] = { "frame": [], "gpu": [], "cpu": [], "settle": [] }
+		samples[mode] = {
+			"frame": [],
+			"gpu": [],
+			"cpu": [],
+			"settle": [],
+			"drawn": { "sampled": 0, "undrawn": 0 },
+		}
 	for pass_index in ROUNDS:
 		for mode: String in MODES:
 			await _block(t, mode, centre, samples[mode])
@@ -144,21 +202,25 @@ func _rounds(t: TestContext, centre: Vector2) -> Dictionary:
 			"gpu": _stats(samples[mode]["gpu"], false),
 			"cpu_render": _stats(samples[mode]["cpu"], false),
 			"settle_max_ms": _stats(samples[mode]["settle"], false)["max"],
+			"drawn": samples[mode]["drawn"],
 		}
 	return out
 
 
 func _block(t: TestContext, mode: String, centre: Vector2, into: Dictionary) -> void:
 	var last := Time.get_ticks_usec()
+	start_noting()
 	for i in SETTLE:
 		_route(centre, 0.0)
 		await t.frames(1)
+		note_drawn(into["drawn"])
 		var settled := Time.get_ticks_usec()
 		into["settle"].append((settled - last) / 1000.0)
 		last = settled
 	for i in FRAMES:
 		_route(centre, float(i) / float(FRAMES))
 		await t.frames(1)
+		note_drawn(into["drawn"])
 		var now := Time.get_ticks_usec()
 		into["frame"].append((now - last) / 1000.0)
 		last = now
@@ -256,6 +318,8 @@ func _report(results: Dictionary) -> void:
 				row["cpu_render"],
 				" settle_max ",
 				row["settle_max_ms"],
+				" drawn ",
+				row["drawn"],
 			)
 	var path := OS.get_environment("POST_PROBE_OUT")
 	if path != "":
