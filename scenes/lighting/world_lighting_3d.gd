@@ -33,6 +33,7 @@ signal glow_changed(piece: Node, level: float)
 
 const Rhythm := preload("res://scenes/lighting/light_rhythm.gd")
 const FlashPool := preload("res://scenes/lighting/flash_pool_3d.gd")
+const SunCasters := preload("res://scenes/lighting/sun_casters.gd")
 const GROUP := &"world_lighting_3d"
 ## The lights run after the bodies they follow (and the mirror that shows them).
 const PRIORITY := 20
@@ -225,14 +226,18 @@ func _sky(world: Node2D) -> void:
 	_sun.light_angular_distance = 0.0
 	add_child(_sun)
 	_sun.basis = Basis.looking_at(travel, Vector3.UP)
-	_sky_mask(world)
+	var floors := _sky_mask(world)
+	var casters := SunCasters.new()
+	casters.name = "SunCasters"
+	add_child(casters)
+	casters.watch(_sun, floors[0], floors[1], travel)
 
 
 ## Where the sun reaches: the street's floors (an Objects `Floor`'s `is_street()`), less every
 ## house floor drawn over them (a tower stands on street floors; its rooms are lit from within) and
 ## the walls round it. A house or an arena has no street: the sun reaches nothing there, as the 2D
-## sky is on the street only.
-func _sky_mask(world: Node2D) -> void:
+## sky is on the street only. Returns `[streets, houses]`, the rects painted.
+func _sky_mask(world: Node2D) -> Array:
 	var streets: Array[Rect2] = []
 	var houses: Array[Rect2] = []
 	for ground: Node2D in world.get_tree().get_nodes_in_group(&"floors"):
@@ -244,6 +249,7 @@ func _sky_mask(world: Node2D) -> void:
 	_paint(image, streets, bounds.position, cell, Color.WHITE)
 	_paint(image, houses, bounds.position, cell, Color.BLACK)
 	ToonLight.set_sky(image, Rect2(bounds.position, cell * Vector2(image.get_size())))
+	return [streets, houses]
 
 
 ## File `ground`'s rectangle under the street's floors or the others' (grown by `floor_reach`); a

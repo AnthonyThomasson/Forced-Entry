@@ -20,3 +20,11 @@ static var keep_margin: float = 0.75
 ## How long (s) a light takes to fade in or out when the cap switches it, so a view that moves does
 ## not pop a pool on or off.
 static var fade_time: float = 0.2
+## The sun's pass draws only what can shadow a street spot (`sun_casters.gd`): the rest is moved to
+## the render layer `sun_indoor_layer`, which the sun does not cast from. A mesh's shadow is grown
+## by `sun_caster_margin` px before it is judged (past the kerb's drop, the mask's texel and the
+## shadow's biases), and `sun_recheck` meshes a frame are looked at for a move that no sleeping
+## body tells of.
+static var sun_indoor_layer: int = 20
+static var sun_caster_margin: float = 16.0
+static var sun_recheck: int = 24
