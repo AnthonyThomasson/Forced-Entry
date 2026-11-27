@@ -19,7 +19,10 @@ const CACHE_TTL := 0.5
 const WEDGE_RANGE := 170.0
 
 ## Whether to draw the routes overlay.
-@export var show_routes: bool = false
+@export var show_routes: bool = false:
+	set(value):
+		show_routes = value
+		_sync_processing()
 
 ## point (Vector2) → PackedVector2Array route from the NPC.
 var _cache: Dictionary = {}

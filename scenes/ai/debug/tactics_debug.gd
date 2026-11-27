@@ -59,6 +59,11 @@ func _process(delta: float) -> void:
 	super(delta)
 
 
+## It follows the controller's `debug_focus` with both toggles off, so it always processes.
+func _sync_processing() -> void:
+	set_process(true)
+
+
 ## Whether either toggle is on, or the inspector has a point highlighted (its ring draws with both
 ## off).
 func _on() -> bool:

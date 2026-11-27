@@ -14,9 +14,15 @@ const WAYPOINT_RADIUS := 2.5
 const TARGET_RADIUS := 6.0
 
 ## Whether to draw the floating action label above the NPC.
-@export var show_actions: bool = true
+@export var show_actions: bool = true:
+	set(value):
+		show_actions = value
+		_sync_processing()
 ## Whether to draw the NPC's current navigation path.
-@export var show_path: bool = true
+@export var show_path: bool = true:
+	set(value):
+		show_path = value
+		_sync_processing()
 ## The NavigationAgent3D to read the current path from (under the NPC's `NavAnchor`).
 @export var agent_path: NodePath = NodePath("../NavAnchor/NavigationAgent3D")
 ## Colour of the action label text.

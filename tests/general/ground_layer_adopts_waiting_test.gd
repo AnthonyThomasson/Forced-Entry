@@ -8,7 +8,8 @@ func describe() -> Dictionary:
 	return {
 		"name": "A ground layer made later adopts the overlays already made",
 		"description": "An overlay made with no layer up (a nav-hole overlay at the world's "
-			+ "build) is on its ground layer once one is made; one made after is adopted as ever.",
+			+ "build) is on its ground layer once one is made; one made after is adopted as ever, "
+			+ "and adopting one twice leaves it its owner's.",
 		"tags": ["render", "3d", "overlays"],
 		"timeout": 6.0,
 	}
@@ -39,5 +40,8 @@ func run(t: TestContext) -> void:
 	t.check(early in GroundLayer.overlays_of(early_owner), "the overlay made before is adopted")
 	t.check(early.get_parent() != early_owner, "it left its owner for the layer")
 	t.check(late in GroundLayer.overlays_of(late_owner), "one made after is adopted as ever")
+	GroundLayer.adopt(late)
+	await t.frames(3)
+	t.check(late in GroundLayer.overlays_of(late_owner), "adopted again, it is still its owner's")
 	GroundLayer.forget()
 	layer.queue_free()

@@ -29,7 +29,10 @@ const PHASE_NAMES := {
 }
 
 ## Whether to draw the entry plan overlay.
-@export var show_entry: bool = false
+@export var show_entry: bool = false:
+	set(value):
+		show_entry = value
+		_sync_processing()
 
 
 ## Whether this overlay's toggle is on.

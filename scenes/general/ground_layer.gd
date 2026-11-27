@@ -104,8 +104,8 @@ static func _move(item: CanvasItem) -> void:
 		return
 	item.remove_from_group(WAITING)
 	var parent := item.get_parent()
-	if parent is GroundLayer:
-		return
+	if parent.get_parent() is GroundLayer:
+		return  # already moved: its parent is its owner's holder
 	if is_instance_valid(overlays):
 		(overlays as GroundLayer)._take(item, parent)
 

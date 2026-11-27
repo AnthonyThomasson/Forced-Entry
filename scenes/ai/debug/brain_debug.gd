@@ -31,7 +31,10 @@ const FORCE_SHOW := 4.0
 const FALLBACK_TEXT := "FALLBACK: no decision, holding"
 
 ## Whether to draw the brain overlay.
-@export var show_brain: bool = false
+@export var show_brain: bool = false:
+	set(value):
+		show_brain = value
+		_sync_processing()
 ## Whether the overlay draws at all while `text_in_world` is off (a spectator match): with both
 ## off it draws nothing, no bars, no ring, no labels. On, it draws its bars and ring and short
 ## labels by them: the THINKING / FALLBACK badges, each level's node title, each bar's option and

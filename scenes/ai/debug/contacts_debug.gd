@@ -13,7 +13,10 @@ const LOST := Color(0.75, 0.45, 1.0)
 const GHOST_RADIUS := 14.0
 
 ## Whether to draw the contacts overlay.
-@export var show_contacts: bool = false
+@export var show_contacts: bool = false:
+	set(value):
+		show_contacts = value
+		_sync_processing()
 
 
 ## Whether this overlay's toggle is on.

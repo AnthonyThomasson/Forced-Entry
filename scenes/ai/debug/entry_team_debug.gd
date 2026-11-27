@@ -17,7 +17,10 @@ const BEYOND := Color(0.7, 0.7, 0.7)
 const PAUSED := Color(0.85, 0.6, 1.0)
 
 ## Whether to draw the entry team & guard overlay.
-@export var show_entry_team: bool = false
+@export var show_entry_team: bool = false:
+	set(value):
+		show_entry_team = value
+		_sync_processing()
 
 
 ## Whether this overlay's toggle is on.
