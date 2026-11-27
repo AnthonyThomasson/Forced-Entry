@@ -11,10 +11,15 @@ extends GameTest
 ## At both window sizes the frames must meet the match standard (`Perf.SMOOTH_*`: 16.7 ms avg, 20
 ## p95, 33.4 max). The probe's own mid-route screen readback (and the PNG it saves) runs between
 ## two samples, in none of them.
-## Every sampled frame must have been drawn: a window that is covered, occluded or minimized draws
-## nothing, and an undrawn frame costs next to nothing. The engine's drawn-frame count is read at
-## every sample, and one that did not move fails the test; no sample is dropped. The window is kept
-## above the others while the probe runs (where it sits among them; what a frame draws is the same).
+## Every sampled frame must have been drawn: a window the desktop does not show (fully covered or
+## minimized) gets nothing on screen, and such a frame costs next to nothing. At every sample two
+## things are read: the engine's drawn-frame count, which must have moved, and whether the main
+## window can draw (`DisplayServer.window_can_draw`, its occlusion flag), which must be so now and
+## at the sample before. Both are needed: the engine also counts a draw that only frees GPU
+## resources and puts nothing on screen. A frame that fails either fails the test; no sample is
+## dropped. The window is kept above the others while the probe runs (where it sits among them;
+## what a frame draws is the same). The probe needs `--fixed-fps` (tools/run_tests.sh): paced to
+## the clock (the in-game runner), two samples can share one drawn frame, and it fails.
 ## Run: `tools/run_tests.sh --windowed --quiet --id=perf/render_3d_post_cost` (add `--verbose`);
 ## the numbers print as `POST` lines and, with `POST_PROBE_OUT=<file>` set, as JSON;
 ## `POST_PROBE_SHOTS=<dir>` saves each mode's mid-route frame.
@@ -32,12 +37,20 @@ const LIT := 0.1
 ## The seed the view's lights flicker by.
 const LIGHT_SEED := 10
 
+## What the probe reads of the engine and the window; variables so the self-test
+## `_harness/render_3d_post_undrawn` can put its own here.
 ## The engine's count of drawn frames: one more for each main-loop iteration (one a sample, under
-## `--fixed-fps`) whose frame was drawn, none while the window cannot draw. A variable so the
-## self-test `_harness/render_3d_post_undrawn` can put its own counter here.
+## `--fixed-fps`) that drew, whether or not the frame reached the screen.
 var frames_drawn: Callable = Engine.get_frames_drawn
-## The drawn-frame count at the last sample.
+## Whether the main window can draw: false while the desktop shows none of it, and headless.
+var can_draw: Callable = DisplayServer.window_can_draw
+## The main window's always-on-top flag, read and set.
+var on_top: Callable = DisplayServer.window_get_flag.bind(DisplayServer.WINDOW_FLAG_ALWAYS_ON_TOP)
+var set_on_top: Callable = func(on: bool) -> void:
+	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_ALWAYS_ON_TOP, on)
+## The drawn-frame count at the last sample, and whether the window could draw then.
 var _drawn_at := 0
+var _could_draw := false
 var _view: CanvasLayer
 ## The mean brightness (0 to 1) of each mid-route frame: a view with no light draws outlines on
 ## black.
@@ -94,29 +107,33 @@ func run(t: TestContext) -> void:
 	_check(t, results)
 
 
-## Keep the window above the others until the test ends, however it ends, so none covers it.
+## Keep the window above the others, so none covers it, until the test ends or its world leaves
+## the tree (the runner's Esc / Back ends it with no verdict).
 func _keep_on_top(t: TestContext) -> void:
-	var flag := DisplayServer.WINDOW_FLAG_ALWAYS_ON_TOP
-	var was := DisplayServer.window_get_flag(flag)
-	DisplayServer.window_set_flag(flag, true)
-	t.finished.connect(
-		func() -> void: DisplayServer.window_set_flag(flag, was),
-		CONNECT_ONE_SHOT,
-	)
+	var put := set_on_top
+	var was: bool = on_top.call()
+	put.call(true)
+	var put_back := func() -> void: put.call(was)
+	t.finished.connect(put_back, CONNECT_ONE_SHOT)
+	t.world.tree_exiting.connect(put_back, CONNECT_ONE_SHOT)
 
 
-## Count drawn frames from here.
+## Note frames from here.
 func start_noting() -> void:
 	_drawn_at = frames_drawn.call()
+	_could_draw = can_draw.call()
 
 
-## Note into `noted` the frame since the last sample: sampled, and undrawn if the count stood still.
+## Note into `noted` the frame since the last sample: sampled, and undrawn if the count stood still
+## or the window could not draw at either end of it.
 func note_drawn(noted: Dictionary) -> void:
 	var now: int = frames_drawn.call()
+	var can: bool = can_draw.call()
 	noted["sampled"] += 1
-	if now == _drawn_at:
+	if now == _drawn_at or not (can and _could_draw):
 		noted["undrawn"] += 1
 	_drawn_at = now
+	_could_draw = can
 
 
 ## The window and the world as the probe found them: the camera's own scripts on.
@@ -160,7 +177,8 @@ func _check_drawn(t: TestContext, label: String, noted: Dictionary) -> void:
 		(
 			"%s: every sampled frame was drawn (%d of %d sampled frames not drawn, %d expected). "
 			+ "An undrawn frame costs next to nothing, so these times cannot be judged: keep the "
-			+ "window visible (not covered, occluded or minimized) and run again"
+			+ "window visible (not covered, occluded or minimized) and run it with --fixed-fps "
+			+ "(tools/run_tests.sh; the in-game runner has none)"
 		) % [label, undrawn, sampled, expected],
 	)
 
@@ -224,17 +242,23 @@ func _block(t: TestContext, mode: String, centre: Vector2, into: Dictionary) -> 
 		var now := Time.get_ticks_usec()
 		into["frame"].append((now - last) / 1000.0)
 		last = now
-		var view_rid: RID = _view.viewport.get_viewport_rid()
-		var gpu := RenderingServer.viewport_get_measured_render_time_gpu(_root_rid)
-		var cpu := RenderingServer.viewport_get_measured_render_time_cpu(_root_rid)
-		gpu += RenderingServer.viewport_get_measured_render_time_gpu(view_rid)
-		cpu += RenderingServer.viewport_get_measured_render_time_cpu(view_rid)
-		into["gpu"].append(gpu)
-		into["cpu"].append(cpu)
+		var render := _render_ms()
+		into["gpu"].append(render.x)
+		into["cpu"].append(render.y)
 		if i == int(FRAMES * 0.5):
 			_shot(t, mode)
 			_brightness.append(_mean_brightness(t))
 			last = Time.get_ticks_usec()  # the readback and the PNG are the probe's, no frame's
+
+
+## The render times of the last frame, the root viewport's and the 3D view's: GPU, CPU.
+func _render_ms() -> Vector2:
+	var view_rid: RID = _view.viewport.get_viewport_rid()
+	var gpu := RenderingServer.viewport_get_measured_render_time_gpu(_root_rid)
+	var cpu := RenderingServer.viewport_get_measured_render_time_cpu(_root_rid)
+	gpu += RenderingServer.viewport_get_measured_render_time_gpu(view_rid)
+	cpu += RenderingServer.viewport_get_measured_render_time_cpu(view_rid)
+	return Vector2(gpu, cpu)
 
 
 ## The mean brightness (0 to 1) of the root viewport's frame, sampled on a 48 x 32 grid.
