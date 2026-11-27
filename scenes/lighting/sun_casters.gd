@@ -6,11 +6,13 @@ extends Node
 ## `shadow_caster_mask` leaves out; the camera and every other light see that layer as any other.
 ##
 ## Only a mesh that is known to stay where it is is judged: one on a static twin
-## (`StaticBody3D`), one on a rigid body that sleeps (it casts again the frame it wakes: every held
-## body is asked each frame, since a script's `sleeping = false` signals nothing), and one the mesh
-## carrier placed itself (a `proxies_of` ancestor, read duck-typed: a non-solid piece). Everything
-## else always casts. A static or sleeping mesh a script moves is found by a look at a few of them
-## each frame (`LightingCostConfig.sun_recheck`).
+## (`StaticBody3D`), one on a body a script drives (`AnimatableBody3D`, a standing door's leaf:
+## looked at every frame, judged again when it moved), one on a rigid body that sleeps (it casts
+## again the frame it wakes: every held body is asked each frame, since a script's
+## `sleeping = false` signals nothing), and one the mesh carrier placed itself (a `proxies_of`
+## ancestor, read duck-typed: a non-solid piece). Everything else always casts. A static or
+## sleeping mesh a script moves is found by a look at a few of them each frame
+## (`LightingCostConfig.sun_recheck`).
 
 ## The bit of the layer a mesh casts on by default.
 const CASTING := 1
@@ -30,6 +32,8 @@ var _bodies: Array = []
 var _asleep := PackedByteArray()
 var _carried: Array[Array] = []
 var _places: Dictionary = {}
+## The ids of the judged meshes a script drives, looked at every frame (a set).
+var _driven: Dictionary = {}
 ## The meshes that joined the tree and are judged on the next frame, by instance id.
 var _joined: Dictionary = {}
 ## The ids still to be looked at in this round of the re-check.
@@ -39,6 +43,7 @@ var _round: Array = []
 func _process(_delta: float) -> void:
 	settle()
 	_wake()
+	_follow_driven()
 	_recheck()
 
 
@@ -144,6 +149,8 @@ func _take(mesh: MeshInstance3D) -> void:
 		return
 	if body != null:
 		_follow(body, id)
+	if holder is AnimatableBody3D:
+		_driven[id] = true
 	var row := { "mesh": mesh, "body": body, "at": mesh.global_transform }
 	_held[id] = row
 	_judge(row)
@@ -211,20 +218,33 @@ func _judge(row: Dictionary) -> void:
 	_cast(mesh, reaches_street(mesh.global_transform * mesh.get_aabb()))
 
 
-## Look at a few held meshes: forget the freed, judge again one that moved.
+## Look at every mesh a script drives.
+func _follow_driven() -> void:
+	for id: int in _driven.keys():
+		if not _look(id):
+			_driven.erase(id)
+
+
+## Look at a few held meshes.
 func _recheck() -> void:
 	if _round.is_empty():
 		_round = _held.keys()
 	for i in mini(LightingCostConfig.sun_recheck, _round.size()):
-		var id: int = _round.pop_back()
-		var row: Variant = _held.get(id)
-		if row == null:
-			continue
-		if not is_instance_valid(row["mesh"]):
-			_held.erase(id)
-		elif (row["mesh"] as MeshInstance3D).is_inside_tree() \
-				and (row["mesh"] as MeshInstance3D).global_transform != row["at"]:
-			_judge(row)
+		_look(_round.pop_back())
+
+
+## Judge held mesh `id` again if it moved; false once it is freed or no longer held.
+func _look(id: int) -> bool:
+	var row: Variant = _held.get(id)
+	if row == null:
+		return false
+	if not is_instance_valid(row["mesh"]):
+		_held.erase(id)
+		return false
+	var mesh: MeshInstance3D = row["mesh"]
+	if mesh.is_inside_tree() and mesh.global_transform != row["at"]:
+		_judge(row)
+	return true
 
 
 ## Put `mesh` on the layer the sun casts from, or on the one it leaves out.

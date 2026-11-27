@@ -169,13 +169,40 @@ func _check_moved_and_loose(t: TestContext) -> void:
 	await t.frames(3)
 	t.check(not _out(loose), "a mesh no body holds always casts")
 	t.check(_out(held), "a new mesh on a static body indoors is left out")
-	# onto open street: the point of the sky mask's first lit texel found along a line
 	var street := _street_point(t)
+	await _check_driven(t, at, street)
+	# onto open street: the point of the sky mask's first lit texel found along a line
 	still.global_position = Vector3(street.x, 0.5, street.y) * RenderConfig.unit
 	await t.frames(ceili(float(_meshes(t).size()) / LightingCostConfig.sun_recheck) + 120)
 	t.check(not _out(held), "moved into the street, it casts again")
 	loose.queue_free()
 	still.queue_free()
+
+
+## A mesh a script drives (a standing door's leaf: an `AnimatableBody3D`) casts again the frame
+## after it reaches the street, not when the round of looks comes by.
+func _check_driven(t: TestContext, indoors: Vector3, street: Vector2) -> void:
+	var bodies: Array[AnimatableBody3D] = []
+	var leaves: Array[MeshInstance3D] = []
+	for i in 8:
+		var swung := AnimatableBody3D.new()
+		swung.sync_to_physics = false
+		_view.add_child(swung)
+		swung.global_position = indoors
+		var leaf := MeshInstance3D.new()
+		leaf.mesh = BoxMesh.new()
+		swung.add_child(leaf)
+		bodies.append(swung)
+		leaves.append(leaf)
+	await t.frames(3)
+	t.require(leaves.all(_out), "premise: driven leaves indoors are left out")
+	for body in bodies:
+		body.global_position = Vector3(street.x, 0.5, street.y) * RenderConfig.unit
+	for i in 2:
+		await t.world.get_tree().process_frame
+	t.expect_eq(leaves.filter(_out).size(), 0, "a driven leaf in the street casts at once")
+	for body in bodies:
+		body.queue_free()
 
 
 ## A spot the sky reaches.
