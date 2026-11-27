@@ -42,6 +42,8 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.own_picture()
 	s.house(SEED)
+	# exact pictures: merged chunks, built as the view settles, differ in tie pixels
+	s.set_static(MirrorMergeConfig, &"enabled", false)
 
 
 func run(t: TestContext) -> void:
