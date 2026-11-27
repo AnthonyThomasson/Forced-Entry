@@ -9,6 +9,9 @@ const ViewScript := preload("res://scenes/main_view3d.gd")
 const CENTRE := Vector2.ZERO
 const RADIUS := 520.0
 const TURNS: Array[float] = [0.0, 0.2, 0.4, 0.6, 0.8]
+## The frames the stopped picture must have stayed the same before it is held, and the most waited.
+const SETTLED_FRAMES := 90
+const MOST_FRAMES := 600
 
 
 ## The view of `t.world`'s district, lit, following its camera with the camera's own scripts off
@@ -30,7 +33,8 @@ static func view(t: TestContext) -> CanvasLayer:
 	return made
 
 
-## Run the world with the camera at spot `turn` until it has settled, then stop it.
+## Run the world with the camera at spot `turn` until it has settled, stop it, and wait until the
+## stopped picture has too.
 static func hold(t: TestContext, shown: CanvasLayer, turn: float) -> void:
 	Engine.time_scale = 1.0
 	shown.lighting.set_process(true)
@@ -41,6 +45,24 @@ static func hold(t: TestContext, shown: CanvasLayer, turn: float) -> void:
 	Engine.time_scale = 0.0
 	# the lights' rhythms and flickers step by their own clock: stopped with the world
 	shown.lighting.set_process(false)
+	await _settle(t)
+
+
+## Wait until the stopped picture stays the same. The renderer goes on changing what the omni
+## shadows look like for some frames after the first world a process draws is stopped (up to 40,
+## with no node changed), so two frames compared before that may stand on either side of it.
+static func _settle(t: TestContext) -> void:
+	var last := await picture(t)
+	var same := 0
+	var waited := 0
+	while same < SETTLED_FRAMES and waited < MOST_FRAMES:
+		for i in 10:
+			await t.world.get_tree().process_frame
+		var now := await picture(t)
+		# the ten frames, `picture`'s four and the one it is drawn in
+		same = same + 15 if differing(last, now) == 0 else 0
+		waited += 15
+		last = now
 
 
 ## Wait until the frame being processed now is drawn. Never waits for the draw signal alone: a
