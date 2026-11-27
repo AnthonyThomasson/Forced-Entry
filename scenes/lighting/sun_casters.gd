@@ -101,6 +101,12 @@ func reaches_street(box: AABB) -> bool:
 	return not open.is_empty()
 
 
+## How many meshes `body` is followed with (a test reads it).
+func carried(body: RigidBody3D) -> int:
+	var place: Variant = _places.get(body.get_instance_id())
+	return 0 if place == null else _carried[place].size()
+
+
 ## `rects` with `cut` taken out of each.
 static func _less(rects: Array[Rect2], cut: Rect2) -> Array[Rect2]:
 	var out: Array[Rect2] = []
@@ -169,7 +175,8 @@ func _follow(body: RigidBody3D, id: int) -> void:
 		meshes.append(id)
 
 
-## Judge again the meshes of every body that woke or fell asleep; a freed body is forgotten.
+## Judge again the meshes of every body that woke or fell asleep, dropping those no longer held (a
+## dented body's mesh is built again); a freed body is forgotten.
 func _wake() -> void:
 	var at := _bodies.size() - 1
 	while at >= 0:
@@ -178,9 +185,13 @@ func _wake() -> void:
 			_forget(at)
 		elif int((body as RigidBody3D).sleeping) != _asleep[at]:
 			_asleep[at] = int((body as RigidBody3D).sleeping)
-			for id: int in _carried[at]:
-				var row: Variant = _held.get(id)
-				if row != null and is_same(row["body"], body) and is_instance_valid(row["mesh"]):
+			var meshes: Array = _carried[at]
+			for i in range(meshes.size() - 1, -1, -1):
+				var row: Variant = _held.get(meshes[i])
+				if row == null or not is_instance_valid(row["mesh"]):
+					_held.erase(meshes[i])
+					meshes.remove_at(i)
+				elif is_same(row["body"], body):
 					_judge(row)
 		at -= 1
 

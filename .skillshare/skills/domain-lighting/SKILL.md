@@ -50,9 +50,9 @@ A street floor says `is_street()`.
 The directional shadow redraws every frame, so only what can shadow a street spot is in it. `SunCasters` (a child of `WorldLighting3D`, given the sun, the sky mask's street and house rects and the light's travel) moves a mesh whose swept shadow touches no street spot to render layer `LightingCostConfig.sun_indoor_layer` (20), which the sun's `shadow_caster_mask` leaves out; cameras and other lights see every layer. The picture is the same.
 
 - **Every `MeshInstance3D`** of the sun's world is taken as it joins the tree (judged the next frame). Batches (`MultiMeshInstance3D`) always cast.
-- **What may be left out**, by the first body above it: a `StaticBody3D`; an `AnimatableBody3D` (a standing door), looked at every frame; a `RigidBody3D` while it sleeps (every held body is asked each frame: a script's wake signals nothing); a mesh the carrier placed itself (a `proxies_of` ancestor). Anything else casts: a character, an awake body, a mesh under no body.
+- **What may be left out**, by the first body above it: a `StaticBody3D`; an `AnimatableBody3D` (a standing door), looked at every frame; a `RigidBody3D` while it sleeps (every held body is asked each frame: a script's wake signals nothing; a wake or sleep also drops its freed meshes' ids); a mesh the carrier placed itself (a `proxies_of` ancestor). Anything else casts: a character, an awake body, a mesh under no body.
 - **A moved static or sleeping mesh** is found by the round of looks, `sun_recheck` (24) meshes a frame. A mesh resized in place without moving is not judged again: `sun_caster_margin` (16 px) covers a dent.
-- Tests: `lighting/sun_casts_only_what_reaches_the_street` (the rules, headless), `lighting/sun_casters_same_picture_windowed` (no pixel differs).
+- Tests: `lighting/sun_casts_only_what_reaches_the_street` (the rules, headless), `lighting/sun_casters_suite` (the sweep and a re-dented body's ids, on a street and house made by hand), `lighting/sun_casters_same_picture_windowed` (no pixel differs).
 
 The toon light itself (the bands, the cap, why the ambient rides the one directional light) is Art's: `domain-art/textured-toon.md`.
 **Adding a light-giving piece** is unchanged (below, Objects declares it); its 3D light follows from the declaration, its glow from
