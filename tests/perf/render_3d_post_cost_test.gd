@@ -11,13 +11,14 @@ extends GameTest
 ## At both window sizes the frames must meet the match standard (`Perf.SMOOTH_*`: 16.7 ms avg, 20
 ## p95, 33.4 max). The probe's own mid-route screen readback (and the PNG it saves) runs between
 ## two samples, in none of them.
-## Every sampled frame must have been drawn: a window the desktop does not show (fully covered or
-## minimized) gets nothing on screen, and such a frame costs next to nothing. At every sample two
-## things are read: the engine's drawn-frame count, which must have moved, and whether the main
-## window can draw (`DisplayServer.window_can_draw`, its occlusion flag), which must be so now and
-## at the sample before. Both are needed: the engine also counts a draw that only frees GPU
-## resources and puts nothing on screen. A frame that fails either fails the test; no sample is
-## dropped. The window is kept above the others while the probe runs (where it sits among them;
+## Every sampled frame must have been drawn: a window the desktop does not show gets nothing on
+## screen, and such a frame costs next to nothing. At every sample two things are read: the
+## engine's drawn-frame count, which must have moved, and whether the main window can draw
+## (`DisplayServer.window_can_draw`: false when the window is minimized, and on macOS also when it
+## is fully covered; on Windows a covered window reads true), which must be so now and at the sample
+## before. Both are needed: the engine also counts a draw that only frees GPU resources and puts
+## nothing on screen. A frame that fails either fails the test; no sample is dropped. The window is
+## kept above the others while the probe runs (where it sits among them;
 ## what a frame draws is the same). The probe needs `--fixed-fps` (tools/run_tests.sh): paced to
 ## the clock (the in-game runner), two samples can share one drawn frame, and it fails.
 ## Run: `tools/run_tests.sh --windowed --quiet --id=perf/render_3d_post_cost` (add `--verbose`);
@@ -42,7 +43,8 @@ const LIGHT_SEED := 10
 ## The engine's count of drawn frames: one more for each main-loop iteration (one a sample, under
 ## `--fixed-fps`) that drew, whether or not the frame reached the screen.
 var frames_drawn: Callable = Engine.get_frames_drawn
-## Whether the main window can draw: false while the desktop shows none of it, and headless.
+## Whether the main window can draw: false when it is minimized (on macOS also when fully covered;
+## on Windows a covered window reads true), and headless.
 var can_draw: Callable = DisplayServer.window_can_draw
 ## The main window's always-on-top flag, read and set.
 var on_top: Callable = DisplayServer.window_get_flag.bind(DisplayServer.WINDOW_FLAG_ALWAYS_ON_TOP)

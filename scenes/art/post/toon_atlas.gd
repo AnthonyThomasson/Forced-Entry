@@ -87,6 +87,11 @@ static func pages_used() -> int:
 	return _pages.size()
 
 
+## The pages the last `reserve` asked the array to hold (a test reads it).
+static func pages_reserved() -> int:
+	return _wanted
+
+
 ## Have the array hold at least `GROW` pages beyond those in use from the next `flush` on (asked
 ## once a match's meshes are built).
 static func reserve() -> void:

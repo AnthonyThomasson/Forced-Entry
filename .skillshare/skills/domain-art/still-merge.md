@@ -29,11 +29,14 @@ resource edited or swapped in place on a still mesh is heard by neither: build a
 - Never merged: a mesh ever given a glow, a mirrored one, a material `toon_merged.gdshader` has no kind for, one on an
   awake rigid body.
 - Chunk vertices are in world coordinates. The corners round to floats another way than the GPU places a mesh of its
-  own, so the picture differs in single art pixels on an edge or between texels: under 512 of a frame.
+  own, so the picture differs in single art pixels on an edge or between texels, now and then an outline for a surface.
+  The same-picture test allows 512 differing pixels on each of its held district frames; frames of a 10v10 fight at
+  2560 wide measured up to about 900 of such flips (552 and 888), nothing stale.
 - A test that changes a mesh's material and looks at the picture, or demands the same picture to the pixel, turns
   merging off before the build (`tests/_render/frozen_frame.gd`, the `general/twin_*_picture` tests). One that builds
   again calls `release`, offers, then `build_all`.
 
 Tests: `tests/art/still_merge_built_with_the_view_test.gd`, `still_merge_none_built_in_play_test.gd`,
 `still_merge_hears_every_writer_test.gd`, `still_merge_follows_changes_test.gd`, `still_merge_changes_windowed_test.gd`,
-`still_merge_same_picture_windowed_test.gd`.
+`still_merge_same_picture_windowed_test.gd`; the spare after the build:
+`tests/art/toon_atlas_reserved_after_the_build_test.gd`.

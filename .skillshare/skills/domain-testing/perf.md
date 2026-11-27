@@ -29,9 +29,11 @@ The one exception is `grenade_match_stress`: p95 25 and worst frame 37, by the u
 in single runs but 34.75-36.02 inside the full perf run, at the standard's 33.4.
 `render_3d_post_cost` is a windowed-only budget guard (headless skips it: it draws nothing): the 3D view's frames on a fixed camera
 route at 1152x648 and 2560x1440 hold the same standard. It fails if, for any sampled frame, `Engine.get_frames_drawn()`
-did not move or `DisplayServer.window_can_draw()` was false at either end of it (a covered or minimized window shows
-nothing, so the times would read cheap; the counter alone also moves on draws that only free GPU resources). It needs
-`--fixed-fps` (`tools/run_tests.sh`): the in-game runner paces to the clock, so there it fails.
+did not move or `DisplayServer.window_can_draw()` was false at either end of it (a window that shows nothing would read
+cheap; the counter alone also moves on draws that only free GPU resources). `window_can_draw()` is false when the window
+is minimized, and on macOS also when it is fully covered; on Windows a covered window reads true. The test needs
+`--fixed-fps` (`tools/run_tests.sh`): the in-game runner paces to the clock, so there it can fail (when two samples
+share one main-loop iteration).
 One-shot work (`Perf.time_ms`) keeps a `const` budget at the
 top of its test, about 4x the baseline stated in the comment above it. `Perf.within` prints `PERF <label> <value>
 (budget <limit>)`, traces it and fails the check with the value. Counts (nodes, dents, pools) are asserted tightly.
