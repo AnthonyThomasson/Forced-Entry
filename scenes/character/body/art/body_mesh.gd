@@ -15,7 +15,7 @@ extends Node3D
 ## the spine and lowers the hips as `CharacterPostureConfig` says (docs/cover-and-stance.md P3). The
 ## rig's heights are the drawing's (a head 100 px up); the mesh squeezes them so the head stands
 ## `CharacterMeshConfig.height` high, and the horizontal reach is unchanged (a knee's and an elbow's
-## bend shrinks with the squeeze, `_bent`).
+## bend shrinks with the squeeze, `_bend_joint`).
 ## **How it follows:** the parts are shared unit solids (`BodySolids`: a trunk, a head, tapered
 ## limbs, a neck, a shoe, a ball, a box; `MeshCache`), all drawn as ONE mesh (`PartSkin`, Art:
 ## `part(index)` reads one), scaled and placed between the rig's joints by
@@ -667,12 +667,10 @@ static func _across(bend: Vector3, chord: Vector3) -> Vector3:
 	return turned - unit * turned.dot(unit)
 
 
-## How high a joint is held over the floor now: nothing while the body lives, then
-## `CharacterMeshConfig.lying_clear` eased in over `LIE_FRAMES` after it died, so a joint near the
-## floor does not jump at the moment of death.
+## How high a fallen body's joint is held over the floor now: `CharacterMeshConfig.lying_clear`,
+## eased in over `LIE_FRAMES` after it died, so a joint near the floor does not jump at the moment
+## of death. Read only once dead.
 func _floor_clearance() -> float:
-	if _died < 0:
-		return 0.0
 	var eased := clampf(float(Engine.get_physics_frames() - _died) / LIE_FRAMES, 0.0, 1.0)
 	return CharacterMeshConfig.lying_clear * eased
 

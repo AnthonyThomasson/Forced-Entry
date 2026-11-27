@@ -66,10 +66,8 @@ func _is_overlay(node: Node) -> bool:
 ## The tactics overlay processes whatever its toggles say; the others as `on`.
 func _check_processing(t: TestContext, overlay: Node, on: bool, when: String) -> void:
 	var want := on or overlay.name == TACTICS
-	t.check(
-		overlay.is_processing() == want,
-		"%s %s: processing %s" % [overlay.name, when, want],
-	)
+	var got := overlay.is_processing()
+	t.check(got == want, "%s %s: processing %s (want %s)" % [overlay.name, when, got, want])
 
 
 ## Set every `show_*` flag of `overlays`.

@@ -1,10 +1,11 @@
 extends GameTest
 ## The 3D body's pose and the rig's stride are worked out with each number read once (#194 perf:
 ## `BodyMesh`'s sample and `Read`, the rig's `Stride`); what they answer is what the plain forms
-## here answer, exactly, standing, walking, running and walking crouched: each joint lifted to the
-## body's height with the knees and elbows bent in proportion, each ankle where the stride puts it,
-## a steep limb's top turned toward the way the face looks, and a cap and a helmet each in its own
-## shape after the head's covering changed.
+## here answer, exactly, standing, walking, running, walking crouched and walking stunned: each
+## joint lifted to the body's height with the knees and elbows bent in proportion, each ankle where
+## the stride puts it, a steep limb's top turned toward the way the face looks, and a cap and a
+## helmet each in its own shape after the head's covering changed. A solve's shared measures keep
+## no body.
 
 const Rig := preload("res://scenes/character/body/character_rig.gd")
 const IDS: Array[StringName] = [&"stander", &"walker", &"runner", &"ducker"]
@@ -42,7 +43,11 @@ func run(t: TestContext) -> void:
 	t.puppet(&"runner").walk_to(Vector2(1300, 510))
 	t.puppet(&"ducker").walk_to(Vector2(1300, 690))
 	var strode := {}
-	for _step in 4:
+	var reeled := false
+	for step in 4:
+		if step == 2:
+			# the walker's last two steps are checked staggering
+			t.actor(&"walker").take_stun(2.0, 0.0)
 		await t.frames(9)
 		for id in IDS:
 			var body: Node2D = t.actor(id)
@@ -52,7 +57,11 @@ func run(t: TestContext) -> void:
 			_check_limb_frames(t, id, mesh)
 			_check_ankles(t, id, body)
 			strode[id] = maxf(strode.get(id, 0.0), body.anatomy.pose.gait.walk_amount())
+		var gait: PoseGait = t.actor(&"walker").anatomy.pose.gait
+		reeled = reeled or (gait.stun_amount() > 0.0 and gait.walk_amount() > 0.1)
 	t.check(strode[&"walker"] > 0.3 and strode[&"ducker"] > 0.1, "premise: the walkers stride")
+	t.check(reeled, "premise: a checked step strides stunned")
+	_check_measures_keep_no_body(t, t.actor(&"walker"))
 	_check_headwear(t, bodies[&"stander"], t.actor(&"stander"))
 
 
@@ -60,6 +69,15 @@ func _pose_now(mesh: BodyMesh, body: Node2D) -> void:
 	mesh.set("_frame", -1)
 	mesh.set("_posed", false)
 	mesh.mirror_update(body)
+
+
+## After a full solve and after a legs-only one, the rig's shared measures hold no body's parts.
+func _check_measures_keep_no_body(t: TestContext, body: Node2D) -> void:
+	var measures: Object = (Rig as Script).get("_measures")
+	var rig := Rig.new(body)
+	t.check(measures.get("anatomy") == null, "a full solve keeps no anatomy")
+	rig.solve_legs(body)
+	t.check(measures.get("anatomy") == null, "a legs-only solve keeps no anatomy")
 
 
 ## Every sampled joint: the rig's, lifted, with each knee and elbow bent in proportion.

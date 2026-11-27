@@ -167,7 +167,8 @@ func torso() -> Basis:
 ## each arm and leg. The rig keeps one (`_measures`) for every solve, taken afresh by `_measure`
 ## each time, so a solve allocates no measures and its steps read them as their own.
 class Measures:
-	## The pose the solve reads (the character's `anatomy.pose`), and the body's parts it reads.
+	## The pose the solve reads (the character's `anatomy.pose`), and the body's parts it reads:
+	## those only until the joints are placed, so the kept measures hold no anatomy between solves.
 	var pose: Pose
 	var anatomy: CharacterAnatomy
 	## The gait and the stride it makes, built once and taken afresh by each solve, after `fold`.
@@ -228,6 +229,7 @@ class Measures:
 			if with_arms:
 				_arm(i)
 			_leg(character, i)
+		anatomy = null
 
 
 	## Place only the legs' joints of `character`, as measured (`Rig.solve_legs`): the pelvis, then
@@ -244,6 +246,7 @@ class Measures:
 		_points[PELVIS] = _pelvis()
 		for i in 2:
 			_leg(character, i)
+		anatomy = null
 
 
 	## The pelvis: half the lean back of the origin, at the hips' height, swayed by a stagger.
