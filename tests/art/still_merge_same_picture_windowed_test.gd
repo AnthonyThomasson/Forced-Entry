@@ -1,13 +1,14 @@
 extends GameTest
 ## The still world drawn in merged chunks (`StillMerge`) is the picture each mesh drawing itself
 ## made. In a district, held still, each frame is drawn with the chunks and again with every mesh
-## its own. A chunk holds its meshes' vertices already placed in the world, where a mesh of its own
-## is placed by the GPU: the corners round to floats another way, so where a pixel falls exactly on
-## an edge or between two texels it may pick the other. Such ties count as the same picture: single
-## art pixels, 48 to 155 of a 1152 wide frame and 148 to 380 of a 2560 wide one. `TIES` is that
-## allowance; a part drawn wrong turns thousands. With each chunk keeping its one mesh's own
-## transform, at most 24 pixels differed. Windowed only. `STILL_MERGE_SHOTS=<dir>` saves the pair of
-## every frame that differs.
+## its own. Cause of what differs: a chunk holds its meshes' vertices pre-transformed into the
+## world, where the GPU places a mesh of its own, and the two round to floats differently; a pixel
+## falling exactly on an edge or between two texels may then pick the other. These ties are accepted
+## as the same picture (#194): single art pixels (2x2), mostly 1 to 8 levels of a channel, now and
+## then an outline for a surface, 40 to 153 pixels of a 1152 wide frame and 144 to 396 of a 2560
+## wide one. `TIES` is that allowance; a part drawn wrong turns thousands. With each chunk keeping
+## its one mesh's own transform, at most 24 pixels differed. Windowed only.
+## `STILL_MERGE_SHOTS=<dir>` saves the pair of every frame that differs.
 
 const Frozen := preload("res://tests/_render/frozen_frame.gd")
 const SIZES: Array[Vector2i] = [Vector2i(1152, 648), Vector2i(2560, 1440)]
