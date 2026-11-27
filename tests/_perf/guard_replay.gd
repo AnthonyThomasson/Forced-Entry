@@ -28,7 +28,7 @@ const THIRD_OFFSET := 2
 ## Frames the first fight has at least, for a guard that warms up first (its warm-up alone is 360,
 ## `Perf.MATCH_WARMUP_S`). A guard whose window opens at the fight's first sign has no warm-up and
 ## gives its own (`check_same_fight`'s `min_frames`): the opening's is its window, since its first
-## contact comes at seed 23 in the first second (frame 31: a 332-frame fight), where at seed 2 (7.1
+## contact comes at seed 23 in the first second (frame 33: a 334-frame fight), where at seed 2 (7.1
 ## s) the 360 held only by the wait for contact.
 const MIN_FRAMES := 360
 
