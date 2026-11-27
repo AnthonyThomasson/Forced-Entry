@@ -14,6 +14,8 @@ extends Node
 
 ## It judges after every script that writes a mesh has run.
 const LAST := 1000
+## The age every waiting mesh is taken as when all are merged at once (`merge_now`).
+const ANY_AGE := 0x7fffffff
 
 ## Whether meshes are gathered into chunks (off: those already merged stay until `release`).
 var enabled := MirrorMergeConfig.enabled
@@ -70,14 +72,27 @@ func offer(root: Node) -> void:
 			_wait(node, _frame + MirrorMergeConfig.settle_frames)
 
 
-## Merge every waiting mesh that may join now, whatever its age (a test, a measure).
+## A match's build: every chunk the still world calls for is built now, so none of them is built in
+## a played frame. Nothing while merging is off.
+func build_all() -> void:
+	if not enabled:
+		return
+	merge_now()
+	# a new watch is told of its mesh's place at the next flush: told and judged here, so that look
+	# at every member is the build's cost, not the first frame's
+	for member: MergeMember in _held.values():
+		(member.watch as Node3D).force_update_transform()
+	judge()
+
+
+## Merge every waiting mesh that may join now, whatever its age (`build_all`, a test, a measure).
 func merge_now() -> void:
 	judge()
 	_round.clear()
 	_groups.clear()
 	_next_round = 0
-	_look(_waiting.size(), 0x7fffffff)
-	_look(0, 0x7fffffff)
+	_look(_waiting.size(), ANY_AGE)
+	_look(0, ANY_AGE)
 	while not _to_build.is_empty():
 		_build(_to_build.pop_back())
 
@@ -201,7 +216,8 @@ func _look(most: int, now: int) -> void:
 	if _round.is_empty():
 		if not _groups.is_empty():
 			for key: Array in _groups:
-				_to_build.append([key, _groups[key][0]])
+				if _groups[key][0].size() >= MirrorMergeConfig.chunk_members:
+					_to_build.append([key, _groups[key][0]])
 			_groups = {}
 			return
 		if now < _next_round or _waiting.is_empty():
@@ -233,7 +249,10 @@ func _gather(key: int, now: int) -> void:
 	var gathered: Array = _groups[group]
 	gathered[0].append(member)
 	gathered[1] += MergeSource.of(member.node.mesh).vertices.size()
-	if gathered[1] >= MirrorMergeConfig.chunk_vertices:
+	var most := (
+		MirrorMergeConfig.chunk_vertices if now == ANY_AGE else MirrorMergeConfig.play_vertices
+	)
+	if gathered[1] >= most and gathered[0].size() >= MirrorMergeConfig.chunk_members:
 		_to_build.append([group, gathered[0]])
 		_groups.erase(group)
 

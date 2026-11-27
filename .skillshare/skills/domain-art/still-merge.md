@@ -5,6 +5,11 @@ group). A settled one is copied into the chunk of its square of ground (`MergeCh
 node, so tree walks never meet it) and its own instance is hidden **in the rendering server only**: the node, its
 `visible`, layers and parameters stay, so everything that reads or writes them goes on. Numbers: `MirrorMergeConfig`.
 
+**When chunks are built** (a build in a played frame is a long frame): `build_all` builds every chunk as the view is
+built (the end of `View3D.light_world`, after the lights set the sun's caster layers; about 0.2 s for a 10v10 district,
+111 chunks). In play only what moved, woke or was built again waits (a knocked piece come to rest, a dented one): one
+chunk a frame at most, of `play_vertices`, from three meshes up.
+
 **The rule for anyone who changes a mesh:** a move, a show or hide, and leaving the tree are heard by an internal `Watch`
 child. Anything else that changes its pixels or passes must go through a `MeshNodes` writer or call
 `MeshNodes.changed(node)` after the write (instance uniforms, `cast_shadow`, `layers`, `material_override`). A mesh
@@ -20,5 +25,5 @@ resource edited or swapped in place on a still mesh is heard by neither: build a
 - A test that changes a mesh's material and looks at the picture turns merging off first
   (`tests/_render/frozen_frame.gd` does).
 
-Tests: `tests/art/still_merge_follows_changes_test.gd`, `still_merge_changes_windowed_test.gd`,
-`still_merge_same_picture_windowed_test.gd`.
+Tests: `tests/art/still_merge_built_with_the_view_test.gd`, `still_merge_follows_changes_test.gd`,
+`still_merge_changes_windowed_test.gd`, `still_merge_same_picture_windowed_test.gd`.
