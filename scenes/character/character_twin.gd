@@ -165,7 +165,10 @@ func walk(wanted: Vector2) -> Vector2:
 	move_and_slide()
 	global_position.y = 0.0
 	_moved_from(from)
-	_real = Vector2(get_real_velocity().x, get_real_velocity().z) / RenderConfig.unit
+	# A stopped world's step has no length (`Engine.time_scale` 0), so the engine's real velocity
+	# is 0/0: nothing moved, and a NaN would stay in the pose for good.
+	var real := get_real_velocity()
+	_real = Vector2(real.x, real.z) / RenderConfig.unit if real.is_finite() else Vector2.ZERO
 	_write()
 	return Vector2(velocity.x, velocity.z) / RenderConfig.unit
 
