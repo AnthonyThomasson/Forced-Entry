@@ -46,6 +46,8 @@ const AFTER_CAMERA := 60
 
 ## The mesh hook: key (a kind, or a finer key) -> `Callable(node) -> Node3D`. Set before `carry()`.
 var builders: Dictionary = {}
+## The still meshes drawn in merged chunks.
+var merge := StillMerge.new()
 ## How many meshes exist, how many an update looked at and how many it wrote (only a character's
 ## turn is written: the numbers the tests and the perf probes read).
 var count := 0
@@ -70,6 +72,7 @@ var _off_camera: Array[Dictionary] = []
 
 
 func _init() -> void:
+	add_child(merge, false, Node.INTERNAL_MODE_BACK)
 	var after := AfterCamera.new()
 	after.look = _catch_up
 	add_child(after, false, Node.INTERNAL_MODE_BACK)
@@ -353,6 +356,8 @@ func _carry(body: Node2D) -> void:
 		_turn(row)
 	count += 1
 	_file(body, row)
+	if _is_still(body, row):
+		merge.offer(made)
 	_rows[body.get_instance_id()] = [row]
 	_watch(body)
 
@@ -370,13 +375,21 @@ func _file(body: Node2D, row: Dictionary) -> void:
 	)
 	if not (moving or hooked or not row["shown"]):
 		return
-	var seen_first := MirrorVisionConfig.seen_first.any(
+	if _is_still(body, row):
+		_still.add(row)
+	else:
+		_moving.append(row)
+
+
+## Whether nothing of `row`'s mesh runs each frame (no hook, turn or rider) and its body is none
+## the view shows only once it has been seen (`MirrorVisionConfig.seen_first`): a mesh looked at
+## only when something changed, and one a merged chunk may hold.
+func _is_still(body: Node2D, row: Dictionary) -> bool:
+	if (row["update"] as Callable).is_valid() or row.get("turns", false) or row["rides"] != null:
+		return false
+	return not MirrorVisionConfig.seen_first.any(
 		func(group: StringName) -> bool: return body.is_in_group(group)
 	)
-	if hooked or row["turns"] or row["rides"] != null or seen_first:
-		_moving.append(row)
-	else:
-		_still.add(row)
 
 
 ## A carried body's twin was replaced (`TwinSpace.retwin`: a knocked-down door's `DoorBody` by a

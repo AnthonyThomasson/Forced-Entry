@@ -9,6 +9,7 @@ const SHADER := preload("res://scenes/art/post/toon.gdshader")
 const DECAL_SHADER := preload("res://scenes/art/post/decal.gdshader")
 const TEX_SHADER := preload("res://scenes/art/post/toon_tex.gdshader")
 const SHADE_SHADER := preload("res://scenes/art/post/shade.gdshader")
+const MERGED_SHADER := preload("res://scenes/art/post/toon_merged.gdshader")
 ## The drop shadow draws after the outline pass (a transparent surface sorts by priority first: the
 ## outline quad would draw over it from the copy of the screen before it).
 const SHADE_PRIORITY := 100
@@ -38,6 +39,8 @@ static var _prune_at := 64
 static var _followers: Dictionary = {}
 ## The drop shadow's material (`shade`), one for every shadow.
 static var _shade: ShaderMaterial
+## The merged chunks' material (`merged`), one for every chunk.
+static var _merged: ShaderMaterial
 
 
 ## A new toon material set from the holders. It declares the vision hook's globals first
@@ -114,6 +117,20 @@ static func follow(material: ShaderMaterial) -> void:
 	_prune()
 	refresh_textured(material)
 	_followers[material.get_instance_id()] = weakref(material)
+
+
+## The material of the still world's merged chunks (`toon_merged.gdshader`, `StillMerge`): what
+## differs from mesh to mesh is in their vertices, so one material draws every chunk; its textures
+## are the atlas's. It follows the textured toon's knobs (`follow`).
+static func merged() -> ShaderMaterial:
+	if _merged == null:
+		ToonMask.install()
+		ToonLight.install()
+		_merged = ShaderMaterial.new()
+		_merged.shader = MERGED_SHADER
+		_merged.set_shader_parameter(&"atlas", ToonAtlas.array())
+		follow(_merged)
+	return _merged
 
 
 ## The drop shadow's material (`shade.gdshader`): a round patch (a disc of `SHADE_TEXELS` texels,

@@ -4,6 +4,11 @@ extends RefCounted
 ## shown by, and the places a mesh's parts go, in the art's px (the one `RenderConfig.unit`
 ## conversion is the kit's, so a builder never multiplies by it).
 
+## The meta a node holds the `Callable` that hears of its look changing under (`changed`).
+const WATCHED := &"mesh_watch"
+## The meta of a node that was ever given a glow (`glow`): its glow changes with a light's rhythm,
+## so no merged chunk holds it.
+const GLOWS := &"mesh_glows"
 ## The meta a textured node holds its texture under (`shown_texture`).
 const TEXTURE_META := &"albedo_texture"
 
@@ -68,6 +73,7 @@ static func textured(
 	if texture == null:
 		node.material_override = ToonMaterial.shared()
 		node.remove_meta(TEXTURE_META)
+		changed(node)
 		return node
 	node.set_meta(TEXTURE_META, texture)
 	if ToonAtlas.fits(texture):
@@ -87,6 +93,7 @@ static func textured(
 			rect.size.y * unit,
 		),
 	)
+	changed(node)
 	return node
 
 
@@ -105,6 +112,14 @@ static func shown_texture(node: GeometryInstance3D) -> Texture2D:
 		return node.get_meta(TEXTURE_META)
 	var material := node.material_override as ShaderMaterial
 	return null if material == null else material.get_shader_parameter(&"albedo_texture")
+
+
+## Tell whoever holds a copy of `node`'s look (`StillMerge`) that it changed. Every write of a
+## mesh's material, instance parameters or shadow setting goes through the writers below, or calls
+## this.
+static func changed(node: GeometryInstance3D) -> void:
+	if node.has_meta(WATCHED):
+		(node.get_meta(WATCHED) as Callable).call()
 
 
 ## `node` placed at `at` (2D `x`, height, 2D `y`, all px) and turned `yaw` radians about the up axis
@@ -239,6 +254,7 @@ static func batch_show(node: MultiMeshInstance3D, shown: int) -> void:
 ## them; black shows only a glow, `glow`). Any toon node or decal.
 static func base_color(node: GeometryInstance3D, color: Color) -> void:
 	node.set_instance_shader_parameter(&"base_color", color)
+	changed(node)
 
 
 ## `node` shown `amount` of the way (1 whole, 0 gone): a dither of the pixels the picture's own
@@ -246,18 +262,22 @@ static func base_color(node: GeometryInstance3D, color: Color) -> void:
 ## or decal; 1 costs a branch the shader never takes.
 static func fade(node: GeometryInstance3D, amount: float) -> void:
 	node.set_instance_shader_parameter(&"fade", clampf(amount, 0.0, 1.0))
+	changed(node)
 
 
 ## `node` glowing `color` (times `strength`) whatever the light: a lamp's shade, a screen, a muzzle
 ## flash; black or a strength of 0 is no glow. Dimmed by the vision mask like the rest.
 static func glow(node: GeometryInstance3D, color: Color, strength := 1.0) -> void:
 	node.set_instance_shader_parameter(&"emissive", Color(color.r, color.g, color.b, strength))
+	node.set_meta(GLOWS, true)
+	changed(node)
 
 
 ## `node` (a part of a character) outlined by its silhouette only: the pixel post draws no crease
 ## on it, so a body's faceted limbs, a pixel or two wide, keep their colours. Any toon node.
 static func figure(node: GeometryInstance3D, on := true) -> void:
 	node.set_instance_shader_parameter(&"figure", 1.0 if on else 0.0)
+	changed(node)
 
 
 ## `node` and every mesh under it (a character's parts, a thing's lids) marked as a thing that
@@ -270,6 +290,7 @@ static func moving(node: Node, on := true) -> void:
 		(node as GeometryInstance3D).set_instance_shader_parameter(
 			&"moving", 1.0 if on else 0.0
 		)
+		changed(node)
 	var joined := _on_joined.bind(node)
 	if on and not node.child_entered_tree.is_connected(joined):
 		node.child_entered_tree.connect(joined)

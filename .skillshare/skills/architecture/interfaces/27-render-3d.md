@@ -30,3 +30,4 @@
       `set_memory(texture, world_rect, look: Vector4, tint)` (ever seen), `clear()`; default everything visible. `MeshNodes.moving(node, on)` marks what moves (drawn in the cone only); the carrier and follower hide a body the cone misses.
     - **The 2D art on the meshes** (ADR 0013 addendum): a mesh wears its painter's unlit render (`PixelArt.render_flat`, `domain-art/flat-paint.md`) through `MeshNodes.textured` (`domain-art/textured-toon.md`). The 2D painters are the texture source.
     - **Which domain has meshes** and who plugs each in (`ObjectMeshes` ... `PhysicsMeshes`): `render-3d-meshes.md`.
+    - Mesh writes: `domain-art/still-merge.md`.

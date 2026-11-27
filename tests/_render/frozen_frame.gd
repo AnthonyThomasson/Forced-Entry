@@ -21,6 +21,9 @@ static func view(t: TestContext) -> CanvasLayer:
 	var made: CanvasLayer = ViewScript.new()
 	t.world.add_child(made)
 	made.begin(camera)
+	# each mesh draws itself, so a test may change one and see it (merged chunks have their own
+	# test, `art/still_merge_same_picture_windowed`, which turns them on)
+	made.carrier.merge.enabled = false
 	made.mirror_world(t.world)
 	made.light_world(t.world, 10, WorldGen.district_rooms(t.world.district))
 	t.world.visible = false

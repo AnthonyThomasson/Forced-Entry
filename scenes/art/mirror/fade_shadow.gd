@@ -26,4 +26,5 @@ func apply(parts: Array[GeometryInstance3D], casting: bool) -> bool:
 			parts[i].cast_shadow = (
 				casts[i] if casting else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			)
+			MeshNodes.changed(parts[i])
 	return true

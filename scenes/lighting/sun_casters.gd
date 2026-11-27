@@ -266,3 +266,4 @@ func _cast(mesh: MeshInstance3D, casting: bool) -> void:
 	)
 	if layers != mesh.layers:
 		mesh.layers = layers
+		MeshNodes.changed(mesh)
