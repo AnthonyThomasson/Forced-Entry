@@ -1,21 +1,19 @@
 extends RefCounted
 ## Art domain, the carrier's still meshes (`mesh_carrier.gd`, interface 27): the rows with no
 ## `mirror_update`, no turn and no rider, of bodies the player's view remembers. While such a body
-## is off `ViewLayers.MOVING`, nothing but its own `visible` says whether its mesh shows, so a frame
-## asks only that, of every row, from flat arrays: a district stands over a thousand of them, and
-## the carrier's full look at each costs it several times as much. `changed()` gives the rows that
-## need the full look; the carrier says `looked(row)` after it.
+## is off `ViewLayers.MOVING`, nothing but its own `visible` says whether its mesh shows, so none is
+## looked at each frame: a district stands over a thousand of them, and even asking each costs. A
+## row is woken by a signal instead: the body's `visibility_changed`, its view layer changed
+## (`ViewLayers.CHANGED`) and the mesh leaving the tree (freed, with its twin or alone, or moved to
+## another). `changed()` gives the woken rows for the carrier's full look; the carrier says
+## `looked(row)` after it, and a row that needs a look every frame (its body on `MOVING`, its mesh
+## marked moving or out of the tree) stays woken.
 
-## What is remembered of a row that is looked at every frame whatever its body says: one marked
-## moving, whose mark has to come off again.
-const LOOK := 2
-
-## The rows, and by the same place: the body, the mesh, and the body's `visible` the mesh was last
-## shown by (0, 1, or `LOOK`).
-var _rows: Array[Dictionary] = []
-var _bodies: Array = []
-var _meshes: Array = []
-var _shown := PackedByteArray()
+## The rows held, by their key (`row["still"]`), with what their signals are connected to.
+var _rows: Dictionary = {}
+## The keys of the rows to look at next.
+var _woken: Dictionary = {}
+var _next := 0
 
 
 ## How many rows it holds.
@@ -23,53 +21,68 @@ func size() -> int:
 	return _rows.size()
 
 
-## Hold `row` (`MeshKinds.row_of`).
+## Hold `row` (`MeshKinds.row_of`), just shown by the rules.
 func add(row: Dictionary) -> void:
-	row["slot"] = _rows.size()
-	_rows.append(row)
-	_bodies.append(row["body"])
-	_meshes.append(row["node"])
-	_shown.append(0)
+	var body := row["body"] as Node2D
+	var mesh := row["node"] as Node3D
+	_next += 1
+	row["still"] = _next
+	row["wake"] = _wake.bind(_next)
+	_rows[_next] = row
+	if not body.has_user_signal(ViewLayers.CHANGED):
+		body.add_user_signal(ViewLayers.CHANGED)
+	body.connect(ViewLayers.CHANGED, row["wake"])
+	body.visibility_changed.connect(row["wake"])
+	mesh.tree_exiting.connect(row["wake"])
 	looked(row)
 
 
 ## Let `row` go (a row it does not hold is left alone).
 func remove(row: Dictionary) -> void:
-	var at: int = row.get("slot", -1)
-	if at < 0:
+	var key: int = row.get("still", 0)
+	if key == 0:
 		return
-	row.erase("slot")
-	var last := _rows.size() - 1
-	if at != last:
-		_rows[at] = _rows[last]
-		_rows[at]["slot"] = at
-		_bodies[at] = _bodies[last]
-		_meshes[at] = _meshes[last]
-		_shown[at] = _shown[last]
-	_rows.resize(last)
-	_bodies.resize(last)
-	_meshes.resize(last)
-	_shown.resize(last)
+	var wake: Callable = row["wake"]
+	var body: Variant = row["body"]  # untyped: may be freed
+	if is_instance_valid(body):
+		(body as Node2D).disconnect(ViewLayers.CHANGED, wake)
+		(body as Node2D).visibility_changed.disconnect(wake)
+	var mesh: Variant = row["node"]
+	if is_instance_valid(mesh):
+		(mesh as Node).tree_exiting.disconnect(wake)
+	_rows.erase(key)
+	_woken.erase(key)
+	row.erase("still")
+	row.erase("wake")
 
 
-## `row` was looked at: remember what it showed.
+## `row` was looked at: keep it woken if it needs the next frame's look too.
 func looked(row: Dictionary) -> void:
-	var at: int = row.get("slot", -1)
-	if at >= 0:
-		_shown[at] = LOOK if row["moving"] else int(row["shown"])
+	var key: int = row.get("still", 0)
+	if key == 0:
+		return
+	var body := row["body"] as Node2D
+	if (
+		row["moving"]
+		or body.visibility_layer & ViewLayers.MOVING
+		or not (row["node"] as Node).is_inside_tree()
+	):
+		_woken[key] = true
 
 
-## The rows that need the carrier's full look this frame: the body or the mesh is gone, the body
-## moves (`ViewLayers.MOVING`: the cone decides) or its `visible` is not what the mesh shows.
+## The rows that need the carrier's full look now, each one asleep again until it is woken or
+## `looked` keeps it awake.
 func changed() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	for i in _rows.size():
-		var body: Variant = _bodies[i]
-		if (
-			not is_instance_valid(body)
-			or not is_instance_valid(_meshes[i])
-			or body.visibility_layer & ViewLayers.MOVING
-			or int(body.visible) != _shown[i]
-		):
-			out.append(_rows[i])
+	if _woken.is_empty():
+		return out
+	for key: int in _woken:
+		out.append(_rows[key])
+	_woken.clear()
 	return out
+
+
+## The row of `key` is looked at next, if it is still held.
+func _wake(key: int) -> void:
+	if _rows.has(key):
+		_woken[key] = true

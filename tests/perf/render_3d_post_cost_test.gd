@@ -106,9 +106,11 @@ func _check(t: TestContext, results: Dictionary) -> void:
 				int(frame["count"]) == FRAMES * ROUNDS,
 				"%s: %d frames recorded (%d)" % [label, int(frame["count"]), FRAMES * ROUNDS],
 			)
-			Perf.within(t, "%s avg ms" % label, frame["mean"], Perf.SMOOTH_AVG_MS)
-			Perf.within(t, "%s p95 ms" % label, frame["p95"], Perf.SMOOTH_P95_MS)
-			Perf.within(t, "%s max ms" % label, frame["max"], Perf.SMOOTH_MAX_MS)
+			Perf.within_frames(
+				t,
+				label,
+				{ "avg_ms": frame["mean"], "p95_ms": frame["p95"], "max_ms": frame["max"] },
+			)
 
 
 func _set_up(t: TestContext) -> void:

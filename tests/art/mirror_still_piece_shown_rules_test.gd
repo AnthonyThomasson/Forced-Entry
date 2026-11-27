@@ -23,6 +23,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 800, 500))
 	s.object(&"chair", "armchair", Vector2(300, 200))
+	s.object(&"other", "armchair", Vector2(500, 200))
 
 
 func run(t: TestContext) -> void:
@@ -44,7 +45,7 @@ func run(t: TestContext) -> void:
 	if not t.require(mesh != null and mesh.visible, "premise: the chair's mesh is shown"):
 		return
 	carrier.update()
-	t.expect_eq(carrier.followed, 1, "the still piece is counted among the meshes looked at")
+	t.expect_eq(carrier.followed, 2, "the still pieces are counted among the meshes looked at")
 	chair.visible = false
 	carrier.update()
 	t.check(not mesh.visible, "a hidden body's mesh is hidden by the next update")
@@ -57,10 +58,23 @@ func run(t: TestContext) -> void:
 	carrier.update()
 	var fresh := carrier.mesh_of(chair)
 	t.check(fresh != null and is_instance_valid(fresh), "a mesh freed under it is built again")
-	t.expect_eq(carrier.count, 1, "one mesh, as before")
+	t.expect_eq(carrier.count, 2, "as many meshes as before")
 	chair.visible = false
 	carrier.update()
 	t.check(fresh != null and not fresh.visible, "the new mesh follows the body too")
+	chair.visible = true
+	carrier.update()
+	_check_other_kept(t, carrier, chair)
+
+
+## Building one still mesh again leaves the other still piece's rules in place.
+func _check_other_kept(t: TestContext, carrier: MeshCarrier, chair: Node2D) -> void:
+	var other := t.object(&"other")
+	carrier.remirror(chair)
+	other.visible = false
+	carrier.update()
+	t.expect_eq(carrier.followed, 2, "two still pieces after one is built again")
+	t.check(not carrier.mesh_of(other).visible, "and the other one still follows its body")
 
 
 ## With a view on that does not reach it, a piece put on `MOVING` is hidden and its mesh marked

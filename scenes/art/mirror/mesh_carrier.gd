@@ -22,8 +22,8 @@ extends Node3D
 ## off, its character is seated in a vehicle or the player's view does not reach it
 ## (`MirrorSight`), and marked moving for the shaders (`MeshNodes.moving`). A body that dies has its
 ## mesh hidden unless the mesh says to stay. A still mesh (no hook, turn or rider, of a body the
-## view remembers: `StillRows`) is looked at in full only when the one thing that can change what it
-## shows did: nearly every piece of a district is one.
+## view remembers: `StillRows`) is looked at only when a signal says something that can change what
+## it shows did: nearly every piece of a district is one.
 ##
 ## A mesh that changes without its body's transform changing (a limb, a crouch, a wheel's spin) has
 ## two ways: a `mirror_update(body)` method on the mesh node, called each frame the mesh shows, or
