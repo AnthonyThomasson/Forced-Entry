@@ -120,16 +120,16 @@ var _head_radius := 5.0
 ## How the rig's heights are squeezed (`CharacterMeshConfig.height`).
 var _squeeze := 1.0
 ## The physics frame last posed, the joints it was posed from (sized once, copied into: no array
-## is made per frame), whether `_last` holds a pose the parts are in, and the look it was dressed
-## for.
+## is made per frame) and whether `_last` holds a pose the parts are in.
 var _frame := -1
 var _last := PackedVector3Array()
 var _sample := PackedVector3Array()
 var _posed := false
-var _look_key := -1
 ## The parts, drawn as one mesh (the first child): `_skin.parts`, by the indices above (a sided
 ## part's own is its index plus the side).
 var _skin: PartSkin
+## What is read once a dressing or a pose and used by many parts.
+var _read := Read.new()
 ## The drop shadow (the child after the held item's: `_make_shade`).
 var _shade: MeshInstance3D
 ## What the character holds (`BodyHeld`: its node is the child after the parts' mesh).
@@ -178,7 +178,7 @@ func mirror_update(body: Node2D) -> void:
 	if _died < 0:
 		# The call is cheap and answers at once when nothing changed.
 		_dress.refresh(body.wardrobe)
-		if _dress.look_key != _look_key:
+		if _dress.look_key != _read.look_key:
 			_dress_parts()
 			_frame = -1  # a new look may resize parts (a cap for a helmet) even with no joint moved
 			_posed = false  # and a part it shows has not been placed while it was hidden
@@ -205,7 +205,7 @@ func on_body_died(body: Node2D) -> bool:
 	if not body.anatomy.ragdoll is Fallen:
 		return false
 	_dress.refresh(body.wardrobe)
-	if _dress.look_key != _look_key:
+	if _dress.look_key != _read.look_key:
 		_dress_parts()
 	_died = Engine.get_physics_frames()
 	_at_rest = false
@@ -315,7 +315,7 @@ static func _solid(shape: StringName, color: Color) -> Mesh:
 ## Colour the parts from the look the dress resolved, and show the optional ones it asks for: the
 ## vest and its plates, a pack, hair or a cap or helmet, a boot's shaft.
 func _dress_parts() -> void:
-	_look_key = _dress.look_key
+	_read.look_key = _dress.look_key
 	var look := _look()
 	var skin := _dress.skin
 	_coat(TORSO, _dress.shirt)
@@ -346,6 +346,8 @@ func _dress_parts() -> void:
 		_skin.parts[BOOT + i].visible = _dress.boots
 		_coat(BOOT + i, _dress.shoes)
 		_coat(FOOT + i, _dress.shoes)
+	_read.cap = worn == "cap"
+	_read.top = _crown_top()
 	BodyTextures.apply(_skin.parts, _dress, _r, _hand_radius)
 	_skin.dress()
 
@@ -354,18 +356,17 @@ func _dress_parts() -> void:
 ## indices and reads), unless none moved since the last time. `body` is the character, whose held
 ## item rides on the hand.
 func _pose(rig: Object, body: Node2D) -> void:
-	var clear := _floor_clearance()
-	for i in JOINTS:
-		_sample[i] = _lift(rig.point(i), clear)
-	for i in 2 if _died < 0 else 0:  # a fallen body's joints are the ragdoll's own
-		_sample[Rig.KNEE[i]] = _bent(rig, Rig.HIP[i], Rig.KNEE[i], Rig.ANKLE[i], clear)
-		_sample[Rig.ELBOW[i]] = _bent(rig, Rig.SHOULDER[i], Rig.ELBOW[i], Rig.HAND[i], clear)
+	if _died < 0:
+		_sample_standing(rig as Rig)
+	else:  # a fallen body's joints are the ragdoll's own, held over the floor
+		var clear := _floor_clearance()
+		for i in JOINTS:
+			_sample[i] = _lift(rig.point(i), clear)
 	for i in 2:
 		_sample[JOINTS + i] = _dir(rig.toes(i))
 	_sample[JOINTS + 2] = _dir(rig.face())
 	_sample[AIM] = _held.sample(body, _died >= 0)
-	for i in 2:
-		_sample[FISTS + i] = _fist_dir(rig, body, i)
+	_sample_fists(rig, body)
 	if _held.swapped:
 		_held.swapped = false
 		_posed = false  # a new item has not been placed
@@ -374,6 +375,8 @@ func _pose(rig: Object, body: Node2D) -> void:
 	_posed = true
 	for i in SAMPLE:
 		_last[i] = _sample[i]
+	var face := Vector3(_last[JOINTS + 2].x, 0.0, _last[JOINTS + 2].z)
+	_read.toward = face.normalized() if face.length_squared() > 0.000001 else Vector3.BACK
 	_pose_trunk()
 	_pose_head()
 	for i in 2:
@@ -484,12 +487,7 @@ func _pose_head() -> void:
 	var r := _head_radius
 	_place(_skin.parts[HEAD], frame, Vector3(r, r, r), at)
 	_cover(_skin.parts[HAIR], frame, HAIR_SHAPE, at)
-	_cover(
-		_skin.parts[HEADWEAR],
-		frame,
-		CAP_SHAPE if String(_look().get("head", "")) == "cap" else HELMET_SHAPE,
-		at,
-	)
+	_cover(_skin.parts[HEADWEAR], frame, CAP_SHAPE if _read.cap else HELMET_SHAPE, at)
 	_place(
 		_skin.parts[FACE],
 		frame,
@@ -504,7 +502,7 @@ func _pose_head() -> void:
 func _pose_crown(frame: Basis, at: Vector3) -> void:
 	var r := _head_radius
 	var flat := frame if _died < 0 else _frame_of(Vector3.UP, frame.z)
-	var top := 1.0 if _died >= 0 else _crown_top()
+	var top := 1.0 if _died >= 0 else _read.top
 	var side := BodyTextures.head_side(_r) * CharacterMeshConfig.head_scale
 	_place(
 		_skin.parts[CROWN],
@@ -518,7 +516,7 @@ func _pose_crown(frame: Basis, at: Vector3) -> void:
 func _crown_top() -> float:
 	var top := (BodySolids.HEAD[BodySolids.HEAD.size() - 1] as Vector2).y
 	if _skin.parts[HEADWEAR].visible:
-		var shape := CAP_SHAPE if String(_look().get("head", "")) == "cap" else HELMET_SHAPE
+		var shape := CAP_SHAPE if _read.cap else HELMET_SHAPE
 		top = maxf(top, shape.y + shape.x * 0.85)
 	if _skin.parts[HAIR].visible:
 		top = maxf(top, HAIR_SHAPE.y + HAIR_SHAPE.x * 0.85)
@@ -590,9 +588,7 @@ func _segment(node: MeshPart, from: Vector3, to: Vector3, radius: float) -> void
 ## z (the art's across, right of the body as it faces), as everywhere.
 func _limb_frame(along: Vector3) -> Basis:
 	var z := along.normalized() if along.length_squared() > 0.000001 else Vector3.DOWN
-	var face := Vector3(_last[JOINTS + 2].x, 0.0, _last[JOINTS + 2].z)
-	var toward := face.normalized() if face.length_squared() > 0.000001 else Vector3.BACK
-	var hint := Vector3.UP.lerp(toward, smoothstep(STEEP.x, STEEP.y, absf(z.y)))
+	var hint := Vector3.UP.lerp(_read.toward, smoothstep(STEEP.x, STEEP.y, absf(z.y)))
 	var y := hint - z * hint.dot(z)
 	if y.length_squared() < 0.000001:
 		y = z.cross(Vector3.RIGHT)
@@ -631,22 +627,36 @@ func _lift(point: Vector3, clear: float) -> Vector3:
 	return Vector3(point.x, maxf(point.z * _squeeze, clear), point.y)
 
 
+## The standing body's joints from `rig`, each lifted as `_lift` does, the knees and elbows then
+## bent in proportion (`_bend_joint`).
+func _sample_standing(rig: Rig) -> void:
+	var joints := rig.joints()
+	var squeeze_by := _squeeze
+	for i in JOINTS:
+		var point := joints[i]
+		_sample[i] = Vector3(point.x, maxf(point.z * squeeze_by, 0.0), point.y)
+	for i in 2:
+		_bend_joint(joints, Rig.HIP[i], Rig.KNEE[i], Rig.ANKLE[i])
+		_bend_joint(joints, Rig.SHOULDER[i], Rig.ELBOW[i], Rig.HAND[i])
+
+
 ## The middle joint `mid` of a two-bone limb between `from` and `to` (a knee between hip and ankle,
 ## an elbow between shoulder and hand), lifted with its ends but bent in proportion: the rig bent it
 ## for the drawing's heights, and squeezing only the ends would leave it bent as far over a shorter
 ## chord (a standing leg with its knees thrust forward). Its place along the chord and its bend
-## (the part of its offset across the chord) both shrink with the chord.
-func _bent(rig: Object, from: int, mid: int, to: int, clear: float) -> Vector3:
-	var a: Vector3 = rig.point(from)
-	var low := _lift(a, clear)
-	var squeezed := _lift(rig.point(to), clear) - low
-	var chord: Vector3 = rig.point(to) - a
+## (the part of its offset across the chord) both shrink with the chord. `_sample` holds the three
+## lifted; a chord too short to bend leaves the middle one so.
+func _bend_joint(joints: Array[Vector3], from: int, mid: int, to: int) -> void:
+	var a := joints[from]
+	var low := _sample[from]
+	var squeezed := _sample[to] - low
+	var chord := joints[to] - a
 	if chord.length() < 0.001 or squeezed.length() < 0.001:
-		return _lift(rig.point(mid), clear)
-	var offset: Vector3 = rig.point(mid) - a
+		return
+	var offset := joints[mid] - a
 	var along := offset.dot(chord) / chord.length_squared()
 	var bend := _across(offset - chord * along, squeezed) * (squeezed.length() / chord.length())
-	return low + squeezed * along + bend
+	_sample[mid] = low + squeezed * along + bend
 
 
 ## `bend` (a rig vector, x y over the floor and z up) in the 3D frame, with what lies along `chord`
@@ -667,14 +677,18 @@ func _floor_clearance() -> float:
 	return CharacterMeshConfig.lying_clear * eased
 
 
-## The way fist `i` faces, flat: the 2D hand's own angle while the body lives (what the painter
-## turns the fist by), else along the forearm.
-func _fist_dir(rig: Object, body: Node2D, i: int) -> Vector3:
+## The way each fist faces, flat, into the sample: the 2D hand's own angle while the body lives
+## (what the painter turns the fist by), else along the forearm.
+func _sample_fists(rig: Object, body: Node2D) -> void:
 	if _died < 0:
-		var angle: float = body.anatomy.pose.hand_angles[i]
-		return Vector3(cos(angle), 0.0, sin(angle))
-	var forearm: Vector3 = rig.point(Rig.HAND[i]) - rig.point(Rig.ELBOW[i])
-	return Vector3(forearm.x, 0.0, forearm.y)
+		var angles: Array = body.anatomy.pose.hand_angles
+		for i in 2:
+			var angle: float = angles[i]
+			_sample[FISTS + i] = Vector3(cos(angle), 0.0, sin(angle))
+		return
+	for i in 2:
+		var forearm: Vector3 = rig.point(Rig.HAND[i]) - rig.point(Rig.ELBOW[i])
+		_sample[FISTS + i] = Vector3(forearm.x, 0.0, forearm.y)
 
 
 ## A direction of the rig (x, y over the floor, z up: flat for a standing body, tipped for a fallen
@@ -703,3 +717,13 @@ static func _band_colour(skin: Color) -> Color:
 ## `value` if it is a colour, else a neutral grey (a part its style names no colour for).
 static func _colour(value: Variant) -> Color:
 	return value if value is Color else Color.GRAY
+
+
+## What `BodyMesh` reads once and many parts use: the look it is dressed for, whether that look's
+## headwear is a cap, how high the highest dome of a living head reaches (head radii), and the way
+## the face looks, flat (unit: what a steep limb's top turns toward, taken once a pose).
+class Read:
+	var look_key := -1
+	var cap := false
+	var top := 1.0
+	var toward := Vector3.BACK

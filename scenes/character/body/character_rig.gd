@@ -54,14 +54,14 @@ static var arm_solves := 0
 ## it keeps what the last one read until the next).
 static var _measures := Measures.new()
 
-## Vector3 per joint index.
-var _points: Array = []
+## Vector3 per joint index. (The arrays are typed so the solve's maths runs on typed values.)
+var _points: Array[Vector3] = []
 ## Per side: the way the foot points (unit, flat).
-var _toes := [Vector3.RIGHT, Vector3.RIGHT]
+var _toes: Array[Vector3] = [Vector3.RIGHT, Vector3.RIGHT]
 ## The way the face looks (unit, flat).
 var _face := Vector3.RIGHT
 ## Per side: the way the knee bends toward.
-var _knee_poles := [Vector3.RIGHT, Vector3.RIGHT]
+var _knee_poles: Array[Vector3] = [Vector3.RIGHT, Vector3.RIGHT]
 ## Bone lengths (px), for re-solving a knee.
 var _thigh := 0.0
 var _shin := 0.0
@@ -132,6 +132,11 @@ static func squeeze(radius: float) -> float:
 	)
 
 
+## Every joint by index, as `point` reads one (the rig's own array: not to be written).
+func joints() -> Array[Vector3]:
+	return _points
+
+
 ## Joint `i`'s position (local x/y px, z = height px).
 func point(i: int) -> Vector3:
 	return _points[i]
@@ -162,8 +167,11 @@ func torso() -> Basis:
 ## each arm and leg. The rig keeps one (`_measures`) for every solve, taken afresh by `_measure`
 ## each time, so a solve allocates no measures and its steps read them as their own.
 class Measures:
-	## The pose the solve reads (the character's `anatomy.pose`).
+	## The pose the solve reads (the character's `anatomy.pose`), and the body's parts it reads.
 	var pose: Pose
+	var anatomy: CharacterAnatomy
+	## The gait and the stride it makes, built once and taken afresh by each solve, after `fold`.
+	var gait := Stride.new()
 	## The body radius.
 	var r := 0.0
 	## The body's frames, its heights as the posture folds it and the feet's spacing, built once.
@@ -177,19 +185,18 @@ class Measures:
 	var arm_reach := 0.0
 	## A foot's height at rest.
 	var foot_z := 0.0
-	## The hand that holds the weapon (its side's foot is staggered back in a crouch), and the share
-	## of a stride a stunned walk keeps.
+	## The hand that holds the weapon (its side's foot is staggered back in a crouch).
 	var weapon_hand := 0
-	var staggered := 1.0
 	## The solving rig's joints (by index), knee poles and toes (per side), handed in by `_place`.
-	var _points: Array = []
-	var _knee_poles: Array = []
-	var _toes: Array = []
+	var _points: Array[Vector3] = []
+	var _knee_poles: Array[Vector3] = []
+	var _toes: Array[Vector3] = []
 
 
 	## Take the measures of `character` as it stands now, every field anew.
 	func _measure(character: Node2D) -> void:
-		pose = character.anatomy.pose
+		anatomy = character.anatomy
+		pose = anatomy.pose
 		r = character.radius
 		fold.take(character, pose, r)
 		upper = CharacterBodyConfig.upper_arm * r
@@ -200,8 +207,7 @@ class Measures:
 		foot_z = CharacterRagdollConfig.limb_radius * r
 		var item: Item = character.inventory.current_item()
 		weapon_hand = item.weapon_hand() if item != null else 0
-		# A stunned walk's shorter steps.
-		staggered = lerpf(1.0, CharacterStunConfig.stagger_stride, pose.gait.stun_amount())
+		gait.take(pose.gait, fold.folded)
 
 
 	## Place the joints of `character`, as measured, into the rig's `points` (sized for every
@@ -209,9 +215,9 @@ class Measures:
 	## false) and leg.
 	func _place(
 		character: Node2D,
-		points: Array,
-		knee_poles: Array,
-		toes: Array,
+		points: Array[Vector3],
+		knee_poles: Array[Vector3],
+		toes: Array[Vector3],
 		with_arms := true,
 	) -> void:
 		_points = points
@@ -220,7 +226,7 @@ class Measures:
 		_trunk()
 		for i in 2:
 			if with_arms:
-				_arm(character, i)
+				_arm(i)
 			_leg(character, i)
 
 
@@ -228,9 +234,9 @@ class Measures:
 	## each side's leg.
 	func _place_legs(
 		character: Node2D,
-		points: Array,
-		knee_poles: Array,
-		toes: Array,
+		points: Array[Vector3],
+		knee_poles: Array[Vector3],
+		toes: Array[Vector3],
 	) -> void:
 		_points = points
 		_knee_poles = knee_poles
@@ -261,7 +267,7 @@ class Measures:
 				+ f.fwd * (f.lean * 0.5 + neck * sin(neck_pitch))
 				+ UP * (f.chest_z + neck * cos(neck_pitch)))
 		_points[PELVIS] = _pelvis()
-		var mid: Vector3 = (_points[CHEST] + _points[PELVIS]) * 0.5
+		var mid := (_points[CHEST] + _points[PELVIS]) * 0.5
 		# Out of the chest, square to the leaning spine.
 		var belly := f.fwd * cos(f.pitch) - UP * sin(f.pitch)
 		_points[BELLY] = mid + belly * CharacterRagdollConfig.belly * r
@@ -270,12 +276,11 @@ class Measures:
 
 	## Side `i`'s arm: the shoulder reaches for the fist the hands layer holds, at its stance's grip
 	## height, following it when it is out of reach; the elbow bends toward the stance's pole.
-	func _arm(character: Node2D, i: int) -> void:
+	func _arm(i: int) -> void:
 		var f := fold
 		var out := -1.0 if i == 0 else 1.0
-		var shoulder: Vector3 = (_points[CHEST]
-				+ f.right * out * CharacterBodyConfig.shoulder_width * r)
-		var grip: Vector2 = character.anatomy.hands.hand_position(i)
+		var shoulder := _points[CHEST] + f.right * out * CharacterBodyConfig.shoulder_width * r
+		var grip: Vector2 = anatomy.hands.hand_position(i)
 		var hand := Vector3(grip.x, grip.y, pose.arms.grip_height(i) * r * f.height)
 		hand.z = clampf(hand.z, shoulder.z - arm_reach * 0.98, shoulder.z + arm_reach * 0.98)
 		var flat := Vector2(hand.x - shoulder.x, hand.y - shoulder.y)
@@ -305,7 +310,7 @@ class Measures:
 		_points[ANKLE[i]] = _stride_ankle(i)
 		_knee_poles[i] = f.hip_fwd
 		_toes[i] = f.hip_fwd
-		var kick: float = character.anatomy.leg_kick_amount(i)
+		var kick := anatomy.leg_kick_amount(i)
 		if kick > 0.0:
 			_kick_leg(character, i, kick)
 		_points[KNEE[i]] = _bend(_points[HIP[i]], _points[ANKLE[i]], thigh, shin, _knee_poles[i])
@@ -316,22 +321,10 @@ class Measures:
 	## ahead of the pelvis and staggered (the weapon hand's side back), and takes a shorter step.
 	func _stride_ankle(i: int) -> Vector3:
 		var f := fold
-		var phase: float = pose.gait.stride_phase() + (0.0 if i == 0 else PI)
-		var walk: float = pose.gait.walk_amount()
-		var run: float = pose.gait.run_amount()  # A run strides wider and lifts higher.
-		var stride := lerpf(
-			CharacterStrideConfig.body_stride,
-			CharacterStrideConfig.body_run_stride,
-			run,
-		) \
-			* lerpf(1.0, CharacterPostureConfig.body_crouch_stride, f.folded) * staggered
-		var foot_lift := lerpf(
-			CharacterStrideConfig.body_foot_lift,
-			CharacterStrideConfig.body_run_foot_lift,
-			run,
-		)
-		var step := -sin(phase) * walk * stride * r
-		var lift := maxf(-cos(phase), 0.0) * walk * foot_lift * r  # Off the floor mid-swing.
+		var swing := gait.phase + (0.0 if i == 0 else PI)
+		var step := -sin(swing) * gait.walk * gait.length * r
+		# Off the floor mid-swing.
+		var lift := maxf(-cos(swing), 0.0) * gait.walk * gait.foot_lift * r
 		var stagger := ((-0.5 if i == weapon_hand else 0.5)
 				* CharacterPostureConfig.body_crouch_stagger * r * f.folded)
 		var base := (f.hip_right * (-1.0 if i == 0 else 1.0) * f.foot_half
@@ -343,8 +336,8 @@ class Measures:
 	## aim, as far as the leg reaches at that height; the knee leads along the aim and the toes turn
 	## to it.
 	func _kick_leg(character: Node2D, i: int, kick: float) -> void:
-		var hip: Vector3 = _points[HIP[i]]
-		var ankle: Vector3 = _points[ANKLE[i]]
+		var hip := _points[HIP[i]]
+		var ankle := _points[ANKLE[i]]
 		var aim := Vector3(character.facing.x, character.facing.y, 0.0)
 		var kick_z := CharacterMeleeConfig.kick_foot_height * r * fold.height
 		var leg_rise := hip.z - kick_z
@@ -437,3 +430,32 @@ class Fold:
 		hip_z = ((CharacterBodyConfig.hip_height
 				- CharacterStrideConfig.body_run_hip_drop * pose.gait.run_amount()) * r * height)
 		chest_z = CharacterBodyConfig.hip_height * r * height + spine * cos(pitch)
+
+
+## The gait as one solve reads it (`Measures.gait`), taken once for both legs: the stride's phase,
+## how much the body walks, and the stride's length and the foot's lift they make (body radii). A
+## run strides wider and lifts higher; a crouch and a stunned walk step shorter.
+class Stride:
+	var phase := 0.0
+	var walk := 0.0
+	var length := 0.0
+	var foot_lift := 0.0
+
+
+	## Take `gait` as it stands now, for a body folded `folded`.
+	func take(gait: PoseGait, folded: float) -> void:
+		phase = gait.stride_phase()
+		walk = gait.walk_amount()
+		var run := gait.run_amount()
+		length = lerpf(
+			CharacterStrideConfig.body_stride,
+			CharacterStrideConfig.body_run_stride,
+			run,
+		) \
+			* lerpf(1.0, CharacterPostureConfig.body_crouch_stride, folded) \
+			* lerpf(1.0, CharacterStunConfig.stagger_stride, gait.stun_amount())
+		foot_lift = lerpf(
+			CharacterStrideConfig.body_foot_lift,
+			CharacterStrideConfig.body_run_foot_lift,
+			run,
+		)
