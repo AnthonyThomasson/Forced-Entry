@@ -144,7 +144,7 @@ func _check_in_the_hand(t: TestContext, mirror: MeshCarrier) -> void:
 		if held == null:
 			continue
 		var item: Item = t.actor(id).inventory.current_item()
-		var hand := body.get_child(BodyMesh.HAND + item.weapon_hand()) as Node3D
+		var hand := body.part(BodyMesh.HAND + item.weapon_hand())
 		t.check(
 			held.position.distance_to(hand.position) < 1.0,
 			"%s: the item sits in the weapon hand (%.1f px off)" % [
@@ -188,7 +188,7 @@ func _check_thrown(t: TestContext, mirror: MeshCarrier) -> void:
 		return
 	var held := body.held()
 	var item: Item = t.actor(&"thrower").inventory.current_item()
-	var hand := body.get_child(BodyMesh.HAND + item.weapon_hand()) as Node3D
+	var hand := body.part(BodyMesh.HAND + item.weapon_hand())
 	var before := hand.position
 	t.puppet(&"thrower").shoot()
 	var moved := 0.0

@@ -64,8 +64,8 @@ func run(t: TestContext) -> void:
 	var patch := dying.get_node("DropShadow") as MeshInstance3D
 	t.check(patch.visible, "a dead body keeps its drop shadow, as the 2D one keeps a floor shadow")
 	var head := Vector2(
-		dying.get_child(BodyMesh.HEAD).position.x,
-		dying.get_child(BodyMesh.HEAD).position.z,
+		dying.part(BodyMesh.HEAD).position.x,
+		dying.part(BodyMesh.HEAD).position.z,
 	)
 	var stretch := patch.basis.x.length()
 	t.check(stretch > 1.15, "it lies along the fallen body (stretched %.2f)" % stretch)

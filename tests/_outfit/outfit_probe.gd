@@ -285,9 +285,9 @@ static func can_read_art(c: Node) -> bool:
 
 
 ## One number per visible part of the character's 3D body, in order (its index, its art's instance
-## id and its colour): the same look gives the same numbers and a changed part a new one ([] when
-## the character has no body). Art is cached by what it depicts, so the same dress paints the same
-## textures.
+## id and its colour), then one for what it holds: the same look gives the same numbers and a
+## changed part a new one ([] when the character has no body). Art is cached by what it depicts, so
+## the same dress paints the same textures.
 static func art(c: Node) -> Array:
 	var mesh := body_of(c)
 	if mesh == null:
@@ -297,37 +297,37 @@ static func art(c: Node) -> Array:
 		mesh.on_body_died(c)
 	mesh.mirror_update(c)
 	var out: Array = []
-	for i in mesh.get_child_count():
-		var part := mesh.get_child(i) as MeshInstance3D
-		if part == null or not part.visible:
+	for i in BodyMesh.CROWN + 1:
+		var part := mesh.part(i)
+		if not part.visible:
 			continue
-		var tex := part_texture(part)
-		out.append(hash([
-			i,
-			tex.get_instance_id() if tex != null else 0,
-			part.get_instance_shader_parameter(&"base_color"),
-		]))
+		var tex := part.texture
+		out.append(hash([i, tex.get_instance_id() if tex != null else 0, part.tint]))
+	if mesh.held().visible:
+		var tex := held_texture(mesh)
+		out.append(hash([BodyMesh.CROWN + 1, tex.get_instance_id() if tex != null else 0]))
 	return out
 
 
-## The art `part` wears (null: it is a plain colour).
-static func part_texture(part: MeshInstance3D) -> Texture2D:
-	var material := part.material_override as ShaderMaterial
+## The art the held item's node wears (null: it is a plain colour).
+static func held_texture(mesh: BodyMesh) -> Texture2D:
+	var material := mesh.held().material_override as ShaderMaterial
 	if material == null:
 		return null
 	return material.get_shader_parameter(&"albedo_texture") as Texture2D
 
 
-## The textures the character's body wears on its visible parts.
+## The textures the character's body wears on its visible parts, and what it holds.
 static func textures(c: Node) -> Array[Texture2D]:
 	var out: Array[Texture2D] = []
 	var mesh := body_of(c)
 	if mesh == null:
 		return out
 	art(c)
-	for i in mesh.get_child_count():
-		var part := mesh.get_child(i) as MeshInstance3D
-		var tex := part_texture(part) if part != null and part.visible else null
-		if tex != null:
-			out.append(tex)
+	for i in BodyMesh.CROWN + 1:
+		var part := mesh.part(i)
+		if part.visible and part.texture != null:
+			out.append(part.texture)
+	if mesh.held().visible and held_texture(mesh) != null:
+		out.append(held_texture(mesh))
 	return out

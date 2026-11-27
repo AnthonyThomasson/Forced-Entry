@@ -94,7 +94,7 @@ func run(t: TestContext) -> void:
 func _check_shoulders(t: TestContext, body: BodyMesh, facing: String) -> void:
 	var last: PackedVector3Array = body.get("_last")
 	for index in [BodyMesh.TORSO, BodyMesh.VEST]:
-		var node := body.get_child(index) as MeshInstance3D
+		var node := body.part(index)
 		if not node.visible:
 			continue  # a part not shown is not placed
 		var end := _local(node, Vector2(0.1, 0.5), 0.5)
@@ -115,7 +115,7 @@ func _check_strips(t: TestContext, body: BodyMesh, facing: String) -> void:
 	var cap: float = CharacterArtConfig.body_arm_widths[0] * r * 0.5
 	var length: float = CharacterBodyConfig.upper_arm * r
 	for i in 2:
-		var upper := body.get_child(BodyMesh.UPPER + i) as MeshInstance3D
+		var upper := body.part(BodyMesh.UPPER + i)
 		var from: Vector3 = last[Rig.SHOULDER[i]] * RenderConfig.unit
 		var to: Vector3 = last[Rig.ELBOW[i]] * RenderConfig.unit
 		var height := float(_texture(upper).get_height())
@@ -139,7 +139,7 @@ func _check_strips(t: TestContext, body: BodyMesh, facing: String) -> void:
 func _check_fists(t: TestContext, body: BodyMesh, facing: String) -> void:
 	var last: PackedVector3Array = body.get("_last")
 	for i in 2:
-		var hand := body.get_child(BodyMesh.HAND + i) as MeshInstance3D
+		var hand := body.part(BodyMesh.HAND + i)
 		var centre := _local(hand, Vector2(0.5, 0.5), 0.0)
 		var front := _flat(_local(hand, Vector2(0.5, 0.9), 0.0) - centre)
 		var right := _flat(_local(hand, Vector2(0.9, 0.5), 0.0) - centre)
@@ -160,7 +160,7 @@ func _check_fists(t: TestContext, body: BodyMesh, facing: String) -> void:
 func _check_domes(t: TestContext, body: BodyMesh) -> void:
 	var domes := [BodyMesh.HEAD, BodyMesh.HAIR, BodyMesh.HEADWEAR, BodyMesh.HAND, BodyMesh.HAND + 1]
 	for index: int in domes:
-		var node := body.get_child(index) as MeshInstance3D
+		var node := body.part(index)
 		var image := _texture(node).get_image()
 		var size := Vector2(image.get_size())
 		var centre := _uv(node, Vector2.ZERO) * size
@@ -197,7 +197,7 @@ func _check_colours(t: TestContext, body: BodyMesh, dress: BodyDress) -> void:
 	}
 	for index: int in expected:
 		var colours: PackedColorArray = (
-			((body.get_child(index) as MeshInstance3D).mesh as ArrayMesh)
+			(body.part(index).mesh as ArrayMesh)
 				.surface_get_arrays(0)[Mesh.ARRAY_COLOR]
 		)
 		var want: Color = expected[index]
@@ -212,11 +212,10 @@ func _check_colours(t: TestContext, body: BodyMesh, dress: BodyDress) -> void:
 ## The head's sprite: a flat cut-out over the crown, higher than the domes and than the face's band,
 ## wearing the head's art over the whole canvas.
 func _check_crown(t: TestContext, body: BodyMesh) -> void:
-	var crown := body.get_child(BodyMesh.CROWN) as MeshInstance3D
-	var head := body.get_child(BodyMesh.HEAD) as MeshInstance3D
-	var material := crown.material_override as ShaderMaterial
+	var crown := body.part(BodyMesh.CROWN)
+	var head := body.part(BodyMesh.HEAD)
 	t.check(
-		material != null and material.get_shader_parameter(&"cutout") == true,
+		crown.cutout,
 		"the head's sprite is a cut-out: its clear texels draw nothing",
 	)
 	t.check(_texture(crown) == _texture(head), "it wears the head's own art")
@@ -227,11 +226,12 @@ func _check_crown(t: TestContext, body: BodyMesh) -> void:
 	var top := head.position.y + head.transform.basis.get_scale().y * 1.1
 	t.check(crown.position.y > top, "it lies over the head's crown (%.1f over %.1f)"
 		% [crown.position.y, top])
-	var face := body.get_child(BodyMesh.FACE) as MeshInstance3D
+	var face := body.part(BodyMesh.FACE)
 	var band := face.position.y + face.transform.basis.get_scale().y
 	t.check(crown.position.y > band, "and over the face's band, which it does not hide from above")
 	t.check(
-		not crown.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON,
+		(body.get_child(0) as MeshInstance3D).cast_shadow
+			!= GeometryInstance3D.SHADOW_CASTING_SETTING_ON,
 		"it casts no shadow of its own",
 	)
 
@@ -246,9 +246,9 @@ func _check_sides(t: TestContext, body: BodyMesh, dress: BodyDress) -> void:
 		0.8,
 	) if not was.is_equal_approx(Color(0.9, 0.1, 0.8)) else Color.RED
 	dress.arm_parts[1]["upper"]["color"] = other
-	var parts: Array[MeshInstance3D] = []
+	var parts: Array[MeshPart] = []
 	for index in BodyMesh.CROWN + 1:
-		parts.append(body.get_child(index) as MeshInstance3D)
+		parts.append(body.part(index))
 	BodyTextures.apply(parts, dress, body.get("_r"), body.get("_hand_radius"))
 	t.check(
 		_share(_texture(parts[BodyMesh.UPPER + 1]), other) > 0.2
@@ -277,22 +277,21 @@ func _share(texture: Texture2D, colour: Color) -> float:
 
 
 ## The texture part `node` wears.
-func _texture(node: MeshInstance3D) -> Texture2D:
-	return (node.material_override as ShaderMaterial).get_shader_parameter(&"albedo_texture")
+func _texture(node: MeshPart) -> Texture2D:
+	return node.texture
 
 
 ## The art coordinate (0..1 across and down) the model point `xz` of `node` reads: the textured
 ## toon's own rule.
-func _uv(node: MeshInstance3D, xz: Vector2) -> Vector2:
-	var rect: Vector4 = node.get_instance_shader_parameter(&"uv_rect")
-	return Vector2((xz.x - rect.x) / rect.z, (xz.y - rect.y) / rect.w)
+func _uv(node: MeshPart, xz: Vector2) -> Vector2:
+	return (xz - node.rect.position) / node.rect.size
 
 
 ## The model point of `node` that reads the art coordinate `uv` (0..1 across and down), at model
 ## height `y`, in the body's own space.
-func _local(node: MeshInstance3D, uv: Vector2, y: float) -> Vector3:
-	var rect: Vector4 = node.get_instance_shader_parameter(&"uv_rect")
-	return node.transform * Vector3(rect.x + uv.x * rect.z, y, rect.y + uv.y * rect.w)
+func _local(node: MeshPart, uv: Vector2, y: float) -> Vector3:
+	var at := node.rect.position + uv * node.rect.size
+	return node.transform * Vector3(at.x, y, at.y)
 
 
 ## A 3D point or direction on the ground plane (x, z).

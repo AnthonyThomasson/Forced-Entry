@@ -17,10 +17,11 @@ extends Node3D
 ## `CharacterMeshConfig.height` high, and the horizontal reach is unchanged (a knee's and an elbow's
 ## bend shrinks with the squeeze, `_bent`).
 ## **How it follows:** the parts are shared unit solids (`BodySolids`: a trunk, a head, tapered
-## limbs, a neck, a shoe, a ball, a box; `MeshCache`) scaled and placed between the rig's joints by
+## limbs, a neck, a shoe, a ball, a box; `MeshCache`), all drawn as ONE mesh (`PartSkin`, Art:
+## `part(index)` reads one), scaled and placed between the rig's joints by
 ## `mirror_update(body)` (the mirror calls
 ## it each frame the mesh shows), only when a joint moved; a new look (an outfit, a style) only
-## re-tints and shows or hides the optional parts (`_dress_parts`).
+## re-tints and shows or hides the optional parts and joins the mesh again (`_dress_parts`).
 ## **What it holds** is one more node, `held()`: the mesh the held item's art gives
 ## (`item.art.held_mesh()`, Items: from the item's config row, shared by kind and look), placed at
 ## the weapon hand's joint, pointing where the 2D art draws the weapon and pitched up as it is
@@ -33,7 +34,7 @@ extends Node3D
 
 const Rig = preload("res://scenes/character/body/character_rig.gd")
 const Fallen = preload("res://scenes/character/body/character_ragdoll.gd")
-## The parts, in `_parts`: the trunk's and the head's, then the sided ones (two each, side 0 first).
+## The parts, of the skin: the trunk's and the head's, then the sided ones (two each, side 0 first).
 const TORSO := 0
 const VEST := 1
 const PLATE := 2
@@ -53,8 +54,6 @@ const NECK := 23
 ## The head's art laid flat over the crown (a cut-out sprite: the whole canvas, the brim and the ear
 ## pods the dome's disc cannot carry).
 const CROWN := 24
-## The held item's node, after the parts (it is not one of the character's own).
-const HELD := 25
 ## The shape each part is made of (`_solid`), by the indices above.
 const SHAPES := [
 	&"trunk", &"vest", &"box", &"box", &"box", &"head", &"ball", &"ball", &"box",
@@ -78,6 +77,8 @@ const TURNED := 0.02
 ## shin it is.
 const BOOT_TOP := 0.62
 const BOOT_GROW := 1.05
+## How far past the joints a posed part can reach (body radii): what the body is culled by.
+const PARTS_REACH := 3.0
 ## A shoe's length over the 2D art's foot (`CharacterBodyConfig.foot`): a shoe is about a head long.
 const SHOE_LENGTH := 0.8
 ## How many physics frames a fallen body's joints take to rise to their clearance over the floor.
@@ -123,16 +124,22 @@ var _last := PackedVector3Array()
 var _sample := PackedVector3Array()
 var _posed := false
 var _look_key := -1
-## The parts, by the indices above (a sided part's own is its index plus the side).
-var _parts: Array[MeshInstance3D] = []
+## The parts, drawn as one mesh (the first child): `_skin.parts`, by the indices above (a sided
+## part's own is its index plus the side).
+var _skin: PartSkin
 ## The drop shadow (the child after the held item's: `_make_shade`).
 var _shade: MeshInstance3D
-## What the character holds (`BodyHeld`: its node is the last child, `HELD`).
+## What the character holds (`BodyHeld`: its node is the child after the parts' mesh).
 var _held := BodyHeld.new()
 ## The physics frame the body died in (-1 while it lives: it follows the ragdoll from then), and
 ## whether it was posed at rest (the ragdoll asleep).
 var _died := -1
 var _at_rest := false
+
+
+## The part at `index` (the constants above): where it is posed, what it wears, whether it shows.
+func part(index: int) -> MeshPart:
+	return _skin.parts[index]
 
 
 ## The body of `body` (a character with an anatomy and a wardrobe), or null for a node that is
@@ -256,14 +263,13 @@ func _make(body: Node2D, dress: BodyDress) -> void:
 	_squeeze = Rig.squeeze(_r)
 	_sample.resize(SAMPLE)
 	_last.resize(SAMPLE)
+	assert(SHAPES.size() == CROWN + 1, "BodyMesh: the shapes list and the part indices disagree")
+	_skin = PartSkin.new(SHAPES.size())
 	for i in SHAPES.size():
-		var node := MeshNodes.instance(_solid(SHAPES[i], Color.WHITE), Color.WHITE, false)
-		MeshNodes.figure(node)
-		add_child(node)
-		_parts.append(node)
-	assert(_parts.size() == CROWN + 1, "BodyMesh: the shapes list and the part indices disagree")
+		_skin.parts[i].mesh = _solid(SHAPES[i], Color.WHITE)
+	MeshNodes.figure(_skin.node)
+	add_child(_skin.node)
 	add_child(_held.node)
-	assert(_held.node.get_index() == HELD, "BodyMesh: the held item's node is not after the parts")
 	_make_shade()
 	_dress_parts()
 	_pose(body.anatomy.rig(), body)
@@ -305,21 +311,21 @@ func _dress_parts() -> void:
 	_coat(TORSO, _dress.shirt)
 	var vest := String(look.get("vest", "")) != ""
 	_coat(VEST, _colour(look.get("vest_col")))
-	_parts[VEST].visible = vest
+	_skin.parts[VEST].visible = vest
 	for i in 2:
 		var plate: Variant = _dress.shoulder_opts.get("front_plate" if i == 0 else "back_plate")
-		_parts[PLATE + i].visible = vest and plate is Color
-		_tint(_parts[PLATE + i], _colour(plate))
+		_skin.parts[PLATE + i].visible = vest and plate is Color
+		_skin.parts[PLATE + i].tint = _colour(plate)
 	_coat(PACK, _colour(look.get("pack_col")))
-	_parts[PACK].visible = bool(look.get("pack", false))
+	_skin.parts[PACK].visible = bool(look.get("pack", false))
 	_coat(HEAD, skin)
-	_tint(_parts[NECK], skin)
-	_tint(_parts[FACE], _band_colour(skin))
+	_skin.parts[NECK].tint = skin
+	_skin.parts[FACE].tint = _band_colour(skin)
 	var worn := String(look.get("head", ""))
 	var covered := worn == "helmet" or worn == "cap"
-	_parts[HEADWEAR].visible = covered
+	_skin.parts[HEADWEAR].visible = covered
 	_coat(HEADWEAR, _colour(look.get("helm")))
-	_parts[HAIR].visible = not covered and String(look.get("hair_style", "short")) != "bald"
+	_skin.parts[HAIR].visible = not covered and String(look.get("hair_style", "short")) != "bald"
 	_coat(HAIR, _colour(look.get("hair")))
 	for i in 2:
 		_coat(UPPER + i, _colour(_dress.arm_parts[i]["upper"]["color"]))
@@ -327,10 +333,11 @@ func _dress_parts() -> void:
 		_coat(HAND + i, _colour(_dress.hand_parts[i]["color"]))
 		_coat(THIGH + i, _dress.pants)
 		_coat(SHIN + i, _dress.shin_colour(i))
-		_parts[BOOT + i].visible = _dress.boots
+		_skin.parts[BOOT + i].visible = _dress.boots
 		_coat(BOOT + i, _dress.shoes)
 		_coat(FOOT + i, _dress.shoes)
-	BodyTextures.apply(_parts, _dress, _r, _hand_radius)
+	BodyTextures.apply(_skin.parts, _dress, _r, _hand_radius)
+	_skin.dress()
 
 
 ## Place every part between the joints of `rig` (the standing skeleton, or a ragdoll: the same
@@ -361,8 +368,18 @@ func _pose(rig: Object, body: Node2D) -> void:
 	_pose_head()
 	for i in 2:
 		_pose_limbs(i)
+	_skin.pose(_bounds())
 	_pose_shade()
 	_held.place(_last[AIM], _last[Rig.HAND[_held.hand]])
+
+
+## A box (3D units) every posed part is in: round the joints, by `PARTS_REACH` radii.
+func _bounds() -> AABB:
+	var box := AABB(_last[0], Vector3.ZERO)
+	for i in range(1, JOINTS):
+		box = box.expand(_last[i])
+	box = box.grow(_r * PARTS_REACH)
+	return AABB(box.position * RenderConfig.unit, box.size * RenderConfig.unit)
 
 
 ## Whether every joint of `_sample` is within `MOVED`, and every direction within `TURNED`, of the
@@ -383,13 +400,13 @@ func _pose_trunk() -> void:
 	var frame := _frame_of(up, _last[Rig.BELLY] - _last[Rig.SPINE])
 	var half := trunk_half(_r)
 	var length := up.length() + CharacterMeshConfig.torso_overshoot * _r
-	_place(_parts[TORSO], frame, Vector3(half.x, length, half.y), pelvis)
+	_place(_skin.parts[TORSO], frame, Vector3(half.x, length, half.y), pelvis)
 	_pose_vest(frame, pelvis, length, half)
 	_pose_pack(frame, pelvis, length, half)
 	var neck := _r * 0.5 * CharacterMeshConfig.limb_scale * CharacterArtConfig.body_neck_width
 	var chest := _last[Rig.CHEST]
 	var base := chest - (_last[Rig.HEAD] - chest).normalized() * NECK_SINK * _r
-	_segment(_parts[NECK], base, _last[Rig.HEAD], neck)
+	_segment(_skin.parts[NECK], base, _last[Rig.HEAD], neck)
 
 
 ## The trunk's half width and half depth (px) of a body of radius `r`.
@@ -417,7 +434,7 @@ func _pose_vest(frame: Basis, pelvis: Vector3, length: float, half: Vector2) -> 
 	var grow := CharacterMeshConfig.vest_grow
 	var from := length * CharacterMeshConfig.vest_from
 	_place(
-		_parts[VEST],
+		_skin.parts[VEST],
 		frame,
 		Vector3(half.x * grow, length - from, half.y * grow),
 		pelvis + frame.y * from,
@@ -428,7 +445,7 @@ func _pose_vest(frame: Basis, pelvis: Vector3, length: float, half: Vector2) -> 
 	var shell := half.y * grow * BodySolids.trunk_width(PLATE_AT) + thick * 0.5
 	for i in 2:
 		_place(
-			_parts[PLATE + i],
+			_skin.parts[PLATE + i],
 			frame,
 			Vector3(plate.x, plate.y, thick),
 			pelvis + frame.y * at + frame.z * (shell if i == 0 else -shell),
@@ -443,7 +460,7 @@ func _pose_pack(frame: Basis, pelvis: Vector3, length: float, half: Vector2) -> 
 		CharacterMeshConfig.pack_depth,
 	)
 	var behind := half.y * CharacterMeshConfig.vest_grow * PACK_SET + pack.z * 0.5
-	_place(_parts[PACK], frame, pack, pelvis + frame.y * length * 0.2 - frame.z * behind)
+	_place(_skin.parts[PACK], frame, pack, pelvis + frame.y * length * 0.2 - frame.z * behind)
 
 
 ## The head on its joint, its hair or headwear toward the back and its face band where the face
@@ -454,16 +471,16 @@ func _pose_head() -> void:
 	var up := _last[Rig.HEAD] - _last[Rig.CHEST] if _died >= 0 else Vector3.UP
 	var frame := _frame_of(up, _last[JOINTS + 2])
 	var r := _head_radius
-	_place(_parts[HEAD], frame, Vector3(r, r, r), at)
-	_cover(_parts[HAIR], frame, HAIR_SHAPE, at)
+	_place(_skin.parts[HEAD], frame, Vector3(r, r, r), at)
+	_cover(_skin.parts[HAIR], frame, HAIR_SHAPE, at)
 	_cover(
-		_parts[HEADWEAR],
+		_skin.parts[HEADWEAR],
 		frame,
 		CAP_SHAPE if String(_look().get("head", "")) == "cap" else HELMET_SHAPE,
 		at,
 	)
 	_place(
-		_parts[FACE],
+		_skin.parts[FACE],
 		frame,
 		FACE_SHAPE * r,
 		at + frame.z * r * FACE_FORWARD + frame.y * r * FACE_BASE,
@@ -479,7 +496,7 @@ func _pose_crown(frame: Basis, at: Vector3) -> void:
 	var top := 1.0 if _died >= 0 else _crown_top()
 	var side := BodyTextures.head_side(_r) * CharacterMeshConfig.head_scale
 	_place(
-		_parts[CROWN],
+		_skin.parts[CROWN],
 		flat,
 		Vector3(side, CROWN_THICK, side),
 		at + Vector3.UP * (r * top + CROWN_LIFT),
@@ -489,17 +506,17 @@ func _pose_crown(frame: Basis, at: Vector3) -> void:
 ## How high the highest visible dome of the head reaches over its centre, in head radii.
 func _crown_top() -> float:
 	var top := (BodySolids.HEAD[BodySolids.HEAD.size() - 1] as Vector2).y
-	if _parts[HEADWEAR].visible:
+	if _skin.parts[HEADWEAR].visible:
 		var shape := CAP_SHAPE if String(_look().get("head", "")) == "cap" else HELMET_SHAPE
 		top = maxf(top, shape.y + shape.x * 0.85)
-	if _parts[HAIR].visible:
+	if _skin.parts[HAIR].visible:
 		top = maxf(top, HAIR_SHAPE.y + HAIR_SHAPE.x * 0.85)
 	return top
 
 
-## `node` (a ball) over the head at `at`: `shape` is its size over the head's, how far up and how
-## far back it sits.
-func _cover(node: MeshInstance3D, frame: Basis, shape: Vector3, at: Vector3) -> void:
+## `node` (a ball part) over the head at `at`: `shape` is its size over the head's, how far up and
+## how far back it sits.
+func _cover(node: MeshPart, frame: Basis, shape: Vector3, at: Vector3) -> void:
 	var r := _head_radius
 	_place(
 		node,
@@ -514,10 +531,10 @@ func _pose_limbs(i: int) -> void:
 	var thick := _r * 0.5 * CharacterMeshConfig.limb_scale
 	var elbow := _last[Rig.ELBOW[i]]
 	var hand := _last[Rig.HAND[i]]
-	_segment(_parts[UPPER + i], _last[Rig.SHOULDER[i]], elbow, thick)
-	_segment(_parts[FORE + i], elbow, hand, thick)
+	_segment(_skin.parts[UPPER + i], _last[Rig.SHOULDER[i]], elbow, thick)
+	_segment(_skin.parts[FORE + i], elbow, hand, thick)
 	_place(
-		_parts[HAND + i],
+		_skin.parts[HAND + i],
 		_frame_of(Vector3.UP, _last[FISTS + i]),
 		Vector3.ONE * _hand_radius,
 		hand,
@@ -532,9 +549,9 @@ func _pose_leg(i: int, thick: float) -> void:
 	var knee := _last[Rig.KNEE[i]]
 	var ankle := _last[Rig.ANKLE[i]]
 	var shin: float = (legs[1] + legs[2] + legs[3]) / 3.0 * thick
-	_segment(_parts[THIGH + i], _last[Rig.HIP[i]], knee, thick)
-	_segment(_parts[SHIN + i], knee, ankle, thick)
-	_segment(_parts[BOOT + i], knee.lerp(ankle, BOOT_TOP), ankle, shin * BOOT_GROW)
+	_segment(_skin.parts[THIGH + i], _last[Rig.HIP[i]], knee, thick)
+	_segment(_skin.parts[SHIN + i], knee, ankle, thick)
+	_segment(_skin.parts[BOOT + i], knee.lerp(ankle, BOOT_TOP), ankle, shin * BOOT_GROW)
 	var shoes := CharacterArtConfig.body_shoe_widths
 	var size := Vector3(
 		(shoes[0] + shoes[1]) * 0.5 * _r,
@@ -543,11 +560,11 @@ func _pose_leg(i: int, thick: float) -> void:
 	)
 	var frame := _frame_of(Vector3.UP, _last[JOINTS + i])
 	var at := Vector3(ankle.x, maxf(ankle.y - size.y * 0.5, 0.0), ankle.z)
-	_place(_parts[FOOT + i], frame, size, at + frame.z * size.z * 0.25)
+	_place(_skin.parts[FOOT + i], frame, size, at + frame.z * size.z * 0.25)
 
 
-## `node` (a limb solid, lying along its z) laid from `from` to `to`, `radius` px across.
-func _segment(node: MeshInstance3D, from: Vector3, to: Vector3, radius: float) -> void:
+## `node` (a limb part, its solid lying along its z) laid from `from` to `to`, `radius` px across.
+func _segment(node: MeshPart, from: Vector3, to: Vector3, radius: float) -> void:
 	var along := to - from
 	_place(
 		node,
@@ -574,7 +591,7 @@ func _limb_frame(along: Vector3) -> Basis:
 
 ## `node` turned to `frame`, `size` px along its three axes, its origin at `at` px; a part not shown
 ## is left where it is (the look that shows it poses again).
-func _place(node: MeshInstance3D, frame: Basis, size: Vector3, at: Vector3) -> void:
+func _place(node: MeshPart, frame: Basis, size: Vector3, at: Vector3) -> void:
 	if not node.visible:
 		return
 	node.transform = Transform3D(
@@ -661,14 +678,9 @@ func _look() -> Dictionary:
 
 
 ## Part `index` made in `color`, as the vertex colour of its solid: a textured part shows it where
-## its art is clear (its instance is tinted white by `BodyTextures`, so the art shows as painted).
+## its art is clear (`BodyTextures` tints it white, so the art shows as painted).
 func _coat(index: int, color: Color) -> void:
-	_parts[index].mesh = _solid(SHAPES[index], color)
-
-
-## `node` tinted `color` (its own colour: the shared meshes are white).
-static func _tint(node: MeshInstance3D, color: Color) -> void:
-	node.set_instance_shader_parameter(&"base_color", color)
+	_skin.parts[index].mesh = _solid(SHAPES[index], color)
 
 
 ## The face band's colour: near black on a light skin and near white on a dark one, so the way the

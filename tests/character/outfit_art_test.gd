@@ -200,7 +200,7 @@ func _check_fallen(t: TestContext) -> void:
 	)
 	OutfitProbe.wear(fallen, OutfitProbe.PLAIN_CLOTHES)
 	await t.seconds(0.3)
-	var vest_part := OutfitProbe.body_of(fallen).get_child(BodyMesh.VEST) as MeshInstance3D
+	var vest_part := OutfitProbe.body_of(fallen).part(BodyMesh.VEST)
 	t.require(not vest_part.visible, "before the fall the body wears no vest")
 	OutfitProbe.wear(fallen, carrier)
 	fallen.take_damage(100.0)  # the same frame: the look must be resolved as it dies
@@ -216,7 +216,7 @@ func _check_fallen(t: TestContext) -> void:
 	await t.seconds(0.3)
 	var lying := OutfitProbe.art(fallen)
 	t.require(not lying.is_empty(), "the fallen body is shown")
-	var vest := OutfitProbe.body_of(fallen).get_child(BodyMesh.VEST) as MeshInstance3D
+	var vest := OutfitProbe.body_of(fallen).part(BodyMesh.VEST)
 	t.check(vest.visible, "the body that died in a plate carrier shows it where it lies")
 	var plain := OutfitProbe.art(t.actor(&"model"))
 	t.check(lying != plain, "and it looks different from a body in plain clothes")
