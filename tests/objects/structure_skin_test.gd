@@ -112,7 +112,7 @@ func _segment(
 	var material := part.material_override as ShaderMaterial
 	if not t.require(material != null, "%s is textured" % part.name):
 		return null
-	var tile := material.get_shader_parameter(&"albedo_texture") as Texture2D
+	var tile := MeshNodes.shown_texture(part)
 	var along_x := absf(seg[1].x - seg[0].x) >= absf(seg[1].y - seg[0].y)
 	var along := Vector2(ObjectArtWallConfig.tile_px, THICKNESS)
 	var wanted := along if along_x else Vector2(along.y, along.x)
@@ -193,7 +193,7 @@ func _floors(t: TestContext, mirror: MeshCarrier) -> void:
 			floor_node.art, floor_node.color, floor_node.floor_material, floor_node.art_opts
 		)
 		t.check(
-			material.get_shader_parameter(&"albedo_texture") == tile,
+			MeshNodes.shown_texture(node) == tile,
 			"%s wears its flat tile" % floor_node.name,
 		)
 		var rect: Vector4 = node.get_instance_shader_parameter(&"uv_rect")
@@ -223,7 +223,7 @@ func _door(t: TestContext, mirror: MeshCarrier) -> void:
 	var art := ObjectArt.flat("door", size, door.look.color, door.look.art_opts())
 	var material := leaf.material_override as ShaderMaterial
 	t.check(
-		material != null and material.get_shader_parameter(&"albedo_texture") == art,
+		material != null and MeshNodes.shown_texture(leaf) == art,
 		"the leaf wears the flat door art",
 	)
 	var rect: Vector4 = leaf.get_instance_shader_parameter(&"uv_rect")

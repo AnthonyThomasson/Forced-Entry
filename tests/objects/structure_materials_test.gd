@@ -48,7 +48,7 @@ func run(t: TestContext) -> void:
 			for node in meshes:
 				var material := (node as MeshInstance3D).material_override as ShaderMaterial
 				parts += 1
-				if _is_textured_toon(material):
+				if _is_textured_toon(node as MeshInstance3D):
 					textured += 1
 					materials[material] = true
 	t.check(
@@ -79,9 +79,10 @@ func _structure_bodies(root: Node) -> Array:
 
 
 ## Whether `material` is a textured toon (a decal, a wear mark, has a texture of its own too).
-func _is_textured_toon(material: ShaderMaterial) -> bool:
+func _is_textured_toon(node: MeshInstance3D) -> bool:
+	var material := node.material_override as ShaderMaterial
 	return (
 		material != null
 		and material.shader.resource_path.ends_with("toon_tex.gdshader")
-		and material.get_shader_parameter(&"albedo_texture") != null
+		and MeshNodes.shown_texture(node) != null
 	)

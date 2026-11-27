@@ -72,7 +72,7 @@ func run(t: TestContext) -> void:
 	t.expect_near(at.x, DINING_AT.x, 1.0, "the mesh stands on the table (x)")
 	t.expect_near(at.z, DINING_AT.y, 1.0, "the mesh stands on the table (z)")
 	t.check(
-		(node.material_override as ShaderMaterial).get_shader_parameter(&"albedo_texture") != null,
+		MeshNodes.shown_texture(node as MeshInstance3D) != null,
 		"it is drawn in the textured toon, wearing the painter's art",
 	)
 	# At half scale, every length of the mesh halves (the one conversion is the kit's).

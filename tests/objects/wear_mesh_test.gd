@@ -662,7 +662,7 @@ func _wall_decals(wall_mesh: Node3D) -> Array:
 
 
 func _texture_of(decal: MeshInstance3D) -> Texture2D:
-	return (decal.material_override as ShaderMaterial).get_shader_parameter(&"albedo_texture")
+	return MeshNodes.shown_texture(decal)
 
 
 ## The mesh `mirror` shows `floor_node` by (a kit mesh, not a proxy box).

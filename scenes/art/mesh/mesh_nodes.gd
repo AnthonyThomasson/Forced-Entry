@@ -4,6 +4,9 @@ extends RefCounted
 ## shown by, and the places a mesh's parts go, in the art's px (the one `RenderConfig.unit`
 ## conversion is the kit's, so a builder never multiplies by it).
 
+## The meta a textured node holds its texture under (`shown_texture`).
+const TEXTURE_META := &"albedo_texture"
+
 
 ## A node showing `mesh` in the shared toon material (`ToonMaterial.shared`), tinted `tint` (the
 ## instance's `base_color`, white: the mesh's own colours), casting a shadow unless `casts_shadow`
@@ -34,11 +37,13 @@ static func instance(mesh: Mesh, tint := Color.WHITE, casts_shadow := true) -> M
 ##     (true by default on a new node), `tiled` (the art repeats across the model: a floor tile,
 ##     a road strip; `rect` is then one tile), `cutout` (a clear texel draws nothing: a sprite laid
 ##     over a solid).
+## The texture is copied into the toon's atlas the first time it is shown (`ToonAtlas`), so it is
+## never updated in place afterwards; the node holds it (`shown_texture`).
 ## A top face (normal up) shows the art, a side face the art's edge texels stretched and darkened
 ## (`toon_tex.gdshader` documents the rule); a clear texel shows the mesh's vertex colour. A null
-## texture leaves the shared toon material (a plain mesh). Instance uniforms cannot be samplers, so
-## a material is one per texture and tiling (`ToonMaterial.textured`, weakly cached): many nodes of
-## one texture share it, a node holds it.
+## texture leaves the shared toon material (a plain mesh). Where the texture lies in the atlas is
+## an instance uniform (`atlas_rect`), so every node of one tiling and cut-out shares one material
+## whatever its art (`ToonMaterial.textured`).
 static func textured(
 	thing: Object,
 	texture: Texture2D,
@@ -62,7 +67,11 @@ static func textured(
 			)
 	if texture == null:
 		node.material_override = ToonMaterial.shared()
+		node.remove_meta(TEXTURE_META)
 		return node
+	node.set_meta(TEXTURE_META, texture)
+	if ToonAtlas.fits(texture):
+		node.set_instance_shader_parameter(&"atlas_rect", ToonAtlas.slot(texture))
 	node.material_override = ToonMaterial.textured(
 		texture,
 		opts.get("tiled", false),
@@ -79,6 +88,15 @@ static func textured(
 		),
 	)
 	return node
+
+
+## The texture a textured or decal node shows (`textured`, `decal`), or null: what it wears is not
+## a parameter of its material once that is shared.
+static func shown_texture(node: GeometryInstance3D) -> Texture2D:
+	if node.has_meta(TEXTURE_META):
+		return node.get_meta(TEXTURE_META)
+	var material := node.material_override as ShaderMaterial
+	return null if material == null else material.get_shader_parameter(&"albedo_texture")
 
 
 ## `node` placed at `at` (2D `x`, height, 2D `y`, all px) and turned `yaw` radians about the up axis

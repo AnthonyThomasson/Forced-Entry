@@ -27,13 +27,22 @@ render_mode diffuse_lambert, ambient_light_disabled;
 // tile, a road strip): uv wraps by `fract`, the footprint `uv_rect` is one tile. A skinned mesh
 // (`Skeleton3D`) would slide the art over its bones (model space is the rest pose): none is used.
 //
-// Godot 4.4 instance uniforms cannot be samplers, so the texture is a uniform and there is one
-// material per texture (`ToonMaterial.textured`).
+// Godot 4.4 instance uniforms cannot be samplers, so the painted textures are packed into the
+// layers of one texture array (`ToonAtlas`) and each instance says where its own lies
+// (`atlas_rect`): one material for every texture of a tiling and cut-out, and the meshes that are
+// alike draw in one call. The array is read BY TEXEL (`texelFetch`, the texel the nearest filter
+// would take, clamped to the texture's own), so no neighbour's texel bleeds in. A texture too
+// large for the atlas is a material's own `albedo_texture` (`atlased` off).
 
 #include "res://scenes/art/post/toon_common.gdshaderinc"
 #include "res://scenes/art/post/toon_surface.gdshaderinc"
 
 uniform sampler2D albedo_texture : source_color, filter_nearest, repeat_disable;
+uniform sampler2DArray atlas : source_color, filter_nearest, repeat_disable;
+uniform bool atlased = false;
+// Where the instance's texture lies in the atlas (`ToonAtlas.slot`): x its left texel plus 4096
+// times its layer, y its top texel, then its width and height.
+instance uniform vec4 atlas_rect = vec4(0.0, 0.0, 1.0, 1.0);
 uniform bool tiled = false;
 // A cut-out mesh draws no clear texel at all (a flat sprite laid over solids, as a head's art over
 // its dome: the brim past the dome, the clear ground round it shows what is behind).
@@ -74,13 +83,22 @@ void fragment() {
 			uv.x = fract(uv.x);
 		}
 	}
+	vec2 art_size = atlased ? atlas_rect.zw : vec2(textureSize(albedo_texture, 0));
 	if (!top) {
 		// The fixed axis sits on the footprint's edge (uv 0 or 1): clamp it to the edge texel
 		// (the wrapped one is inside already).
-		vec2 half_texel = 0.5 / vec2(textureSize(albedo_texture, 0));
+		vec2 half_texel = 0.5 / art_size;
 		uv = clamp(uv, half_texel, 1.0 - half_texel);
 	}
-	vec4 art = texture(albedo_texture, uv);
+	vec4 art;
+	if (atlased) {
+		float layer = floor(atlas_rect.x / 4096.0);
+		vec2 corner = vec2(atlas_rect.x - layer * 4096.0, atlas_rect.y);
+		vec2 texel = clamp(floor(uv * art_size), vec2(0.0), art_size - 1.0);
+		art = texelFetch(atlas, ivec3(ivec2(corner + texel), int(layer)), 0);
+	} else {
+		art = texture(albedo_texture, uv);
+	}
 	if (cutout && art.a < 0.5) {
 		discard;
 	}

@@ -39,3 +39,7 @@ static var figure_creases: bool = false
 ## (`CameraRig.turn_oversample`, `View3D`'s larger stage) for a later, smoother mitigation.
 static var supersample: int = 1
 static var turn_supersample: int = 1
+## The side, in texels, of one layer of the toon's texture atlas (`ToonAtlas`): a larger painted
+## texture keeps a material of its own. A layer is written to the GPU whole when a texture is added
+## to it, so a larger side costs more a new texture.
+static var atlas_page: int = 512

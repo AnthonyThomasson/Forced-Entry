@@ -56,8 +56,7 @@ func test_the_held_gun_wears_its_flat_art_over_the_art_footprint() -> void:
 	assert_vector(Vector2(texture.get_size())).is_equal(RIFLE)
 	assert_that(art.held_rect()).is_equal(Rect2(-RIFLE.x * 0.5, -13.0, RIFLE.x, RIFLE.y))
 	var node := MeshNodes.textured(art.held_mesh(), texture, art.held_rect())
-	var material := node.material_override as ShaderMaterial
-	assert_object(material.get_shader_parameter(&"albedo_texture")).is_same(texture)
+	assert_object(MeshNodes.shown_texture(node)).is_same(texture)
 	node.free()
 
 

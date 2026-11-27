@@ -91,9 +91,8 @@ func _check_table(t: TestContext, mirror: MeshCarrier) -> void:
 		"table", piece.get("size"), piece.get("color"),
 		piece.look.art_opts.merged({ "material": piece.object_material }, true),
 	)
-	var material := rig.body.material_override as ShaderMaterial
 	t.check(
-		material != null and material.get_shader_parameter(&"albedo_texture") == flat,
+		MeshNodes.shown_texture(rig.body) == flat,
 		"the table's top wears the table's flat render",
 	)
 
@@ -116,7 +115,7 @@ func _check_dressed(t: TestContext, rig: FurnitureRig, piece: Node) -> void:
 		piece.look.art_opts.merged({ "material": piece.object_material }, true),
 	)
 	t.check(
-		material.get_shader_parameter(&"albedo_texture") == flat,
+		MeshNodes.shown_texture(rig.body) == flat,
 		"the body wears the sofa's flat render",
 	)
 	t.check(
@@ -129,8 +128,7 @@ func _check_dressed(t: TestContext, rig: FurnitureRig, piece: Node) -> void:
 ## A sofa facing left wears the canonical art turned a quarter: its front row is the left column.
 func _check_turned(t: TestContext, rig: FurnitureRig, piece: Node) -> void:
 	var size: Vector2 = piece.get("size")
-	var material := rig.body.material_override as ShaderMaterial
-	var worn: Image = (material.get_shader_parameter(&"albedo_texture") as Texture2D).get_image()
+	var worn := MeshNodes.shown_texture(rig.body).get_image()
 	t.check(
 		worn.get_size() == Vector2i(size),
 		"the turned art is the footprint's size: %s" % worn.get_size(),
@@ -163,8 +161,7 @@ func _check_turns(t: TestContext, mirror: MeshCarrier) -> void:
 ## `piece`'s art lies with its front row along the edge its facing names.
 func _check_turned_edge(t: TestContext, id: StringName, rig: FurnitureRig, piece: Node) -> void:
 	var spec := FurnitureSpec.of(piece)
-	var material := rig.body.material_override as ShaderMaterial
-	var texture: Texture2D = material.get_shader_parameter(&"albedo_texture")
+	var texture := MeshNodes.shown_texture(rig.body)
 	var worn := texture.get_image()
 	var canon := ObjectArt.flat(
 		"sofa", spec.size, piece.get("color"),
@@ -213,8 +210,7 @@ func _check_overhang(t: TestContext, mirror: MeshCarrier, id: StringName) -> voi
 			and rect.grow(0.01).encloses(turn * Rect2(-spec.size * 0.5, spec.size)),
 		"%s: the art covers the footprint and the overhang (%s)" % [id, rect],
 	)
-	var material := rig.body.material_override as ShaderMaterial
-	var worn: Texture2D = material.get_shader_parameter(&"albedo_texture")
+	var worn := MeshNodes.shown_texture(rig.body)
 	t.check(
 		worn.get_size() == rect.size,
 		"%s: the canvas is the rect, a texel a pixel (%s for %s)" % [

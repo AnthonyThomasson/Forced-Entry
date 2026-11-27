@@ -311,10 +311,9 @@ static func art(c: Node) -> Array:
 
 ## The art the held item's node wears (null: it is a plain colour).
 static func held_texture(mesh: BodyMesh) -> Texture2D:
-	var material := mesh.held().material_override as ShaderMaterial
-	if material == null:
+	if mesh.held().material_override == null:
 		return null
-	return material.get_shader_parameter(&"albedo_texture") as Texture2D
+	return MeshNodes.shown_texture(mesh.held())
 
 
 ## The textures the character's body wears on its visible parts, and what it holds.

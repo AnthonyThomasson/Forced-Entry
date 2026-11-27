@@ -24,8 +24,11 @@ static var _shared: ShaderMaterial
 ## holds its texture, so the nodes showing it are what keep it (and the texture) alive, and the last
 ## to go frees both. The id is never reused while the material lives.
 static var _decals: Dictionary = {}
-## The textured toon materials (`toon_tex.gdshader`), one per texture and tiling, by
-## `"<texture id>|<tiled>"`, held weakly as `_decals` are.
+## The textured toon materials (`toon_tex.gdshader`): one per tiling and cut-out for every texture
+## in the atlas (`ToonAtlas`), by `"atlas|<tiled>|<cutout>"`, held for good; and one per texture
+## and tiling for a texture too large for the atlas, by `"<texture id>|<tiled>|<cutout>"`, held
+## weakly as `_decals` are.
+static var _atlased: Dictionary = {}
 static var _textured: Dictionary = {}
 ## The tables' size at which `decal`, `textured` or `follow` next drops the freed ones (twice what
 ## they held after the last).
@@ -69,16 +72,22 @@ static func decal(texture: Texture2D) -> ShaderMaterial:
 
 
 ## The textured toon material showing `texture` (the 2D painters' art on a mesh,
-## `MeshNodes.textured`
-## is the entry domains call): the toon bands and ramp of the shared material plus the texture, as
-## a decal is held, one for each texture, each `tiled` (the art repeats: a floor tile, a road
-## strip) and each `cutout` (a clear texel draws nothing); a node holds it, `refresh_all` keeps it
-## in step. A null texture is the shared toon material (nothing to show).
+## `MeshNodes.textured` is the entry domains call: it also tells the node where the texture lies):
+## the toon bands and ramp of the shared material, each `tiled` (the art repeats: a floor tile, a
+## road strip) and each `cutout` (a clear texel draws nothing). Every texture that fits the atlas
+## (`ToonAtlas.fits`) shares one material per tiling and cut-out, so meshes of different art are
+## drawn together; a larger one has a material of its own, held by the node showing it, as a decal
+## is. `refresh_all` keeps all in step. A null texture is the shared toon material (nothing to
+## show).
 static func textured(texture: Texture2D, tiled := false, cutout := false) -> ShaderMaterial:
 	if texture == null:
 		return shared()
-	var key := "%d|%s|%s" % [texture.get_instance_id(), tiled, cutout]
-	var held: Variant = _textured[key].get_ref() if _textured.has(key) else null
+	var atlased := ToonAtlas.fits(texture)
+	var table := _atlased if atlased else _textured
+	var key := "%s|%s|%s" % ["atlas" if atlased else str(texture.get_instance_id()), tiled, cutout]
+	var held: Variant = table.get(key)
+	if held is WeakRef:
+		held = (held as WeakRef).get_ref()
 	if held is ShaderMaterial:
 		return held
 	ToonMask.install()
@@ -87,10 +96,15 @@ static func textured(texture: Texture2D, tiled := false, cutout := false) -> Sha
 	var material := ShaderMaterial.new()
 	material.shader = TEX_SHADER
 	refresh_textured(material)
-	material.set_shader_parameter(&"albedo_texture", texture)
+	material.set_shader_parameter(&"atlased", atlased)
+	if atlased:
+		material.set_shader_parameter(&"atlas", ToonAtlas.array())
+		_atlased[key] = material
+	else:
+		material.set_shader_parameter(&"albedo_texture", texture)
+		_textured[key] = weakref(material)
 	material.set_shader_parameter(&"tiled", tiled)
 	material.set_shader_parameter(&"cutout", cutout)
-	_textured[key] = weakref(material)
 	return material
 
 
@@ -122,11 +136,11 @@ static func shade() -> ShaderMaterial:
 	return _shade
 
 
-## How many textured materials are alive (a test reads it, the perf report too): the ones a node
-## still shows.
+## How many textures the textured toon shows now (a test reads it, the perf report too): those in
+## the atlas and those with a material of their own that something still holds.
 static func textured_count() -> int:
 	_forget_freed()
-	return _textured.size()
+	return ToonAtlas.count() + _textured.size()
 
 
 ## How many decal materials are alive (a test reads it): the ones a node still shows.
@@ -135,8 +149,8 @@ static func decal_count() -> int:
 	return _decals.size()
 
 
-## Push the holders into the shared material and every live decal material (a new mirror does it, so
-## a tuning change applies from the next match).
+## Push the holders into the shared material and every live decal and textured material (a new
+## mirror does it, so a tuning change applies from the next match).
 static func refresh_all() -> void:
 	refresh(shared())
 	_forget_freed()
@@ -144,6 +158,8 @@ static func refresh_all() -> void:
 		var material: Variant = held.get_ref()
 		if material is ShaderMaterial:
 			refresh(material)
+	for material: ShaderMaterial in _atlased.values():
+		refresh_textured(material)
 	for held: WeakRef in _textured.values() + _followers.values():
 		var material: Variant = held.get_ref()
 		if material is ShaderMaterial:

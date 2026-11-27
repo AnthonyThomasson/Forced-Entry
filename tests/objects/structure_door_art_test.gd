@@ -138,8 +138,7 @@ func _shattered_while_lying(t: TestContext, door: Node2D, node: DoorMesh) -> voi
 
 ## The texture a textured mesh instance shows (null when it has none).
 func _texture_of(node: MeshInstance3D) -> Texture2D:
-	var material := node.material_override as ShaderMaterial
-	return null if material == null else material.get_shader_parameter(&"albedo_texture")
+	return null if node.material_override == null else MeshNodes.shown_texture(node)
 
 
 ## The height of the lowest up-facing face of `mesh` (px).

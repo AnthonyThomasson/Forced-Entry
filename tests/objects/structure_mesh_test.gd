@@ -177,7 +177,7 @@ func _check_wall_colours(t: TestContext, node: Node3D, wall: Node) -> void:
 	var material := part.material_override as ShaderMaterial
 	if not t.require(material != null, "%s: a textured material" % wall.name):
 		return
-	var tile := material.get_shader_parameter(&"albedo_texture") as Texture2D
+	var tile := MeshNodes.shown_texture(part)
 	t.check(tile != null, "%s: its cap tile is the material's texture" % wall.name)
 	t.check(material.get_shader_parameter(&"tiled") == true, "%s: the tile repeats" % wall.name)
 
@@ -214,7 +214,7 @@ func _floors(t: TestContext, mirror: MeshCarrier) -> void:
 				"%s: at the floor's corner (z)" % floor_node.name)
 		var material := node.material_override as ShaderMaterial
 		if t.require(material != null, "%s: wears a textured material" % floor_node.name):
-			var tile := material.get_shader_parameter(&"albedo_texture") as Texture2D
+			var tile := MeshNodes.shown_texture(node)
 			var painted := ObjectArt.tile_flat(
 				floor_node.art, floor_node.color, floor_node.floor_material, floor_node.art_opts
 			)

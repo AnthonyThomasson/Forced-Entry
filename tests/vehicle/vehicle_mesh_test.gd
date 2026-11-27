@@ -122,7 +122,8 @@ func _check_hull(t: TestContext, rig: VehicleMeshRig, body: Node2D, spec: Dictio
 	t.check(white, "every face is white: the art is the texture's, the shape the mesh's")
 	var skin := VehicleSkin.body(body.get("kind"), body.get("color"))
 	t.check(
-		_hull(rig).material_override == ToonMaterial.textured(skin["texture"], false),
+		_hull(rig).material_override == ToonMaterial.textured(skin["texture"], false)
+			and MeshNodes.shown_texture(_hull(rig)) == skin["texture"],
 		"it wears the 2D art of its kind and paint (the textured toon)",
 	)
 	var rect: Vector4 = Vector4(
@@ -149,14 +150,19 @@ func _check_sharing(t: TestContext, mirror: MeshCarrier, rig: VehicleMeshRig) ->
 		twin != null and _hull(twin).material_override == _hull(rig).material_override,
 		"and the one textured material",
 	)
+	var worn := MeshNodes.shown_texture(_hull(rig))
+	t.check(
+		twin != null and MeshNodes.shown_texture(_hull(twin)) == worn,
+		"and one texture",
+	)
 	t.check(
 		blue != null and _hull(blue).mesh == _hull(rig).mesh,
 		"a car of another paint shares the mesh (the paint is in the texture)",
 	)
 	if blue != null:
 		t.check(
-			_hull(blue).material_override != _hull(rig).material_override,
-			"but has a texture and material of its own",
+			MeshNodes.shown_texture(_hull(blue)) != MeshNodes.shown_texture(_hull(rig)),
+			"but has a texture of its own",
 		)
 		var image := (VehicleSkin.body(&"car", BLUE)["texture"] as Texture2D).get_image()
 		var found := false
@@ -166,14 +172,15 @@ func _check_sharing(t: TestContext, mirror: MeshCarrier, rig: VehicleMeshRig) ->
 		t.check(found, "and it is painted in that paint")
 
 
-## Each door leaf wears its own panel's 2D art, and the textured materials are one per texture:
+## Each door leaf wears its own panel's 2D art, and the textures are shared:
 ## a hull and a leaf each, per kind and paint (two cars and a van here), not per vehicle.
 func _check_leaves(t: TestContext, rig: VehicleMeshRig, car: Node2D, before: int) -> void:
 	for def: Dictionary in VehicleConfig.kinds[&"car"]["doors"]:
 		var skin := VehicleSkin.door(&"car", def, car.get("color"))
 		var leaf: MeshInstance3D = rig.doors[def["id"]]["node"]
 		t.check(
-			leaf.material_override == ToonMaterial.textured(skin["texture"], false),
+			leaf.material_override == ToonMaterial.textured(skin["texture"], false)
+				and MeshNodes.shown_texture(leaf) == skin["texture"],
 			"the %s leaf wears its panel's art" % def["id"],
 		)
 		var front: bool = (VehicleConfig.looks[&"car"]["mirror"] as Array).has(def["id"])
@@ -185,7 +192,7 @@ func _check_leaves(t: TestContext, rig: VehicleMeshRig, car: Node2D, before: int
 	var added := ToonMaterial.textured_count() - before
 	t.check(
 		added >= 5 and added <= 16,
-		"textured materials are one per kind, paint and part, not per vehicle (+%d)" % added,
+		"textures are one per kind, paint and part, not per vehicle (+%d)" % added,
 	)
 
 
