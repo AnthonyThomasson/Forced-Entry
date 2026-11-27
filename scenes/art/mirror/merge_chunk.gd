@@ -15,6 +15,8 @@ var mesh := ArrayMesh.new()
 var instance := RID()
 ## Whether it casts shadows.
 var casts := false
+## What its instance was given, setter's name -> value: the server tells none of it back (a test).
+var given := {}
 ## The positions as built, to write a member back.
 var _positions := PackedVector3Array()
 
@@ -28,14 +30,12 @@ static func make(
 	chunk.members = joining
 	chunk.casts = cast != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	chunk._build()
-	var rid := RenderingServer.instance_create2(chunk.mesh.get_rid(), scenario)
-	RenderingServer.instance_set_transform(rid, Transform3D())
-	RenderingServer.instance_geometry_set_material_override(rid, ToonMaterial.merged().get_rid())
-	RenderingServer.instance_geometry_set_cast_shadows_setting(
-		rid, cast as RenderingServer.ShadowCastingSetting
-	)
-	RenderingServer.instance_set_layer_mask(rid, layers)
-	chunk.instance = rid
+	chunk.instance = RenderingServer.instance_create2(chunk.mesh.get_rid(), scenario)
+	var material := ToonMaterial.merged().get_rid()
+	chunk._give(RenderingServer.instance_set_transform, Transform3D())
+	chunk._give(RenderingServer.instance_geometry_set_material_override, material)
+	chunk._give(RenderingServer.instance_geometry_set_cast_shadows_setting, cast)
+	chunk._give(RenderingServer.instance_set_layer_mask, layers)
 	return chunk
 
 
@@ -62,6 +62,12 @@ func free_instance() -> void:
 	if instance.is_valid():
 		RenderingServer.free_rid(instance)
 		instance = RID()
+
+
+## Set the instance up by the server's `setter`, and record it (`given`).
+func _give(setter: Callable, value: Variant) -> void:
+	setter.call(instance, value)
+	given[setter.get_method()] = value
 
 
 ## The members' meshes laid into one surface, each where its node stands.

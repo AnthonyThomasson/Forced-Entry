@@ -2,8 +2,8 @@ extends GameTest
 ## The still world's merged chunks (`StillMerge`, interface 27) let go of a mesh the moment it is
 ## not what they copied, before the next picture: the wall fade's write, a hidden piece, a hit's
 ## darkening and dent, a shove and a piece destroyed; a mesh whose look is the copied one again
-## goes back to its chunk, and one that rested elsewhere joins anew. A mesh with a light's glow is
-## never merged.
+## goes back to its chunk; one that moved draws itself for good, as does anything offered after the
+## build. A mesh with a light's glow is never merged.
 
 const IDS: Array[StringName] = [&"a", &"b", &"c", &"d", &"e"]
 const LAMPS: Array[StringName] = [&"lamp", &"lamp2", &"lamp3"]
@@ -42,7 +42,7 @@ func run(t: TestContext) -> void:
 	_mirror.carry(t.world)
 	await t.seconds(2.0)
 	var merge := _mirror.merge
-	merge.merge_now()
+	merge.build_all()
 	var pieces: Array[MeshInstance3D] = []
 	for id in IDS:
 		var body: Node = t.object(id)
@@ -61,6 +61,7 @@ func run(t: TestContext) -> void:
 	await _destroyed(t, merge, t.object(IDS[4]))
 	_released(t, merge)
 	_offered_twice(t, merge)
+	_offered_late(t, merge)
 
 
 ## The wall fade thins a mesh and gives it back.
@@ -108,12 +109,15 @@ func _glows(t: TestContext, merge: StillMerge) -> void:
 		"premise: the lamps glow",
 	):
 		return
+	# chunks built anew, the glows offered with the rest
+	merge.release()
 	for rig in rigs:
 		rig.set_glow_level(0.0)
 		for glow in rig.glows:
 			merge.offer(glow)
+	_offer_all(t, merge)
 	await t.frames(1)
-	merge.merge_now()
+	merge.build_all()
 	for rig in rigs:
 		t.check(
 			rig.glows.all(func(glow: MeshInstance3D) -> bool: return not merge.shows(glow)),
@@ -122,8 +126,10 @@ func _glows(t: TestContext, merge: StillMerge) -> void:
 		t.check(merge.shows(rig.body), "premise: the lamp's body is merged")
 
 
-## A shove takes the piece out; resting elsewhere, it joins again with company.
+## A shove takes the piece out, for good.
 func _shoved(t: TestContext, merge: StillMerge, body: Node2D, mesh: MeshInstance3D) -> void:
+	if not t.require(merge.shows(mesh), "premise: a chunk draws the table to shove"):
+		return
 	var from := body.global_position
 	Knockback.push(body, Vector2(0.0, 4000.0))
 	await t.frames(6)
@@ -167,7 +173,7 @@ func _released(t: TestContext, merge: StillMerge) -> void:
 	# chunks built anew, that no step of this test has had in hand
 	merge.release()
 	_offer_all(t, merge)
-	merge.merge_now()
+	merge.build_all()
 	if not t.require(not merge.chunks().is_empty(), "premise: there are chunks to release"):
 		return
 	var chunk := _first_chunk(merge)
@@ -175,16 +181,30 @@ func _released(t: TestContext, merge: StillMerge) -> void:
 	t.check(chunk.get_ref() == null, "a released chunk is freed")
 
 
-## A held mesh offered again is not copied into a second chunk.
+## A mesh offered twice before the build is copied into one chunk.
 func _offered_twice(t: TestContext, merge: StillMerge) -> void:
 	for twice in 2:
 		_offer_all(t, merge)
-		merge.merge_now()
+	merge.build_all()
 	var members := 0
 	for chunk in merge.chunks():
 		members += chunk.members.size()
 	t.check(merge.held() > 0, "premise: meshes are merged")
 	t.expect_eq(members, merge.held(), "each mesh is in one chunk")
+
+
+## Offered after the build, a mesh is never taken, whoever asks for a build again.
+func _offered_late(t: TestContext, merge: StillMerge) -> void:
+	var held := merge.held()
+	var late := MeshNodes.instance(BoxMesh.new())
+	var others: Array[MeshInstance3D] = [late]
+	for i in MirrorMergeConfig.chunk_members - 1:
+		others.append(MeshNodes.instance(late.mesh))
+	for mesh in others:
+		_mirror.get_parent().add_child(mesh)
+		merge.offer(mesh)
+	merge.build_all()
+	t.expect_eq(merge.held(), held, "nothing offered after the build is taken")
 
 
 ## Offer every carried mesh, as the carrier does one it has just made.

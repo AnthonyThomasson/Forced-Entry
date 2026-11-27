@@ -218,9 +218,10 @@ func light_world(world: Node2D, seed_value: int, rooms: Array) -> void:
 	)
 	if lighting != null:
 		lighting.glow_changed.connect(_dim_glow)
-	# the still world's chunks are built here, as the atlas is warmed: after the lights have set a
-	# mesh's layers (the sun's casters), and before the match's first frame
+	# the still world's chunks are built here, as the atlas is warmed, and nowhere else: after the
+	# lights have set a mesh's layers (the sun's casters), and before the match's first frame
 	carrier.merge.build_all()
+	ToonAtlas.reserve()  # the build copies the decals' art in
 
 
 ## A piece's light changed its level: its mesh's glow follows (a mesh without glows says nothing).

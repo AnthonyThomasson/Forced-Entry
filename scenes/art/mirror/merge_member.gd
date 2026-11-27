@@ -16,7 +16,7 @@ const UNTINTED := Color(0.7, 0.7, 0.7, 1.0)
 
 ## The mesh node it stands for.
 var node: MeshInstance3D
-## The node's instance id (`node` may be freed) and the chunk it is merged in (null: waiting).
+## The node's instance id (`node` may be freed) and the chunk it is merged in.
 var key := 0
 var chunk: MergeChunk
 ## Its first vertex in the chunk and how many it has.
@@ -33,9 +33,6 @@ var strayed := false
 ## The painted art it wears (held so the atlas keeps its place), and its kind.
 var art: Texture2D
 var kind := PLAIN
-## The frame it may join from and the rounds it was asked and could not.
-var since := 0
-var asked := 0
 ## The node that tells of its moves.
 var watch: Node
 

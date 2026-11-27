@@ -9,7 +9,8 @@ const ViewScript := preload("res://scenes/main_view3d.gd")
 const CENTRE := Vector2.ZERO
 const RADIUS := 520.0
 const TURNS: Array[float] = [0.0, 0.2, 0.4, 0.6, 0.8]
-## The frames the stopped picture must have stayed the same before it is held, and the most waited.
+## The drawn frames the stopped picture must have stayed the same before it is held, and the most
+## waited for that.
 const SETTLED_FRAMES := 90
 const MOST_FRAMES := 600
 
@@ -24,10 +25,10 @@ static func view(t: TestContext) -> CanvasLayer:
 	var made: CanvasLayer = ViewScript.new()
 	t.world.add_child(made)
 	made.begin(camera)
-	# each mesh draws itself, so a test may change one and see it (merged chunks have their own
-	# test, `art/still_merge_same_picture_windowed`, which turns them on)
-	made.carrier.merge.enabled = false
 	made.mirror_world(t.world)
+	# each mesh draws itself, so a test may change one and see it: no chunk is built. The meshes are
+	# offered by now, for `art/still_merge_same_picture_windowed` and its like to build
+	made.carrier.merge.enabled = false
 	made.light_world(t.world, 10, WorldGen.district_rooms(t.world.district))
 	t.world.visible = false
 	return made
@@ -45,30 +46,40 @@ static func hold(t: TestContext, shown: CanvasLayer, turn: float) -> void:
 	Engine.time_scale = 0.0
 	# the lights' rhythms and flickers step by their own clock: stopped with the world
 	shown.lighting.set_process(false)
-	await _settle(t)
+	if not await settle(t.world.get_tree(), picture.bind(t)):
+		t.check(false, "the stopped picture settles within %d drawn frames" % MOST_FRAMES)
 
 
-## Wait until the stopped picture stays the same. The renderer goes on changing what the omni
+## Wait until `take` (awaited: it gives the picture) has given the same one over `SETTLED_FRAMES`
+## drawn frames; false if `MOST_FRAMES` are drawn first. The renderer goes on changing what the omni
 ## shadows look like for some frames after the first world a process draws is stopped (up to 40,
-## with no node changed), so two frames compared before that may stand on either side of it.
-static func _settle(t: TestContext) -> void:
-	var last := await picture(t)
-	var same := 0
-	var waited := 0
-	while same < SETTLED_FRAMES and waited < MOST_FRAMES:
+## with no node changed), so two frames compared before that may stand on either side of it. A
+## drawn frame is one the main loop drew (`Engine.get_frames_drawn`) or `drawn` had to.
+static func settle(tree: SceneTree, take: Callable) -> bool:
+	var last: Image = await take.call()
+	var start := Engine.get_frames_drawn()
+	var forced := 0
+	var changed_at := 0
+	while true:
 		for i in 10:
-			await t.world.get_tree().process_frame
-		var now := await picture(t)
-		# the ten frames, `picture`'s four and the one it is drawn in
-		same = same + 15 if differing(last, now) == 0 else 0
-		waited += 15
+			forced += int(await drawn(tree))
+		var now: Image = await take.call()
+		var count := Engine.get_frames_drawn() - start + forced
+		if differing(last, now) != 0:
+			changed_at = count
+		elif count - changed_at >= SETTLED_FRAMES:
+			return true
+		if count >= MOST_FRAMES:
+			break
 		last = now
+	return false
 
 
 ## Wait until the frame being processed now is drawn. Never waits for the draw signal alone: a
 ## window the desktop covers is not drawn and `frame_post_draw` never comes (the stopped world would
-## spin for ever, its test's clock stopped too), so a frame that ended undrawn is drawn here.
-static func drawn(tree: SceneTree) -> void:
+## spin for ever, its test's clock stopped too), so a frame that ended undrawn is drawn here; true
+## if it had to be.
+static func drawn(tree: SceneTree) -> bool:
 	var seen := [false]
 	var mark := func() -> void: seen[0] = true
 	RenderingServer.frame_post_draw.connect(mark)
@@ -76,6 +87,7 @@ static func drawn(tree: SceneTree) -> void:
 	RenderingServer.frame_post_draw.disconnect(mark)
 	if not seen[0]:
 		RenderingServer.force_draw(false)
+	return not seen[0]
 
 
 ## The window's picture after the next few frames of the stopped world.

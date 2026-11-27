@@ -13,6 +13,9 @@ const TIES := 512
 ## How many of each kind of thing are changed, nearest the middle of the view first.
 const CHANGED := 6
 
+## The walls' shadows, switched as the wall fade does.
+var _shadows := FadeShadow.new()
+
 
 func describe() -> Dictionary:
 	return {
@@ -38,11 +41,19 @@ func run(t: TestContext) -> void:
 	var view := Frozen.view(t)
 	var original := DisplayServer.window_get_size()
 	DisplayServer.window_set_size(Vector2i(1152, 648))
+	await _drive(t, view)
+	# on every way out: the world runs again and the window is as it was
+	DisplayServer.window_set_size(original)
+	Frozen.release(t)
+
+
+## The changes and their taking back, each held against the same view drawn unmerged.
+func _drive(t: TestContext, view: CanvasLayer) -> void:
 	await t.seconds(5.0)
 	await Frozen.hold(t, view, 0.2)
 	var merge: StillMerge = view.carrier.merge
 	merge.enabled = true
-	merge.merge_now()
+	merge.build_all()
 	var middle := t.world.get_viewport().get_camera_2d().global_position
 	var walls := _walls(view, merge, middle)
 	var pieces := _pieces(view, merge, middle)
@@ -51,11 +62,12 @@ func run(t: TestContext) -> void:
 		"premise: walls and pieces in view are merged (%d, %d)" % [walls.size(), pieces.size()],
 	):
 		return
+	var parts: Array[GeometryInstance3D] = []
+	parts.assign(walls)
+	_shadows.remember(parts)
 	if not await _changed(t, view, walls, pieces):
 		return
 	await _restored(t, view, walls, pieces)
-	DisplayServer.window_set_size(original)
-	Frozen.release(t)
 
 
 ## Fade the walls and shove, hide and destroy pieces in one frame; false if nothing showed.
@@ -88,6 +100,8 @@ func _change(view: CanvasLayer, walls: Array, pieces: Array) -> void:
 ## back: the walls return to their chunks in that frame.
 func _restored(t: TestContext, view: CanvasLayer, walls: Array, pieces: Array) -> void:
 	var merge: StillMerge = view.carrier.merge
+	merge.release()
+	merge.enabled = true
 	for node: Node in view.carrier.find_children("*", "MeshInstance3D", true, false):
 		merge.offer(node)
 	for body: Node2D in TwinSpace.of_world(t.world).bodies():
@@ -99,7 +113,7 @@ func _restored(t: TestContext, view: CanvasLayer, walls: Array, pieces: Array) -
 		(pieces[CHANGED + i] as Node2D).visible = true
 	await Frozen.picture(t)
 	merge.enabled = true
-	merge.merge_now()
+	merge.build_all()
 	_fade(walls, 0.25, false)
 	await Frozen.picture(t)
 	var restored := await _late_frame(t, _fade.bind(walls, 1.0, true))
@@ -138,16 +152,13 @@ func _compare(
 		apart.save_png("%s/%s_apart.png" % [dir, label])
 
 
-## What the wall fade writes: the dither, and past half faded no shadow.
+## What the wall fade writes: the dither, and past half faded no shadow (`FadeShadow`).
 func _fade(parts: Array, amount: float, casting: bool) -> void:
+	var cast: Array[GeometryInstance3D] = []
+	cast.assign(parts)
+	_shadows.apply(cast, casting)
 	for part: MeshInstance3D in parts:
-		part.cast_shadow = (
-			GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-			if casting
-			else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		)
 		MeshNodes.fade(part, amount)
-		MeshNodes.changed(part)
 
 
 ## The `CHANGED` merged wall segments nearest `middle`.

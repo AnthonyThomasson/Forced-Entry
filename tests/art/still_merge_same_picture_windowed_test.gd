@@ -58,7 +58,7 @@ func run(t: TestContext) -> void:
 ## The held frame with the chunks and with every mesh drawing itself.
 func _compare(t: TestContext, view: CanvasLayer, merge: StillMerge, label: String) -> void:
 	merge.enabled = true
-	merge.merge_now()
+	merge.build_all()
 	var merged := await Frozen.picture(t)
 	var with_chunks := _draws(view, Viewport.RENDER_INFO_TYPE_VISIBLE)
 	var cast_chunks := _draws(view, Viewport.RENDER_INFO_TYPE_SHADOW)
@@ -87,10 +87,10 @@ func _compare(t: TestContext, view: CanvasLayer, merge: StillMerge, label: Strin
 		merged.save_png("%s/%s_merged.png" % [dir, label.replace(" ", "_")])
 		apart.save_png("%s/%s_apart.png" % [dir, label.replace(" ", "_")])
 	# carried meshes are offered again as they were first
+	merge.enabled = true
 	for node in own:
 		if is_instance_valid(node):
 			merge.offer(node)
-	merge.enabled = true
 
 
 ## The draw calls of `type` (the visible ones, the shadow passes') in the 3D view's last frame.
