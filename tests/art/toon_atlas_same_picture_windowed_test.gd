@@ -5,7 +5,9 @@ extends GameTest
 ## differs but a tie on a texel's edge, and such ties count as the same picture. Where a pixel falls
 ## exactly between two texels, the shader's float picks one and the sampler the other: 4 and 20
 ## pixels of one 2560 wide frame, in 2x2 blocks (one art pixel) between neighbouring shades. `TIES`
-## is that allowance; a shader that read one texel off turns about 350000. Windowed only.
+## is that allowance; a shader that read one texel off turns about 350000. After the first size the
+## array is made anew with more layers, as a long run grows it, and the next frames are compared
+## from the new one. Windowed only.
 
 const Frozen := preload("res://tests/_render/frozen_frame.gd")
 const SIZES: Array[Vector2i] = [Vector2i(1152, 648), Vector2i(2560, 1440)]
@@ -14,6 +16,8 @@ const TIES := 64
 
 ## The standalone materials made, by texture, tiling and cut-out.
 var _own: Dictionary = {}
+## Nodes, in no tree, whose page-sized textures grow the array.
+var _fill: Array[Node] = []
 
 
 func describe() -> Dictionary:
@@ -49,6 +53,10 @@ func run(t: TestContext) -> void:
 		for turn: float in Frozen.TURNS:
 			await Frozen.hold(t, view, turn)
 			await _compare(t, "%d wide, %.1f round" % [size.x, turn])
+		if size == SIZES[0]:
+			await _grow(t)
+	for node in _fill:
+		node.free()
 	DisplayServer.window_set_size(original)
 	Frozen.release(t)
 
@@ -64,6 +72,24 @@ func _compare(t: TestContext, label: String) -> void:
 	t.require(_lit(atlased) > 0.05, "premise: the frame draws the district, not black")
 	var differ := Frozen.differing(atlased, apart)
 	t.check(differ <= TIES, "%s: only texel-edge ties differ (%d pixels)" % [label, differ])
+
+
+## Fill pages until the array has to be made anew.
+func _grow(t: TestContext) -> void:
+	var layers := ToonAtlas.array().get_layers()
+	var side := PixelPostConfig.atlas_page
+	for i in layers + 1:
+		var texture := ImageTexture.create_from_image(
+			Image.create(side, side, false, Image.FORMAT_RGBA8)
+		)
+		_fill.append(MeshNodes.textured(BoxMesh.new(), texture, Rect2(0, 0, 8, 8)))
+	await RenderingServer.frame_post_draw
+	t.require(
+		ToonAtlas.array().get_layers() > layers,
+		"premise: the array was made anew (%d layers, were %d)" % [
+			ToonAtlas.array().get_layers(), layers,
+		],
+	)
 
 
 ## The mean of a coarse grid of `image`'s pixels.
