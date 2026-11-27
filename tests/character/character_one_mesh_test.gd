@@ -62,11 +62,40 @@ func run(t: TestContext) -> void:
 	await t.seconds(0.4)
 	_check_pose(t, body, skin)
 	_check_reach(t, body)
+	_check_culled_by(t, body, skin)
 	t.puppet(&"one").stop()
 	t.puppet(&"one").set_posture(&"crouch")
 	t.puppet(&"one").shoot()
 	await t.seconds(0.4)
 	_check_reach(t, body)
+	_check_culled_by(t, body, skin)
+	one.take_damage(1000.0)
+	await t.seconds(0.6)
+	t.require(one.is_dead and one.anatomy.ragdoll != null, "premise: it fell as a ragdoll")
+	_check_culled_by(t, body, skin)
+
+
+## The box the engine culls the one mesh by holds every shown part where it is posed (a part
+## outside it vanishes at the edge of the screen), and is not much larger than the body, so a body
+## just off the screen costs no draw.
+func _check_culled_by(t: TestContext, body: BodyMesh, skin: MeshInstance3D) -> void:
+	var parts := AABB()
+	var outside: Array[int] = []
+	var box := skin.custom_aabb
+	for index in BodyMesh.CROWN + 1:
+		var part: MeshPart = body.part(index)
+		if not part.visible:
+			continue
+		var at := part.transform * part.mesh.get_aabb()
+		parts = at if parts.size == Vector3.ZERO else parts.merge(at)
+		if not box.encloses(at):
+			outside.append(index)
+	t.check(outside.is_empty(), "every shown part is in the culling box (outside: %s)" % [outside])
+	var past := maxf(
+		(parts.position - box.position)[(parts.position - box.position).max_axis_index()],
+		(box.end - parts.end)[(box.end - parts.end).max_axis_index()],
+	) / RenderConfig.unit
+	t.check(past < 40.0, "the box is within 40 px of the parts on every side (%.1f px)" % past)
 
 
 ## All a standing body draws is within the reach it gives the mirror, which skips posing it while

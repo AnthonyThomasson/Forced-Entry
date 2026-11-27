@@ -80,8 +80,8 @@ const BOOT_GROW := 1.05
 ## How far round its origin (px) all a standing body draws stays: its parts, the held item and the
 ## drop shadow.
 const REACH := 160.0
-## How far past the joints a posed part can reach (body radii): what a fallen body is culled by.
-const PARTS_REACH := 3.0
+## How far past the joints a posed part can reach (body radii): what the body is culled by.
+const PARTS_REACH := 1.5
 ## A shoe's length over the 2D art's foot (`CharacterBodyConfig.foot`): a shoe is about a head long.
 const SHOE_LENGTH := 0.8
 ## How many physics frames a fallen body's joints take to rise to their clearance over the floor.
@@ -278,9 +278,6 @@ func _make(body: Node2D, dress: BodyDress) -> void:
 	for i in SHAPES.size():
 		_skin.parts[i].mesh = _solid(SHAPES[i], Color.WHITE)
 	MeshNodes.figure(_skin.node)
-	# all a living body draws is within `REACH` (a fallen one's box follows its joints: `_pose`)
-	var reach := Vector3.ONE * REACH * RenderConfig.unit
-	_skin.node.custom_aabb = AABB(-reach, reach * 2.0)
 	add_child(_skin.node)
 	add_child(_held.node)
 	_make_shade()
@@ -382,13 +379,12 @@ func _pose(rig: Object, body: Node2D) -> void:
 	for i in 2:
 		_pose_limbs(i)
 	_skin.pose()
-	if _died >= 0:
-		_skin.node.custom_aabb = _bounds()
+	_skin.node.custom_aabb = _bounds()
 	_pose_shade()
 	_held.place(_last[AIM], _last[Rig.HAND[_held.hand]])
 
 
-## A box (3D units) every part of a fallen body is in: round the joints, by `PARTS_REACH` radii.
+## A box (3D units) every posed part is in: round the joints, by `PARTS_REACH` radii.
 func _bounds() -> AABB:
 	var box := AABB(_last[0], Vector3.ZERO)
 	for i in range(1, JOINTS):
