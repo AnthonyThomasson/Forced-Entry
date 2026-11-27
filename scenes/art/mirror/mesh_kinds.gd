@@ -55,7 +55,8 @@ static func art_of(node: Node) -> String:
 ## The row of a mesh a domain's builder made for `body` (`MeshCarrier.builders`): `node` the mesh,
 ## `body` the plan handle it shows, `rides` the body's `use` when it says whether it rides a vehicle
 ## (while it does the mesh hides: `seated`), `update` the mesh's `mirror_update(body)` when it has
-## one (else an invalid `Callable`), `shown` whether it shows now.
+## one (else an invalid `Callable`), `reach` its `mirror_reach()` likewise, `shown` whether it shows
+## now.
 static func row_of(body: Node2D, node: Node3D) -> Dictionary:
 	# a character's `use` says whether it rides a vehicle (a seated body has no mesh to show)
 	var use: Variant = body.get(&"use")
@@ -64,6 +65,8 @@ static func row_of(body: Node2D, node: Node3D) -> Dictionary:
 		"moving": false,
 		"rides": use if use is Object and (use as Object).has_method(&"is_riding") else null,
 		"update": Callable(node, &"mirror_update") if node.has_method(&"mirror_update")
+		else Callable(),
+		"reach": Callable(node, &"mirror_reach") if node.has_method(&"mirror_reach")
 		else Callable(),
 	}
 

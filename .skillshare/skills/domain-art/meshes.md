@@ -39,7 +39,8 @@ sides a darker tone, its legs the shadow tone. A face's colour is the painter's,
 
 **The hook keys, floors, drawn things that are no physics body** (`track`, `track_group`: a domain's spawner only `add_to_group`s and Main's `_register_meshes()` tracks the group) and
 the carrier's rules: `mesh-hook.md`. A finer key is for one art id (`MeshKinds.furniture_key("table")`) and wins over the `FURNITURE` kind.
-A mesh whose parts move with a pose is the character's: `CharacterMeshes.register` plugs `BodyMesh`, which `mirror_update` places between the 2D rig's joints (`domain-character`).
+A posed mesh is the character's: `CharacterMeshes.register` plugs `BodyMesh`, which `mirror_update` places on the rig (`domain-character`).
+Posed parts, one draw: `part-skin.md`.
 
 ## Heights (px; 42.3 a metre, a character 74, a wall 96: `BodyHeights`, `ObjectStructureMeshConfig`)
 

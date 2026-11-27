@@ -61,6 +61,33 @@ func run(t: TestContext) -> void:
 	t.puppet(&"one").walk(Vector2.DOWN)
 	await t.seconds(0.4)
 	_check_pose(t, body, skin)
+	_check_reach(t, body)
+	t.puppet(&"one").stop()
+	t.puppet(&"one").set_posture(&"crouch")
+	t.puppet(&"one").shoot()
+	await t.seconds(0.4)
+	_check_reach(t, body)
+
+
+## All a standing body draws is within the reach it gives the mirror, which skips posing it while
+## the camera does not reach that sphere.
+func _check_reach(t: TestContext, body: BodyMesh) -> void:
+	var drawn: Array[AABB] = []
+	for index in BodyMesh.CROWN + 1:
+		var part: MeshPart = body.part(index)
+		if part.visible:
+			drawn.append(part.transform * part.mesh.get_aabb())
+	for node: MeshInstance3D in [body.held(), body.get_node("DropShadow")]:
+		if node.visible and node.mesh != null:
+			drawn.append(node.transform * node.mesh.get_aabb())
+	var farthest := 0.0
+	for box: AABB in drawn:
+		for corner in 8:
+			farthest = maxf(farthest, box.get_endpoint(corner).length())
+	t.check(
+		farthest < body.mirror_reach(),
+		"all of it is within its reach (%.1f of %.1f units)" % [farthest, body.mirror_reach()],
+	)
 
 
 ## The body's one drawn mesh: the only child that is not the held item's node or the drop shadow.

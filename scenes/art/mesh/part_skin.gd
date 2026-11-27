@@ -62,19 +62,19 @@ func dress() -> void:
 	_material.set_shader_parameter(&"part_uv", _look.footprints)
 
 
-## Put the parts where their transforms say; `bounds` is a box (the node's frame) every posed
-## vertex is in, what the node is culled by.
-func pose(bounds: AABB) -> void:
+## Put the shown parts where their transforms say. What the node is culled by is the caller's to
+## set (`node.custom_aabb`: the mesh's own vertices are the unposed solids).
+func pose() -> void:
 	var at := 0
 	for part: MeshPart in parts:
-		var t := part.transform
-		_pose[at] = t.basis.x
-		_pose[at + 1] = t.basis.y
-		_pose[at + 2] = t.basis.z
-		_pose[at + 3] = t.origin
+		if part.visible:
+			var t := part.transform
+			_pose[at] = t.basis.x
+			_pose[at + 1] = t.basis.y
+			_pose[at + 2] = t.basis.z
+			_pose[at + 3] = t.origin
 		at += 4
 	_material.set_shader_parameter(&"part_pose", _pose)
-	node.custom_aabb = bounds
 
 
 ## What makes a look: each part's solid, visibility, tint and art.

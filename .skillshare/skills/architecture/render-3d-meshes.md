@@ -32,3 +32,7 @@ Every mesh wears its domain's 2D art, never a flat colour (`domain-art/textured-
 The look gate's shots: `tests/general/render_3d_look_gate_windowed_test.gd` (one scene per run: `LOOK_SCENE`, `LOOK_DIR`, `LOOK_ZOOMS`, `LOOK_YAWS`; `turn` and `pan` print the picture's flicker) and `tools/look_gate_sheets.py DIR` (a contact sheet per scene). A windowed test reads the picture after `RenderingServer.force_draw(false)`, never after `await frame_post_draw`: a window the desktop covers is not drawn, never signals it, and the test runs its sim clock out to a silent timeout.
 
 Known cost: Physics' ink rebuilds a whole 128 px chunk when one mark in it changes (dries a step, a smear grows), O(marks in the chunk); the pool and blast cost is one pool a frame.
+
+**Off the camera** (`mirror_reach() -> float`, optional, 3D units): a mesh that says all it draws stays that far round its origin, none of it casting a shadow, is asked for its pose (`mirror_update`) only while the camera of the carrier's viewport reaches that sphere. The carrier runs before the camera rig, so a skipped one is looked at again after the rig has moved (`process_priority` 60), before the picture: it is posed in the frame it comes back. No camera: every shown mesh is posed. `BodyMesh` gives one while it lives.
+
+**Still meshes** (no `mirror_update`, turn or rider, of a body the view remembers): looked at only when the body hides or shows, its view layer is written (`ViewLayers.CHANGED`) or the mesh leaves the tree (`still_rows.gd`).

@@ -21,14 +21,17 @@ carrier hangs it on the body's twin (`TwinSpace.twinned`), which stands and turn
 - Tests: `tests/art/mirror_mesh_hook_test.gd`, `mirror_hook_keys_test.gd`, `mirror_mesh_lifecycle_test.gd`, `mirror_follows_rebuilt_colliders_test.gd`.
 
 **Still meshes** (`still_rows.gd`). A mesh with no `mirror_update`, turn or rider, of a body in none of `MirrorVisionConfig.seen_first` (nearly every piece of a district), is
-held apart: each frame it is asked only whether its body or mesh is gone, its body's `visible` changed or it is on `ViewLayers.MOVING`, and then it gets the full look the others get. A shown rule
-that would make a still mesh depend on anything else must be asked there too. Test: `tests/art/mirror_still_piece_shown_rules_test.gd`.
+not looked at each frame: the body's `visibility_changed`, `ViewLayers.CHANGED` or the mesh's `tree_exiting` wakes it for the full look, and it stays woken while the body is on `MOVING`, marked moving or out
+of the tree. A shown rule that depends on anything else needs its own signal there. Test: `tests/art/mirror_still_piece_shown_rules_test.gd`.
+
+**Off the camera** (`mirror_reach() -> float`, optional): a mesh that says how far round its origin all it draws stays (3D units), none of it casting a shadow, has `mirror_update` called only while the
+viewport camera reaches that sphere, asked again after the camera rig moves (`MeshCarrier.AFTER_CAMERA`). Test: `tests/art/mirror_pose_off_camera_test.gd`.
 
 ## Keeping a mesh in step: which to use
 
 | The mesh changes by | Use |
 |---|---|
-| a **pose** that changes often without the 2D transform changing (a limb, a facing, a wheel's spin, an open lid) | a `mirror_update(body: Node2D)` method on the mesh node: called each frame the mesh **shows** (not while hidden; a sleeping or static body's too), after the transform is written. Set transforms of the node's parts there, cheaply: nothing is rebuilt. |
+| a **pose** that changes often without the 2D transform changing (a limb, a facing, a wheel's spin, an open lid) | a `mirror_update(body: Node2D)` method on the mesh node: called each frame the mesh **shows** (not while hidden or off camera (`mirror_reach`); a sleeping or static body's too), after the transform is written. Set transforms of the node's parts there, cheaply: nothing is rebuilt. |
 | a **shape** that changes now and then (a dent, a new outfit, a posture that changes the solids) | `MeshCarrier.remirror(node)` (a body or floor; a tracked node: `MeshFollower.remirror`): builds the mesh again at once through its builder and frees the old one. The domain asks Main to call it from the signal it already has (a hit, a posture change); `MeshCache` makes a repeat cheap. |
 | a **shape that follows the body's own outlines** (a wall's segments) | nothing on the node: the carrier builds a mesh again only on `remirror` or a body's `reshaped`, never because a collider came or went (a body holds no 2D shape); the mesh listens to its body's own signal (`segment_rebuilt`) and replaces what changed. |
 | a mesh of one node that needs neither | a `_process` on the mesh node itself also works (it runs hidden too), the simplest thing for a spinning fan; nothing in the mirror is needed. |

@@ -77,7 +77,10 @@ const TURNED := 0.02
 ## shin it is.
 const BOOT_TOP := 0.62
 const BOOT_GROW := 1.05
-## How far past the joints a posed part can reach (body radii): what the body is culled by.
+## How far round its origin (px) all a standing body draws stays: its parts, the held item and the
+## drop shadow.
+const REACH := 160.0
+## How far past the joints a posed part can reach (body radii): what a fallen body is culled by.
 const PARTS_REACH := 3.0
 ## A shoe's length over the 2D art's foot (`CharacterBodyConfig.foot`): a shoe is about a head long.
 const SHOE_LENGTH := 0.8
@@ -160,6 +163,13 @@ static func build(body: Node2D) -> Node3D:
 ## The look this body is dressed in (what its wardrobe resolved at the last update).
 func look_worn() -> BodyDress:
 	return _dress
+
+
+## The sphere (3D units) round its origin all the body draws stays in while it lives, so the mirror
+## does not pose it off the camera; a fallen body's joints are the ragdoll's, wherever they are
+## flung: always posed.
+func mirror_reach() -> float:
+	return INF if _died >= 0 else REACH * RenderConfig.unit
 
 
 ## Place the parts between the joints the rig holds now, once for each physics frame and only when a
@@ -268,6 +278,9 @@ func _make(body: Node2D, dress: BodyDress) -> void:
 	for i in SHAPES.size():
 		_skin.parts[i].mesh = _solid(SHAPES[i], Color.WHITE)
 	MeshNodes.figure(_skin.node)
+	# all a living body draws is within `REACH` (a fallen one's box follows its joints: `_pose`)
+	var reach := Vector3.ONE * REACH * RenderConfig.unit
+	_skin.node.custom_aabb = AABB(-reach, reach * 2.0)
 	add_child(_skin.node)
 	add_child(_held.node)
 	_make_shade()
@@ -368,12 +381,14 @@ func _pose(rig: Object, body: Node2D) -> void:
 	_pose_head()
 	for i in 2:
 		_pose_limbs(i)
-	_skin.pose(_bounds())
+	_skin.pose()
+	if _died >= 0:
+		_skin.node.custom_aabb = _bounds()
 	_pose_shade()
 	_held.place(_last[AIM], _last[Rig.HAND[_held.hand]])
 
 
-## A box (3D units) every posed part is in: round the joints, by `PARTS_REACH` radii.
+## A box (3D units) every part of a fallen body is in: round the joints, by `PARTS_REACH` radii.
 func _bounds() -> AABB:
 	var box := AABB(_last[0], Vector3.ZERO)
 	for i in range(1, JOINTS):

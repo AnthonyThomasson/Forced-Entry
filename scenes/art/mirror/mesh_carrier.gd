@@ -29,13 +29,19 @@ extends Node3D
 ## two ways: a `mirror_update(body)` method on the mesh node, called each frame the mesh shows, or
 ## `remirror(node)` to build it again (a dent, an outfit); a body's signal `reshaped` (a hit piece's
 ## dents, cut again) builds it again too. A mesh node may also have `on_body_died(body) -> bool`
-## (true: stay shown). `mesh-hook.md` says which to use when.
+## (true: stay shown). `mesh-hook.md` says which to use when. One that also has `mirror_reach() ->
+## float` (3D units: all it draws stays that far round its origin, and none of it casts a shadow)
+## is not asked for its pose while the view's camera does not reach that sphere: it is looked at
+## again after the camera rig has moved the camera (`_catch_up`), before the picture is drawn.
 
 ## A builder made `mesh` for the physics body `body` (again when the body's mesh is built again):
 ## what a domain-blind watcher of the meshes (the wall fade) connects to.
 signal built(body: Node, mesh: Node3D)
 
 const StillRows := preload("res://scenes/art/mirror/still_rows.gd")
+## The `process_priority` of the second look at the poses skipped off the camera: after the camera
+## rig (50).
+const AFTER_CAMERA := 60
 
 ## The mesh hook: key (a kind, or a finer key) -> `Callable(node) -> Node3D`. Set before `carry()`.
 var builders: Dictionary = {}
@@ -58,6 +64,14 @@ var _pending: Dictionary = {}
 var _sight := MirrorSight.new()
 ## The subtrees the view leaves out (`leave_out`): nothing under one is shown.
 var _left_out: Array[Node] = []
+## The rows whose pose the last update skipped, their mesh off the camera.
+var _off_camera: Array[Dictionary] = []
+
+
+func _init() -> void:
+	var after := AfterCamera.new()
+	after.look = _catch_up
+	add_child(after, false, Node.INTERNAL_MODE_BACK)
 
 
 func _exit_tree() -> void:
@@ -135,6 +149,8 @@ func update() -> void:
 	_mesh_pending()
 	followed = _still.size()
 	written = 0
+	_off_camera.clear()
+	var view := _view()
 	for row: Dictionary in _still.changed():
 		_look(row)
 	var i := 0
@@ -153,7 +169,45 @@ func update() -> void:
 			_turn(row)
 		var hook: Callable = row["update"]
 		if hook.is_valid() and row["shown"]:
-			hook.call(row["body"])
+			if _reaches(view, row):
+				hook.call(row["body"])
+			else:
+				_off_camera.append(row)
+
+
+## The poses the last update skipped, for the meshes the camera reaches now it has moved.
+func _catch_up() -> void:
+	if _off_camera.is_empty():
+		return
+	var view := _view()
+	for row: Dictionary in _off_camera:
+		if (
+			not row.get("gone", false) and row["shown"] and is_instance_valid(row["body"])
+			and is_instance_valid(row["node"]) and _reaches(view, row)
+		):
+			(row["update"] as Callable).call(row["body"])
+	_off_camera.clear()
+
+
+## The planes round what the camera of this carrier's viewport sees (none: no camera).
+func _view() -> Array:
+	var camera := get_viewport().get_camera_3d() if is_inside_tree() else null
+	if camera == null:
+		return []
+	return camera.get_frustum()
+
+
+## Whether the camera of `view` reaches `row`'s mesh: always for one that gives no reach.
+func _reaches(view: Array, row: Dictionary) -> bool:
+	var reach: Callable = row["reach"]
+	if not reach.is_valid():
+		return true
+	var radius: float = reach.call()
+	var at := (row["node"] as Node3D).global_position
+	for plane: Plane in view:
+		if plane.distance_to(at) > radius:
+			return false
+	return true
 
 
 ## The full look at a still row that changed: gone with its body, built again when its mesh was
@@ -434,3 +488,17 @@ func _on_body_died(body: Node) -> void:
 		mesh.visible = false
 		row["gone"] = true  # no longer looked at: the update drops it from the list
 		_still.remove(row)
+
+
+## The node that has the carrier take its second look once the camera rig has moved the camera.
+class AfterCamera:
+	extends Node
+
+	## What to call.
+	var look := Callable()
+
+	func _init() -> void:
+		process_priority = MeshCarrier.AFTER_CAMERA
+
+	func _process(_delta: float) -> void:
+		look.call()
