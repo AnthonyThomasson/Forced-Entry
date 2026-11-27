@@ -27,6 +27,7 @@ static func build(door: Node2D) -> Node3D:
 	node.name = "DoorMesh"
 	node._leaf = MeshNodes.instance(_standing(door))
 	node._skin(door)
+	_warm_shattered(door)
 	node._leaf.add_child(_handle(door))
 	node._broken = _broken_of(door)
 	node.add_child(node._leaf)
@@ -48,6 +49,16 @@ func _skin(door: Node2D) -> void:
 	var texture := _art(door)
 	if texture != null:
 		MeshNodes.textured(_leaf, texture, Rect2(-_leaf_size(door) * 0.5, _leaf_size(door)))
+
+
+## Copy a glass leaf's shattered art into the toon's atlas at the build: its panes go mid-match.
+static func _warm_shattered(door: Node2D) -> void:
+	var look: Object = door.get("look")
+	if look.get("material") != "glass":
+		return
+	var opts: Dictionary = look.call(&"art_opts")
+	opts["broken"] = true
+	MeshNodes.warm_textured(ObjectArt.flat("door", _leaf_size(door), look.get("color"), opts))
 
 
 ## The door painter's flat art of the leaf: its `leaf_size`, in the look's colour, finish and style;

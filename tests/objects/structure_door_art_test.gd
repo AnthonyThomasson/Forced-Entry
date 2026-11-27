@@ -56,6 +56,7 @@ func run(t: TestContext) -> void:
 	var door := t.object(&"glassy")
 	var node := mirror.proxies_of(door)[0] as DoorMesh
 	_flat_leaf(t, door)
+	_warmed(t, door)
 	await _shattered_leaf(t, door, node)
 	await _fallen(t, door, node)
 	await _shattered_while_lying(t, door, node)
@@ -68,6 +69,15 @@ func _flat_leaf(t: TestContext, door: Node2D) -> void:
 	var flat := ObjectArt.flat("door", size, door.look.color, opts).get_image()
 	var handle := ObjectArtDoorConfig.handle_color
 	t.expect_eq(_count(flat, handle), 0, "the flat leaf paints no handle")
+
+
+## A glass leaf's shattered art is in the toon's atlas before the panes go, so the shatter copies
+## nothing mid-match.
+func _warmed(t: TestContext, door: Node2D) -> void:
+	var opts: Dictionary = door.look.art_opts()
+	opts["broken"] = true
+	var art := ObjectArt.flat("door", door.leaf_size(), door.look.color, opts)
+	t.check(ToonAtlas.holds(art), "the atlas holds the shattered art before the shatter")
 
 
 ## How many pixels of `image` are `colour` (to the image's 8 bits).
