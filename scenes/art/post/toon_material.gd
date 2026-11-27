@@ -27,9 +27,12 @@ static var _decals: Dictionary = {}
 ## The textured toon materials (`toon_tex.gdshader`), one per texture and tiling, by
 ## `"<texture id>|<tiled>"`, held weakly as `_decals` are.
 static var _textured: Dictionary = {}
-## The table's size at which `decal` or `textured` next drops the freed ones (twice what it held
-## after the last).
+## The tables' size at which `decal`, `textured` or `follow` next drops the freed ones (twice what
+## they held after the last).
 static var _prune_at := 64
+## The materials of other shaders that take the textured toon's knobs (a `PartSkin`'s), held weakly,
+## by instance id (`follow`).
+static var _followers: Dictionary = {}
 ## The drop shadow's material (`shade`), one for every shadow.
 static var _shade: ShaderMaterial
 
@@ -91,6 +94,14 @@ static func textured(texture: Texture2D, tiled := false, cutout := false) -> Sha
 	return material
 
 
+## Give `material`, of a shader with the textured toon's knobs (`toon_parts.gdshader`), the
+## holders, now and at every `refresh_all` while it lives.
+static func follow(material: ShaderMaterial) -> void:
+	_prune()
+	refresh_textured(material)
+	_followers[material.get_instance_id()] = weakref(material)
+
+
 ## The drop shadow's material (`shade.gdshader`): a round patch (a disc of `SHADE_TEXELS` texels,
 ## hard edged as pixel art is) of black at `strength` (an alpha: the floor shows through), shared by
 ## every shadow. Not lit and not cast; the player's view dims and hides it as it does the toon
@@ -133,26 +144,31 @@ static func refresh_all() -> void:
 		var material: Variant = held.get_ref()
 		if material is ShaderMaterial:
 			refresh(material)
-	for held: WeakRef in _textured.values():
+	for held: WeakRef in _textured.values() + _followers.values():
 		var material: Variant = held.get_ref()
 		if material is ShaderMaterial:
 			refresh_textured(material)
 
 
-## Drop the decal and textured materials nothing shows any more, so the tables hold only what is
-## alive.
+## Drop the decal, textured and following materials nothing shows any more, so the tables hold only
+## what is alive.
 static func _forget_freed() -> void:
-	for table: Dictionary in [_decals, _textured]:
+	for table: Dictionary in [_decals, _textured, _followers]:
 		for id: Variant in table.keys():
 			if (table[id] as WeakRef).get_ref() == null:
 				table.erase(id)
 
 
-## Before a new decal or textured material: past `_prune_at` entries, drop the freed ones.
+## Before a new material is held: past `_prune_at` entries, drop the freed ones.
 static func _prune() -> void:
-	if _decals.size() + _textured.size() >= _prune_at:
+	if _held_count() >= _prune_at:
 		_forget_freed()
-		_prune_at = maxi(64, (_decals.size() + _textured.size()) * 2)
+		_prune_at = maxi(64, _held_count() * 2)
+
+
+## How many entries the tables of held materials have.
+static func _held_count() -> int:
+	return _decals.size() + _textured.size() + _followers.size()
 
 
 ## The shared material (see `_shared`).

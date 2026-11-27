@@ -32,7 +32,8 @@ extends Node3D
 ## (true: stay shown). `mesh-hook.md` says which to use when. One that also has `mirror_reach() ->
 ## float` (3D units: all it draws stays that far round its origin, and none of it casts a shadow)
 ## is not asked for its pose while the view's camera does not reach that sphere: it is looked at
-## again after the camera rig has moved the camera (`_catch_up`), before the picture is drawn.
+## again after the camera rig has moved the camera (`_catch_up`), before the picture is drawn, and
+## while the tree is paused too, as the camera then still moves.
 
 ## A builder made `mesh` for the physics body `body` (again when the body's mesh is built again):
 ## what a domain-blind watcher of the meshes (the wall fade) connects to.
@@ -64,7 +65,7 @@ var _pending: Dictionary = {}
 var _sight := MirrorSight.new()
 ## The subtrees the view leaves out (`leave_out`): nothing under one is shown.
 var _left_out: Array[Node] = []
-## The rows whose pose the last update skipped, their mesh off the camera.
+## The rows whose pose the last update skipped, their mesh off the camera, until it is posed.
 var _off_camera: Array[Dictionary] = []
 
 
@@ -175,18 +176,24 @@ func update() -> void:
 				_off_camera.append(row)
 
 
-## The poses the last update skipped, for the meshes the camera reaches now it has moved.
+## The poses the last update skipped, for the meshes the camera reaches now it has moved. The rest
+## are kept: while the tree is paused no update runs and the camera may come to them later.
 func _catch_up() -> void:
 	if _off_camera.is_empty():
 		return
 	var view := _view()
+	var off: Array[Dictionary] = []
 	for row: Dictionary in _off_camera:
 		if (
-			not row.get("gone", false) and row["shown"] and is_instance_valid(row["body"])
-			and is_instance_valid(row["node"]) and _reaches(view, row)
+			row.get("gone", false) or not row["shown"] or not is_instance_valid(row["body"])
+			or not is_instance_valid(row["node"])
 		):
+			continue
+		if _reaches(view, row):
 			(row["update"] as Callable).call(row["body"])
-	_off_camera.clear()
+		else:
+			off.append(row)
+	_off_camera = off
 
 
 ## The planes round what the camera of this carrier's viewport sees (none: no camera).
@@ -499,6 +506,8 @@ class AfterCamera:
 
 	func _init() -> void:
 		process_priority = MeshCarrier.AFTER_CAMERA
+		# as the camera rig is
+		process_mode = Node.PROCESS_MODE_ALWAYS
 
 	func _process(_delta: float) -> void:
 		look.call()

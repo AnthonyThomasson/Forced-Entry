@@ -8,18 +8,21 @@ extends RefCounted
 ## for part (the art is projected in each part's own frame). A dressed look (mesh and atlas) is
 ## shared by the skins whose parts are the same; the pose is each skin's own, so each has its own
 ## material. The mesh's vertices are the unposed solids: the caller gives `pose` the box they are
-## in.
+## in. A look not yet worn is joined from what was read before: a solid keeps its arrays and its
+## vertices tinted and tagged, a texture its image, each on the resource itself (metadata), so they
+## are read once and go when it does. So a dressed solid and texture are never written again.
 
 ## The most parts a skin holds (the shader's arrays).
 const MOST := 32
 const SHADER := preload("res://scenes/art/post/toon_parts.gdshader")
 ## The narrowest atlas (texels).
 const ATLAS_WIDTH := 128
+## The metadata a solid keeps what was read of it under (`_read`), and a texture its image.
+const READ := &"part_skin_read"
+const IMAGE := &"part_skin_image"
 
 ## The looks alive, by what their parts are (`_key`), held weakly: a skin holds the look it wears.
 static var _looks: Dictionary = {}
-## Each solid's surface arrays, read back once, by the solid.
-static var _arrays: Dictionary = {}
 ## The table's size at which the next new look drops the freed ones.
 static var _prune_at := 64
 
@@ -42,7 +45,7 @@ func _init(count: int) -> void:
 	ToonMaterial.shared()  # installs the globals the shader names
 	_material = ShaderMaterial.new()
 	_material.shader = SHADER
-	ToonMaterial.refresh_textured(_material)
+	ToonMaterial.follow(_material)
 	node = MeshNodes.instance(null, Color.WHITE, false)
 	node.material_override = _material
 
@@ -101,11 +104,41 @@ static func _prune() -> void:
 	_prune_at = maxi(64, _looks.size() * 2)
 
 
-## The surface arrays of `solid`.
-static func _surface(solid: Mesh) -> Array:
-	if not _arrays.has(solid):
-		_arrays[solid] = (solid as ArrayMesh).surface_get_arrays(0)
-	return _arrays[solid]
+## What is kept of `solid`: its surface's arrays, and its colour chunks (`_coloured`) by tint and
+## part index.
+static func _read(solid: Mesh) -> Array:
+	if not solid.has_meta(READ):
+		var arrays := (solid as ArrayMesh).surface_get_arrays(0)
+		assert(arrays[Mesh.ARRAY_INDEX] == null, "PartSkin: an indexed solid")
+		solid.set_meta(READ, [arrays, {}])
+	return solid.get_meta(READ)
+
+
+## The first custom channel of a solid's vertices (`read`, from `_read`) as part `index` in `tint`:
+## the solid's colour times the tint, linear, and the index.
+static func _coloured(read: Array, tint: Color, index: int) -> PackedFloat32Array:
+	var chunks: Dictionary = read[1]
+	var key := [tint, index]
+	if not chunks.has(key):
+		var arrays: Array = read[0]
+		var painted: Variant = arrays[Mesh.ARRAY_COLOR]
+		var linear := tint.srgb_to_linear()
+		var chunk := PackedFloat32Array()
+		for i in (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size():
+			var colour := linear if painted == null else linear * (painted[i] as Color)
+			chunk.append_array([colour.r, colour.g, colour.b, float(index)])
+		chunks[key] = chunk
+	return chunks[key]
+
+
+## The RGBA8 image of `texture`, read back from it once.
+static func _image(texture: Texture2D) -> Image:
+	if not texture.has_meta(IMAGE):
+		var image := texture.get_image()
+		if image.get_format() != Image.FORMAT_RGBA8:
+			image.convert(Image.FORMAT_RGBA8)
+		texture.set_meta(IMAGE, image)
+	return texture.get_meta(IMAGE)
 
 
 ## One dressed look: the joined mesh, the atlas of its art and where each part's art is in it.
@@ -146,15 +179,11 @@ class Look:
 	## `part`'s vertices put on the end of `out` (a surface's arrays), tagged `index`.
 	func _add(out: Array, part: MeshPart, index: int) -> void:
 		_held.append(part.mesh)
-		var arrays := PartSkin._surface(part.mesh)
-		assert(arrays[Mesh.ARRAY_INDEX] == null, "PartSkin: an indexed solid")
+		var read := PartSkin._read(part.mesh)
+		var arrays: Array = read[0]
 		out[Mesh.ARRAY_VERTEX].append_array(arrays[Mesh.ARRAY_VERTEX])
 		out[Mesh.ARRAY_NORMAL].append_array(arrays[Mesh.ARRAY_NORMAL])
-		var painted: Variant = arrays[Mesh.ARRAY_COLOR]
-		var tint := part.tint.srgb_to_linear()
-		for i in (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size():
-			var colour := tint if painted == null else tint * (painted[i] as Color)
-			out[Mesh.ARRAY_CUSTOM0].append_array([colour.r, colour.g, colour.b, float(index)])
+		out[Mesh.ARRAY_CUSTOM0].append_array(PartSkin._coloured(read, part.tint, index))
 
 
 	## The parts' art in one atlas, and where each part's art is in it.
@@ -162,10 +191,7 @@ class Look:
 		var images: Dictionary = {}
 		for part: MeshPart in parts:
 			if part.visible and part.texture != null and not images.has(part.texture):
-				var image := part.texture.get_image()
-				if image.get_format() != Image.FORMAT_RGBA8:
-					image.convert(Image.FORMAT_RGBA8)
-				images[part.texture] = image
+				images[part.texture] = PartSkin._image(part.texture)
 				_held.append(part.texture)
 		var places := _sheet(images)
 		for index in parts.size():

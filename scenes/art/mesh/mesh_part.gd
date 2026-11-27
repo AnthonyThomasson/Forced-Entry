@@ -2,7 +2,8 @@ class_name MeshPart
 extends RefCounted
 ## Art domain, one part of a `PartSkin` (interface 12): a solid, what it wears and where it is.
 ## The part is plain data. The skin reads `mesh`, `tint`, `texture`, `rect`, `cutout` and `visible`
-## when it is dressed, and `transform` each time it is posed.
+## when it is dressed, and `transform` each time it is posed. A solid and a texture once dressed are
+## never written again (`PartSkin` keeps what it read of them).
 
 ## The solid, in its own frame: one surface of the mesh kit, unindexed, with vertex colours.
 var mesh: Mesh

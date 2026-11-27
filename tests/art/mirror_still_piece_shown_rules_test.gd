@@ -78,7 +78,8 @@ func _check_other_kept(t: TestContext, carrier: MeshCarrier, chair: Node2D) -> v
 
 
 ## With a view on that does not reach it, a piece put on `MOVING` is hidden and its mesh marked
-## moving; back on `WORLD` it is shown and the mark is gone.
+## moving; back on `WORLD` it is shown and the mark is gone. One put on `MOVING` while no view is
+## on is hidden when the view comes on, though its body says nothing then.
 func _check_view(t: TestContext, carrier: MeshCarrier, chair: Node2D, mesh: Node3D) -> void:
 	var white := Image.create(2, 2, false, Image.FORMAT_RGBA8)
 	ToonMask.set_mask(ImageTexture.create_from_image(white), FAR_AREA, 0.0)
@@ -103,3 +104,15 @@ func _check_view(t: TestContext, carrier: MeshCarrier, chair: Node2D, mesh: Node
 	t.check(mesh.visible, "back on WORLD it is shown")
 	t.check(not bool(mesh.get_meta(&"moving", true)), "and no longer marked moving")
 	ToonMask.clear()
+	ViewLayers.set_moving(chair, true)
+	carrier.update()
+	carrier.update()
+	t.check(mesh.visible, "put on MOVING with no view on, it is shown")
+	ToonMask.set_mask(ImageTexture.create_from_image(white), FAR_AREA, 0.0)
+	SeenArea.set_area([corners], FAR_AREA)
+	carrier.update()
+	t.check(not mesh.visible, "the view coming on later, outside its cone, hides it")
+	SeenArea.clear()
+	ToonMask.clear()
+	ViewLayers.set_moving(chair, false)
+	carrier.update()

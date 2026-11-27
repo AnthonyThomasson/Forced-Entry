@@ -3,7 +3,10 @@ extends GameTest
 ## `domain-character/body-mesh.md`): the body's node holds that one mesh, the held item's and the
 ## drop shadow; the mesh has every shown part's vertices in one surface, grows and shrinks with
 ## the parts a look shows, and the pose the shader is given is the parts' own, moved when a part
-## moves. The picture is judged in a window (`character_mesh_windowed_test.gd`).
+## moves. The mesh and its material carry each shown part's look: its colour (the textured toon's
+## tint times vertex colour), its art in the atlas, the footprint that art covers and whether it is
+## a cut-out; skins whose parts differ in any of these wear different looks, the same ones share.
+## The picture is judged in a window (`art/part_skin_windowed`, `character_mesh_windowed_test.gd`).
 
 
 func describe() -> Dictionary:
@@ -46,6 +49,7 @@ func run(t: TestContext) -> void:
 	if skin == null:
 		return
 	_check_surface(t, body, skin, "undressed")
+	_check_look(t, body, skin, "undressed")
 	_check_pose(t, body, skin)
 	var plain := _vertices(skin)
 	one.wardrobe.outfit.set_ids({
@@ -58,11 +62,20 @@ func run(t: TestContext) -> void:
 		"a vest, plate, helmet and boots add to the one mesh (%d > %d)" % [_vertices(skin), plain],
 	)
 	_check_surface(t, body, skin, "dressed")
+	_check_look(t, body, skin, "dressed")
+	_check_dressed_apart(t, mirror, skin)
+	_check_looks_differ(t)
 	t.puppet(&"one").walk(Vector2.DOWN)
 	await t.seconds(0.4)
 	_check_pose(t, body, skin)
 	_check_reach(t, body)
 	_check_culled_by(t, body, skin)
+	await _check_crouched_and_fallen(t, body, skin)
+
+
+## Crouched and firing, then dead on the floor: the culling box and the reach follow.
+func _check_crouched_and_fallen(t: TestContext, body: BodyMesh, skin: MeshInstance3D) -> void:
+	var one := t.actor(&"one")
 	t.puppet(&"one").stop()
 	t.puppet(&"one").set_posture(&"crouch")
 	t.puppet(&"one").shoot()
@@ -73,6 +86,7 @@ func run(t: TestContext) -> void:
 	await t.seconds(0.6)
 	t.require(one.is_dead and one.anatomy.ragdoll != null, "premise: it fell as a ragdoll")
 	_check_culled_by(t, body, skin)
+	t.expect_eq(body.mirror_reach(), INF, "a fallen body, flung anywhere, is always posed")
 
 
 ## The box the engine culls the one mesh by holds every shown part where it is posed (a part
@@ -143,6 +157,169 @@ func _check_surface(t: TestContext, body: BodyMesh, skin: MeshInstance3D, when: 
 			var arrays := (part.mesh as ArrayMesh).surface_get_arrays(0)
 			want += (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
 	t.expect_eq(_vertices(skin), want, "%s: it holds every shown part's vertices" % when)
+
+
+## Each shown part's vertices carry its colour and its index, and the material says where its art
+## is: the part's texture, pixel for pixel, in the atlas, over the part's own footprint.
+func _check_look(t: TestContext, body: BodyMesh, skin: MeshInstance3D, when: String) -> void:
+	var arrays := (skin.mesh as ArrayMesh).surface_get_arrays(0)
+	var custom: PackedFloat32Array = arrays[Mesh.ARRAY_CUSTOM0]
+	var material := skin.material_override as ShaderMaterial
+	var at := 0
+	var wrong: Array[String] = []
+	for index in BodyMesh.CROWN + 1:
+		var part: MeshPart = body.part(index)
+		if not part.visible:
+			continue
+		at = _check_colour(part, index, custom, at, wrong)
+		_check_art(part, index, material, wrong)
+	t.check(wrong.is_empty(), "%s: every part wears its own look (%s)" % [when, wrong.slice(0, 6)])
+	_require_variety(t, body, when)
+	var neck: MeshPart = body.part(BodyMesh.NECK)
+	var skin_colour := body.look_worn().skin.srgb_to_linear()
+	var first := _first_vertex(body, BodyMesh.NECK)
+	var got := Color(custom[first * 4], custom[first * 4 + 1], custom[first * 4 + 2])
+	t.check(
+		neck.visible and _close(got, skin_colour),
+		"%s: the plain neck is the skin's colour, linear (%s of %s)" % [when, got, skin_colour],
+	)
+
+
+## The premise of the look's check: parts with art, a cut-out and tinted ones.
+func _require_variety(t: TestContext, body: BodyMesh, when: String) -> void:
+	var shown: Array = []
+	for index in BodyMesh.CROWN + 1:
+		if body.part(index).visible:
+			shown.append(body.part(index))
+	var textured := shown.filter(func(p: MeshPart) -> bool: return p.texture != null).size()
+	var cutouts := shown.filter(func(p: MeshPart) -> bool: return p.cutout).size()
+	var tinted := shown.filter(func(p: MeshPart) -> bool: return p.tint != Color.WHITE).size()
+	t.require(
+		textured > 10 and cutouts > 0 and tinted > 1,
+		"%s: premise: parts with art (%d), a cut-out (%d) and tinted ones (%d)"
+			% [when, textured, cutouts, tinted],
+	)
+
+
+## `part`'s vertices from `at` in `custom`: its colour and `index`. Returns where the next begins.
+func _check_colour(
+	part: MeshPart, index: int, custom: PackedFloat32Array, at: int, wrong: Array[String]
+) -> int:
+	var solid := (part.mesh as ArrayMesh).surface_get_arrays(0)
+	var painted: PackedColorArray = solid[Mesh.ARRAY_COLOR]
+	var tint := part.tint.srgb_to_linear()
+	for i in painted.size():
+		var k := (at + i) * 4
+		var got := Color(custom[k], custom[k + 1], custom[k + 2])
+		if not _close(got, tint * painted[i]):
+			wrong.append("part %d colour %s, not %s" % [index, got, tint * painted[i]])
+			break
+		if int(custom[k + 3]) != index:
+			wrong.append("part %d tagged %d" % [index, int(custom[k + 3])])
+			break
+	return at + painted.size()
+
+
+## What `material` says of part `index`'s art against the part's own.
+func _check_art(
+	part: MeshPart, index: int, material: ShaderMaterial, wrong: Array[String]
+) -> void:
+	var regions: PackedVector4Array = material.get_shader_parameter(&"part_atlas")
+	var region := regions[index]
+	if part.texture == null:
+		if region.z != 0.0:
+			wrong.append("part %d has art it was not given" % index)
+		return
+	var size := Vector2(part.texture.get_size())
+	if region.z != size.x or absf(region.w) != size.y:
+		wrong.append("part %d art %s, not %s" % [index, Vector2(region.z, region.w), size])
+		return
+	if (region.w < 0.0) != part.cutout:
+		wrong.append("part %d cut-out is %s" % [index, region.w < 0.0])
+	var footprints: PackedVector4Array = material.get_shader_parameter(&"part_uv")
+	var footprint := footprints[index]
+	var rect := Vector4(
+		part.rect.position.x, part.rect.position.y, part.rect.size.x, part.rect.size.y
+	)
+	if not footprint.is_equal_approx(rect):
+		wrong.append("part %d footprint %s, not %s" % [index, footprint, rect])
+	var atlas := (material.get_shader_parameter(&"atlas") as Texture2D).get_image()
+	var cut := atlas.get_region(Rect2i(Vector2i(int(region.x), int(region.y)), Vector2i(size)))
+	var own := part.texture.get_image()
+	own.convert(Image.FORMAT_RGBA8)
+	if cut.get_data() != own.get_data():
+		wrong.append("part %d is not its texture's pixels in the atlas" % index)
+
+
+## Where part `index`'s vertices begin in the joined surface.
+func _first_vertex(body: BodyMesh, index: int) -> int:
+	var first := 0
+	for before in index:
+		var part: MeshPart = body.part(before)
+		if part.visible:
+			var arrays := (part.mesh as ArrayMesh).surface_get_arrays(0)
+			first += (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+	return first
+
+
+func _close(a: Color, b: Color) -> bool:
+	return absf(a.r - b.r) < 0.002 and absf(a.g - b.g) < 0.002 and absf(a.b - b.b) < 0.002
+
+
+## The second character, dressed otherwise, wears its own look: its own mesh and art.
+func _check_dressed_apart(t: TestContext, mirror: MeshCarrier, skin: MeshInstance3D) -> void:
+	var other := mirror.mesh_of(t.actor(&"two")) as BodyMesh
+	if not t.require(other != null, "premise: the second character has a body"):
+		return
+	var instance := _one_instance(t, other)
+	if instance == null:
+		return
+	t.check(instance.mesh != skin.mesh, "dressed otherwise, it has its own mesh")
+	_check_look(t, other, instance, "the other")
+
+
+## Skins of one part each that differ only in its art, its footprint, its cut-out or its tint each
+## wear what they say; two the same share one mesh.
+func _check_looks_differ(t: TestContext) -> void:
+	var solid := MeshKit.new().box(
+		MeshKit.volume(Rect2(-8, -8, 16, 16), 0, 4), Color(0.8, 0.6, 0.4)
+	).build()
+	var red := _plain(Color.RED)
+	var blue := _plain(Color.BLUE)
+	var rect := Rect2(-8, -8, 16, 16)
+	var rows := [
+		["as the first", red, rect, false, Color.WHITE],
+		["other art", blue, rect, false, Color.WHITE],
+		["other footprint", red, Rect2(-4, -4, 8, 8), false, Color.WHITE],
+		["a cut-out", red, rect, true, Color.WHITE],
+		["other tint", red, rect, false, Color(0.5, 0.25, 1.0)],
+		["the first again", red, rect, false, Color.WHITE],
+	]
+	var skins: Array[PartSkin] = []
+	for row: Array in rows:
+		var one := PartSkin.new(1)
+		var part := one.parts[0]
+		part.mesh = solid
+		part.texture = row[1]
+		part.rect = row[2]
+		part.cutout = row[3]
+		part.tint = row[4]
+		one.dress()
+		skins.append(one)
+		var arrays := (one.node.mesh as ArrayMesh).surface_get_arrays(0)
+		var wrong: Array[String] = []
+		_check_colour(part, 0, arrays[Mesh.ARRAY_CUSTOM0], 0, wrong)
+		_check_art(part, 0, one.node.material_override, wrong)
+		t.check(wrong.is_empty(), "a skin %s wears its own look (%s)" % [row[0], wrong])
+	t.check(skins[5].node.mesh == skins[0].node.mesh, "the same parts share one mesh")
+	for one: PartSkin in skins:
+		one.node.free()
+
+
+func _plain(colour: Color) -> Texture2D:
+	var image := Image.create(4, 4, false, Image.FORMAT_RGBA8)
+	image.fill(colour)
+	return ImageTexture.create_from_image(image)
 
 
 ## The pose the shader is given for each shown part is that part's transform (four columns).

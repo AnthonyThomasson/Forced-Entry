@@ -25,7 +25,7 @@ not looked at each frame: the body's `visibility_changed`, `ViewLayers.CHANGED` 
 of the tree. A shown rule that depends on anything else needs its own signal there. Test: `tests/art/mirror_still_piece_shown_rules_test.gd`.
 
 **Off the camera** (`mirror_reach() -> float`, optional): a mesh that says how far round its origin all it draws stays (3D units), none of it casting a shadow, has `mirror_update` called only while the
-viewport camera reaches that sphere, asked again after the camera rig moves (`MeshCarrier.AFTER_CAMERA`). Test: `tests/art/mirror_pose_off_camera_test.gd`.
+viewport camera reaches that sphere, asked again after the camera rig moves (`MeshCarrier.AFTER_CAMERA`), paused or not. Test: `tests/art/mirror_pose_off_camera_test.gd`.
 
 ## Keeping a mesh in step: which to use
 

@@ -7,13 +7,15 @@ extends GameTest
 const ProbeTwins := preload("res://tests/_art/art_probe_twins.gd")
 ## Where the camera looks while the chairs are off it (px).
 const FAR := Vector2(5000, 5000)
+## Where the character stands (px).
+const STAND := Vector2(300, 400)
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "A mesh off the camera is not posed",
 		"description": "Off the view's camera a mesh that says its reach is not asked for its "
-			+ "pose, and it is posed in the frame the camera comes back to it.",
+			+ "pose, and it is posed in the frame the camera comes back to it, paused or not.",
 		"tags": ["mirror", "3d", "render"],
 		"timeout": 20.0,
 	}
@@ -25,6 +27,8 @@ func configure(s: TestSetup) -> void:
 	s.set_static(RenderConfig, &"unit", 1.0)
 	s.object(&"chair", "armchair", Vector2(300, 200))
 	s.object(&"other", "armchair", Vector2(500, 200))
+	s.actor(&"one", &"puppet", STAND, { "facing": Vector2.RIGHT })
+	s.von_script([])
 
 
 func run(t: TestContext) -> void:
@@ -43,6 +47,7 @@ func run(t: TestContext) -> void:
 	view.add_child(carrier)
 	carrier.builders[MeshKinds.FURNITURE] = func(body: Node2D) -> Node3D:
 		return Reaching.new() if body == t.object(&"chair") else Posed.new()
+	CharacterMeshes.register(carrier.builders)
 	carrier.carry(t.world)
 	await t.frames(3)
 	var chair := carrier.mesh_of(t.object(&"chair")) as Posed
@@ -60,6 +65,7 @@ func run(t: TestContext) -> void:
 	t.expect_eq(chair.asked, before, "off the camera the mesh that says its reach is not posed")
 	t.check(other.asked > plain, "a mesh that says none is asked as before")
 	await _check_same_frame(t, camera, chair)
+	await _check_paused(t, camera, carrier.mesh_of(t.actor(&"one")) as BodyMesh)
 
 
 ## The camera moved back after the carrier looked: the mesh is posed before the frame ends.
@@ -86,6 +92,40 @@ func _check_same_frame(t: TestContext, camera: Camera3D, chair: Posed) -> void:
 			seen["after"],
 		],
 	)
+
+
+## A character turns round while off the camera, then the match is paused; the camera, moved back
+## only after some paused frames (a spectator panning), shows it facing the way it now faces.
+func _check_paused(t: TestContext, camera: Camera3D, body: BodyMesh) -> void:
+	if not t.require(body != null, "premise: the character is carried"):
+		return
+	_look_at(camera, STAND)
+	t.puppet(&"one").aim_at(STAND + Vector2(1000, 0))
+	await t.seconds(0.5)
+	if not t.require(_face_ahead(body) > 0.0, "premise: on the camera it faces right"):
+		return
+	_look_at(camera, FAR)
+	await t.frames(2)
+	t.puppet(&"one").aim_at(STAND + Vector2(-1000, 0))
+	await t.seconds(0.8)
+	if not t.require(_face_ahead(body) > 0.0, "premise: turned off the camera, it is not posed"):
+		return
+	var tree := t.world.get_tree()
+	tree.paused = true
+	await t.frames(3)
+	_look_at(camera, STAND)
+	await t.frames(3)
+	t.check(
+		_face_ahead(body) < 0.0,
+		"paused, the camera back on it shows it facing left (face %.1f of its head)"
+			% _face_ahead(body),
+	)
+	tree.paused = false
+
+
+## How far east of the head's middle the face is.
+func _face_ahead(body: BodyMesh) -> float:
+	return body.part(BodyMesh.FACE).position.x - body.part(BodyMesh.HEAD).position.x
 
 
 func _look_at(camera: Camera3D, at: Vector2) -> void:
