@@ -1,11 +1,10 @@
 extends UnitSuite
 ## Native unit suite (pure logic) for the textured toon (`MeshNodes.textured`,
 ## `ToonMaterial.textured`; interface 12, #193 phase 2b): a mesh wearing the 2D painters' art.
-## Expected values are the description's (one material per texture and tiling, shared by the nodes
-## that show it; the rect
-## in px becomes units by the one `RenderConfig.unit`; a null texture is plain toon; the material
-## goes with its last node), never the cache's own bookkeeping. How it looks is judged windowed:
-## `art/toon_tex_windowed`.
+## Expected values are the description's (one material per tiling and cut-out, shared by every node
+## whatever its art, which each node's atlas place says; the rect in px becomes units by the one
+## `RenderConfig.unit`; a null texture is plain toon; a texture's place goes with its last node),
+## never the cache's own bookkeeping. How it looks is judged windowed: `art/toon_tex_windowed`.
 
 
 func _texture(color := Color.RED) -> ImageTexture:
@@ -139,12 +138,12 @@ func test_a_node_never_tinted_is_white_not_the_toon_grey() -> void:
 		node.free()
 
 
-func test_the_material_goes_with_its_last_node_and_texture() -> void:
+func test_a_texture_is_counted_while_a_node_or_a_caller_holds_it() -> void:
 	var alive := ToonMaterial.textured_count()
 	var node := MeshNodes.textured(_box(), _texture(Color.GREEN), Rect2(0, 0, 8, 8))
 	assert_int(ToonMaterial.textured_count()).is_equal(alive + 1)
 	node.free()
-	# Nothing holds the material nor its texture now.
+	# Nothing holds the texture now.
 	assert_int(ToonMaterial.textured_count()).is_equal(alive)
 
 

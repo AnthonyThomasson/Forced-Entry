@@ -1,15 +1,25 @@
 # The textured toon (`post/toon_tex.gdshader`, `ToonMaterial.textured`, `MeshNodes.textured`)
 
-The 2D painters' art, painted unshaded, on a mesh, shaded by the toon bands. One planar projection straight down in MODEL space, `uv_rect` (an instance uniform, set in units from the px `rect`) the footprint the art covers; a top face (normal up) shows the art, a side face the art's edge texels stretched down and darkened a step (`MeshKitConfig.textured_side_dim`), a clear texel the vertex colour; `opts.tiled` repeats the art (floor, road); `opts.cutout` draws nothing where the art is clear (a flat sprite laid over solids, as a character's head art over its dome). A material per texture, tiling and cut-out (a weak cache like the decal's: instance uniforms cannot be samplers), so draw calls are unchanged (one per node) and what grows is materials: `ToonMaterial.textured_count()`. An opaque texel is the art times `base_color` only (the vertex colour is NOT multiplied in: a mesh with coloured parts, as a furniture mesh, keeps its tones for where the art is clear); tint with `base_color`.
+The 2D painters' art, painted unshaded, on a mesh, shaded by the toon bands. One planar projection straight down in MODEL space, `uv_rect` (an instance uniform, set in units from the px `rect`) the footprint the art covers; a top face (normal up) shows the art, a side face the art's edge texels stretched down and darkened a step (`MeshKitConfig.textured_side_dim`), a clear texel the vertex colour; `opts.tiled` repeats the art (floor, road); `opts.cutout` draws nothing where the art is clear (a flat sprite laid over solids, as a character's head art over its dome). One material per tiling and cut-out for every texture in the atlas (below), so nodes sharing a mesh draw in one call whatever their art; `ToonMaterial.textured_count()` counts the textures shown. An opaque texel is the art times `base_color` only (the vertex colour is NOT multiplied in: a mesh with coloured parts, as a furniture mesh, keeps its tones for where the art is clear); tint with `base_color`.
 
-The light, bands, fade and vision read are `toon_common.gdshaderinc`, shared with `toon.gdshader` and `decal.gdshader`; `toon_surface.gdshaderinc` holds `base_color`, `figure`, `emissive`. Tests: `tests/art/mesh_textured_suite.gd`, `toon_tex_windowed_test.gd` (`TEXTOON_SHOTS=<dir>` saves the shots).
+The light, bands, fade and vision read are `toon_common.gdshaderinc`, shared with `toon.gdshader` and `decal.gdshader`; `toon_surface.gdshaderinc` holds `base_color`, `figure`, `emissive`. Tests: `tests/art/mesh_textured_suite.gd`, `toon_tex_windowed_test.gd` (`TEXTOON_SHOTS=<dir>` saves the shots), `toon_atlas_same_picture_windowed_test.gd` (a district drawn with the atlas and with a material per texture).
+
+## The atlas (`post/toon_atlas.gd`, `ToonAtlas`)
+
+Godot 4.4's instance uniforms cannot be samplers, so the painted textures are packed into the layers of one `Texture2DArray`, and each node says where its own lies (the instance uniform `atlas_rect`, set by `textured`). A layer is a page of `PixelPostConfig.atlas_page` (512) texels a side, filled in shelves. The shader reads it by `texelFetch`, clamped to the texture's own texels, so no neighbour bleeds in; against a material per texture only pixels that fall exactly between two texels may differ.
+
+- **Copied once**, the first time a node shows the texture (`slot`: a `get_image` readback). **Never update a shown texture in place**: the atlas keeps the old texels. `MeshNodes.shown_texture(node)` says what a node shows.
+- **Written once a frame**, before it is drawn (`flush`): the changed layers (1 MB each), or the whole array when it grows (`GROW`, 8 layers).
+- The atlas holds no texture alive (the nodes do, `PixelArt`'s cache too); a freed one's place goes to the next texture of its size. The pages stay for the process, across matches.
+- A texture larger than a page (`fits`) has a material and `albedo_texture` of its own, weakly cached as a decal's.
+- A shader or caller using `ToonMaterial.textured` directly must also set `atlas_rect`: call `MeshNodes.textured`.
 
 ## Rules and limits
 
 - **Top or side:** a face is a top when its model normal has `y > 0.5` (a slope within 60 degrees of flat), a side otherwise; an underside (never seen from above) takes the side rule. The kit's faces are flat, so it is decided per face (`flat` varyings). A tiled side wraps along the axis it runs along (by its normal's larger horizontal part), so a long road or wall side repeats the art's edge.
 - **Model space:** the art follows the node's yaw, scale and stretch (model space is the rest pose). A `Skeleton3D`-skinned mesh would slide the art over its bones: none is used today.
 - **Units:** `uv_rect` is baked from `RenderConfig.unit` when `textured` is called, not read live; call it again after a unit change. One `uv_rect` per node, so a MultiMesh's parts share it.
-- **Cost:** never call `textured` per frame with a fresh texture: each new texture is a new material and a shader parameter set. Hold the texture (a piece's flat render is cached by `PixelArt`) and call once when the mesh is shown.
+- **Cost:** never call `textured` per frame with a fresh texture: each new texture is a readback and a layer write. Hold the texture (a piece's flat render is cached by `PixelArt`) and call once when the mesh is shown.
 - **Tint:** a node never tinted is white; a tint it already has stays unless `opts.tint` names one.
 
 ## The toon light (`post/toon_common.gdshaderinc`, `toon_light.gd`, `toon_light_config.gd`)

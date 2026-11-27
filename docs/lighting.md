@@ -44,8 +44,10 @@ like the 2D drop shadow, not the streak of a low sun (a character casts none of 
 sky mask) is white on every street floor and black under every house and tower floor and the walls round them
 (`floor_reach`), so a tower is lit from within as in 2D (a house or the arena, with no street floor, gets no sky), and the
 tower's shadow on the street is the wall's, short and hard. A street floor is one that says `is_street()` (Objects' `Floor`). With `lighting.enabled` off no light is built: the ambient is
-white and the one sun too dim to show, so the art is as painted.
-Tests: `lighting/light_3d_dusk_and_sky` (the ambient, the sun's colour, energy, direction, elevation and shadows, a wall's shadow
+white and the one sun too dim to show, so the art is as painted. Since the sun reaches only the street, its shadow pass draws only the
+meshes whose shadow can fall there (the rest are on a layer it does not cast from); the picture is the same as with all of them.
+Tests: `lighting/sun_casts_only_what_reaches_the_street`, `lighting/sun_casters_same_picture_windowed`,
+`lighting/light_3d_dusk_and_sky` (the ambient, the sun's colour, energy, direction, elevation and shadows, a wall's shadow
 short, the sky on every point of street ground out of a tower and in none), `lighting/light_3d_look_windowed` (windowed: the
 street warm and bright, the house the art times the ambient, the wall's shadow dark behind it and gone past its reach),
 `general/render_light_top_in_base_band` (the sun puts a flat top in the top band; the camera is near top-down),

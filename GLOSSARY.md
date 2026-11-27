@@ -459,7 +459,7 @@ A painter's own art with no light baked in (`PixelArt.render_flat`, Art): what t
 _Avoid_: albedo render, unlit paint
 
 **Textured toon**:
-The toon material of a mesh that wears flat paint (`MeshNodes.textured`, `toon_tex.gdshader`): the art projected straight down onto the top faces, the art's edge texels on the sides, one material per texture.
+The toon material of a mesh that wears flat paint (`MeshNodes.textured`, `toon_tex.gdshader`): the art projected straight down onto the top faces, the art's edge texels on the sides, every texture read from one texture array.
 _Avoid_: texture mapping, UVs (the art is projected, no mesh carries UVs)
 
 **Quarter turn**:

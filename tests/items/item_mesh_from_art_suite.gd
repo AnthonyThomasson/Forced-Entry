@@ -2,7 +2,7 @@ extends UnitSuite
 ## Native unit suite (pure logic) for the items' 3D meshes raised from the 2D art (`GunMesh`,
 ## `GrenadeMesh`, `ItemSolid`, `SpoonArt`; #193 phase 2b): a held gun is the silhouette of its held
 ## art, as wide and long as the art, standing up, with the flat art on its top, one mesh and one
-## material per gun and look; a lying gun is its side profile, flat; a grenade is its art turned
+## texture per gun and look; a lying gun is its side profile, flat; a grenade is its art turned
 ## about its length, its lever a strip on top. Expected sizes are the config rows' (`GunConfig`,
 ## `GrenadeConfig`), copied. How it looks is judged windowed:
 ## `items/items_projectile_mesh_windowed`.
