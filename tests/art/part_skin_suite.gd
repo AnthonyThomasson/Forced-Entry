@@ -4,10 +4,9 @@ extends UnitSuite
 ## as every other toon material does (`ToonMaterial.refresh_all`).
 
 
-func test_a_solid_and_art_nothing_else_holds_are_freed() -> void:
-	var held := _dress_and_drop()
-	assert_object((held[0] as WeakRef).get_ref()).is_null()
-	assert_object((held[1] as WeakRef).get_ref()).is_null()
+func test_a_solid_art_and_material_nothing_else_holds_are_freed() -> void:
+	for held: WeakRef in _dress_and_drop():
+		assert_object(held.get_ref()).is_null()
 
 
 func test_refresh_all_reaches_a_skins_material() -> void:
@@ -22,7 +21,8 @@ func test_refresh_all_reaches_a_skins_material() -> void:
 	skin.node.free()
 
 
-## Dresses a skin of one solid with art, drops it, and returns weak refs to the solid and the art.
+## Dresses a skin of one solid with art, drops it, and returns weak refs to the solid, the art and
+## the skin's material (`ToonMaterial.follow` holds it weakly).
 func _dress_and_drop() -> Array:
 	var solid := MeshKit.new().box(
 		MeshKit.volume(Rect2(-4, -4, 8, 8), 0, 4), Color.GRAY
@@ -33,5 +33,6 @@ func _dress_and_drop() -> Array:
 	skin.parts[0].texture = art
 	skin.parts[0].tint = Color(0.5, 0.5, 1.0)
 	skin.dress()
+	var material: WeakRef = weakref(skin.node.material_override)
 	skin.node.free()
-	return [weakref(solid), weakref(art)]
+	return [weakref(solid), weakref(art), material]

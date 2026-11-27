@@ -2,7 +2,8 @@ extends GameTest
 ## Many posed parts drawn as one mesh (`PartSkin`, `toon_parts.gdshader`; Art, windowed only:
 ## headless compiles no shader) show the picture the same parts show as nodes of their own
 ## (`MeshNodes.textured`, `MeshNodes.instance`): art over a coloured solid with a clear hole, plain
-## tinted solids, a cut-out laid over another part, a part turned and stretched. The one scene is
+## tinted solids, a cut-out laid over another part, a part turned and stretched, a ball scaled
+## unevenly (its light shows the shader's normal rule). The one scene is
 ## shot twice, with the nodes shown and with the skin shown, and the shots are compared pixel for
 ## pixel. Run: `tools/run_tests.sh --windowed --id=art/part_skin_windowed`. With
 ## `PART_SKIN_SHOTS=<dir>` set it saves the two pictures there.
@@ -115,7 +116,11 @@ func _parts() -> Array[MeshPart]:
 			"texture": _quarters(), "rect": rect, "cutout": true,
 		}),
 		_part(slab, Vector3(36, 0, 20), { "texture": _stripes(), "rect": rect }),
+		_part(BodySolids.fetch(&"ball", {}, Color.WHITE), Vector3(-4, 6, 38), {
+			"tint": Color(0.9, 0.9, 0.9),
+		}),
 	]
+	out[7].transform.basis = Basis.from_scale(Vector3(22, 6, 9))
 	out[6].transform = Transform3D(
 		Basis(Vector3.UP, 0.6) * Basis(Vector3.RIGHT, -0.35)
 			* Basis.from_scale(Vector3(0.7, 1.6, 1.2)),

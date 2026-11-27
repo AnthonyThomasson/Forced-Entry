@@ -7,7 +7,8 @@ extends RefCounted
 
 ## The solid, in its own frame: one surface of the mesh kit, unindexed, with vertex colours.
 var mesh: Mesh
-## What the solid's vertex colours are multiplied by (an sRGB colour, white: as they are).
+## What the solid's vertex colours are multiplied by (an sRGB colour, white: as they are). A part
+## with art shows the art untinted, unlike `MeshNodes.textured`, whose tint covers the art.
 var tint := Color.WHITE
 ## The art on it (null: plain colour), the footprint the art covers in the solid's own frame
 ## (model units, `MeshNodes.textured`'s `uv_rect`) and whether a clear texel draws nothing.
