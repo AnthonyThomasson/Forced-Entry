@@ -18,6 +18,12 @@ func look() -> Dictionary:
 	return GrenadeConfig.look(kind, style)
 
 
+## A grenade lets its spoon go as it is thrown: that is made ahead too.
+func prepaint() -> void:
+	super()
+	SpoonArt.new().prepaint()
+
+
 ## The grenade's 3D mesh in the hand (`GrenadeMesh`), the lever held down.
 func held_mesh() -> Mesh:
 	var drawn := look()

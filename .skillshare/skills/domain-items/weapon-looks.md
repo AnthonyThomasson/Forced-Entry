@@ -19,7 +19,7 @@ The painters draw in the canonical frame (muzzle toward +y, butt at y = 0) and s
 
 ## Prepainting
 
-`ItemRegistry.inventory_for` asks each item it makes for `art.prepaint()`: it asks for the item's held and loose meshes and flat art (the base does it for every kind; an item that shows nothing gets nulls), so `MeshCache` and `PixelArt`'s flat cache hold them before a fight and no first build or paint (0.3 to 0.5 ms) lands in its busiest frames. Test: `tests/items/prepaint_covers_the_draws_test.gd` (a match's asks build and paint nothing new).
+`ItemRegistry.inventory_for` asks each item it makes for `art.prepaint()`: it asks for the item's held and loose meshes and flat art (the base does it for every kind; an item that shows nothing gets nulls), so `MeshCache` and `PixelArt`'s flat cache hold them before a fight and no first build or paint (0.3 to 0.5 ms) lands in its busiest frames; the art goes into the toon's atlas too (`MeshNodes.warm_textured`; a grenade's prepaint takes the spoon's with it). Test: `tests/items/prepaint_covers_the_draws_test.gd` (a match's asks build and paint nothing new, and the art is atlased).
 
 ## The held item in 3D (`ItemArt.held_mesh`, `GunMesh`, `GrenadeMesh`, `ItemSolid`, `ItemMeshConfig`)
 

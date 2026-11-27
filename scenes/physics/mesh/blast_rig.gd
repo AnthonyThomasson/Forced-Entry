@@ -58,6 +58,12 @@ func _init(parent: Node3D, world: FxWorld) -> void:
 		puffs.append(_part(parent, disc, false))
 
 
+## Paint every burst's smoke and copy it into the toon's atlas ahead of the first burst.
+static func warm() -> void:
+	for row: Dictionary in PhysicsExplosionConfig.looks.values():
+		MeshNodes.warm_textured(_puff_texture(row.get("smoke_color", Color.GRAY)))
+
+
 ## Begin showing a burst of `row` (a `PhysicsExplosionConfig.looks` row) at world `place`.
 func start(place: Vector2, row: Dictionary) -> void:
 	at = place

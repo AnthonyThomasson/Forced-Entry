@@ -4,7 +4,9 @@ extends GameTest
 ## so no first build or paint lands in the busiest frames of a fight. This makes each weapon style's
 ## guns and grenades, then asks for every mesh and texture a match shows of them (held, lying either
 ## side up): no mesh is built and no texture painted anew, and the art handed out is the same
-## object the second time (the caches hold it).
+## object the second time (the caches hold it). The art is in the toon's atlas too, the thrown
+## grenade's spoon with it, so a gun first dropped mid-fight costs no readback or page write. (The
+## atlas is the process's: run this test on its own to see a missing warm.)
 
 const STYLES: Array[StringName] = [&"police", &"scrap", &"pipe"]
 
@@ -13,7 +15,8 @@ func describe() -> Dictionary:
 	return {
 		"name": "Prepainted weapon art covers every mesh and texture shown",
 		"description": "After ItemRegistry makes guns and grenades in each style, asking for "
-			+ "their held and lying meshes and art builds and paints nothing new.",
+			+ "their held and lying meshes and art builds and paints nothing new, and the art is "
+			+ "already in the toon's atlas.",
 		"tags": ["art", "gun", "grenade", "cache"],
 		"timeout": 20.0,
 	}
@@ -25,6 +28,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var items := _make_items(t)
+	_check_atlased(t, items)
 	var built := MeshCache.builds
 	var painted := PixelArt._cache.size()
 	var shown := 0
@@ -49,6 +53,20 @@ func run(t: TestContext) -> void:
 			item.art.held_texture() == item.art.held_texture(),
 			"%s hands out the same held art each time" % item.get_script().resource_path,
 		)
+
+
+## Every texture the items show, and the spoon's, is already in the toon's atlas.
+func _check_atlased(t: TestContext, items: Array) -> void:
+	var cold := 0
+	for item: Item in items:
+		for flip in [false, true]:
+			for tex: Texture2D in [item.art.held_texture(), item.art.dropped_texture(flip)]:
+				cold += 1 if tex != null and not ToonAtlas.holds(tex) else 0
+	t.expect_eq(cold, 0, "the items' art is in the atlas once they are made")
+	t.check(
+		ToonAtlas.holds(SpoonArt.new().dropped_texture()),
+		"and so is the spoon a thrown grenade lets go",
+	)
 
 
 ## Every style's guns and grenades, made by `ItemRegistry.inventory_for` (which prepaints them).

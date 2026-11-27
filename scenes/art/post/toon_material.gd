@@ -136,8 +136,9 @@ static func shade() -> ShaderMaterial:
 	return _shade
 
 
-## How many textures the textured toon shows now (a test reads it, the perf report too): those in
-## the atlas and those with a material of their own that something still holds.
+## How many textures the textured toon holds a place or a material for (a test reads it): every
+## atlased texture still alive, whether or not a node shows it (the paint caches keep them, and what
+## is warmed is shown by none yet), and those with a material of their own that something holds.
 static func textured_count() -> int:
 	_forget_freed()
 	return ToonAtlas.count() + _textured.size()

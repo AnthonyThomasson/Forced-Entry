@@ -246,3 +246,49 @@ func test_a_texture_too_large_for_the_atlas_keeps_a_material_of_its_own() -> voi
 	assert_bool(other.get_shader_parameter(&"atlased")).is_true()
 	node.free()
 	small.free()
+
+
+## A texture a whole page of the atlas, so the next like it opens a page.
+func _page() -> ImageTexture:
+	var side := PixelPostConfig.atlas_page
+	var image := Image.create(side, side, false, Image.FORMAT_RGBA8)
+	return ImageTexture.create_from_image(image)
+
+
+## The pages the array holds beyond those in use.
+func _spare_pages() -> int:
+	return ToonAtlas.array().get_layers() - ToonAtlas.pages_used()
+
+
+func test_a_page_opened_after_a_reserve_does_not_remake_the_array() -> void:
+	var nodes: Array[GeometryInstance3D] = [
+		MeshNodes.textured(_box(), _texture(), Rect2(0, 0, 8, 8)),
+	]
+	ToonAtlas.flush()
+	# eat into the spare, then ask for it again
+	while _spare_pages() >= ToonAtlas.GROW:
+		nodes.append(MeshNodes.textured(_box(), _page(), Rect2(0, 0, 8, 8)))
+		ToonAtlas.flush()
+	ToonAtlas.reserve()
+	ToonAtlas.flush()
+	assert_int(_spare_pages()).is_greater_equal(ToonAtlas.GROW)
+	var layers := ToonAtlas.array().get_layers()
+	var used := ToonAtlas.pages_used()
+	for i in ToonAtlas.GROW:
+		nodes.append(MeshNodes.textured(_box(), _page(), Rect2(0, 0, 8, 8)))
+		ToonAtlas.flush()
+	assert_int(ToonAtlas.pages_used()).is_equal(used + ToonAtlas.GROW)
+	assert_int(ToonAtlas.array().get_layers()).is_equal(layers)
+	for node in nodes:
+		node.free()
+
+
+func test_warming_a_texture_puts_it_in_the_atlas_before_a_node_shows_it() -> void:
+	var texture := _speckled(Vector2i(12, 9), 11)
+	assert_bool(ToonAtlas.holds(texture)).is_false()
+	MeshNodes.warm_textured(texture)
+	assert_bool(ToonAtlas.holds(texture)).is_true()
+	var large := _speckled(Vector2i(PixelPostConfig.atlas_page + 1, 4), 12)
+	MeshNodes.warm_textured(large)
+	MeshNodes.warm_textured(null)
+	assert_bool(ToonAtlas.holds(large)).is_false()

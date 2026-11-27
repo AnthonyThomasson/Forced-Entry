@@ -8,11 +8,14 @@ extends RefCounted
 ## the texel it was on a texture of its own and no neighbour bleeds in. A texture is therefore
 ## never updated in place after a node showed it. The atlas holds no texture alive: the nodes
 ## showing one do (`MeshNodes.textured`), and the place of a freed one is given to the next texture
-## of its size. Pages are written to the GPU once a frame, before it is drawn (`flush`).
+## of its size. Pages are written to the GPU once a frame, before it is drawn (`flush`). A copy is a
+## readback and a write of the page, so what is first shown mid-match is copied at match build
+## (`MeshNodes.warm_textured`), and the array is made with a spare `GROW` of layers (`reserve`): a
+## page opened later writes that page alone, not the array, until the spare is used up.
 
 ## The layers `slot` packs a page index into `atlas_rect.x` with: above any page's side.
 const LAYER_STEP := 4096
-## The layers the array grows by.
+## The layers the array grows by, and the least it is made with beyond the pages in use.
 const GROW := 8
 
 ## The array every atlased material samples.
@@ -25,9 +28,10 @@ static var _shelves: Array = []
 static var _slots: Dictionary = {}
 ## The places of freed textures, by size: `Array` of `[page, Vector2i]`.
 static var _free: Dictionary = {}
-## The pages written since the last `flush`, and whether the array needs more layers than it has.
+## The pages written since the last `flush`, the layers the array has and those `reserve` asked for.
 static var _dirty: Dictionary = {}
 static var _layers := 0
+static var _wanted := 0
 static var _hooked := false
 ## The size at which the next new texture first forgets the freed ones.
 static var _prune_at := 64
@@ -72,6 +76,24 @@ static func slot(texture: Texture2D) -> Vector4:
 	return rect
 
 
+## Whether the atlas holds `texture` (a test reads it).
+static func holds(texture: Texture2D) -> bool:
+	var held: Variant = _slots.get(texture.get_instance_id())
+	return held != null and (held["ref"] as WeakRef).get_ref() == texture
+
+
+## The pages in use; the array holds as many layers or more (a test reads it).
+static func pages_used() -> int:
+	return _pages.size()
+
+
+## Have the array hold at least `GROW` pages beyond those in use from the next `flush` on (asked
+## once a match's meshes are built).
+static func reserve() -> void:
+	_wanted = _pages.size() + GROW
+	_hook()
+
+
 ## How many textures the atlas holds that are still alive.
 static func count() -> int:
 	forget_freed()
@@ -86,12 +108,14 @@ static func pixels(rect: Vector4) -> Image:
 
 
 ## Write the pages changed since the last call to the array: the whole array again when it has to
-## grow, else the changed layers. Connected to `RenderingServer.frame_pre_draw`.
+## grow (more pages, or more `reserve` asked for), else the changed layers. Connected to
+## `RenderingServer.frame_pre_draw`.
 static func flush() -> void:
-	if _dirty.is_empty():
+	var wanted := maxi(_pages.size(), _wanted)
+	if _dirty.is_empty() and wanted <= _layers:
 		return
-	if _pages.size() > _layers:
-		_layers = ceili(_pages.size() / float(GROW)) * GROW
+	if wanted > _layers:
+		_layers = ceili(wanted / float(GROW)) * GROW
 		var images: Array[Image] = _pages.duplicate()
 		while images.size() < _layers:
 			images.append(_blank())
@@ -156,7 +180,7 @@ static func _blank() -> Image:
 	return Image.create(side, side, false, Image.FORMAT_RGBA8)
 
 
-## Write the pages before each frame is drawn from the first texture on.
+## Write the pages before each frame is drawn from the first texture or `reserve` on.
 static func _hook() -> void:
 	if _hooked:
 		return

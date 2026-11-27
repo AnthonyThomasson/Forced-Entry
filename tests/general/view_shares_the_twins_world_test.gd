@@ -6,7 +6,8 @@ extends GameTest
 ## attach to them. Two staged worlds keep two worlds (a test that builds another beside the default
 ## arena never draws the other's), the window's is never used, a view that goes leaves the twins'
 ## physics space answering rays, and a world with no twin space (built by hand) is drawn in a world
-## of the view's own.
+## of the view's own. Showing a match also leaves the toon's atlas a spare step of pages
+## (`ToonAtlas.reserve`).
 
 const MAIN_VIEW3D := preload("res://scenes/main_view3d.gd")
 
@@ -38,7 +39,7 @@ func run(t: TestContext) -> void:
 	var view := MAIN_VIEW3D.new()
 	t.world.add_child(view)
 	view.begin(camera)
-	view.mirror_world(t.world)
+	_mirror_leaving_spare_pages(t, view)
 	await t.frames(3)
 	var shown: World3D = view.viewport.find_world_3d()
 	t.check(shown == twins.find_world_3d(), "the view's viewport shares the twin space's world")
@@ -153,3 +154,29 @@ func _a_view_that_waits(t: TestContext, camera: Camera2D) -> void:
 	t.check(not second.viewport.own_world_3d, "and the view's own world is cleared")
 	first.queue_free()
 	second.queue_free()
+
+
+## Show the match with the toon's atlas short of its spare step: showing it makes the step again.
+func _mirror_leaving_spare_pages(t: TestContext, view: CanvasLayer) -> void:
+	var held: Array[Node] = []
+	var side := PixelPostConfig.atlas_page
+	while held.is_empty() or _spare_pages() >= ToonAtlas.GROW:
+		var page := Image.create(side, side, false, Image.FORMAT_RGBA8)
+		var node := MeshInstance3D.new()
+		node.mesh = BoxMesh.new()
+		MeshNodes.textured(node, ImageTexture.create_from_image(page), Rect2(0, 0, 8, 8))
+		held.append(node)
+		ToonAtlas.flush()
+	view.mirror_world(t.world)
+	ToonAtlas.flush()
+	t.check(
+		_spare_pages() >= ToonAtlas.GROW,
+		"showing the match leaves the toon's atlas a spare step of pages",
+	)
+	for node in held:
+		node.free()
+
+
+## The pages the atlas's array holds beyond those in use.
+func _spare_pages() -> int:
+	return ToonAtlas.array().get_layers() - ToonAtlas.pages_used()

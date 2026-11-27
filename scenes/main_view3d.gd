@@ -174,6 +174,7 @@ func mirror_world(world: Node) -> void:
 	carrier.carry(world)
 	follower.follow(world)
 	ProjectileMeshes.install(viewport, world)
+	ToonAtlas.reserve()  # the match's art is in: a page first opened in play is written alone
 
 
 ## Draw `world`'s twin space's `World3D` (the nodes the view holds move into it: the rig, the

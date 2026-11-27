@@ -90,6 +90,14 @@ static func textured(
 	return node
 
 
+## Copy `texture` into the toon's atlas ahead of its first showing (`textured`), so a thing first
+## shown mid-match (a dropped gun, a burst's smoke) costs no readback or page write then. Nothing
+## for a null texture or one too large for the atlas.
+static func warm_textured(texture: Texture2D) -> void:
+	if texture != null and ToonAtlas.fits(texture):
+		ToonAtlas.slot(texture)
+
+
 ## The texture a textured or decal node shows (`textured`, `decal`), or null: what it wears is not
 ## a parameter of its material once that is shared.
 static func shown_texture(node: GeometryInstance3D) -> Texture2D:

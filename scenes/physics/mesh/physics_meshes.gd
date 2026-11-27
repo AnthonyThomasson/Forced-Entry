@@ -14,6 +14,7 @@ extends RefCounted
 ## layer; it stops being told when it leaves the tree. The hook is process-wide: one 3D view at a
 ## time.
 static func install(parent: Node, ground := Callable()) -> FxLayer:
+	BlastRig.warm()
 	var layer := FxLayer.new()
 	layer.build(Despawner.max_scene_objects, FxWorld.new(ground))
 	parent.add_child(layer)

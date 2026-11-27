@@ -17,7 +17,7 @@
       pixel covers; `internal_size() -> Vector2i` the picture's size in pixels.
     - **The pixel post** (Art `art/post/`, `PixelPostConfig`): the view's meshes share one toon `ShaderMaterial` (`ToonMaterial.make()`; a colour per instance) whose light is the dusk's (20, `domain-art/textured-toon.md`: the ambient plus each light stepped into bands, capped); `PixelPost.attach(camera, oversample)` adds a full-screen
       outline quad under the camera (a dark line where the depth steps, `silhouette_px` wide, or the normal creases, `crease_px`; `PixelPost.refresh(node, oversample)`). `View3D` shows the picture
-      through a nearest-filtered `TextureRect`; it can render `supersample` (at rest) or `turn_supersample` (turning) times larger and average down through a filtered stage (`View3D.shown`), both 1: 2 flickers more on textured art.
+      through a nearest-filtered `TextureRect`; it can render `supersample` (at rest) or `turn_supersample` (turning) times larger and average down through a filtered stage (`View3D.shown`), both 1: 2 flickers more on textured art. `mirror_world` ends with `ToonAtlas.reserve()`.
     - **The flat overlays** (`GroundLayer`, `general/ground_layer.gd`; `domain-general/camera3d.md`): the 3D view
       is up `ViewLayers.overlay` moves every debug overlay under a `CanvasLayer` on
       `Pointer.screen_transform`: they lie flat on the 3D floor at any yaw, over the picture and under the HUD (`OverlayRegistry.overlays_of`).
