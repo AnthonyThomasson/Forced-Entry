@@ -51,7 +51,7 @@ func _init(body: Node2D) -> void:
 
 
 ## Step the model one physics step on `state` (the 3D body's, in plan space: the floor plan `(x, z)`
-## and the turn about up, as the 2D body had them), for a vehicle of `row` driven by its `intent`
+## and the turn about up), for a vehicle of `row` driven by its `intent`
 ## (`brake` holds the brakes to a stop and never reverses), while the engine runs (`running`).
 func step(state: PhysicsDirectBodyState3D, row: Dictionary) -> void:
 	var dt := state.step

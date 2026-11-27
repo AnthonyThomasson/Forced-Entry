@@ -11,6 +11,7 @@
     - **Cost.** A lookup builds a small array from the holders and the mesh scripts' own `height_of` rules; no mesh is built. Referencing the class preloads the 13 mesh scripts it asks
 	  (`TableMesh`, `CounterMesh`, ...): their code loads once with the script, which is what a match with the 3D view loads anyway; a caller reads a piece's heights once when it is
 	  spawned or first needed and keeps them, not each query. Splitting the rules out of the mesh scripts would move every `height_of` the meshes share; not worth it until a caller's load time says so.
+
     **What an emptied piece carries, `PieceCarries`** (`objects/art/piece_carries.gd`, static, `RefCounted`), read by World Generation (2) to set those things as items of their own (`docs/stacked-items.md` SI13; the row's fields: `domain-objects/carries.md`).
     - `PieceCarries.carries(definition: Dictionary) -> bool` — whether the piece of a catalogue row carries things (its
 	mesh and art leave them out). `RoomFurnisher` counts such a piece's footprint with the solids, `ItemsCatalog`

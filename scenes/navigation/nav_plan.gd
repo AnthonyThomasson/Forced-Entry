@@ -1,9 +1,10 @@
 class_name NavPlan extends RefCounted
-## Navigation domain: the plan-space face of `NavigationServer3D` (D4). A plan point
-## `Vector2` (x, y) is the point (x, 0, y) of the nav's 3D floor, on the one plane every mesh is
-## baked and held on (`NavSource.bake_polygon`, in px as the plan is, whatever `RenderConfig.unit`
-## the render scales by), so a map's answer is lifted in and read back out here and `NavBuilder`'s
-## callers keep plan `Vector2`s. Every query of a map goes through these.
+## Navigation domain: the plan-space face of `NavigationServer3D` (D4,
+## `docs/adr/0014-twin-staging-and-plan-space.md`). A plan point `Vector2` (x, y) is the point
+## (x, 0, y) of the nav's 3D floor, on the one plane every mesh is baked and held on
+## (`NavSource.bake_polygon`, in px as the plan is, whatever `RenderConfig.unit` the render scales
+## by), so a map's answer is lifted in and read back out here and `NavBuilder`'s callers keep plan
+## `Vector2`s. Every query of a map goes through these.
 
 ## The meta a region carries: the plan-space polygon its mesh was made from (`assign`).
 const POLYGON_META := &"nav_polygon"

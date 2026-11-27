@@ -32,7 +32,7 @@ const Character = preload("res://scenes/character/character.gd")
 const HEAD_ON := deg_to_rad(3.0)
 ## How far (px) the walk keeps off what stops it. A hair more than the engine's 0.001: a walker
 ## pressed on a swinging leaf would overlap it by rounding, but not so much that the engine's
-## recovery pushes it off a leaf the width of a step (0.08, the 2D body's, did: the leaf crept on
+## recovery pushes it off a leaf the width of a step (at 0.08 it does: the leaf creeps on
 ## after it).
 const SAFE_MARGIN := 0.02
 ## How high the cylinder's feet are above the floor (px): above a floor slab (0.1) and any slab
@@ -98,7 +98,7 @@ static func build(node: Node2D) -> Node3D:
 	# a wall met nearly head on (within `HEAD_ON` of square) stops the slide: the engine
 	# renormalises what is left to slide, which at a square hit is only its rounding noise, a
 	# full-length shove in a random direction. Its default (15 degrees) stops a round body that
-	# meets a leaf's end or a corner a few degrees off square, which the 2D body always slid round
+	# meets a leaf's end or a corner a few degrees off square, where the walk is to slide round
 	twin.wall_min_slide_angle = HEAD_ON
 	twin.safe_margin = SAFE_MARGIN
 	twin.collision_layer = PhysicsLayers.TWIN_CHARACTER

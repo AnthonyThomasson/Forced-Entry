@@ -30,7 +30,7 @@ A folded sub-domain is a side file `<skill>/<name>.md`.
 | AI | `ai/` | `domain-ai` (`perception.md`, `snapshot.md`, `decision.md`, `behavior.md`, `combat.md`, `coverage.md`, `watch.md`, `entry.md`, `debug.md`, `team.md`) | NPC brains: one controller per NPC, five sub-domains, plus `ai/team/` (the human's stack, each side's squad). |
 | Vehicles | `vehicle/` | `domain-vehicle` | Cars and vans (sandbox only): driving, doors, seats, getting in and out, collisions, dents. |
 | Testing | `testing/` | `domain-testing` | Game tests: a second composition root that builds a declared world and asserts on it; the test browser and runner; gdUnit4 suites. Cases live in `tests/<domain>/`, sandboxes in `sandboxes/`. |
-| Main | `main.gd`, `match_builder.gd`, `match_spawner.gd` | `domain-main` | The composition root, no domain: it builds a match and is the one place that knows every domain. |
+| Main | `main.gd`, `match_builder.gd`, `match_spawner.gd` | `domain-main` | The composition root, no domain: it builds a match. |
 
 **Composition root.** `scenes/main.gd` (`main.tscn`) and the Testing runner (interface 13) are the only code that knows every domain. A match is built by `MatchBuilder` (`scenes/match_builder.gd`, 23) with its helper `match_spawner.gd`: a match spec in (`Main.start_match(spec)`), a handle out. Main's flow and the endless run: `domain-main`. Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock` (General) and `Sound` (Audio); `GameLog` and the other General helpers are `class_name` statics.
 
@@ -79,7 +79,7 @@ main ──(MatchBuilder.stage: twin space, 29)──▶ general (TwinSpace), ob
 main ──(Tests button: scene change)──▶ testing (TestBrowser)
 testing ──▶ every domain; builds its worlds through MatchBuilder (a second composition root)
 Sandbox ──(recipe_for / render)──▶ SoundBank / SoundSynth (Audio)
-worldgen ──▶ objects (the six factories, RoomWalls, WearPlan, `SharedTextures`, `FurnitureArt`, and `DoorConfig.open_angle`: 24, `PieceHeights`: 28), art (`PixelArt.warm`: 12)
+worldgen ──▶ objects (the six factories, RoomWalls, WearPlan, `SharedTextures`, `FurnitureArt`, `DoorConfig.open_angle`: 24, `PieceHeights`, `PieceCarries`, `ObjectArtDecorConfig.prop_colors`: 28), art (`PixelArt.warm`: 12)
 objects ──▶ physics, art, audio (SoundSurface.register), vehicle (VehicleMeshConfig)   (a door posts `&"door"`: 10; a nav bake carves a leaf at its open stop, duck-typed: 9, 24; a door's swing nudges a character clear, duck-typed: 7, 24; a bed's mesh reads `use.active_interaction()`, duck-typed: 8)
 character ──▶ items, interaction, vehicle (CharacterVehicleUse), physics, art   (and a house door, duck-typed: interface 24, and `DoorConfig.step_degrees`)
 items ──▶ projectile, art    projectile ──▶ physics, art    vehicle ──▶ physics, art    physics ──▶ art (12)

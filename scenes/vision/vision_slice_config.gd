@@ -34,5 +34,5 @@ static var jump_px: float = 48.0
 ## How far (px) a blocker may have moved from where a job saw it for the job that follows the
 ## restart cap to go on (`ViewPipeline`: a settling job, instead of a whole build in one frame): a
 ## piece settling or sliding slowly. The cone it publishes differs from the world by what the piece
-## moved while it was built, and the next job starts at once. 0 builds whole at the cap, as before.
+## moved while it was built, and the next job starts at once. 0 builds whole at the cap.
 static var settle_px: float = 1.0

@@ -80,8 +80,8 @@ static func paint(c: PixelCanvas, base: Color, kind: String, opts: Dictionary = 
 			_pot(c, base, opts.get("well"))
 
 
-## A pot: its steel disc with a dark middle, or, for one with a `well`, the noodle bar's old pot: a
-## dark rim, a ring of its steel and the broth inside.
+## A pot: its steel disc with a dark middle, or, for one with a `well` (the noodle bar's), a dark
+## rim, a ring of its steel and the broth inside.
 static func _pot(c: PixelCanvas, base: Color, well: Variant) -> void:
 	var r := maxi(1, mini(c.w, c.h) >> 1)
 	var mid := Vector2i(c.w >> 1, c.h >> 1)

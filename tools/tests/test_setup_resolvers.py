@@ -216,15 +216,13 @@ class GodotTests(Scratch):
         self.assert_found(binary)
 
     def test_another_version_in_the_install_folder_is_not_used(self):
-        # /Applications is the one place the lookups search that the test's environment cannot move.
+        # /Applications is the one place the lookups search that the test's environment cannot move: a Mac's own
+        # Godot there is a rightful answer, the other version in the test's home never is.
         apps = list(Path("/Applications").glob("Godot*.app/Contents/MacOS/Godot")) if MACOS else []
-        if apps:
-            self.skipTest(f"this Mac has a Godot of its own, which the lookups rightly answer with: {apps[0]}")
         write_exe(self.home / "godot" / "3.0-stable" / "Godot_v3_win64_console.exe")
         for impl, got in self.find_godot().items():
-            if not got:
+            if not got or (apps and "3.0-stable" not in got):
                 continue
-            # Only a machine-wide Godot (none is let through to this environment) could answer.
             self.fail(f"{impl} found {got!r}")
 
     @unittest.skipUnless(WINDOWS, "Windows install folders")

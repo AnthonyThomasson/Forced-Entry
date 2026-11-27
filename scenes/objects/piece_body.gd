@@ -189,9 +189,9 @@ func settle_out() -> void:
 
 ## Shove the piece: `impulse` (plan space, as `apply_impulse`'s) at the point `at` px from the
 ## piece's origin (world orientation; zero is the piece's middle), `height` px above the floor. A
-## negative height is the piece's centre of mass, so a shove given no height only turns it about up,
-## as the 2D body did; a height outside the piece (a blast's burst over its top) is the nearest
-## point of it. A tall piece shoved above its centre leans and tips; low it slides.
+## negative height is the piece's centre of mass, so a shove given no height only turns it about up;
+## a height outside the piece (a blast's burst over its top) is the nearest point of it. A tall
+## piece shoved above its centre leans and tips; low it slides.
 func push(impulse: Vector2, at: Vector2 = Vector2.ZERO, height: float = -1.0) -> void:
 	_rest_for = 0
 	var lift := impulse * RenderConfig.unit
@@ -340,9 +340,9 @@ func _characters_touching() -> Array:
 	return found
 
 
-## The drag a 2D body had, on the floor plane and about up only: a piece comes to rest as a shoved
-## piece always did (`PhysicsImpactConfig.body_linear_damp`, `body_angular_damp`), while its fall
-## and its tipping are left to gravity and the contact (`linear_damp`, `angular_damp`).
+## Drag on the floor plane and about up only, so a shoved piece comes to rest
+## (`PhysicsImpactConfig.body_linear_damp`, `body_angular_damp`), while its fall and its tipping are
+## left to gravity and the contact (`linear_damp`, `angular_damp`).
 func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 	var dt := state.step
 	var linear := state.linear_velocity

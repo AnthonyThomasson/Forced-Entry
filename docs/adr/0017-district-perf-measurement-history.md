@@ -82,6 +82,9 @@ analysed a decision (about 1.5 ms), ray sharing between targets. Each guard's he
 
 ## From `perf-opening.md`
 
+**At seed 2 (before `MATCH_SEED` 23):** the first sighting came at 4.2 s of test time, the opening window ran 4.2 to 9.2 s and
+`match_10v10_stress` opened at 8.8 s, so the opening window overlapped the start of the stress window.
+
 **Measured (2026-11-12, tip 98e9b9b2 plus these changes, window 300 frames, `--quiet`, none `loaded`):** (load 2.94, 0 busy
 Godot) avg 11.92, p95 22.04, max 32.95 ms; (load 6.95, 0 busy Godot) 12.00 / 22.72 / 33.85; (load 3.86, 5 busy Godot, not a quiet
 run) 12.58 / 24.45 / 35.63. Red on p95 every run, on max in two. The first 240 frames, three runs at load 3.7 to 4.3: avg 11.88 to

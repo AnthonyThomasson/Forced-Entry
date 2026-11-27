@@ -79,7 +79,7 @@ class PassTests(unittest.TestCase):
 
     def test_another_repo_s_issue_and_a_colour_pass(self):
         with TempTree() as root:
-            write(root, "scenes/a.gd", "extends Node\n# (godotengine/godot#110724), grey #9aa7b4 and #123456\n")
+            write(root, "scenes/a.gd", "extends Node\n# (godotengine/godot#110724), godot#9999, grey #9aa7b4 and #123456\n")
             self.assertEqual(the_rule().check(root, None), [])
 
     def test_tests_and_docs_are_not_scanned(self):

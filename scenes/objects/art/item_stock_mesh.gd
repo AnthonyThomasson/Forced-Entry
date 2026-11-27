@@ -159,8 +159,8 @@ static func _sandbag(kit: MeshKit, foot: Rect2, high: float, colour: Color) -> v
 	kit.box(MeshKit.volume(foot, 0.0, high), MeshKit.tone(colour, &"dark"), colour)
 
 
-## A hat: a brim disc a shade darker than its crown, the crown a smaller disc on it (the coat
-## rack's old hat: a brim of the footprint's radius, a crown of 0.64 of it).
+## A hat: a brim disc a shade darker than its crown, the crown a smaller disc on it: the brim of the
+## footprint's radius, the crown 0.64 of it.
 static func _hat(kit: MeshKit, foot: Rect2, colour: Color) -> void:
 	var radius := minf(foot.size.x, foot.size.y) * 0.5
 	var mid := foot.get_center()

@@ -3,6 +3,7 @@
 and on GitHub; tests may name the ticket whose spec they check, so only the scripts Godot loads under those two folders
 are scanned. Only comments count: the words inside a string are left alone. A one-digit `#N` is a numbered slot, and
 `name#N` is another repository's issue (an engine bug a workaround waits for): neither is this project's ticket.
+A short colour literal of digits only in a comment (`#333`, `#0808`) reads as a ticket number and is flagged.
 """
 import re
 

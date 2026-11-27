@@ -1,14 +1,13 @@
 # Perf · A match's opening, and the worst-frames report (#195)
 
 **The opening guard, `perf/match_10v10_opening`.** The match guards open their window late: `warm_until_contact` waits `MATCH_WARMUP_S`
-and then for a shot AND some NPC knowing a hostile, so `match_10v10_stress` opens at 8.8 s of test time while the first sighting is at
-4.2 s (seed 2). The first sightings, the first decisions, throws and escape searches were in no window, and a player feels those as
-the stutter when a fight starts. This guard is the same match (`configure_match`, 10 a side) with its window opened by
+and then for a shot AND some NPC knowing a hostile, so at `MATCH_SEED` 23 `match_10v10_stress` opens at 6.0 s of test time while the
+first sighting is at 0.55 s. A fight's first sightings, decisions, throws and escape searches are before that window, and a player
+feels those as the stutter when a fight starts. This guard is the same match (`configure_match`, 10 a side) with its window opened by
 `Perf.await_first_contact`: the first shot or the first NPC knowing a hostile, whichever comes first (`"shot"` or `"sighting"`).
-It runs `Perf.OPENING_FRAMES` (300, five seconds) from there, so it overlaps the start of the stress window and is held to `Perf.within_frames` (16.7 / 20 / 33.4), no looser tail.
+It runs `Perf.OPENING_FRAMES` (300, five seconds) from there (about 0.5 to 5.5 s, short of the stress window) and is held to `Perf.within_frames` (16.7 / 20 / 33.4), no looser tail.
 Premises: at most `MOST_SHOTS_BEFORE` shots before the window; a shot and decisions asked in it. It calls `Perf.record_fight`;
-`perf/match_10v10_opening_replay` plays it three times and diffs the fingerprints (green: the opening is one fixed fight, the
-window 4.2 to 9.2 s, the stress guard's opening at 8.8 s). It is not in `perf_ab.py`'s default ids (the four match guards are): `--ids=perf/match_10v10_opening`.
+`perf/match_10v10_opening_replay` plays it three times and diffs the fingerprints (the opening is one fixed fight). It is not in `perf_ab.py`'s default ids (the four match guards are): `--ids=perf/match_10v10_opening`.
 
 Its measured runs and worst frames (2026-11-12) are in [ADR 0017](../../../docs/adr/0017-district-perf-measurement-history.md).
 

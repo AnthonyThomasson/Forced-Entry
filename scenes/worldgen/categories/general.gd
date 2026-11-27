@@ -136,8 +136,8 @@ const OBJECTS := {
 		"color": Color(0.45, 0.3, 0.15),
 		"material": "wood",
 		"art": "coat_rack",
-		# The hat on the post (SI15), a coat-palette colour picked by where the rack stands as the
-		# old hat's was: the coats hang from the hooks and stay drawn.
+		# The hat on the post (SI15), a coat-palette colour picked by where the rack stands; the
+		# coats hang from the hooks and stay drawn.
 		"carries": [
 			{ "key": "hat", "at": Vector2.ZERO, "on_top": true, "palette": "coats" },
 		],

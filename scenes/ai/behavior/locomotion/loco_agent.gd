@@ -1,10 +1,11 @@
 extends RefCounted
-## AI BEHAVIOUR sub-domain — LOCOMOTION's agent, its part `agent` (D4): the walk's
-## `NavigationAgent3D` in plan terms. The nav is 3D (a plan point is the point (x, 0, y) of its
-## floor, `NavPlan`), and this is the walk's seam where the agent's `Vector3`s become plan
-## `Vector2`s and back: every consumer of a walk (`aim`, `give_way`, `leaves`) asks it what a
-## `NavigationAgent2D` was asked, by the same names. (The debug overlay, `agent_debug.gd`, and a few
-## tests read the raw `NavigationAgent3D`, which they only look at.)
+## AI BEHAVIOUR sub-domain — LOCOMOTION's agent, its part `agent` (D4,
+## `docs/adr/0014-twin-staging-and-plan-space.md`): the walk's `NavigationAgent3D` in plan terms.
+## The nav is 3D (a plan point is the point (x, 0, y) of its floor, `NavPlan`), and this is the
+## walk's seam where the agent's `Vector3`s become plan `Vector2`s and back: every consumer of a
+## walk (`aim`, `give_way`, `leaves`) asks it what a `NavigationAgent2D` was asked, by the same
+## names. (The debug overlay, `agent_debug.gd`, and a few tests read the raw `NavigationAgent3D`,
+## which they only look at.)
 ##
 ## The agent needs a `Node3D` parent for its position: the `NavAnchor` of `npc.tscn`, a `Node3D`
 ## child of the NPC with no collider, never mirrored and owned by Locomotion (`domain-character`).
