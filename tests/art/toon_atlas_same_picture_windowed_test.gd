@@ -3,12 +3,13 @@ extends GameTest
 ## of its own sampled the texture: the picture is the same. In a district, held still, each frame is
 ## drawn with the atlas and again with every textured node on a material of its own: no pixel
 ## differs but a tie on a texel's edge, where the shader's float picks one neighbour and the sampler
-## the other (seen: 4 pixels of one 2560 frame). Windowed only.
+## the other (seen: 4 and 20 pixels of one 2560 frame, in blocks of one art pixel; a shader that
+## read one texel off turns about 350000). Windowed only.
 
 const Frozen := preload("res://tests/_render/frozen_frame.gd")
 const SIZES: Array[Vector2i] = [Vector2i(1152, 648), Vector2i(2560, 1440)]
 ## The most pixels of a frame a tie on a texel's edge may turn.
-const TIES := 16
+const TIES := 64
 
 ## The standalone materials made, by texture, tiling and cut-out.
 var _own: Dictionary = {}
