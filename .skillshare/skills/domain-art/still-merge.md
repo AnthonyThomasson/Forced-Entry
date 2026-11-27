@@ -22,8 +22,9 @@ resource edited or swapped in place on a still mesh is heard by neither: build a
   awake rigid body.
 - Chunk vertices are in world coordinates. The corners round to floats another way than the GPU places a mesh of its
   own, so the picture differs in single art pixels on an edge or between texels: under 512 of a frame.
-- A test that changes a mesh's material and looks at the picture turns merging off first
-  (`tests/_render/frozen_frame.gd` does).
+- A test that changes a mesh's material and looks at the picture, or demands the same picture to
+  the pixel, turns merging off first (`tests/_render/frozen_frame.gd`, the `general/twin_*_picture`
+  tests).
 
 Tests: `tests/art/still_merge_built_with_the_view_test.gd`, `still_merge_follows_changes_test.gd`,
 `still_merge_changes_windowed_test.gd`, `still_merge_same_picture_windowed_test.gd`.
