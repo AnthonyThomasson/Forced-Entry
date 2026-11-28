@@ -1,10 +1,11 @@
 extends GameTest
 ## A character standing near a wall cuts the baked navmesh with its round hole, and the cut can
-## leave vertices a fraction of a pixel apart: the NavigationServer merges edges by 1 px cell,
-## rejects an edge whose ends share one and logs "navigation map synchronization error" (any logged
-## engine error fails a test). The bake welds the vertices that share a cell, so every spot below
-## bakes clean. They are spots next to the terrace house's walls and furniture that an unwelded
-## bake gets wrong.
+## leave vertices a fraction of a pixel apart: the NavigationServer merges edges by cell, rejects
+## an edge whose ends share one and logs "navigation map synchronization error" (any logged engine
+## error fails a test). The grid baker's vertices stand on whole cells, so every spot below bakes
+## clean. They are spots next to the terrace house's walls and furniture where the 2D baker's mesh,
+## unwelded, went wrong (the bake once welded them: no weld is left, `NavWeld` was dead on the
+## grid).
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Bake := preload("res://tests/_navigation/bake_probe.gd")
@@ -34,11 +35,11 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)
-	var region: NavigationRegion2D = t.world.find_children(
-		"NavRegion", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"NavRegion", "NavigationRegion3D", true, false,
 	)[0]
 	var steering := NavBuilder.steering_region(region)
-	var map := NavBuilder.steering_map(t.world.get_world_2d().navigation_map)
+	var map := NavBuilder.steering_map(NavWorld.map_of(t.world))
 	var problems := []
 	for spot in SPOTS:
 		t.actor(&"p").global_position = spot
@@ -46,7 +47,7 @@ func run(t: TestContext) -> void:
 		var why := Bake.problem(steering)
 		if why != "":
 			problems.append("%s: %s" % [spot, why])
-		NavigationServer2D.map_force_update(map)
+		NavigationServer3D.map_force_update(map)
 		await t.frames(2)
 	t.check(
 		problems.is_empty(),

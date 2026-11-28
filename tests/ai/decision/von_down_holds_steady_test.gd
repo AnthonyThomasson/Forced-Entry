@@ -16,7 +16,6 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 900, 600))
 	s.von_down()
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"defender", &"defender", Vector2(650, 300))
 	# The premise: the hostile stays alive, so known, through the check. Its one round puts the
 	# defender under fire only until ~3.75 s on the game clock; a dead hostile would then leave no

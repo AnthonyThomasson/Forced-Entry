@@ -1,9 +1,9 @@
 class_name NavPieces extends RefCounted
-## Navigation domain: the solid pieces (RigidBody2D) under one house and the footprint each was
-## last cut to, so a tick of `NavBuilder.furniture_holes` reads one transform a piece and cuts only
-## those that moved, were dented (their colliders rebuilt: a child shape came or went) or were
-## added; the tree is walked again only when a piece was added or has left. One tracker per house,
-## made by the first ask and dropped when the house leaves the tree (`of`).
+## Navigation domain: the pieces (the plan handles of `TwinSpace.PIECES`) under one house and the
+## footprint each was last cut to, so a tick of `NavBuilder.furniture_holes` reads one transform a
+## piece and cuts only those whose twin moved or were twinned or added; the tree is walked again
+## only when a piece was added or has left. One tracker per house, made by the first ask and dropped
+## when the house leaves the tree (`of`).
 
 ## The trackers made, house instance id -> `NavPieces`.
 static var _trackers: Dictionary = {}
@@ -39,22 +39,38 @@ static func of(house: Node2D) -> NavPieces:
 	return made
 
 
+## The pieces under `house` (`TwinSpace.PIECES`), in the order a walk of its descendants finds them
+## (tree order). Read from the group, not a walk of every node under the house.
+static func under(house: Node2D) -> Array[Node2D]:
+	var out: Array[Node2D] = []
+	if not house.is_inside_tree():
+		for node in house.find_children("*", "Node2D", true, false):
+			if node.is_in_group(TwinSpace.PIECES):
+				out.append(node)
+		return out
+	for node in house.get_tree().get_nodes_in_group(TwinSpace.PIECES):
+		if house.is_ancestor_of(node):
+			out.append(node as Node2D)
+	out.sort_custom(func(a: Node, b: Node) -> bool: return b.is_greater_than(a))
+	return out
+
+
 ## The footprint of every piece under the house, in the order a walk of its descendants finds them,
 ## then the doors' leaves standing clear of their doorways (`NavLeaves.hole`).
 func holes() -> Array:
+	var read := reader()
+	while not read.step(1 << 30, 1 << 30):
+		pass
+	return read.walked()
+
+
+## A reading of the footprints in steps (`Reader.step`) with a cursor of its own, so another
+## caller's `holes` during a tick's steps leaves them alone. The pieces are listed again when one
+## was added or has left.
+func reader() -> Reader:
 	if _relist:
 		_list()
-	var out: Array = []
-	for piece: Piece in _pieces:
-		var at := piece.body.global_transform
-		if piece.dirty or at != piece.at:
-			piece.at = at
-			piece.hull = NavHoles.cut(piece.body)
-			piece.dirty = false
-		if not piece.hull.is_empty():
-			out.append(piece.hull.duplicate())  # a caller's edit stays its own
-	NavLeaves.append_holes(out, _house)
-	return out
+	return Reader.new(self, _pieces)
 
 
 ## Forget the house: the connections go and the next ask makes a fresh tracker.
@@ -76,12 +92,11 @@ func _list() -> void:
 	var known := _by_id
 	_by_id = {}
 	_pieces = []
-	for node in _house.find_children("*", "RigidBody2D", true, false):
+	for node in under(_house):
 		var id := node.get_instance_id()
 		var piece: Piece = known.get(id)
 		if piece == null:
 			piece = Piece.new(node)
-			node.child_order_changed.connect(piece.dirtied)
 			node.tree_exiting.connect(_on_left)
 		_by_id[id] = piece
 		_pieces.append(piece)
@@ -97,31 +112,67 @@ func _on_left() -> void:
 
 ## A node entered the tree: a piece under the house is to be listed.
 func _on_node_added(node: Node) -> void:
-	if node is RigidBody2D and is_instance_valid(_house) and _house.is_ancestor_of(node):
+	if (node.is_in_group(TwinSpace.PIECES)
+			and is_instance_valid(_house)
+			and _house.is_ancestor_of(node)):
 		_relist = true
 
 
-## A piece: its body, where it stood and the footprint cut then; `dirty` until it is cut, and again
-## whenever its colliders change.
+## A piece: its body, what its footprint depended on when it was cut (`NavTwins.stamp_of`) and the
+## footprint cut then; `dirty` until it is cut.
 class Piece:
-	var body: RigidBody2D
-	var at := Transform2D()
+	var body: Node2D
+	var stamp: Variant = null
 	var hull := PackedVector2Array()
 	var dirty := true
 
-	func _init(piece_body: RigidBody2D) -> void:
+	func _init(piece_body: Node2D) -> void:
 		body = piece_body
-
-	## A child of the body came, went or was reordered: its colliders may have been rebuilt. (A
-	## collider moved or re-shaped in place is not seen: nothing does it.)
-	func dirtied() -> void:
-		dirty = true
 
 	## Leave the body's signals: `left` is the tracker's callback for it leaving the tree.
 	func release(left: Callable) -> void:
 		if not is_instance_valid(body):
 			return
-		if body.child_order_changed.is_connected(dirtied):
-			body.child_order_changed.disconnect(dirtied)
 		if body.tree_exiting.is_connected(left):
 			body.tree_exiting.disconnect(left)
+
+
+## One reading of the footprints, a few pieces a step: the pieces as they were listed when it began
+## (`NavPieces.reader`), how far it has got and what it holds.
+class Reader:
+	var _owner: NavPieces
+	var _pieces: Array
+	var _at := 0
+	var _walked: Array = []
+
+	func _init(owner: NavPieces, pieces: Array) -> void:
+		_owner = owner
+		_pieces = pieces
+
+	## Read the next pieces, up to `scan` of them and up to `cuts` footprints cut afresh, whichever
+	## comes first; true once every piece is read and the doors' leaves added, the footprints being
+	## `walked`.
+	func step(scan: int, cuts: int) -> bool:
+		var cut := 0
+		var stop := mini(_at + scan, _pieces.size())
+		while _at < stop and cut < cuts:
+			var piece: Piece = _pieces[_at]
+			_at += 1
+			if not is_instance_valid(piece.body):
+				continue  # freed meanwhile: the next listing drops it
+			var stamp: Variant = NavTwins.stamp_of(piece.body)
+			if piece.dirty or stamp != piece.stamp:
+				piece.stamp = stamp
+				piece.hull = NavHoles.cut(piece.body)
+				piece.dirty = false
+				cut += 1
+			if not piece.hull.is_empty():
+				_walked.append(piece.hull.duplicate())  # a caller's edit stays its own
+		if _at < _pieces.size():
+			return false
+		NavLeaves.append_holes(_walked, _owner._house)
+		return true
+
+	## The footprints read so far (all of them once `step` has returned true).
+	func walked() -> Array:
+		return _walked

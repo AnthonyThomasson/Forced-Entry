@@ -18,7 +18,7 @@ const MOVE := 300.0
 const INTERVAL := 0.05
 const WAIT_FRAMES := 60
 
-var _tiles: Array[NavigationRegion2D] = []
+var _tiles: Array[NavigationRegion3D] = []
 
 
 func describe() -> Dictionary:
@@ -44,9 +44,9 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)
 	var district := t.world.get("district") as Node2D
-	var region := t.world.find_children("NavRegion", "NavigationRegion2D", true, false)[0]
+	var region := t.world.find_children("NavRegion", "NavigationRegion3D", true, false)[0]
 	var updater := t.world.get_node("NavUpdater")
-	_tiles = NavBuilder.steering_regions(region as NavigationRegion2D)
+	_tiles = NavBuilder.steering_regions(region as NavigationRegion3D)
 	var front := WorldGen.district_bounds(district).position + Vector2(CORNER_IN, CORNER_IN)
 	var stopped: Array[Node2D] = [t.actor(&"a"), t.actor(&"b"), t.actor(&"c")]
 	for i in stopped.size():
@@ -75,9 +75,11 @@ func run(t: TestContext) -> void:
 		return
 	stopped[0].global_position = home  # back to what its tile landed with
 	var probe := TickProbe.new()
-	probe.watch(updater, district, region as NavigationRegion2D)
+	probe.watch(updater, district, region as NavigationRegion3D)
 	await t.until(func() -> bool: return probe.ticks >= 1, 1.0)
 	t.check(probe.ticks >= 1, "a tick came while the burst was open")
+	await t.until(func() -> bool: return probe.checked, 2.0)
+	t.check(probe.checked, "its job ended")
 	t.check(
 		probe.stranded.is_empty(),
 		"after the tick every tile due by the footprints is still to bake or held (stranded: %s)"
@@ -86,7 +88,7 @@ func run(t: TestContext) -> void:
 
 
 ## The tile whose rect holds `point` (a world point of `district`'s frame).
-func _tile_at(district: Node2D, point: Vector2) -> NavigationRegion2D:
+func _tile_at(district: Node2D, point: Vector2) -> NavigationRegion3D:
 	var local := district.to_local(point)
 	for tile in _tiles:
 		if (tile.get_meta(NavTiles.RECT_META) as Rect2).has_point(local):
@@ -95,7 +97,7 @@ func _tile_at(district: Node2D, point: Vector2) -> NavigationRegion2D:
 
 
 ## The tile one row below `tile`'s, in its column; null at the grid's bottom.
-func _below(tile: NavigationRegion2D) -> NavigationRegion2D:
+func _below(tile: NavigationRegion3D) -> NavigationRegion3D:
 	if tile == null:
 		return null
 	var rect: Rect2 = tile.get_meta(NavTiles.RECT_META)
@@ -107,17 +109,18 @@ func _below(tile: NavigationRegion2D) -> NavigationRegion2D:
 	return null
 
 
-## Counts the updater's ticks from now on and, at the first, reads which tiles are due by the
-## footprints of that moment but are neither to bake nor held. Connected after the updater's own
-## handler, so it runs after the part of the tick that does not wait a frame.
+## Counts the updater's ticks from now on and, at the first, once its job has ended (`NavTick`, a
+## few frames), reads which tiles are due by the footprints of that moment but are neither to bake
+## nor held.
 class TickProbe extends RefCounted:
 	var ticks := 0
 	var stranded: Array[String] = []
+	var checked := false
 	var _updater: Node
 	var _district: Node2D
-	var _region: NavigationRegion2D
+	var _region: NavigationRegion3D
 
-	func watch(updater: Node, district: Node2D, region: NavigationRegion2D) -> void:
+	func watch(updater: Node, district: Node2D, region: NavigationRegion3D) -> void:
 		_updater = updater
 		_district = district
 		_region = region
@@ -125,10 +128,15 @@ class TickProbe extends RefCounted:
 
 	func _on_tick() -> void:
 		ticks += 1
-		if ticks > 1:
+		if ticks == 1:
+			_updater.get_tree().physics_frame.connect(_after_job)
+
+	func _after_job() -> void:
+		if _updater.ticking() or checked:
 			return
+		checked = true
 		var site := NavBuilder.site_of(_region, _district, WorldGen.district_rooms(_district))
-		var in_play: Array[NavigationRegion2D] = _updater.tiles_in_play()
+		var in_play: Array[NavigationRegion3D] = _updater.tiles_in_play()
 		var due := NavTiles.due_tiles(
 			_region, site, NavBuilder.furniture_holes(_district),
 			NavBuilder.character_holes(_district.get_parent()),

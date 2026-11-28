@@ -112,7 +112,6 @@ static func rules(s: TestSetup, door: Dictionary, extra: Array = []) -> void:
 	script.append_array(extra)
 	s.von_script(script)
 	s.switch(&"ai.hostile_on_trespass", false)
-	s.switch(&"projectile.flyover", false)
 
 
 ## Scripted Von for a test of the entry guard (E9): whenever asked, the first of `picks` that is
@@ -121,7 +120,6 @@ static func rules(s: TestSetup, door: Dictionary, extra: Array = []) -> void:
 static func guard_rules(s: TestSetup, picks: Array) -> void:
 	s.von_script(picks.map(func(p): return { "pick": p }))
 	s.switch(&"ai.hostile_on_trespass", false)
-	s.switch(&"projectile.flyover", false)
 
 
 ## An invader at `pos` that walks (unlike `flank_probe.npc`, which holds still), deciding every

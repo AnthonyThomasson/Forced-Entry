@@ -1,7 +1,8 @@
 class_name NavHoles extends RefCounted
-## Navigation domain: the footprints a bake carves as holes, measured from the colliders. A body's
-## footprint is the convex hull of its collision shapes (`cut`); `NavBuilder.furniture_holes` and
-## `character_holes` hand them out. `walks` and `cuts` count the work done, for the tests.
+## Navigation domain: the footprints a bake carves as holes, measured from the twins (`NavTwins`;
+## no 2D collider is read). A body's footprint is the convex hull of the plan polygons
+## its twin's shapes stand on, grown by the obstacle margin (`cut`); `NavBuilder.furniture_holes`
+## and `character_holes` hand them out. `walks` and `cuts` count the work done, for the tests.
 
 ## Hulls kept per body (`hull_of`) before the freed bodies' are dropped.
 const HULLS_KEPT := 512
@@ -27,19 +28,19 @@ static func furniture(house: Node2D) -> Array:
 ## equals.
 static func plain(house: Node2D) -> Array:
 	var out: Array = []
-	for node in house.find_children("*", "RigidBody2D", true, false):
-		var hull := cut(node as RigidBody2D)
+	for node in NavPieces.under(house):
+		var hull := cut(node)
 		if not hull.is_empty():
 			out.append(hull)
 	NavLeaves.append_holes(out, house)
 	return out
 
 
-## The world-space footprint of `body`, kept with what it was made from (`inputs_of`) and cut again
-## only when that changes: a character at rest is measured every tick, a dented piece's hull costs a
-## grown outline per convex piece.
+## The world-space footprint of `body`, kept with what it was made from (its twin and the twin's
+## pose, `NavTwins.stamp_of`) and cut again only when that changes: a character at rest is measured
+## every tick.
 static func hull_of(body: Node2D) -> PackedVector2Array:
-	var inputs := inputs_of(body)
+	var inputs: Variant = NavTwins.stamp_of(body)
 	var kept: Array = _hulls.get(body.get_instance_id(), [])
 	if not kept.is_empty() and kept[0] == inputs:
 		return (kept[1] as PackedVector2Array).duplicate()
@@ -52,81 +53,46 @@ static func hull_of(body: Node2D) -> PackedVector2Array:
 	return hull
 
 
-## The world-space footprint of `body` cut afresh: the convex hull of its collision shapes as an
-## open ring (the closing point dropped), or empty when fewer than three points come out of it.
+## The world-space footprint of `body` cut afresh: the convex hull of the plan footprints of its
+## twin's shapes (`NavTwins.parts`), each grown by `NavBuilder.OBSTACLE_MARGIN`, as an
+## open ring; empty when `body` has no twin, is a small item lying within a step (`walk_over`:
+## walked over) or fewer than three points come out of it. An upright
+## cylinder (a round piece, a character) is a `CIRCLE_SEGMENTS`-sided polygon, the bake's own
+## approximation of a circle.
 static func cut(body: Node2D) -> PackedVector2Array:
 	cuts += 1
+	var rest: Variant = body.get(&"rest")
+	if rest is Object and (rest as Object).get(&"walk_over") == true:
+		return PackedVector2Array()  # a small item lying within a step: walked over, no hole
 	var points := PackedVector2Array()
-	for child in body.get_children():
-		var col := child as CollisionShape2D
-		if col == null or col.shape == null:
-			continue
-		points.append_array(_footprint_world(col))
+	for part: Array in NavTwins.parts(body):
+		points.append_array(_footprint(part[0], part[1]))
 	var hull := Geometry2D.convex_hull(points)
 	if hull.size() > 1:
 		hull.remove_at(hull.size() - 1)  # convex_hull closes the ring by repeating the first point
 	return hull if hull.size() >= 3 else PackedVector2Array()
 
 
-## Everything `hull_of` makes `body`'s hull from: for each collision shape, its global transform and
-## what `_footprint_world` reads of its shape (a rect's size, a circle's radius, a convex piece's
-## points; the shape itself for any other kind).
-static func inputs_of(body: Node2D) -> Array:
-	var out: Array = []
-	for child in body.get_children():
-		var col := child as CollisionShape2D
-		if col == null or col.shape == null:
-			continue
-		out.append(col.global_transform)
-		var shape := col.shape
-		if shape is RectangleShape2D:
-			out.append((shape as RectangleShape2D).size)
-		elif shape is CircleShape2D:
-			out.append((shape as CircleShape2D).radius)
-		elif shape is ConvexPolygonShape2D:
-			out.append((shape as ConvexPolygonShape2D).points)
-		else:
-			out.append(shape)
-	return out
-
-
-## The collider's footprint as a closed polygon in WORLD space, grown by
-## `NavBuilder.OBSTACLE_MARGIN`. Reads only the generic Shape2D: the intact primitives
-## (RectangleShape2D / CircleShape2D) and the ConvexPolygonShape2D a damaged piece's collider is
-## rebuilt into (its points inflated by the margin via Geometry2D.offset_polygon), mapped through
-## the collider's global transform so an offset or rotated collider still lines up. Empty for an
-## unsupported shape.
-static func _footprint_world(col: CollisionShape2D) -> PackedVector2Array:
+## The footprint of `shape` at `pose`, grown by the margin: `CIRCLE_SEGMENTS` points round an
+## upright cylinder (vertex 0 on the shape's own x axis), else the shape's plan polygon offset
+## (corners mitred, a rectangle stays a rectangle).
+static func _footprint(shape: Shape3D, pose: Transform3D) -> PackedVector2Array:
 	var margin := NavBuilder.OBSTACLE_MARGIN
-	var shape := col.shape
-	var local := PackedVector2Array()
-	if shape is RectangleShape2D:
-		var h := (shape as RectangleShape2D).size * 0.5 + Vector2(margin, margin)
-		local = PackedVector2Array([
-			Vector2(-h.x, -h.y), Vector2(h.x, -h.y), Vector2(h.x, h.y), Vector2(-h.x, h.y),
-		])
-	elif shape is CircleShape2D:
-		var r := (shape as CircleShape2D).radius + margin
+	if shape is CylinderShape3D and NavTwins.upright(pose):
+		var plan := PlanSpace.plan_transform(pose)
+		var radius := (shape as CylinderShape3D).radius / RenderConfig.unit + margin
+		var ring := PackedVector2Array()
 		for i in CIRCLE_SEGMENTS:
-			var a := TAU * float(i) / float(CIRCLE_SEGMENTS)
-			local.append(Vector2(cos(a), sin(a)) * r)
-	elif shape is ConvexPolygonShape2D:
-		# A deformed piece: inflate its silhouette by the margin. offset_polygon returns the grown
-		# ring(s); take the largest (a convex grow yields one), falling back to the raw points.
-		var grown := Geometry2D.offset_polygon((shape as ConvexPolygonShape2D).points, margin)
-		local = _largest_polygon(grown, (shape as ConvexPolygonShape2D).points)
-	var xform := col.global_transform
-	var out := PackedVector2Array()
-	for p in local:
-		out.append(xform * p)
-	return out
-
-
-## The polygon with the most points among `polys` (Geometry2D.offset_polygon's output) and
-## `fallback` (`fallback` on a tie).
-static func _largest_polygon(polys: Array, fallback: PackedVector2Array) -> PackedVector2Array:
-	var best := fallback
-	for poly in polys:
-		if (poly as PackedVector2Array).size() > best.size():
+			var angle := TAU * float(i) / float(CIRCLE_SEGMENTS)
+			ring.append(plan * (Vector2(cos(angle), sin(angle)) * radius))
+		return ring
+	var outline := NavTwins.footprint(shape, pose)
+	if outline.is_empty():
+		return outline
+	var best := PackedVector2Array()
+	for poly: PackedVector2Array in Geometry2D.offset_polygon(
+		outline, margin, Geometry2D.JOIN_MITER,
+	):
+		if poly.size() > best.size():
 			best = poly
-	return best
+	return best if best.size() >= 3 else outline

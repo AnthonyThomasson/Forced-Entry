@@ -147,7 +147,10 @@ func _masked(t: TestContext) -> bool:
 func _left(world: Node) -> int:
 	var count := world.find_children("*", "PlayerView", true, false).size()
 	count += world.find_children("Ground", "", true, false).size()
-	count += world.find_children("*", "SubViewport", true, false).size()
+	# (the world's twin space is a SubViewport of its own, not a viewport of the view)
+	count += world.find_children("*", "SubViewport", true, false).filter(
+		func(n: Node) -> bool: return not n is TwinSpace
+	).size()
 	return count
 
 

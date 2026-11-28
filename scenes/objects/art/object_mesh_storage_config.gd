@@ -9,8 +9,8 @@ class_name ObjectMeshStorageConfig
 ## A cabinet: how tall it stands (a small footprint, at most `cabinet_low_area` px squared, is a
 ## nightstand; one with a crown is a wardrobe), its top slab, the gap between two fronts and how
 ## thick a front is.
-static var cabinet_height: float = 56.0
-static var cabinet_low_height: float = 40.0
+static var cabinet_height: float = 38.0
+static var cabinet_low_height: float = 26.0
 static var cabinet_low_area: float = 1700.0
 static var cabinet_tall_height: float = 78.0
 static var cabinet_top: float = 3.0
@@ -19,7 +19,7 @@ static var cabinet_front: float = 1.0
 ## A shelf: how tall it stands (a short, small one, at most `shelf_short_area`, is a linen shelf;
 ## a shoe rack is `shelf_shoe_height`), a board's thickness and a side's, and how many px of height
 ## one level takes.
-static var shelf_height: float = 72.0
+static var shelf_height: float = 77.0
 static var shelf_short_height: float = 50.0
 static var shelf_short_area: float = 1600.0
 static var shelf_shoe_height: float = 24.0

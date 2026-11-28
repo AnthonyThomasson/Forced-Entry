@@ -27,8 +27,8 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var region := t.world.find_children("NavRegion", "NavigationRegion2D", true, false)[0]
-	var steering := NavBuilder.steering_regions(region as NavigationRegion2D)
+	var region := t.world.find_children("NavRegion", "NavigationRegion3D", true, false)[0]
+	var steering := NavBuilder.steering_regions(region as NavigationRegion3D)
 	if not t.require(steering.size() == 1, "premise: a lone house has one steering region"):
 		return
 	# The first tick has taken the puppet in; none is under way.

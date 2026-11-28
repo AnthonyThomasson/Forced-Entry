@@ -21,7 +21,7 @@ const SHOVED := 3.0
 ## The test post: a light metal circle, so the twin shows every shove plainly.
 const POST := {
 	"name": "Post", "shape": "circle", "size": Vector2(28, 28), "color": Color(0.32, 0.33, 0.36),
-	"material": "metal", "weight": 6, "coverage": 100, "penetration": 85, "anchored": true,
+	"material": "metal", "weight": 6, "penetration": 85, "anchored": true,
 }
 ## [strike (also the id of its striker and its post), where the striker stands, the slot it holds,
 ## where the anchored post stands, where the twin's striker stands, where the twin stands]
@@ -47,7 +47,6 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 1400, 1000))
 	# the twins are shoved about; re-baking overlapping holes logs a sync error
 	s.switch(&"nav.rebake", false)
-	s.switch(&"projectile.flyover", false)
 	var twin := POST.duplicate()
 	twin.erase("anchored")
 	for strike: Array in STRIKES:
@@ -155,8 +154,8 @@ func _kick(t: TestContext) -> void:
 func _shot(t: TestContext) -> void:
 	var post: Node2D = t.object(&"shot")
 	var twin: Node2D = t.object(_twin(&"shot"))
-	t.puppet(&"shot").aim_at(post.global_position)
-	t.puppet(_twin(&"shot")).aim_at(twin.global_position)
+	t.puppet(&"shot").aim_at(post.global_position, 10.0)
+	t.puppet(_twin(&"shot")).aim_at(twin.global_position, 10.0)
 	await t.seconds(0.5)
 	var before := _pose(post)
 	var twin_before := _pose(twin)

@@ -12,7 +12,7 @@ const RUG_AT := Vector2(450, 200)
 ## The test post: a solid metal circle that never moves (the streetlight's kind of piece).
 const POST := {
 	"name": "Post", "shape": "circle", "size": Vector2(28, 28), "color": Color(0.32, 0.33, 0.36),
-	"material": "metal", "weight": 6, "coverage": 100, "penetration": 85, "anchored": true,
+	"material": "metal", "weight": 6, "penetration": 85, "anchored": true,
 }
 ## The shove the premise check gives the post (pushable contract, interface 5): it moves a 6-weight
 ## piece plainly.
@@ -57,7 +57,7 @@ func _footprint(at: Vector2, half: float) -> Array:
 
 
 func run(t: TestContext) -> void:
-	var post: RigidBody2D = t.object(&"post")
+	var post: Node2D = t.object(&"post")
 	# The premise: the post is anchored (a shove through the pushable contract leaves it where it
 	# stands).
 	post.apply_impulse(SHOVE)
@@ -78,7 +78,7 @@ func run(t: TestContext) -> void:
 	t.check(_carved(holes, _footprint(CHAIR_AT, 13.0)), "furniture_holes has a hole over the chair")
 	t.check(not _carved(holes, [RUG_AT]), "the rug (walk-over decor) is not carved")
 
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	if t.require(NavBuilder.ready(map), "the nav map is baked"):
 		var off := NavBuilder.snap(map, POST_AT).distance_to(POST_AT)
 		t.check(

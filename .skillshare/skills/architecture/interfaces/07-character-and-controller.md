@@ -1,6 +1,6 @@
 7. **Character ↔ Controller** (enables non-player characters)
    The character reads intent from a pluggable **controller child**: any node with `control(character, delta)`. The controller writes
-   `movement.move_input` / `movement.aim_point` / `movement.run_input` (hold run: faster, spends stamina, dry = walk until it refills;
+   `movement.move_input` / `movement.aim_point` / `aim_height` (px up; H1) / `movement.run_input` (hold run: faster, spends stamina, dry = walk until it refills;
    only a standing character runs) and calls the action API of the character's typed components (`movement`, `weapon`, `ammo`, `inventory`, `use`
    (`CharacterUse`), `anatomy`, `wardrobe`, `stun`; `typed-components.md`):
    - **Acts:** `movement.set_posture(p) -> bool` (`stand` / `crouch`; idempotent; the player's C is `movement.toggle_crouch()`), `weapon.melee()` (F), `anatomy.leg_kick() -> bool` (a right-leg kick along the facing, whatever is held;
@@ -13,7 +13,7 @@
      `slots`, hold `hold_slot`, `spare_types` magazines, the gun loaded with `loaded_magazine`, `grenades` counts, every item in
      `weapon_style`; how `MatchBuilder.arm` arms a spawn, 23).
    - **Reads:** `damage_taken()` (accumulated hit damage), `movement.posture()` / `is_running()` / `stamina_fraction()` /
-     `run_speed()` / `walk_speed()` (px/s, slower while stunned or by outfit weight) / `posture_coverage(posture)` (the body's height on the coverage scale, what furniture must stand above to shield it);
+     `run_speed()` / `walk_speed()` (px/s, slower while stunned or by outfit weight);
      `ammo.rounds(slot := -1)` / `capacity(slot)` / `can_reload(slot)` / `spare_magazines()` / `is_reloading()` (slot -1 = held item;
      -1 rounds = no ammo); `inventory.item_name(slot := -1)` / `current_item()` / `current_slot()` / `item_reach()` / `has_item(id)` /
      `gun_slot()` (the held item if it takes ammo, else the lowest such slot, else −1) / `item_count(slot := -1)` (a grenade slot's count, 1

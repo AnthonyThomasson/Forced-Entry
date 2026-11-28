@@ -13,7 +13,10 @@ const ARC_HEIGHT := 36.0
 const ARC_POINTS := 20
 
 ## Whether to draw the grenade overlay.
-@export var show_grenades: bool = false
+@export var show_grenades: bool = false:
+	set(value):
+		show_grenades = value
+		_sync_processing()
 
 
 ## Whether this overlay's toggle is on.

@@ -34,7 +34,7 @@ static func _tuning(spec: FurnitureSpec) -> Dictionary:
 		"paint": paint(spec),
 		"sizes": [
 			ObjectMeshCarConfig.tyre_radius, ObjectMeshCarConfig.body_base,
-			ObjectMeshCarConfig.body_top, ObjectMeshCarConfig.roof_top,
+			ObjectMeshCarConfig.body_top(), ObjectMeshCarConfig.roof_top(),
 			ObjectMeshCarConfig.glass_proud,
 		],
 		"colours": [
@@ -55,7 +55,7 @@ static func _mesh(spec: FurnitureSpec) -> Mesh:
 	kit.extrude(
 		FurnitureSpec.rounded(Rect2(rect.position - spec.half(), rect.size), rect.size.x * 0.1),
 		base,
-		ObjectMeshCarConfig.body_top - base,
+		ObjectMeshCarConfig.body_top() - base,
 		body,
 		body.lightened(0.04),
 	)
@@ -68,8 +68,8 @@ static func _mesh(spec: FurnitureSpec) -> Mesh:
 ## of glass laid over the body.
 static func _cabin(spec: FurnitureSpec, kit: MeshKit, rect: Rect2) -> void:
 	var d := spec.size.y
-	var top := ObjectMeshCarConfig.body_top
-	var roof := ObjectMeshCarConfig.roof_top
+	var top := ObjectMeshCarConfig.body_top()
+	var roof := ObjectMeshCarConfig.roof_top()
 	var body := paint(spec)
 	var glass := ObjectArtOutdoorConfig.car_glass_color
 	var cabin := Rect2(
@@ -120,7 +120,7 @@ static func _lamps(spec: FurnitureSpec, kit: MeshKit, rect: Rect2) -> void:
 	var d := spec.size.y
 	var proud := ObjectMeshCarConfig.glass_proud
 	var cx := spec.size.x * 0.5
-	var lamp_h := ObjectMeshCarConfig.body_top - 12.0
+	var lamp_h := ObjectMeshCarConfig.body_top() - 12.0
 	for side: float in [-1.0, 1.0]:
 		var x := cx + side * roundf(rect.size.x * 0.32) - 5.0
 		kit.box(
@@ -135,7 +135,7 @@ static func _lamps(spec: FurnitureSpec, kit: MeshKit, rect: Rect2) -> void:
 		kit.box(
 			MeshKit.volume(
 				spec.area(mirror_x, roundf(d * 0.55), 5, 4),
-				ObjectMeshCarConfig.body_top - 6.0,
+				ObjectMeshCarConfig.body_top() - 6.0,
 				4.0,
 			),
 			paint(spec),

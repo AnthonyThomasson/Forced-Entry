@@ -4,7 +4,8 @@ extends GameTest
 ## and the crouching probe often meet the same wall, so many candidates are the same point). This
 ## pins its answer to the plain loop, over frags and stuns going off all round a furnished house
 ## with the NPC at many places, so the spot an NPC runs to, whether it crouches and the length of
-## its route are unchanged.
+## its route are unchanged. The search stepped a few units at a time (`EscapeSearch.step`, as the
+## pool serves it) gives the same answer as the whole one.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
@@ -41,24 +42,27 @@ func run(t: TestContext) -> void:
 	geometry.vision = AgentVision.new()
 	geometry.bind(npc)
 	geometry.learn_carried()
-	geometry.learn_body()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = SEED
 	var ctx := {
 		"geometry": geometry,
-		"space": npc.get_world_2d().direct_space_state,
-		"map": npc.get_world_2d().navigation_map,
+		"space": TwinSpace.space_of(npc),
+		"map": NavWorld.map_of(npc),
 		"exclude": GrenadeAi.character_rids(t),
 		"rng": rng,
 	}
-	var rooms: Array = t.rooms
 	var tally := {
-		"compared": 0, "found": 0, "existence": 0, "out_zone_routes": -1, "differing": [],
+		"compared": 0, "found": 0, "steps": 0, "existence": 0, "out_zone_routes": -1,
+		"differing": [], "tight": 0, "tight_straight": 0,
 	}
 	for n in CASES:
-		var room: Dictionary = rooms[n % rooms.size()]
-		_compare_case(ctx, tally, room["rect"])
+		_compare_case(ctx, tally, (t.rooms[n % t.rooms.size()] as Dictionary)["rect"])
 	_fixed_cases(ctx, tally)
+	_check_tally(t, tally)
+
+
+## What the cases found.
+func _check_tally(t: TestContext, tally: Dictionary) -> void:
 	var compared: int = tally["compared"]
 	var found: int = tally["found"]
 	var differing: Array = tally["differing"]
@@ -67,8 +71,18 @@ func run(t: TestContext) -> void:
 		"escapes compared (%d, %d with a spot)" % [compared, found],
 	)
 	t.check(
+		int(tally["tight"]) >= CASES / 2.0 and int(tally["tight_straight"]) >= 10,
+		"premise: winners compared at the edge of the run allowed (%d; %d on a straight route)"
+			% [tally["tight"], tally["tight_straight"]],
+	)
+	t.check(
 		tally["existence"] == CASES * 2 + 6,
 		"existence answers compared, including the six fixed fixtures",
+	)
+	t.check(
+		int(tally["steps"]) > compared,
+		"premise: a search takes several steps of 3 units (%d steps, %d searches)"
+			% [tally["steps"], compared],
 	)
 	t.check(
 		tally["out_zone_routes"] == 1,
@@ -107,7 +121,7 @@ func _compare_kind(
 		from: Vector2,
 ) -> void:
 	var geometry = ctx["geometry"]
-	var space: PhysicsDirectSpaceState2D = ctx["space"]
+	var space: PhysicsDirectSpaceState3D = ctx["space"]
 	var map: RID = ctx["map"]
 	var exclude: Array = ctx["exclude"]
 	var rng: RandomNumberGenerator = ctx["rng"]
@@ -132,9 +146,61 @@ func _compare_kind(
 	if fast != plain:
 		tally["differing"].append("%s at %s from %s: %s, plain %s"
 				% [kind, burst.round(), from.round(), fast, plain])
+	_compare_sliced(ctx, tally, fast, [
+		GrenadeAi.escape_threat(kind, radius, burst, fuse), GrenadeAi.escape_runner(from, speed),
+	])
+	if fast["spot"] != Vector2.INF:
+		_compare_tight(ctx, tally, fast, { "kind": kind, "burst": burst, "from": from,
+				"speed": speed })
 	_compare_existence(ctx, tally, {
 		"kind": kind, "burst": burst, "from": from, "fuse": fuse, "speed": speed,
 	})
+
+
+## The same escape with the run allowed cut to the winner's own route (`fast["route"]` and a hair
+## over): the winning spot then sits at the edge of what the search may reach (`work["bound"]`: the
+## run allowed plus the start's slack, `EscapeSearch`), the one case where the straight line to it
+## is nearly the bound, and the resolver's cut on that bound must keep it. A search that cut a
+## candidate a little too soon (more than the slack's 2 px: a route that runs straight is within it)
+## would pass the winner over, and the answer would differ from the plain search's.
+func _compare_tight(ctx: Dictionary, tally: Dictionary, fast: Dictionary, c: Dictionary) -> void:
+	var geometry = ctx["geometry"]
+	var kind: StringName = c["kind"]
+	var from: Vector2 = c["from"]
+	var speed: float = c["speed"]
+	var fuse: float = float(fast["route"]) / speed + AgentThrow.ARRIVE_MARGIN + 0.0001
+	var radius: float = geometry.radius_of(kind)
+	var threat := GrenadeAi.escape_threat(kind, radius, c["burst"], fuse)
+	var runner := GrenadeAi.escape_runner(from, speed)
+	var tight: Dictionary = geometry.escape(
+		ctx["space"], ctx["map"], threat, runner, ctx["exclude"]
+	)
+	var plain := GrenadeAi.plain_escape(
+		geometry,
+		{ "space": ctx["space"], "map": ctx["map"], "exclude": ctx["exclude"] },
+		threat,
+		runner,
+	)
+	tally["tight"] += 1
+	if (fast["spot"] as Vector2).distance_to(from) >= float(fast["route"]) - 0.5:
+		tally["tight_straight"] += 1
+	if tight != plain or tight["spot"] != fast["spot"]:
+		tally["differing"].append("tight %s from %s: %s, plain %s, wide %s"
+				% [kind, from.round(), tight, plain, fast])
+
+
+## The sliced search (a few units a step, as the pool serves it) of the same question `asked`
+## (`[threat, runner]`) lands on `whole`'s answer.
+func _compare_sliced(ctx: Dictionary, tally: Dictionary, whole: Dictionary, asked: Array) -> void:
+	var sliced: EscapeSearch = ctx["geometry"].begin_escape(
+		ctx["space"], ctx["map"], asked[0], asked[1], ctx["exclude"]
+	)
+	while not sliced.done:
+		sliced.step(3)
+		tally["steps"] += 1
+	if sliced.best != whole:
+		tally["differing"].append("sliced %s from %s: %s, whole %s"
+				% [asked[0].kind, asked[1].from.round(), sliced.best, whole])
 
 
 ## Six named arrangements of the same existence question, including immediate safety, no time to

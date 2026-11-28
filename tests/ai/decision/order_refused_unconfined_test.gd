@@ -32,7 +32,6 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	s.von_script([{ "pick": "combat" }, { "pick": "engage" }])
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"d", &"defender", D_AT, { "facing": Vector2.RIGHT })
 	s.actor(
 		&"h",

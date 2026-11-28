@@ -1,6 +1,6 @@
 class_name BloodSmear
 extends Node
-## Physics System, blood: smears blood along the floor for a RigidBody2D that slides through it (a
+## Physics System, blood: smears blood along the floor for a body that slides through it (a
 ## Node child of the body, composed like Knockback). The owner gives the body's footprint
 ## (`set_footprint`, a polygon in the body's local space); across it sits a grid of "fingers", fixed
 ## to the body so they turn with it. While the body moves, each finger soaks up wet blood
@@ -10,9 +10,9 @@ extends Node
 ## (`BloodSmearConfig.decay_per_px`), tapers to a point where it ends and, once the load is low,
 ## breaks into dry-brush dashes. Over blood already on the floor a ribbon is see-through and it
 ## eases in along its first px, so the smear flows out of a puddle with no edge. Nothing is laid
-## with BloodSmearConfig.enabled off. It steps (`_physics_process`) only while the body is awake: a
-## sleeping body, and a frozen one (an anchored piece), cannot move, and a district holds hundreds
-## of them.
+## with BloodSmearConfig.enabled off. It steps (`_physics_process`) only while the body's 3D leader
+## is awake: a sleeping body, and one with no leader (an anchored piece), cannot move, and a
+## district holds hundreds of them.
 
 ## A finger's decay, width and pickup vary by up to this fraction, so streaks end and thicken
 ## unevenly.
@@ -30,6 +30,10 @@ var _fingers: Array[Dictionary] = []
 var _spacing := 6.0
 ## Smooth noise the ribbons wander on.
 var _noise := FastNoiseLite.new()
+## The free 3D body that moves the piece when there is one (furniture): the piece is
+## then its plan handle, and it is that body's speed and sleep that decide whether the piece
+## smears.
+var _lead: RigidBody3D = null
 
 
 func _init() -> void:
@@ -38,34 +42,38 @@ func _init() -> void:
 	_noise.seed = randi()
 
 
-func _ready() -> void:
-	var body := get_parent() as RigidBody2D
-	if body != null:
-		body.sleeping_state_changed.connect(_on_body_sleeping_changed.bind(body))
-
-
 func _physics_process(_delta: float) -> void:
-	var body := get_parent() as RigidBody2D
+	var body := get_parent() as Node2D
 	if (body == null
 			or _fingers.is_empty()
 			or not (BloodConfig.enabled and BloodSmearConfig.enabled)):
 		return
-	if body.freeze:
+	if _lead == null:
+		_lead = TwinSpace.leader_of(body)
+		if _lead == null:
+			# no free 3D body: it has not been twinned yet (looked at again next frame), or it never
+			# moves (a static twin: at rest for good)
+			if TwinSpace.twin_for(body) != null:
+				_rest()
+				set_physics_process(false)
+			return
+		_lead.sleeping_state_changed.connect(_on_lead_sleeping_changed)
+	if _lead.sleeping:
 		_rest()
-		set_physics_process(false)  # A frozen body never moves.
+		set_physics_process(false)
 		return
-	if body.linear_velocity.length() < BloodSmearConfig.min_speed:
+	if (_lead.call(&"plan_velocity") as Vector2).length() < BloodSmearConfig.min_speed:
 		_rest()
 		return
 	for f in _fingers:
 		_drag(f, body.to_global(f["local"]), body)
 
 
-## The body fell asleep (the fingers rest and the step stops) or woke (the step resumes).
-func _on_body_sleeping_changed(body: RigidBody2D) -> void:
-	if body.sleeping:
+## The piece's 3D body fell asleep (the fingers rest and the step stops) or woke (the step resumes).
+func _on_lead_sleeping_changed() -> void:
+	if _lead.sleeping:
 		_rest()
-	set_physics_process(not body.sleeping)
+	set_physics_process(not _lead.sleeping)
 
 
 ## At rest: the next move starts a fresh ribbon.

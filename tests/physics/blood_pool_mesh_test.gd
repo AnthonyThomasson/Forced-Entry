@@ -48,7 +48,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var mirror := _mirror(t)
 	var layer := PhysicsMeshes.install(mirror)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	var anchor := Node2D.new()
 	t.world.add_child(anchor)
 	anchor.global_position = AT
@@ -107,10 +107,10 @@ func _check_at_rest(t: TestContext, layer: FxLayer) -> void:
 	t.check(not layer.is_processing(), "and the layer rests")
 
 
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	return mirror

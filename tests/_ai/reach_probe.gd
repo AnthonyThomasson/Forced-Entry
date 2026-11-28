@@ -54,8 +54,10 @@ const SLOT_REACH := 6.0
 ## The slack (s) on a member's walking time to its slot.
 const SLACK_S := 8.0
 ## How close (px) to the slot a route that keeps out of the room being entered and the doorway's
-## view must end to reach it.
-const ROUTE_REACH := 20.0
+## view must end to reach it. 24: one 4 px nav cell over the old 20: the avoid-map's carve of the
+## doorway's view is on the cell grid, so a slot 2 px inside its edge is reached to the nearest cell
+## corner, up to 21 px off, where the old mesh's polygons ended 19.9 off.
+const ROUTE_REACH := 24.0
 ## A member's claimed slot may still settle (two claims on the same frame) this long (s) after its
 ## first claim.
 const SETTLE_S := 1.0
@@ -145,7 +147,7 @@ static func _run(
 	rec["t0"] = t.time
 	var stop := func() -> bool: return _sample(t, f, ids, rec)
 	var seen: Dictionary = await Bump.watch(t, ids, WATCH_CAP + 1.0, stop)
-	rec["map"] = t.world.get_world_2d().navigation_map
+	rec["map"] = NavWorld.map_of(t.world)
 	rec["moves"] = move_ups(t, ids, String(f["id"]))
 	if rec["move_up"] and not t.require(
 			not (rec["moves"] as Array).is_empty(),

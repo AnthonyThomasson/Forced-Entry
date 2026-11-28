@@ -10,7 +10,11 @@ extends RefCounted
 ## The physics priority of a primed ambusher's body: after every other body's in the frame (the
 ## engine runs higher priorities later; 0 is the default).
 const PRIMED_PRIORITY := 1
+## The beat (`pace`).
+const Pace := preload("res://scenes/ai/npc_pace.gd")
 
+## The beat the NPC senses and acts on (`npc_pace.gd`, `beat.md`).
+var pace := Pace.new()
 ## The controller it belongs to.
 var controller: Node
 ## Whether the NPC followed its squad's leader last tick (`Squad.follows`, LD19).
@@ -47,6 +51,12 @@ func prime() -> void:
 	var priority := PRIMED_PRIORITY if primed else 0
 	if body.process_physics_priority != priority:
 		body.process_physics_priority = priority
+
+
+## Whether the NPC owes its beat a look at blindness it has just lost: it was blind last beat (its
+## sight returning re-decides it at once, G15). Being blind now is `gait.needs_every_frame`'s.
+func blind_pending() -> bool:
+	return _was_blind
 
 
 ## The squad's follow reads, every tick (LD19, LD23): whether the NPC follows its leader (the

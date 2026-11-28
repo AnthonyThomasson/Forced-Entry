@@ -4,6 +4,16 @@ extends GameTest
 ## walks off (a walker leaves none), and a character that dies leaves no hole behind (a corpse is
 ## walked over). The world's own map, which the AI plans with, never has the characters in it.
 
+## How far (px) a character's centre is, at the least, from the path across the arena: a character
+## the path goes round is off it by a body's width and more.
+const OFF_THE_LINE := 20.0
+## The path's length (px) a path round a character is not shorter than: the straight line is 480,
+## and the unoptimised path zigzags through the polygons' edges, so its length cannot tell a detour
+## (a straight run measured 480 to 491.9, 493.8 round a character on the merged mesh, the ranges
+## overlap): `OFF_THE_LINE` alone carries the detour, and this half only rules out no path (0) or
+## one shorter than the line.
+const BENT := 480.0
+
 
 func describe() -> Dictionary:
 	return {
@@ -24,21 +34,34 @@ func configure(s: TestSetup) -> void:
 
 
 func _path_length(t: TestContext, steering := true) -> float:
-	var map := t.world.get_world_2d().navigation_map
-	if steering:
-		map = NavBuilder.steering_map(map)
-	var path := NavigationServer2D.map_get_path(map, Vector2(60, 150), Vector2(540, 150), false)
+	var path := _path(t, steering)
 	var length := 0.0
 	for i in range(1, path.size()):
 		length += path[i - 1].distance_to(path[i])
 	return length
 
 
+func _path(t: TestContext, steering := true) -> PackedVector2Array:
+	var map := NavWorld.map_of(t.world)
+	if steering:
+		map = NavBuilder.steering_map(map)
+	return NavPlan.path(map, Vector2(60, 150), Vector2(540, 150), false)
+
+
+func _clearance(t: TestContext, at: Vector2) -> float:
+	var path := _path(t)
+	var least := INF
+	for i in range(1, path.size()):
+		var near := Geometry2D.get_closest_point_to_segment(at, path[i - 1], path[i])
+		least = minf(least, near.distance_to(at))
+	return least
+
+
 func run(t: TestContext) -> void:
 	var detours := func():
 		var length := _path_length(t)
 		t.trace("path_length", length)
-		return length > 520.0
+		return length > BENT and _clearance(t, Vector2(300, 150)) > OFF_THE_LINE
 	var straight := func():
 		var length := _path_length(t)
 		t.trace("path_length", length)

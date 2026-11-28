@@ -152,7 +152,7 @@ func _npcs(viewport: SubViewport) -> Array:
 	var world := _world(viewport)
 	for child in world.get_children() if world != null else []:
 		var brain := TestContext.controller_of(child)
-		if child is CharacterBody2D and brain != null and "rooms" in brain:
+		if child.is_in_group(&"characters") and brain != null and "rooms" in brain:
 			out.append(child)
 	return out
 

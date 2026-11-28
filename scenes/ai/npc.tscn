@@ -39,7 +39,7 @@ start_slot = 3
 
 [node name="GoalController" type="Node" parent="." node_paths=PackedStringArray("tuning") groups=["npc_controllers"]]
 script = ExtResource("2_controller")
-nav_agent_path = NodePath("../NavigationAgent2D")
+nav_agent_path = NodePath("../NavAnchor/NavigationAgent3D")
 tuning = NodePath("Tuning")
 
 [node name="Tuning" type="Node" parent="GoalController" node_paths=PackedStringArray("decision", "context", "tactics", "combat", "coverage", "memory", "senses", "radio", "entry", "entry_geometry", "entry_guard", "grenades", "watch", "hostility", "pace")]
@@ -105,10 +105,13 @@ script = ExtResource("34_hostility")
 [node name="Pace" type="Node" parent="GoalController/Tuning"]
 script = ExtResource("35_pace")
 
-[node name="NavigationAgent2D" type="NavigationAgent2D" parent="."]
-radius = 14.0
+[node name="NavAnchor" type="Node3D" parent="."]
+
+[node name="NavigationAgent3D" type="NavigationAgent3D" parent="NavAnchor"]
 path_desired_distance = 16.0
 target_desired_distance = 16.0
+path_max_distance = 100.0
+radius = 14.0
 
 [node name="VisionDebug" type="Node2D" parent="."]
 script = ExtResource("5_vision")

@@ -15,6 +15,15 @@ const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 ## this often, offset per NPC and target so a squad does not test on the same frame. What the NPC
 ## holds of a character it sees is at most this many frames old.
 const SIGHT_EVERY_FRAMES := 3
+## Where `_cone` holds the view distance, the near bubble and half the cone.
+const CONE_VIEW := 0
+const CONE_BUBBLE := 1
+const CONE_HALF_FOV := 2
+## The sight pass counts its cadence in the NPC's beats (`npc_pace.gd`), which the controller hands
+## in at its first tick: `x` the frames in one beat, `y` the beats between two sight tests of a
+## character that stays in view. `(1, SIGHT_EVERY_FRAMES)`: the pass runs every frame, as a test
+## drives it.
+const BEAT_EVERY_FRAME := Vector2i(1, SIGHT_EVERY_FRAMES)
 
 ## The root, physics frame and result of the character gathering shared by every perception.
 static var _shared_root: Node = null
@@ -38,6 +47,14 @@ var blind := false
 ## The NPC is a primed ambusher (its controller's reflexes set it every tick, LD15): every
 ## character in its view cone gets a sight test every frame, not every `SIGHT_EVERY_FRAMES`.
 var primed := false
+## What the pass reads of the vision each pair's cone is tested by (`_read_cone`), at `CONE_VIEW`,
+## `CONE_BUBBLE` and `CONE_HALF_FOV`: the view distance, the near bubble's radius and half the
+## cone's width (radians). Doubles, not a Vector3: a Vector3 holds float32, which would round a
+## `fov_degrees` or `view_distance` the vision's doubles tell apart (exact for 110 degrees only).
+## Both distances are infinite with sight not gated, which puts nothing outside.
+var _cone := PackedFloat64Array([INF, INF, 0.0])
+## The beat the cadence counts in (`BEAT_EVERY_FRAME`: frames a beat, beats between two tests).
+var beat := BEAT_EVERY_FRAME
 ## How many group gatherings this perception made (a fast-path test's observable).
 var list_builds := 0
 ## How many per-NPC filtered copies of the shared list `others()` built; the sight pass reads the
@@ -54,27 +71,29 @@ func _init(npc_perception: Node) -> void:
 ## flash-blinded NPC (G15) sees nothing: no new sighting, and nothing is visible, so what it holds
 ## stays where it was last seen.
 func see(rooms: Array) -> void:
-	var self_pos: Vector2 = perception._character.global_position
-	var facing: Vector2 = perception._character.facing
-	var space: PhysicsDirectSpaceState2D = perception._character.get_world_2d().direct_space_state
-	var exclude := [perception._character.get_rid()]
-	var now := GameClock.msec()
-	var frame := WorldRng.frame_of(perception._character)
-	var swap := _visible_before
-	_visible_before = visible_now
-	visible_now = swap
-	visible_now.clear()
-	blind = perception._character.stun.is_blind()
-	if blind:
-		_looked.clear()
 	var own: Node = perception._character
+	var self_pos: Vector2 = own.global_position
+	var facing: Vector2 = own.facing
+	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(own)
+	var eye: float = vision.eye_height()
+	var now := GameClock.msec()
+	# Whole beats since the world began: the part of a beat is dropped on purpose.
+	@warning_ignore("integer_division")
+	var frame := WorldRng.frame_of(own) / beat.x
+	var order := WorldRng.order_of(own.get_instance_id())
+	_begin_pass()
 	for other in (_world_characters() if not blind else []):
 		# Untyped: a character freed since the list was gathered must not hit a typed assignment.
 		if other == own or not is_instance_valid(other):
 			continue
-		if not _due_for_sight(other, self_pos, facing, frame):
+		var point: Vector2 = other.global_position
+		if _outside_view(point - self_pos, facing):
+			if not _looked.is_empty():
+				_looked.erase(other.get_instance_id())  # Out of the cone: its next look is at once.
 			continue
-		if not vision.can_see_node(other, self_pos, facing, space, exclude):
+		if not _due_in_view(other, frame, order):
+			continue
+		if not vision.sees_in_view(other, point, self_pos, space, eye):
 			continue
 		var sighting := _sighting_of(other, rooms, now)
 		visible_now[sighting["id"]] = true
@@ -87,23 +106,71 @@ func see(rooms: Array) -> void:
 		perception.contacts.hostility.classify(sighting, perception._memory)
 
 
+## Start a sight pass: what was visible is what the last pass left, the flash-blind state, and the
+## numbers of the vision the pass tests each pair's cone by.
+func _begin_pass() -> void:
+	var swap := _visible_before
+	_visible_before = visible_now
+	visible_now = swap
+	visible_now.clear()
+	blind = perception._character.stun.is_blind()
+	if blind:
+		_looked.clear()
+	_read_cone()
+
+
+## Take the vision's cone numbers for the pass (`_outside_view`): sight not gated puts nothing
+## outside.
+func _read_cone() -> void:
+	if vision.enabled:
+		_cone[CONE_VIEW] = vision.view_distance
+		_cone[CONE_BUBBLE] = vision.awareness_radius
+		_cone[CONE_HALF_FOV] = vision.half_fov()
+	else:
+		_cone[CONE_VIEW] = INF
+		_cone[CONE_BUBBLE] = INF
+		_cone[CONE_HALF_FOV] = 0.0
+
+
 ## Whether character `other` gets a sight test on its world's physics frame `frame`
-## (`WorldRng.frame_of`), keeping the view-cone bookkeeping: a dead one or one out of the cone is
+## (`WorldRng.frame_of`), keeping the view-cone bookkeeping: one out of the cone is dropped (its
+## next look is at once), then `_due_in_view`. The sight pass reads the same two halves inline.
+func _due_for_sight(other: Node, self_pos: Vector2, facing: Vector2, frame: int) -> bool:
+	if not vision.in_view(self_pos, facing, other.global_position):
+		if not _looked.is_empty():
+			_looked.erase(other.get_instance_id())  # Out of the cone: its next look is at once.
+		return false
+	var order := WorldRng.order_of(perception._character.get_instance_id())
+	return _due_in_view(other, frame, order)
+
+
+## Whether the offset `to` (from the NPC to a character) lies outside its view: the geometry half
+## of sight, `AgentVision._in_view`'s own rule read from the vision's numbers (`_cone`), inline in
+## the sight pass so a pair that is not in view costs one call
+## (`kept_sight_reads_match_fresh_test.gd` pins the two together).
+func _outside_view(to: Vector2, facing: Vector2) -> bool:
+	var dist := to.length()
+	if dist > _cone[CONE_VIEW]:
+		return true
+	if dist > _cone[CONE_BUBBLE]:
+		return facing == Vector2.ZERO or absf(facing.angle_to(to)) > _cone[CONE_HALF_FOV]
+	return false
+
+
+## Whether character `other`, in view of the NPC on its world's physics frame `frame`
+## (`WorldRng.frame_of`), gets a sight test, keeping the view-cone bookkeeping: a dead one is
 ## dropped (its next look is at once); one tested since it entered the cone is tested again every
 ## `SIGHT_EVERY_FRAMES` frames, offset by the NPC's and the target's spawn order, and until then
-## stays what the last look saw; every frame while `primed`.
-func _due_for_sight(other: Node, self_pos: Vector2, facing: Vector2, frame: int) -> bool:
+## stays what the last look saw; every frame while `primed`. One out of the cone is dropped by the
+## caller.
+func _due_in_view(other: Node, frame: int, order: int) -> bool:
 	var id: int = other.get_instance_id()
 	if other.get("is_dead") == true:
 		_looked.erase(id)
 		return false
-	if not vision.in_view(self_pos, facing, other.global_position):
-		_looked.erase(id)  # Out of the cone: not seen, and its next look is at once.
-		return false
 	if (not primed
 			and _looked.has(id)
-			and (frame + WorldRng.order_of(perception._character.get_instance_id())
-					+ WorldRng.order_of(id)) % SIGHT_EVERY_FRAMES != 0):
+			and (frame + order + WorldRng.order_of(id)) % beat.y != 0):
 		if _visible_before.has(id):
 			visible_now[id] = true  # Not due: still what the last look saw.
 		return false
@@ -119,6 +186,7 @@ func _sighting_of(other: Node, rooms: Array, now: int) -> Dictionary:
 	var room := HouseRooms.at(pos, rooms)
 	var item = other.inventory.current_item()
 	var f = other.get("faction")
+	var looking = other.get("facing")
 	return {
 		"id": id,
 		"node": other,
@@ -127,7 +195,7 @@ func _sighting_of(other: Node, rooms: Array, now: int) -> Dictionary:
 		"ally": perception.contacts.hostility.is_ally(f if f != null else &""),
 		"pos": pos,
 		"vel": _track(id, pos, now),
-		"facing": other.get("facing") if other.get("facing") is Vector2 else Vector2.ZERO,
+		"facing": looking if looking is Vector2 else Vector2.ZERO,
 		"wound_dmg": other.damage_taken(),
 		"inside": not room.is_empty(),
 		"room_type": room.get("type", "") if not room.is_empty() else "",
@@ -199,8 +267,8 @@ func _world_characters() -> Array:
 func visible_points(points: Array) -> Array:
 	if points.is_empty():
 		return []
-	var space: PhysicsDirectSpaceState2D = perception._character.get_world_2d().direct_space_state
-	var exclude := [perception._character.get_rid()]
+	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(perception._character)
+	var exclude := SightRay.exclude_of(perception._character)
 	var self_pos: Vector2 = perception._character.global_position
 	var facing: Vector2 = perception._character.facing
 	var seen: Array = []
@@ -215,11 +283,11 @@ func visible_points(points: Array) -> Array:
 ## reaches it. The NPC excludes itself. What the vision overlay draws its visible area from; a pure
 ## read.
 func sight_end(to: Vector2) -> Vector2:
-	var space: PhysicsDirectSpaceState2D = perception._character.get_world_2d().direct_space_state
+	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(perception._character)
 	var hit: Dictionary = vision.sight_hit(
 		space,
 		perception._character.global_position,
 		to,
-		[perception._character.get_rid()],
+		SightRay.exclude_of(perception._character),
 	)
 	return hit["position"] if not hit.is_empty() else to

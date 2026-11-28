@@ -66,7 +66,7 @@ func run(t: TestContext) -> void:
 
 ## The set-up: the way round the house's east side is past the cap. False when it is not.
 func _no_way_round(t: TestContext) -> bool:
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	var plain := NavBuilder.route(map, START, GUNFIRE)
 	var plain_len := NavBuilder.path_length(plain)
 	# Round the east side of the house, the only other way: well past 2 x the plain route + 300 px.

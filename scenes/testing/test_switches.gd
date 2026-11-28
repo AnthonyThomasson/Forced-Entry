@@ -67,6 +67,11 @@ static var ROWS := {
 			+ "archways).",
 		"static": [[WorldGenDoorConfig, &"enabled"]],
 	},
+	&"worldgen.items": {
+		"description": "A generated house is built with its small items (off = the tops and "
+			+ "floors stay bare): tableware, books, lamps, boxes and crates.",
+		"static": [[WorldGenItemConfig, &"enabled"]],
+	},
 	&"nav.rebake": {
 		"description": "The navmesh is re-carved as furniture is shoved around.",
 		"world": { "node": "NavUpdater", "props": ["enabled"] },
@@ -111,11 +116,6 @@ static var ROWS := {
 			+ "none). Only to prove allocation does not steer a fight (AllocationPadding).",
 		"default": false,
 		"static": [[AllocationPadding, &"enabled"]],
-	},
-	&"projectile.flyover": {
-		"description": "Bullets may fly over partial cover (off = every shot meets what it "
-			+ "reaches).",
-		"static": [[BallisticsFlightConfig, &"cover_flyover_scale", 0.0]],
 	},
 }
 

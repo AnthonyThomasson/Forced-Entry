@@ -45,7 +45,7 @@ Exit 1: a test failed or timed out, or an error or warning was logged outside an
   `--fixed-fps` speed, sharded like any test. `--record-von` rewrites the recordings against a live server;
   `--include-von` / `--require-von` run the tests live instead (paced in real time, shard 0; `--require-von` FAILs with no
   server). A `live_only` test (the HTTP transport itself, or a fight no replay reproduces) never replays and is skipped without a server. The live-only set
-  and the rule for it: `runner-flags.md`, "Von tests".
+  and the rule: `runner-flags.md`, "Von tests"; a replay that misses: `von-determinism.md`.
 - **Selection:** filter words are word prefixes over id, name, domain, description and tags (`ai` matches the ai
   domain, not "chair"); `--domain`, `--id` and `--skip-domain` accumulate. A native suite runs whole or not at all (id =
   its path under `tests/`, a case `<suite id>::<function>`).
@@ -90,7 +90,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 800, 500))
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"shooter", &"puppet", Vector2(200, 250), { "start_slot": 3 })
 	s.actor(&"target", &"puppet", Vector2(600, 250))
 
@@ -116,7 +115,7 @@ func run(t: TestContext) -> void:
 - **Puppet** (`scripted_controller.gd`): its actions run on the character's next frame, and `facing` follows the aim
   one frame later: aim, wait, then fire. `use()` presses Space (what is nearest its aim); `turn_door(steps)`
   is the wheel with Space held.
-- Make randomness deterministic where the assertion depends on it (`projectile.flyover` off: a character is partial cover).
+- Make randomness deterministic where the assertion depends on it (`spread_deg` 0; a shot's height: `aim_at(target, px)`).
 
 ### Native unit suites (pure logic only)
 

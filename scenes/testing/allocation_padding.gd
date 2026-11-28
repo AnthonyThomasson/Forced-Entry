@@ -2,10 +2,11 @@ class_name AllocationPadding extends RefCounted
 ## Testing domain: the `testing.allocation_padding` switch's allocations. A match's order of events
 ## must not follow what the process allocated (instance ids step in fixed strides, a physics server
 ## hands out RIDs in turn), and this proves it: with the switch on, `TestWorld.build` allocates
-## `nodes` loose nodes and `bodies` physics bodies, areas and shapes before it builds anything, so
-## every id and RID the world then takes is shifted. Its only use is a test that plays a fight with
-## and without it and compares the two (`perf/` fight fingerprints, perf-fingerprint.md). `release`
-## frees all of it (`TestWorld.restore`).
+## `nodes` loose nodes and `bodies` physics bodies, areas and shapes (of the 3D server, the only one
+## a match's bodies take) before it builds anything, so every id and RID the world then takes is
+## shifted. Its only use is a test that plays a fight with and without it and
+## compares the two (`perf/` fight fingerprints, perf-fingerprint.md). `release` frees all of it
+## (`TestWorld.restore`).
 
 ## Whether `TestWorld.build` pads (the switch's knob).
 static var enabled := false
@@ -26,9 +27,9 @@ static func fill() -> void:
 	for i in nodes:
 		_held_nodes.append(Node2D.new() if i % 2 == 0 else Node.new())
 	for i in bodies:
-		_held_rids.append(PhysicsServer2D.body_create())
-		_held_rids.append(PhysicsServer2D.area_create())
-		_held_rids.append(PhysicsServer2D.rectangle_shape_create())
+		_held_rids.append(PhysicsServer3D.body_create())
+		_held_rids.append(PhysicsServer3D.area_create())
+		_held_rids.append(PhysicsServer3D.box_shape_create())
 
 
 ## Free everything `fill` allocated.
@@ -37,7 +38,7 @@ static func release() -> void:
 		node.free()
 	_held_nodes.clear()
 	for rid in _held_rids:
-		PhysicsServer2D.free_rid(rid)
+		PhysicsServer3D.free_rid(rid)
 	_held_rids.clear()
 
 

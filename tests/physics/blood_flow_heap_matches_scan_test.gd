@@ -39,14 +39,14 @@ func run(t: TestContext) -> void:
 		var collision: Object = fast.get(&"_collision")
 		var query: Object = collision.get(&"params") if collision != null else null
 		for batch in BATCHES:
-			fast.step(6, t.world.get_world_2d().direct_space_state, at, 180.0)
-			plain.step(6, t.world.get_world_2d().direct_space_state, at, 180.0)
+			fast.step(6, TwinSpace.space_of(t.world), at, 180.0)
+			plain.step(6, TwinSpace.space_of(t.world), at, 180.0)
 			if _claims(fast) != _claims(plain):
 				differing.append(i)
 				break
 		if i == 0 and collision != null:
 			query = collision.get(&"params")
-			fast.step(6, t.world.get_world_2d().direct_space_state, at, 180.0)
+			fast.step(6, TwinSpace.space_of(t.world), at, 180.0)
 			reused_query = query != null and collision.get(&"params") == query
 	t.check(differing.is_empty(), "flows differing from the linear scan: %s" % str(differing))
 	t.check(reused_query, "the blocked-cell query parameters were retained across steps")

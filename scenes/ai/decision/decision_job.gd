@@ -10,7 +10,8 @@ extends RefCounted
 
 ## Where the job is: claimed (its start still to run, paid for by the claim), building, taking its
 ## order-refusal step, building the groups the root reads (`GROUP`), searching for a throw (the
-## `grenade_ready` fact), building the throws it found (`GRENADE`), or walking.
+## `grenade_ready` fact), building the throws it found (`GRENADE`), walking, or building a group the
+## walk's level stalled on (`STALL`) before the level runs again.
 enum Stage {
 	IDLE,
 	CLAIMED,
@@ -20,6 +21,7 @@ enum Stage {
 	THROW,
 	GRENADE,
 	WALK,
+	STALL,
 }
 ## Whether `advance` is not running, running, or running with another round asked for.
 enum Run {
@@ -34,6 +36,7 @@ const Budget := preload("res://scenes/ai/decision/decision_budget.gd")
 const Roster := preload("res://scenes/ai/decision/decision_roster.gd")
 ## The throw search's step kinds (`ThrowSearch.Kind`), to price them.
 const ThrowSearch := preload("res://scenes/ai/perception/snapshot/throw_search.gd")
+const ThrowSpots := preload("res://scenes/ai/perception/throw_spots.gd")
 ## The group builds' step kinds (`GroupBuild.Kind`), to price them.
 const GroupBuild := preload("res://scenes/ai/perception/snapshot/group_build.gd")
 
@@ -91,7 +94,7 @@ func pending() -> bool:
 
 ## Whether the walk is under way (its snapshot built and handed to the planner).
 func walking() -> bool:
-	return _stage == Stage.WALK and planner.is_pending()
+	return (_stage == Stage.WALK or _stage == Stage.STALL) and planner.is_pending()
 
 
 ## Whether the build's START has run and its walk has not begun: what it knows is frozen, and a
@@ -122,15 +125,19 @@ func overtaken_by_order() -> bool:
 ## first piece runs on the next `advance`); the caller then books the decision. Refused (the pool
 ## is spent, or a decision already began this frame), nothing changes: the job in flight carries on
 ## and the wish stands for the caller to ask again next frame. A cadence wish (`forced` false)
-## never claims over a job in flight.
-func request(forced: bool) -> bool:
+## never claims over a job in flight. `reason` ranks the claim in the pool's order
+## (`decision_roster.gd`).
+func request(forced: bool, reason := "cadence") -> bool:
 	if pending() and not forced:
 		return false
+	var rank := Roster.rank_of(reason)
 	if (not Roster.may_start()
-			or not Budget.take(Budget.cost_start, Roster.owed(get_instance_id(), true))):
+			or not Budget.take(
+				DecisionPrices.cost_start, Roster.owed(get_instance_id(), true, rank)
+			)):
 		return false
 	cancel()
-	Roster.began(get_instance_id())
+	Roster.began(get_instance_id(), rank)
 	_stage = Stage.CLAIMED
 	return true
 
@@ -205,6 +212,8 @@ func _run() -> void:
 				go = _grenade_piece()
 			Stage.WALK:
 				go = _walk_piece()
+			Stage.STALL:
+				go = _stall_piece()
 			_:
 				go = false
 
@@ -249,7 +258,7 @@ func _refusal() -> bool:
 func _group_piece() -> bool:
 	if not _run_steps(group_cost_of, GroupBuild.Kind.DONE):
 		return false
-	_steps = _snapshot["demand"].throw_search(Budget.throw_block)
+	_steps = _snapshot["demand"].throw_search(ThrowSpots.block_size)
 	_step_kind = -1
 	_stage = Stage.THROW
 	return true
@@ -266,9 +275,10 @@ func _throw_piece() -> bool:
 
 
 ## The grenade piece, when the pool allows: the throws at the hostile the search found one at, a
-## kind a step; the walk begins as it ends. What the walk is told is read as it begins, not at the
-## claim, the build and the pieces after it having spread over frames: the radio callouts (a
-## teammate's claim since is seen) and what it marks "(your current plan)".
+## kind a step; the walk begins as it ends. What the
+## walk is told is read as it begins, not at the claim, the build and the pieces after it having
+## spread over frames: the radio callouts (a teammate's claim since is seen) and what it marks
+## "(your current plan)".
 func _grenade_piece() -> bool:
 	if not _run_steps(group_cost_of, GroupBuild.Kind.DONE):
 		return false
@@ -287,6 +297,40 @@ func _walk_piece() -> bool:
 	if not planner.has_piece() or not _take(Budget.cost_level):
 		return false
 	planner.step()
+	var need: Dictionary = planner.stalled()
+	if not need.is_empty():
+		_steps = _snapshot["demand"].steps_of(need["name"], need["id"])
+		if _steps == null:
+			# A level stalled on a group that is built: no step to take, and the level would stall
+			# again at once. Build it whole, loudly (`push_error` fails every test through the log
+			# gate), rather than freeze the walk on it.
+			push_error(
+				"DecisionJob: a level stalled on %s of %d, which has no steps"
+				% [need["name"], need["id"]]
+			)
+			_build_whole(need)
+			return true
+		_step_kind = -1
+		_stage = Stage.STALL
+	return true
+
+
+## The group `need` (`{ name, id }`) built whole, for a stall `steps_of` gave no steps for.
+func _build_whole(need: Dictionary) -> void:
+	var demand: RefCounted = _snapshot["demand"]
+	if need["id"] == demand.GLOBAL:
+		demand.group(need["name"])
+	else:
+		demand.target_group(need["name"], need["id"])
+
+
+## The group the walk's level stalled on, built a priced step at a time; the level runs again as it
+## is built (what is built is the whole build's: `group_piece_matches_whole`).
+func _stall_piece() -> bool:
+	if not _run_steps(group_cost_of, GroupBuild.Kind.DONE):
+		return false
+	_steps = null
+	_stage = Stage.WALK
 	return true
 
 
@@ -323,7 +367,9 @@ func _run_steps(prices: Callable, done_kind: int) -> bool:
 			cost = 0
 		if not _take(cost):
 			return false
+		var worked := ThrowSpots.work()
 		_steps.step()
+		Budget.charge(ThrowSpots.work() - worked, cost)
 	return true
 
 
@@ -337,14 +383,7 @@ func _on_piece_ready() -> void:
 ## every kind is priced explicitly, so a piece added without a price is found at once and not run
 ## as if it cost a start.
 func cost_of(kind: int) -> int:
-	match kind:
-		SnapshotBuild.Piece.START:
-			return Budget.cost_start
-		SnapshotBuild.Piece.HOSTILE:
-			return Budget.cost_hostile
-		SnapshotBuild.Piece.FINISH:
-			return Budget.cost_finish
-	return -1
+	return DecisionPrices.of_piece(kind)
 
 
 ## What a group build step of `kind` (`GroupBuild.Kind`) costs, or -1 for an unknown kind: a unit of
@@ -355,7 +394,7 @@ func group_cost_of(kind: int) -> int:
 		GroupBuild.Kind.UNIT:
 			return Budget.cost_group_unit
 		GroupBuild.Kind.FINISH:
-			return Budget.cost_group_finish
+			return 0
 	return -1
 
 
@@ -379,7 +418,7 @@ func _next_cost() -> int:
 			return maxi(0, cost_of(_build.next_piece()))
 		Stage.REFUSAL:
 			return Budget.cost_refusal
-		Stage.GROUP, Stage.GRENADE:
+		Stage.GROUP, Stage.GRENADE, Stage.STALL:
 			return _steps_next_cost(group_cost_of, GroupBuild.Kind.DONE)
 		Stage.THROW:
 			return _steps_next_cost(throw_cost_of, ThrowSearch.Kind.DONE)

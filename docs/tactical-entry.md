@@ -93,7 +93,8 @@ at a free spot beside it, test `ai/movement/npc_dest_taken_stops_nearby`): its p
 standing in the way at body width, teammates of this stack still at `claim` (on their way) left out: no route on the plan map that ends at
 the slot, or short of it by a last stretch walked straight and clear of those bodies, as a walk goes into a slot between two taken ones
 (`approach._slot_sealed`, `AgentPerception.entry.slot_reach`). So a member walks round by another way (out by the hall and in) rather than give
-its slot up. A walk round the bodies that ends short of the slot and walks the rest straight, held there, keeps looking for a way round:
+its slot up. The bodies within `AgentEntry.BODY_CORRIDOR` (64 px) of the plain route to the slot are carved first (a body further off cannot be met by it: none near, and the plain map answers); when the way round that map leaves the corridor and passes a body not carved (within a carved body's margin and the agent's radius of it), that body is carved too and the way asked again, once (a bake only for a set not seen before). One avoid map stands for every set of bodies that stand within `EntryBodyMaps.TOLERANCE` (4 px) of the same bodies of a kept one (a body swaying, one seen twice, an ally asking about the same stack),
+so a hold bakes a district-size map only when the bodies about its way really are another set. The map is asked for only in the last `EntryApproach.WARM_LEAD` (0.6 s) before a reader of the verdict, not from the first frame of the hold (the bodies it carves move on, and each set asked for is a bake): the held walk's re-plan (`crowd.replan_in`), the end of the wait on a stack forming at `HELD_BY_FORMING_CAP` (`_end_forming_wait`), and a waypoint a hold sealed put back by a re-plan of the approach (`_redrop_sealed`). A verdict read on a map not baked yet (-1: the bodies moved more than the tolerance since it was asked for) is no seal, and pulls the walk's next re-plan in to `WARM_LEAD` s from then (`crowd.pull_replan`, instead of `REPLAN_EVERY` s), where it is asked for again, with the map landed (`NavBakeConfig.avoid_frames`, 22 frames) unless its bake was held: when more bakes are asked than run at once (`NavBakeConfig.at_once`) the map's waits its turn and lands later, and one held over 14 frames (`WARM_LEAD`'s 36 less the 22; the wait has no bound) has not landed by its reader. A first bake then reads -1 (one more pulled re-plan, about 0.6 s); a map being re-baked after the planning bake changed answers from its old mesh, as a ready one. One still waiting that the hold has stopped asking for (the bodies moved, or the hold ended) is not baked (a re-bake dropped so leaves the old mesh answering until it is asked again). Tests: `slot_reach_shares_body_maps`, `slot_reach_carves_bodies_off_the_plain_route`, `entry_held_by_forming_cap_moved_body`, `held_bake_nobody_asks_for_is_dropped`. A walk round the bodies that ends short of the slot and walks the rest straight, held there, keeps looking for a way round:
 one that ends at the slot, or another last stretch clear of every body at rest it knows of (`Locomotion`, test
 `ai/entry/entry_last_leg_sealed_goes_round`). One the stack itself keeps
 from its slot takes the back of the stack (the slots go by arrival), and with no slot left gives the claim up (`abort`) and re-decides; a
@@ -248,6 +249,7 @@ capped by `max_options_per_level`. The engaged hostile always takes a slot witho
 slots go to the nearest others. Every known hostile remains in contacts, shared facts and the hostile bind, but those beyond the cap
 receive only their cheap line facts, not fire, flank, advance, melee or grenade groups and no per-target sections. Test:
 `ai/decision/analyses_engaged_and_nearest` (the farthest engaged hostile and the nearest other are analysed; the third stays known).
+An NPC that is not engaged with any hostile analyses ONE, whatever the cap (the second slot is for the one it is fighting): the nearest in sight now, else the nearest by its last known spot, so a remembered hostile behind a wall does not take the slot from a farther one in view; the others are listed with their line only. Test: `ai/decision/analyses_one_when_not_engaged`.
 
 Tests: `entry_guard_explore`, `entry_guard_search_room`, `entry_guard_advance`, `entry_guard_cleared_room_free`,
 `entry_guard_under_fire_exempt` (shot at from behind, in the garden: straight through), `entry_guard_shot_from_room_ahead` (shot at from the
@@ -306,8 +308,8 @@ and nobody crosses while it stands in view, whatever tactic is chosen for the fi
 from outside, a room that can be cleared without entering is not entered, and a known gun on the door is the funnel at
 its worst (E3, E7's "if nothing is hostile in view"). In the code, `Behavior` tells the entry when a hostile is in view (the
 threat holding the NPC's eyes is seen now, or was within `tuning.watch.lost_gaze`, 2 s, and there is a line of fire to it, within
-range and with a clear line, so it can be engaged from outside: `Entry.state.hostile_in_view`; a hostile seen over low cover with no
-line of fire gives nothing to engage from outside, and does not hold the entry). The pie then stops where it is (the point neither walks on to the next step nor crosses), a follower
+range and with a clear line, so it can be engaged from outside: `Entry.state.hostile_in_view`; a hostile seen with no real 3D line of fire to it
+(`AgentVision.fire_line_clear`: behind glass, or the like) gives nothing to engage from outside, and does not hold the entry). The pie then stops where it is (the point neither walks on to the next step nor crosses), a follower
 does not cross after the member ahead, and the watch stage fires; the entry goes on, and crosses, once the hostile is out
 of view. This holds whatever order brought the NPC to the door: the ENTER tactic, or a COMBAT advance or engage whose walk the
 entry guard (E9) turns into an entry. Under fire from the room it is about to enter, it holds outside like any other time (E9);
@@ -454,7 +456,7 @@ doorway's view too, cleared room or not, and out of the room it goes into (a wal
 way round every view within the cap it goes round those two at least, and an ordered member takes that way round however long it is
 (`docs/leadership.md` D4). Why: a threshold crossed in the open is how a team is shot from a room it has not cleared
 (E4, E9); the real answer is to give an open door a wide berth, and cover it only when the way leads past it. In the code
-`AgentDoorViews` (`agent_door_views.gd`) lays out each view once per doorway (`door_view`, a ray fan on `PhysicsLayers.SOLID` that looks through furniture and
+`AgentDoorViews` (`agent_door_views.gd`) lays out each view once per doorway (`door_view`, a ray fan at a standing eye's height in the twin space that a wall or a door stops and looks through furniture and
 characters) and the route (`walk_route`); the Navigation domain bakes the house's planning bake with those views as extra holes
 (`NavBuilder.avoid_map`, on the worker thread, cached per set of views), and `Locomotion` walks that map (its third way, beside the
 plain and steering ones; a body at rest in the way still takes the walk to the steering map or holds it, and E15 secures the views that
@@ -620,7 +622,7 @@ the stack toward the door's axis, clear of the slots.
   While crossing, the controller holds every decision (`Behavior.committed()`); a hit or a hostile seen
   in the doorway is acted on once the NPC is through. So it does while the bang's thrower is between its call and the stun leaving its
   hand (`Entry.throwing()`, E17), and a decision that came back meanwhile is taken again once the stun is away (`Behavior.task.held`). The room is cleared by sight with
-  `search_coverage.gd`. Posture and running stay code-owned: it stands throughout and never runs, not even
+  `search_coverage.gd`. Posture and running stay code-owned: it stands throughout (but for a frag stack's slot hold, crouched: E17) and never runs, not even
   under fire, because a running character cannot shoot (test `entry_never_runs`).
 - **The guard (E9).** `Behavior.entries.guard` (`behavior_entries.gd`) runs after the running primitive has steered and reads the
   walk the nav agent was just given (`Locomotion.path_ahead()`), not the order's destination, so it sees every walk: a
@@ -678,8 +680,8 @@ Interpretations and the game's own rules, where the sources leave a choice:
 - E14 applies whatever tactic the fight takes: a rush, an advance or a flank into a room whose hostile is in view with a line of
   fire first clears the gun on the door from outside (kills it, or loses sight of it), and goes in after. The rush tests (`entry_guard_advance`,
   `entry_guard_fires_from_outside`) give the target normal health and assert it was shot dead from outside before the invader
-  went in, and `flank_walks_to_chosen_side` has a low coffee table across the lines from the hall (sight looks over it, a bullet
-  does not), so the flank is the only way to a shot.
+  went in, and `flank_walks_to_chosen_side` has a glass-panel door shut in the hall doorway (sight looks through its panes, no
+  line of fire passes it), so the flank is the only way to a shot.
 - A room crossed in a retreat or under fire (not the shots' own room) is visited, not cleared: ENTER offers it again once the NPC is outside, and an
   entry the guard began there and gave up is not started again for `tuning.entry_guard.rearm` s. Search ranking still goes by
   `visited_room` (stood in it lately); the guard and ENTER go by `cleared_room`.

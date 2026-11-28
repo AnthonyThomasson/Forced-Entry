@@ -3,9 +3,9 @@ extends RefCounted
 ## Physics System, blood: a liquid flood-fill for a dead body's bleed-out: blood claims grid cells
 ## outward from where it leaves the body, cheapest-first, so the puddle is one continuous shape.
 ## Noise makes some directions cheap and others dear (fingers and bays instead of a disc), and cells
-## overlapping a wall or furniture collider are never filled, so the blood wraps around them and
-## creeps into gaps. Positions are local to the owning pool. The draw layer reads `cells` and
-## `fill()`.
+## a wall or a piece of furniture stands on (the twin 3D space) are never filled, so the blood wraps
+## around them and creeps into gaps. Positions are local to the owning pool. The draw layer reads
+## `cells` and `fill()`.
 
 ## The eight grid neighbours a cell flows into.
 const NEIGHBORS: Array[Vector2i] = [
@@ -24,14 +24,14 @@ var trail: Dictionary = {}
 var front := 0.0
 ## How far the sweep has run, 0..1 of the duration.
 var _progress := 0.0
+## Whether claiming may still add cells (until `advance` is told it is over).
+var _claiming := true
 ## The highest flow cost claimed so far; the front sweeps up to it.
 var _last_cost := 0.0
 ## Side (px) of a grid cell.
 var _size: float
 ## Unit direction the flow leans toward.
 var _aim: Vector2
-## Collider RIDs the blocked-cell queries ignore (the body the blood leaves).
-var _exclude: Array
 ## Roughens the per-cell flow cost into lobes.
 var _noise := FastNoiseLite.new()
 ## The retained square shape and query parameters for blocked-cell tests.
@@ -53,7 +53,6 @@ var _extent := Rect2i(Vector2i.ZERO, Vector2i.ONE)
 func _init(aim: Vector2, exclude: Array) -> void:
 	_size = BloodPoolConfig.flow_cell_size
 	_aim = aim
-	_exclude = exclude
 	_noise.seed = randi()
 	_noise.frequency = BloodPoolConfig.flow_noise_frequency
 	_collision.prepare(_size, exclude)
@@ -72,8 +71,12 @@ func done() -> bool:
 
 
 ## Sweep the front outward: `delta` seconds of a `duration`-second spread, easing out like a
-## liquid slowing as it thins. Call once all cells are claimed.
-func advance(delta: float, duration: float) -> void:
+## liquid slowing as it thins. It may run while cells are still being claimed (`claiming`): the
+## front then stops at the cheapest cell not yet claimed, so it never covers one, and the cells it
+## passes fill exactly as they would have had every cell been claimed first (the claim order is the
+## order the front reaches them). Pass `claiming` false once claiming is over for good.
+func advance(delta: float, duration: float, claiming := false) -> void:
+	_claiming = claiming
 	# Blood creeps slower over porous surface, in proportion to how much of the pool lies on it.
 	var slow := 1.0
 	if not _soak.is_empty() and not cells.is_empty():
@@ -85,11 +88,18 @@ func advance(delta: float, duration: float) -> void:
 	_progress = minf(_progress + delta / (maxf(duration, 0.001) * slow), 1.0)
 	var eased := 1.0 - (1.0 - _progress) * (1.0 - _progress)
 	front = (_last_cost + BloodPoolConfig.flow_soft_edge) * eased
+	if claiming:
+		front = minf(front, next_cost())
 
 
-## True once the front has covered every cell.
+## The flow cost of the cheapest cell not yet claimed (the next one `step` claims), INF if none.
+func next_cost() -> float:
+	return INF if _frontier.is_empty() else _frontier.cheapest()
+
+
+## True once the front has covered every cell: the sweep is over and claiming is too.
 func settled() -> bool:
-	return _progress >= 1.0
+	return _progress >= 1.0 and not _claiming
 
 
 ## Fill level (0..1) of a cell: the flood-fill at the current front, or the dragged-out trail if
@@ -193,7 +203,7 @@ func budget_used() -> float:
 ## `budget_used`). `origin_global` is the pool's world position.
 func step(
 	count: int,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	origin_global: Vector2,
 	budget := INF,
 ) -> void:
@@ -233,8 +243,8 @@ func _surface_resist(c: Vector2i, origin_global: Vector2) -> float:
 	return _resist[c]
 
 
-## Whether a wall or furniture collider overlaps cell `c` (cached per cell).
-func _is_blocked(c: Vector2i, space: PhysicsDirectSpaceState2D, origin_global: Vector2) -> bool:
+## Whether a wall or a piece stands on cell `c` (cached per cell).
+func _is_blocked(c: Vector2i, space: PhysicsDirectSpaceState3D, origin_global: Vector2) -> bool:
 	if _blocked.has(c):
 		return _blocked[c]
 	var blocked := _collision.blocked(space, origin_global + _cell_center(c))
@@ -264,6 +274,16 @@ class Frontier extends RefCounted:
 		costs[c] = cost
 		_heap.append([cost, _sequence[c], c])
 		_sift_up(_heap.size() - 1)
+
+
+	## The cost of the cheapest live cell (the one `pop` returns next); not for an empty frontier.
+	func cheapest() -> float:
+		while costs.get(_heap[0][2], -1.0) != _heap[0][0]:
+			_heap[0] = _heap.back()
+			_heap.pop_back()
+			if not _heap.is_empty():
+				_sift_down(0)
+		return _heap[0][0]
 
 
 	## Remove the cheapest heap entry and return its live cell. The caller erases it from `costs`.
@@ -325,25 +345,24 @@ class Frontier extends RefCounted:
 		_heap[b] = held
 
 
-## One square and one query-parameter object per flow, mutated for each uncached cell instead of
+## One floor slab and one query-parameter object per flow, mutated for each uncached cell instead of
 ## allocating both on every query. Exclusions and query flags are fixed when the flow is built.
 class Collision extends RefCounted:
 	## The retained blocked-cell query.
-	var params := PhysicsShapeQueryParameters2D.new()
-	## The square tested at a cell's centre.
-	var _probe := RectangleShape2D.new()
+	var params := PhysicsShapeQueryParameters3D.new()
 
 
-	## Prepare the square and the constant parts of the query.
+	## Prepare the slab and the constant parts of the query.
 	func prepare(cell_size: float, exclude: Array) -> void:
-		_probe.size = Vector2.ONE * cell_size * 0.8
-		params.shape = _probe
-		params.collision_mask = PhysicsConfig.wall_mask
+		params.shape = BloodLanding.floor_box(cell_size * 0.8, cell_size * 0.8)
+		params.collision_mask = PhysicsConfig.twin_mask
 		params.exclude = exclude
-		params.collide_with_bodies = true
 
 
-	## Whether a wall or furniture collider overlaps the square at `at`.
-	func blocked(space: PhysicsDirectSpaceState2D, at: Vector2) -> bool:
-		params.transform = Transform2D(0.0, at)
+	## Whether a wall or a piece stands on the slab at plan point `at` (a world with no twin space:
+	## nothing does).
+	func blocked(space: PhysicsDirectSpaceState3D, at: Vector2) -> bool:
+		if space == null:
+			return false
+		params.transform = BloodLanding.on_floor(at)
 		return not space.intersect_shape(params, 1).is_empty()

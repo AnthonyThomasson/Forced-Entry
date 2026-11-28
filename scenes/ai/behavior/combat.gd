@@ -7,9 +7,9 @@ extends RefCounted
 ## fire cooldown and that cycle's phase and timers, and reads its tunables live from the NPC's
 ## `tuning.combat`. `Behavior` decides WHICH fight is on (it holds the engaged contact) and passes
 ## the target in each call; this class never chooses a target and reads the world only through the
-## perception (`has_line_to`, `combat_spots`, `note_engaged`, and its `confinement`: where it may
-## act) and the character's public contract. It knows no gun from another: the gun it
-## fights with is `Character.inventory.gun_slot()`.
+## perception (`has_line_to`, `has_fire_line_to`, `combat_spots`, `note_engaged`, and its
+## `confinement`: where it may act) and the character's public contract. It knows no gun from
+## another: the gun it fights with is `Character.inventory.gun_slot()`.
 
 ## The gun is empty: the shot was not taken (a click is not a shot), so the caller should re-decide.
 signal dry
@@ -91,9 +91,9 @@ func can_fire_at(target: Dictionary) -> bool:
 	return has_line_of_fire(target)
 
 
-## Whether `target` (a known-contact dict) stands within range on a clear line to where it is known
-## to be: a shot at it is possible from here whatever the gun's state (the entry reads it as
-## "engaged from outside", docs/tactical-entry.md E14).
+## Whether `target` (a known-contact dict) stands within range on a clear line of fire to where it
+## is known to be: a shot at it is possible from here whatever the gun's state (the entry reads it
+## as "engaged from outside", docs/tactical-entry.md E14).
 func has_line_of_fire(target: Dictionary) -> bool:
 	if target.is_empty():
 		return false
@@ -101,11 +101,14 @@ func has_line_of_fire(target: Dictionary) -> bool:
 
 
 ## The line-of-fire rule, once: whether `pos` (where `node` is known to be) is within
-## `tuning.combat.shoot_range` on a clear line from here. `has_line_of_fire`, the ambush, the peek
-## and the combat overlay all read it.
+## `tuning.combat.shoot_range` and a round from the NPC's muzzle reaches where it aims at `node`:
+## the real 3D line, from the muzzle of the posture it fires in (ducked, the pose its shot rises to:
+## `docs/cover-and-stance.md` P6) to the middle of the part of the target it sees
+## (`perception.has_fire_line_to`). What the acts that pull the trigger (the ambush, the peek,
+## `fire_at_will`), the combat overlay and the snapshot's `fire_clear` all read.
 func has_line_of_fire_to(node: Node2D, pos: Vector2) -> bool:
 	return (_character.global_position.distance_to(pos) <= tuning.combat.shoot_range
-			and _perception.has_line_to(node, pos))
+			and _perception.has_fire_line_to(node, pos))
 
 
 ## Shoot `target` (a known-contact dict) when it can be shot at (`can_fire_at`), once the facing has

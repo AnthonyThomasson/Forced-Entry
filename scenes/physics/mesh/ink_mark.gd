@@ -21,6 +21,9 @@ var cell := Vector2i.ZERO
 ## highlight).
 var verts := PackedVector3Array()
 var colors := PackedColorArray()
+## The normal of each vertex of a mark that does not lie flat (a splat on a wall's face); empty:
+## every vertex faces up.
+var normals := PackedVector3Array()
 var body := 0
 ## The physics frame it was made on, which its drying counts from, the seconds its drying takes
 ## (0: it does not dry, or is dry at once: `InkFx`) and the step of its drying it is painted at

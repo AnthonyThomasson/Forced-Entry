@@ -1,7 +1,7 @@
 extends RefCounted
 ## Shared helper for the navigation tests of a district's steering tiles (not a test itself):
 ## `const Seams := preload("res://tests/_navigation/seam_probe.gd")`. It reads the seams between
-## neighbouring tiles as the NavigationServer would (an edge is its ends' 1 px cells, whatever the
+## neighbouring tiles as the NavigationServer would (an edge is its ends' cells, whatever the
 ## exact points) and the routes a map answers, for the tests that the tiles are welded and that the
 ## map needs no edge-connection pass.
 
@@ -17,8 +17,8 @@ const PROBE_EDGE := 6.0
 ## `line` the world coordinate of their shared border (x when `vertical`, else y).
 static func pairs(tiles: Array) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	for a: NavigationRegion2D in tiles:
-		for b: NavigationRegion2D in tiles:
+	for a: NavigationRegion3D in tiles:
+		for b: NavigationRegion3D in tiles:
 			var pair := _neighbours(a, b)
 			if not pair.is_empty():
 				out.append(pair)
@@ -27,12 +27,12 @@ static func pairs(tiles: Array) -> Array[Dictionary]:
 
 ## `{ a, b, vertical, line }` when tile `b` lies right of or below tile `a` along a stretch of
 ## their rects' border, else `{}`.
-static func _neighbours(a: NavigationRegion2D, b: NavigationRegion2D) -> Dictionary:
+static func _neighbours(a: NavigationRegion3D, b: NavigationRegion3D) -> Dictionary:
 	if not a.has_meta(NavTiles.RECT_META) or not b.has_meta(NavTiles.RECT_META):
 		return {}
 	var rect_a: Rect2 = a.get_meta(NavTiles.RECT_META)
 	var rect_b: Rect2 = b.get_meta(NavTiles.RECT_META)
-	var end := a.to_global(rect_a.end)
+	var end := NavPlan.global_of(a, rect_a.end)
 	var shares_y := minf(rect_a.end.y, rect_b.end.y) > maxf(rect_a.position.y, rect_b.position.y)
 	var shares_x := minf(rect_a.end.x, rect_b.end.x) > maxf(rect_a.position.x, rect_b.position.x)
 	if is_equal_approx(rect_b.position.x, rect_a.end.x) and shares_y:
@@ -43,18 +43,18 @@ static func _neighbours(a: NavigationRegion2D, b: NavigationRegion2D) -> Diction
 
 
 ## The polygon edges of `tile` that lie on the line of `pair`: `{ lo, hi, key }`, the span along the
-## line (world px) and the edge as the server keys it (the 1 px cells of its ends, in order).
-static func seam_edges(tile: NavigationRegion2D, pair: Dictionary) -> Array[Dictionary]:
+## line (world px) and the edge as the server keys it (the cells of its ends, in order).
+static func seam_edges(tile: NavigationRegion3D, pair: Dictionary) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	var poly := tile.navigation_polygon
+	var poly := NavPlan.polygon_of(tile)
 	if poly == null:
 		return out
 	var verts := poly.get_vertices()
 	for i in poly.get_polygon_count():
 		var ring := poly.get_polygon(i)
 		for k in ring.size():
-			var p := tile.to_global(verts[ring[k]])
-			var q := tile.to_global(verts[ring[(k + 1) % ring.size()]])
+			var p := NavPlan.global_of(tile, verts[ring[k]])
+			var q := NavPlan.global_of(tile, verts[ring[(k + 1) % ring.size()]])
 			if _across(p, pair) and _across(q, pair):
 				out.append(_edge(p, q, pair["vertical"]))
 	return out
@@ -70,12 +70,13 @@ static func _across(point: Vector2, pair: Dictionary) -> bool:
 static func _edge(p: Vector2, q: Vector2, vertical: bool) -> Dictionary:
 	var along_p := p.y if vertical else p.x
 	var along_q := q.y if vertical else q.x
-	var cells := [Vector2i(p.floor()), Vector2i(q.floor())]
+	var cell := NavSource.CELL_SIZE
+	var cells := [Vector2i((p / cell).floor()), Vector2i((q / cell).floor())]
 	cells.sort_custom(func(u: Vector2i, w: Vector2i) -> bool: return u < w)
 	return {
 		"lo": minf(along_p, along_q),
 		"hi": maxf(along_p, along_q),
-		"cells": [floorf(minf(along_p, along_q)), floorf(maxf(along_p, along_q))],
+		"cells": [floorf(minf(along_p, along_q) / cell), floorf(maxf(along_p, along_q) / cell)],
 		"key": cells,
 	}
 
@@ -94,8 +95,8 @@ static func unwelded(tiles: Array) -> Array[String]:
 	return out
 
 
-## How far (px) the spans of the edges `e` and `f` overlap, as the server sees them: from the 1 px
-## cells their ends are in, so two ends in one cell are one.
+## How far (px) the spans of the edges `e` and `f` overlap, as the server sees them: from the cells
+## (`NavSource.CELL_SIZE`) their ends are in, so two ends in one cell are one.
 static func _overlap(e: Dictionary, f: Dictionary) -> float:
 	return minf(e["cells"][1], f["cells"][1]) - maxf(e["cells"][0], f["cells"][0])
 
@@ -113,7 +114,7 @@ static func _fault(pair: Dictionary, e: Dictionary, f: Dictionary) -> String:
 ## of every `stride`-th polygon.
 static func points(regions: Array, stride := 1) -> Array[Vector2]:
 	var out: Array[Vector2] = []
-	for region: NavigationRegion2D in regions:
+	for region: NavigationRegion3D in regions:
 		if region.has_meta(NavTiles.RECT_META):
 			var probe := NavTiles.probe_of(region, Vector2.INF)
 			if probe != Vector2.INF:
@@ -124,16 +125,16 @@ static func points(regions: Array, stride := 1) -> Array[Vector2]:
 
 
 ## The world point in the middle (the mean of the corners) of every `stride`-th polygon of `region`.
-static func _middles(region: NavigationRegion2D, stride: int) -> Array[Vector2]:
+static func _middles(region: NavigationRegion3D, stride: int) -> Array[Vector2]:
 	var out: Array[Vector2] = []
-	var poly := region.navigation_polygon
+	var poly := NavPlan.polygon_of(region)
 	var verts := poly.get_vertices()
 	for i in range(0, poly.get_polygon_count(), stride):
 		var sum := Vector2.ZERO
 		var ring := poly.get_polygon(i)
 		for index in ring:
 			sum += verts[index]
-		out.append(region.to_global(sum / float(ring.size())))
+		out.append(NavPlan.global_of(region, sum / float(ring.size())))
 	return out
 
 
@@ -159,7 +160,7 @@ static func all_pairs(map: RID, spots: Array[Vector2]) -> Array[PackedVector2Arr
 	var out: Array[PackedVector2Array] = []
 	for a in spots:
 		for b in spots:
-			out.append(NavigationServer2D.map_get_path(map, a, b, true))
+			out.append(NavPlan.path(map, a, b))
 	return out
 
 
@@ -167,8 +168,8 @@ static func all_pairs(map: RID, spots: Array[Vector2]) -> Array[PackedVector2Arr
 static func both_ways(map: RID, ends: Array[PackedVector2Array]) -> Array[PackedVector2Array]:
 	var out: Array[PackedVector2Array] = []
 	for pair in ends:
-		out.append(NavigationServer2D.map_get_path(map, pair[0], pair[1], true))
-		out.append(NavigationServer2D.map_get_path(map, pair[1], pair[0], true))
+		out.append(NavPlan.path(map, pair[0], pair[1]))
+		out.append(NavPlan.path(map, pair[1], pair[0]))
 	return out
 
 

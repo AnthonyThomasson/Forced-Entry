@@ -13,8 +13,26 @@ const OBJECTS := {
 		"material": "metal",
 		"art": "security",
 		"art_opts": { "kind": "barricade" },
+		# The sandbags at both ends (SI15): two stacks of three side by side (15 by 8 px, 10 high),
+		# a smaller bag on each middle one; `at` from the piece's centre where the painter drew
+		# them.
+		"carries": [
+			{ "key": "sandbag", "at": Vector2(-52.5, -9), "lift": 0.0, "plain": true },
+			{ "key": "sandbag", "at": Vector2(-49.5, -1), "lift": 0.0, "plain": true },
+			{ "key": "sandbag", "at": Vector2(-52.5, 7), "lift": 0.0, "plain": true },
+			{ "key": "sandbag", "at": Vector2(51.5, -9), "lift": 0.0, "plain": true },
+			{ "key": "sandbag", "at": Vector2(54.5, -1), "lift": 0.0, "plain": true },
+			{ "key": "sandbag", "at": Vector2(51.5, 7), "lift": 0.0, "plain": true },
+			{
+				"key": "sandbag", "at": Vector2(-49.5, -1), "lift": 10.0,
+				"plain": true, "size": Vector2(11, 4), "height": 6.0,
+			},
+			{
+				"key": "sandbag", "at": Vector2(54.5, -1), "lift": 10.0,
+				"plain": true, "size": Vector2(11, 4), "height": 6.0,
+			},
+		],
 		"weight": 160,
-		"coverage": 60,
 		"penetration": 90,
 		"interactions": [{ "id": "examine", "label": "Examine" }],
 	},
@@ -27,7 +45,6 @@ const OBJECTS := {
 		"art": "security",
 		"art_opts": { "kind": "scanner" },
 		"weight": 200,
-		"coverage": 100,
 		"penetration": 80,
 		"interactions": [{ "id": "examine", "label": "Examine" }],
 	},
@@ -40,7 +57,6 @@ const OBJECTS := {
 		"art": "security",
 		"art_opts": { "kind": "lockers" },
 		"weight": 90,
-		"coverage": 100,
 		"penetration": 70,
 		"interactions": [
 			{ "id": "open", "label": "Open locker" },

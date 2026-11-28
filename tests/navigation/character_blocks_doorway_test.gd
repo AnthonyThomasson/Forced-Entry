@@ -28,10 +28,10 @@ func configure(s: TestSetup) -> void:
 
 
 func _reach(t: TestContext, steering := true) -> float:
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	if steering:
 		map = NavBuilder.steering_map(map)
-	var path := NavigationServer2D.map_get_path(map, FROM, TO, false)
+	var path := NavPlan.path(map, FROM, TO, false)
 	t.trace("path_end_x", path[path.size() - 1].x if not path.is_empty() else 0.0)
 	return path[path.size() - 1].x if not path.is_empty() else 0.0
 

@@ -1,16 +1,16 @@
 class_name VehicleCabin extends RefCounted
 ## Vehicles domain: a vehicle's doors and seats and whose ride is whose (`docs/vehicles.md` V1-V4),
-## its body's `cabin` part: the doors (vehicle_door.gd), who holds each seat or is on the way into
-## it, and the rides of the characters getting in and out (vehicle_boarding.gd), which the body's
-## `board` and `exit` start and end and each ride calls back. Built once in the body's `_ready`,
-## from its row; it holds the body (a node, so no reference cycle) for its frame, its physics, its
-## `drive` and its `post`.
+## its vehicle's `cabin` part: the doors (vehicle_door.gd), who holds each seat or is on the way
+## into it, and the rides of the characters getting in and out (vehicle_boarding.gd), which the
+## body's `board` and `exit` start and end and each ride calls back. Built once in the body's
+## `_ready`, from its row; it holds the body (a node, so no reference cycle) for its frame, its
+## physics, its `drive` and its `post`.
 
 const VehicleDoor = preload("res://scenes/vehicle/vehicle_door.gd")
 const VehicleBoarding = preload("res://scenes/vehicle/vehicle_boarding.gd")
 
 ## The vehicle it belongs to.
-var vehicle: RigidBody2D
+var vehicle: Node2D
 ## Its doors, in the row's order.
 var _doors: Array[VehicleDoor] = []
 ## Seat id -> who holds it (boarding into it, sitting in it or getting out of it), or null.
@@ -22,12 +22,18 @@ var _reserved: Dictionary = {}
 var _rides: Dictionary = {}
 
 
-func _init(body: RigidBody2D, row: Dictionary) -> void:
+func _init(body: Node2D, row: Dictionary) -> void:
 	vehicle = body
 	for def: Dictionary in row["doors"]:
 		_doors.append(VehicleDoor.new(def))
 	for id in row["seats"]:
 		_seats[id] = null
+
+
+## How tall the vehicle stands (px): its roof, for a painter that does not know the kind
+## (`MeshKinds`, duck-typed).
+func roof_height() -> float:
+	return float(VehicleMeshConfig.heights[vehicle.kind]["roof"])
 
 
 ## Step the doors by `delta` s, posting the slam (or the slide's close) the frame one shuts.
@@ -65,7 +71,7 @@ func door_list() -> Array[VehicleDoor]:
 
 ## Where seat `id` is (local).
 func seat_point(id: StringName) -> Vector2:
-	return vehicle.row()["seats"][id]
+	return vehicle.row["seats"][id]
 
 
 ## Who holds seat `id` (null when empty or freed).
@@ -119,8 +125,7 @@ func open_door(which: VehicleDoor) -> void:
 ## The door `character`, in `seat`, gets out by: `own` (the one it got in by) when clear, else the
 ## nearest clear door whose seat is its own or empty; null when none is clear.
 func exit_door(character: Node2D, seat: StringName, own: VehicleDoor) -> VehicleDoor:
-	var exclude: Array[RID] = [vehicle.get_rid(), character.get_rid()]
-	if own != null and own.seat == seat and own.is_clear(vehicle, exclude, character.radius):
+	if own != null and own.seat == seat and own.is_clear(vehicle, character, character.radius):
 		return own
 	var best: VehicleDoor = null
 	var best_distance := INF
@@ -128,7 +133,7 @@ func exit_door(character: Node2D, seat: StringName, own: VehicleDoor) -> Vehicle
 		if d.seat != seat and not is_free(d.seat):
 			continue
 		var distance: float = character.global_position.distance_to(vehicle.to_global(d.handle))
-		if distance < best_distance and d.is_clear(vehicle, exclude, character.radius):
+		if distance < best_distance and d.is_clear(vehicle, character, character.radius):
 			best = d
 			best_distance = distance
 	return best

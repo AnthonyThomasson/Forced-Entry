@@ -47,7 +47,7 @@ func run(t: TestContext) -> void:
 	await t.seconds(1.0)
 	var mirror := _mirror(t)
 	CharacterMeshes.register(mirror.builders)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	var shown := mirror.proxies_of(dying)
 	if not t.require(shown.size() == 1 and shown[0] is BodyMesh, "the character has a body"):
@@ -107,13 +107,13 @@ func _check_follows(
 	}
 	for part: int in pairs:
 		var joint: Vector3 = pairs[part]
-		var at := (body.get_child(part) as Node3D).position
+		var at := body.part(part).position
 		var gap := Vector2(at.x - joint.x, at.z - joint.y).length()
 		t.check(
 			gap < tolerance,
 			"%s: part %d is at the ragdoll's joint (%.1f px off)" % [when, part, gap],
 		)
-	var head := (body.get_child(BodyMesh.HEAD) as Node3D).position
+	var head := body.part(BodyMesh.HEAD).position
 	t.check(
 		Vector2(head.x, head.z).length() > 12.0 or when == "in the fall",
 		"the settled body has fallen from where it stood (head %.0f px over)" % head.length(),
@@ -127,18 +127,17 @@ func _check_flat(t: TestContext, body: BodyMesh) -> void:
 	var top := 0.0
 	var lowest := INF
 	var lowest_part := -1
-	for part: Node in body.get_children():
-		var node := part as MeshInstance3D
-		if node == null or not node.visible:
+	for index in BodyMesh.CROWN + 1:
+		var part := body.part(index)
+		if not part.visible:
 			continue
-		var inside := body.global_transform.affine_inverse() * node.global_transform
-		var box := inside * node.mesh.get_aabb()
+		var box := part.transform * part.mesh.get_aabb()
 		top = maxf(top, box.end.y)
-		if WORN.has(part.get_index()):
+		if WORN.has(index):
 			continue
 		if box.position.y < lowest:
 			lowest = box.position.y
-			lowest_part = part.get_index()
+			lowest_part = index
 	t.check(top < LYING_HEIGHT, "the body lies flat (%.1f px at its highest)" % top)
 	t.check(
 		lowest > -4.0,
@@ -148,7 +147,7 @@ func _check_flat(t: TestContext, body: BodyMesh) -> void:
 
 ## A settled body is written no more; a blast that wakes the ragdoll moves it again.
 func _check_rest(t: TestContext, body: BodyMesh, dying: Node) -> void:
-	var trunk := body.get_child(BodyMesh.TORSO) as Node3D
+	var trunk := body.part(BodyMesh.TORSO)
 	var mark := Transform3D(Basis(), Vector3(999.0, 0.0, 0.0))
 	trunk.transform = mark
 	await t.frames(30)
@@ -158,10 +157,10 @@ func _check_rest(t: TestContext, body: BodyMesh, dying: Node) -> void:
 	t.check(trunk.transform != mark, "a blast that wakes the ragdoll moves the body again")
 
 
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	return mirror

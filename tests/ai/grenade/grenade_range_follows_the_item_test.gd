@@ -8,6 +8,7 @@ extends GameTest
 ## range read off the item puts the throw spot there. Scripted Von, one scene; the invader walks (a
 ## plain invader actor).
 
+const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Flank := preload("res://tests/_ai/flank_probe.gd")
@@ -28,6 +29,7 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	Hiding.von_out(s)
 	var rows: Dictionary = GrenadeConfig.grenades.duplicate(true)
 	rows[&"frag"]["max_range"] = FRAG_RANGE
 	s.set_static(GrenadeConfig, "grenades", rows)
@@ -35,7 +37,7 @@ func configure(s: TestSetup) -> void:
 		{ "key": "north", "type": "living_room", "rect": Rect2(0, 0, 900, 300) },
 		{ "key": "south", "type": "kitchen", "rect": Rect2(0, 300, 900, 300) },
 	], [{ "pos": Vector2(880, 0), "width": 60.0 }, { "pos": Vector2(880, 600), "width": 60.0 }])
-	s.object(&"desk", "desk", Vector2(330, 450))
+	s.object(&"desk", Hiding.low_cover("desk"), Vector2(430, 450))
 	Flank.rules(
 		s,
 		[
@@ -55,6 +57,8 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var npc := t.actor(&"n")
 	Probe.arm(npc, 1, 1)
+	if not await Hiding.duck_after_seen(t, &"h", &"n"):
+		return
 	if not t.require(
 			Probe.count(npc, Probe.STUN) == 1 and Probe.count(npc, Probe.FRAG) == 1,
 			"the invader carries a stun and a frag",

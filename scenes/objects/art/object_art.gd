@@ -40,6 +40,7 @@ const PAINTERS := {
 	"shop": preload("res://scenes/objects/art/shop_painter.gd"),
 	"noodle": preload("res://scenes/objects/art/noodle_painter.gd"),
 	"stock": preload("res://scenes/objects/art/stock_painter.gd"),
+	"item": preload("res://scenes/objects/art/item_painter.gd"),
 	"awning": preload("res://scenes/objects/art/awning_painter.gd"),
 	"stencil": preload("res://scenes/objects/art/stencil_painter.gd"),
 	"street_prop": preload("res://scenes/objects/art/street_prop_painter.gd"),
@@ -77,7 +78,7 @@ static func flat(art: String, size: Vector2, color: Color, opts: Dictionary = {}
 	if not PAINTERS.has(art):
 		push_error("ObjectArt: unknown art '%s'" % art)
 		return null
-	return PixelArt.render_flat(PAINTERS[art], size, _color(art, color), _art_opts(art, opts))
+	return PixelArt.render_flat(PAINTERS[art], size, _color(art, color, opts), _art_opts(art, opts))
 
 
 ## The flat albedo of a decal whose art faces `facing` (a cardinal direction) over a footprint of
@@ -91,7 +92,7 @@ static func flat_facing(art: String, size: Vector2, color: Color, facing: Vector
 	return PixelArt.render_flat(
 		PAINTERS[art],
 		size,
-		_color(art, color),
+		_color(art, color, opts),
 		_art_opts(art, opts),
 		facing,
 	)
@@ -136,7 +137,7 @@ static func flat_request(
 	return {
 		"painter": PAINTERS[art],
 		"size": size,
-		"color": _color(art, color),
+		"color": _color(art, color, opts),
 		"opts": _art_opts(art, opts),
 		"flat": true,
 	}
@@ -164,7 +165,7 @@ static func porous(art: String, opts: Dictionary) -> bool:
 
 
 ## The light row of a piece whose painter gives light only in some of its variants (a TV among the
-## appliances, a desk with a monitor, the tool cart, the scanner post, the shop's drinks fridge, the
+## appliances, a monitor item, the tool cart, the scanner post, the shop's drinks fridge, the
 ## noodle bar's menu board); "" for any other. The one
 ## rule both the piece's lights (`ObjectLights`) and its neon share (`neon_for`) read.
 static func light_kind(art: String, opts: Dictionary) -> String:
@@ -173,10 +174,8 @@ static func light_kind(art: String, opts: Dictionary) -> String:
 	match art:
 		"appliance":
 			row = "tv" if String(opts.get("panel", "")) == "tv" else ""
-		"table":
-			var is_monitor := func(p: Variant) -> bool:
-				return p is Dictionary and p.get("kind", "") == "monitor"
-			row = "desk" if (opts.get("props", []) as Array).any(is_monitor) else ""
+		"item":
+			row = "monitor" if kind == "monitor" else ""
 		"clinic":
 			row = "tool_cart" if kind == "tool_cart" else ""
 		"security":
@@ -191,31 +190,31 @@ static func light_kind(art: String, opts: Dictionary) -> String:
 ## The neon trims a piece drawn by `art` with `opts` can come in (`neon_for`'s answers): `[""]` for
 ## a piece that never takes one, else with `"cyan"` and `"magenta"` too.
 static func neon_variants(art: String, opts: Dictionary) -> Array:
-	var kind := art
+	var share: float = ObjectArtLightConfig.neon_share.get(_neon_kind(art, opts), 0.0)
+	return ["", "cyan", "magenta"] if share > 0.0 else [""]
+
+
+## The key of `ObjectArtLightConfig.neon_share` a piece drawn by `art` with `opts` takes its neon
+## by: its own `neon_as` option (a desk's: a plain table is no desk), a `BY_KIND` piece's `kind`, a
+## variant piece's `light_kind`, else the painter id.
+static func _neon_kind(art: String, opts: Dictionary) -> String:
+	var named := String(opts.get("neon_as", ""))
 	var own := light_kind(art, opts)
+	if named != "":
+		return named
 	if BY_KIND.has(art):
-		kind = String(opts.get("kind", ""))
-	elif own != "":
-		kind = own
-	elif art == "table":
-		return [""]
-	return ["", "cyan", "magenta"] if ObjectArtLightConfig.neon_share.get(kind, 0.0) > 0.0 else [""]
+		return String(opts.get("kind", ""))
+	return own if own != "" else art
 
 
 ## The neon a piece drawn by `art` with `opts` takes, picked per piece from `piece_seed`
 ## (deterministic: the same piece in the same house always gets the same): `"cyan"`, `"magenta"`, or
 ## `""` for none. Only the light-giving kinds in ObjectArtLightConfig.neon_share ever do, that share
-## of them: a `BY_KIND` piece by its `kind`, a variant piece by its `light_kind` (a table only with
-## a monitor), any other by its painter id.
+## of them: a `BY_KIND` piece by its `kind`, a variant piece by its `light_kind` (a TV, the
+## tool cart), a piece that names its share (`neon_as`: a desk) by that, any other by its painter
+## id.
 static func neon_for(art: String, opts: Dictionary, piece_seed: int) -> String:
-	var kind := art
-	var own := light_kind(art, opts)
-	if BY_KIND.has(art):
-		kind = String(opts.get("kind", ""))
-	elif own != "":
-		kind = own
-	elif art == "table":
-		return ""
+	var kind := _neon_kind(art, opts)
 	var share: float = ObjectArtLightConfig.neon_share.get(kind, 0.0)
 	var roll := absi(hash([kind, piece_seed]))
 	if share <= 0.0 or float(roll % 1000) / 1000.0 >= share:
@@ -223,9 +222,11 @@ static func neon_for(art: String, opts: Dictionary, piece_seed: int) -> String:
 	return "cyan" if int(roll / 1000.0) % 2 == 0 else "magenta"
 
 
-## The colour `art`'s painter is handed for `color`: graded, unless it takes its colours as given.
-static func _color(art: String, color: Color) -> Color:
-	return color if AS_GIVEN.has(art) else Decay.grade(color)
+## The colour `art`'s painter is handed for `color`: graded, unless it takes its colours as given
+## (an item with `opts.plain` is drawn in its own colour, as the prop it carries was).
+static func _color(art: String, color: Color, opts: Dictionary) -> Color:
+	var plain := art == "item" and bool(opts.get("plain", false))
+	return color if plain or AS_GIVEN.has(art) else Decay.grade(color)
 
 
 ## `opts` with its surface finish `material` among them, as `flat` takes it.
@@ -237,7 +238,14 @@ static func _finished(opts: Dictionary, material: String) -> Dictionary:
 ## finish (`material`, `""` when absent) last.
 static func _art_opts(art: String, opts: Dictionary) -> Dictionary:
 	var rest := opts
-	if opts.has("material"):
+	if art == "item":  # An item's flat art is painted by its kind alone (its mesh reads the rest).
+		rest = { "kind": opts.get("kind", "box") }
+		if opts.get("plain", false):
+			rest["plain"] = true
+		for field: String in ["well", "spines"]:  # What fills a bowl; a run's packs' colours.
+			if opts.has(field):
+				rest[field] = opts[field]
+	elif opts.has("material"):
 		rest = opts.duplicate()
 		rest.erase("material")
 	return _graded(art, rest).merged({ "material": opts.get("material", "") }, true)

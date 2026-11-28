@@ -30,7 +30,7 @@ func run(t: TestContext) -> void:
 	puppet.walk(Vector2.RIGHT)
 	await t.seconds(0.3)
 	t.expect_near(
-		body.get_real_velocity().length(),
+		TwinSpace.real_velocity_of(body).length(),
 		WALK_SPEED,
 		5.0,
 		"standing walks at the walk speed",
@@ -43,7 +43,7 @@ func run(t: TestContext) -> void:
 		WALK_SPEED * float(CharacterPostureConfig.postures[&"crouch"]["speed"])
 	)
 	t.expect_near(
-		body.get_real_velocity().length(),
+		TwinSpace.real_velocity_of(body).length(),
 		crouch_speed,
 		5.0,
 		"crouching walks at the crouch speed",
@@ -56,7 +56,7 @@ func run(t: TestContext) -> void:
 	await t.seconds(0.4)
 	t.check(not body.movement.is_running(), "run is ignored while crouched")
 	t.expect_near(
-		body.get_real_velocity().length(),
+		TwinSpace.real_velocity_of(body).length(),
 		crouch_speed,
 		5.0,
 		"still creeping with run held",
@@ -68,7 +68,7 @@ func run(t: TestContext) -> void:
 	await t.seconds(0.4)
 	t.check(body.movement.is_running(), "standing with run held runs")
 	t.expect_near(
-		body.get_real_velocity().length(),
+		TwinSpace.real_velocity_of(body).length(),
 		WALK_SPEED * CharacterPaceConfig.run_speed_mult,
 		5.0,
 		"at run speed",

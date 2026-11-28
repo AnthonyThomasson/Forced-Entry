@@ -15,15 +15,17 @@ extends RefCounted
 ## stands) and `tags` (`ally_in_blast`, `no_safe_spot`, judged with the thrower at `from`).
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
-const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
+const TwinProbe := preload("res://tests/_general/twin_probe.gd")
 ## The throw range of both kinds (`max_range` 550): a spot farther than this from the NPC is out of
 ## range, and a throw spot must be within it.
 const THROW_RANGE := 550.0
 ## The tests' reading of "a short walk away": the walk to a throw spot, for a target out of range by
 ## 100 px or less, is at most this long.
 const SHORT_WALK := 250.0
-## The release height of a lob (`AgentThrow.LOB_CLEARANCE`, the spec's number): furniture at or
-## below it does not stop a lob, a wall always does.
+## How high (px, the twin space's real heights: the test's own number, apart from the code's: the
+## planner, `GrenadeArc`, sweeps real arcs) a lob is taken to fly over the line: a piece or wall
+## taller than it stops the lob, one lower does not. The scenarios use pieces well under it or
+## walls.
 const LOB_CLEARANCE := 50.0
 ## How far (px) either side of the line from the hand a lob must be clear (G17, the doc's number,
 ## not the code's).
@@ -44,25 +46,11 @@ static func from_of(z: Dictionary) -> Vector2:
 	return f if f is Vector2 else Vector2.INF
 
 
-## The test's own lob test: nothing taller than `LOB_CLEARANCE` (a wall, a tall piece) lies on the
-## straight line from `a` to `b`; characters are looked past.
+## The test's own lob test, a real height read: nothing taller than `LOB_CLEARANCE` (a wall, a tall
+## piece) stands on the straight line from `a` to `b` at that height in the twin space; characters
+## are looked past (the world's twins alone).
 static func lob_clear(t: TestContext, a: Vector2, b: Vector2) -> bool:
-	var exclude := GrenadeAi.character_rids(t)
-	var space := t.world.get_world_2d().direct_space_state
-	for i in 12:
-		var query := PhysicsRayQueryParameters2D.create(a, b, PhysicsLayers.SOLID)
-		query.exclude = exclude
-		var hit := space.intersect_ray(query)
-		if hit.is_empty():
-			return true
-		var collider: Object = hit["collider"]
-		var height := (float(collider.get_surface().get("coverage", 100.0))
-				if collider.has_method("get_surface")
-				else 100.0)
-		if height > LOB_CLEARANCE:
-			return false
-		exclude.append(hit["rid"])
-	return false
+	return TwinProbe.level(t, a, b, LOB_CLEARANCE, PhysicsLayers.TWIN_SURFACES).is_empty()
 
 
 ## The spec's lob from the hand (G17): a grenade leaves `thrower`, standing at `at` and facing `to`,
@@ -86,7 +74,7 @@ static func hand_lob_clear(t: TestContext, thrower: Node, at: Vector2, to: Vecto
 ## The walk on the world's navigation map from `a` to `b`: `{ len, reaches }` (`reaches`: the route
 ## ends within 12 px of `b`).
 static func walk(t: TestContext, a: Vector2, b: Vector2) -> Dictionary:
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	var path: PackedVector2Array = NavBuilder.route(map, a, b)
 	return {
 		"len": NavBuilder.path_length(path),

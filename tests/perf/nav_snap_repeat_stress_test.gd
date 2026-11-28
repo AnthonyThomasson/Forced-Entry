@@ -32,8 +32,8 @@ func run(t: TestContext) -> void:
 	var rooms := WorldGen.district_rooms(t.world.district)
 	if not t.require(rooms.size() >= 2, "the district has rooms to snap"):
 		return
-	var region: NavigationRegion2D = t.world.find_children(
-		"NavRegion", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"NavRegion", "NavigationRegion3D", true, false,
 	)[0]
 	var map := region.get_navigation_map()
 	if not t.require(NavBuilder.ready(map), "premise: the planning map answers"):

@@ -2,8 +2,8 @@ extends GameTest
 ## With penetration made impossible (a round needs more speed than any gun can give), every impact
 ## is a *blocked* one: the round embeds where it lands. A chair, a body and a wall are each heard as
 ## their material's blocked sound, and the same shots do not sound blocked when penetration is
-## normal (the materials test covers that). A shot that flies over cover makes no impact sound at
-## all: it never touched anything.
+## normal (the materials test covers that). A shot that flies over cover (level at the muzzle's
+## 65 px over a chair's 38) makes no impact sound at all: it never touched anything.
 
 const Probe := preload("res://tests/_audio/sound_probe.gd")
 
@@ -12,8 +12,8 @@ func describe() -> Dictionary:
 	return {
 		"name": "A blocked round sounds embedded, a fly-over is silent",
 		"description": "With penetration out of reach, pistol rounds into a chair, a body and a "
-			+ "wall make blocked impacts; with fly-over forced on, a shot at a chair makes a shot "
-			+ "sound and no impact.",
+			+ "wall make blocked impacts; a level shot over a chair makes a shot sound and no "
+			+ "impact.",
 		"tags": ["sound", "impact", "blocked", "flyover", "projectile"],
 		"timeout": 10.0,
 	}
@@ -21,7 +21,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 900, 500))
-	s.switch(&"projectile.flyover", false)
 	# shot furniture is shoved into overlaps; re-baking them logs a nav sync error
 	s.switch(&"nav.rebake", false)
 	s.set_static(BallisticsPenetrationConfig, &"min_speed", 1.0e9)
@@ -38,7 +37,8 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	t.puppet(&"at_chair").aim_at(Vector2(880, 70))
+	# Low at the chair: its seat is 18 px up, the muzzle 65.
+	t.puppet(&"at_chair").aim_at(Vector2(400, 70), 10.0)
 	t.puppet(&"at_body").aim_at(Vector2(880, 200))
 	t.puppet(&"at_wall").aim_at(Vector2(880, 330))
 	await t.seconds(0.5)
@@ -59,11 +59,10 @@ func run(t: TestContext) -> void:
 		t.expect_eq(heard.size(), 1, "and it sounded once (it stopped there)")
 
 	# --- A fly-over: nothing is struck, so only the shot is heard.
-	BallisticsFlightConfig.cover_flyover_scale = 1000.0
 	Sound.reset()
 	var shots_before := Probe.sounds(t, &"shot").size()
 	var impacts_before := Probe.sounds(t, &"impact").size()
-	t.puppet(&"at_chair").aim_at(Vector2(400, 70))
+	t.puppet(&"at_chair").aim_at(Vector2(400, 70), CharacterMovement.AIM_LEVEL)
 	await t.seconds(0.4)
 	t.puppet(&"at_chair").shoot()
 	await t.seconds(0.15)

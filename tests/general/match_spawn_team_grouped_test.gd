@@ -204,7 +204,7 @@ func _npcs(viewport: SubViewport) -> Array:
 		return []
 	return world.get_children().filter(func(c):
 		var brain := TestContext.controller_of(c)
-		return c is CharacterBody2D and brain != null and "rooms" in brain)
+		return c.is_in_group(&"characters") and brain != null and "rooms" in brain)
 
 
 ## Each node's `{ name, pos }`, so it outlives the match.

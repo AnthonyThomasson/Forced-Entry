@@ -62,6 +62,9 @@ const MIN_SHADOW := 20
 const MAX_SHADOW := 2
 const MIN_DRAWN := 8
 const MAX_LEAKED := 2
+## The column (px above the floor: from, and how tall) `_bare` asks the twin space about.
+const BARE_FROM := 6.0
+const BARE_HEIGHT := 60.0
 const IN_VIEW_PROBE := Vector2(100.0, 50.0)
 const BEHIND_PROBE := Vector2(-100.0, 50.0)
 ## A probe is the mean of the picture this many pixels each side of its point.
@@ -87,7 +90,7 @@ const SAME := 0.006
 
 var _window: SubViewport
 var _main: Node
-var _human: CharacterBody2D
+var _human: Node2D
 var _world: Node2D
 var _rig: CameraRig
 var _centre := Vector2.ZERO
@@ -180,7 +183,7 @@ func _start(t: TestContext) -> bool:
 		return false
 	_world = built["world"]
 	_rig = _main.get_node("View3D").rig
-	for body: Node in _world.find_children("*", "CharacterBody2D", true, false):
+	for body: Node in preload("res://tests/_general/plan_probe.gd").characters_under(_world):
 		if body != _human:
 			(body as Node2D).global_position = Vector2(-6000.0, -6000.0)
 	var room := _largest_room(built["house"])
@@ -256,8 +259,8 @@ func _drawn(t: TestContext, who: Node2D, what: String, expected: bool) -> void:
 
 
 ## A character with no brain at `at`, in a plain outfit, facing the human.
-func _stand(at: Vector2) -> CharacterBody2D:
-	var c := CharacterScene.instantiate() as CharacterBody2D
+func _stand(at: Vector2) -> Node2D:
+	var c := CharacterScene.instantiate() as Node2D
 	c.global_position = at
 	_world.add_child(c)
 	c.movement.controller = null
@@ -513,13 +516,14 @@ func _layout(lamp: Vector3, along: Vector2, side: float) -> Dictionary:
 ## Whether nothing solid (a wall, a piece of furniture) stands within 18 px of `at`: a shadow that
 ## falls there falls on the floor, not on a table top.
 func _bare(at: Vector2) -> bool:
-	var circle := CircleShape2D.new()
-	circle.radius = 18.0
-	var query := PhysicsShapeQueryParameters2D.new()
-	query.shape = circle
-	query.transform = Transform2D(0.0, at)
-	query.exclude = [_human.get_rid()]
-	return _world.get_world_2d().direct_space_state.intersect_shape(query, 1).is_empty()
+	var column := CylinderShape3D.new()
+	column.radius = 18.0 * RenderConfig.unit
+	column.height = BARE_HEIGHT * RenderConfig.unit
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = column
+	query.transform = Transform3D(Basis(), PlanSpace.lift(at, BARE_FROM + BARE_HEIGHT * 0.5))
+	query.collision_mask = PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE
+	return TwinSpace.space_of(_world).intersect_shape(query, 1).is_empty()
 
 
 ## Whether the live mask is whole (lit) round `at`, a few px each way.
@@ -540,7 +544,7 @@ func _floor_changed(t: TestContext, at: Vector2, tip: Vector2, tag: String) -> i
 	var box := MeshNodes.instance(_tall_box(), Color(0.8, 0.75, 0.7))
 	MeshNodes.moving(box)
 	box.position = Vector3(at.x, MOVER_HEIGHT * 0.5, at.y) * RenderConfig.unit
-	var stage: Node3D = _main.get_node("View3D").mirror
+	var stage: Node3D = _main.get_node("View3D").carrier
 	stage.add_child(box)
 	await t.frames(3)
 	_draw_twice()  # a node added shows in the second draw (its shadow too)

@@ -11,7 +11,7 @@ extends RefCounted
 ## corner. The shapes and their corners come from `ViewShapes`.
 ##
 ## Every ray is cast leaving out the low pieces in reach (the eye looks over them whatever their
-## place), so it meets its first blocker in one cast, and a fixed coverage is read once, not on each
+## place), so it meets its first blocker in one cast, and a fixed top is read once, not on each
 ## ray (`ViewShapes`): the polygon is the one the plain rule draws, vertex for vertex.
 ##
 ## A ray that ends on a blocker runs on to where it leaves it (at most `far_depth`): the farthest
@@ -34,6 +34,9 @@ const Buffer := preload("res://scenes/vision/view_cone_buffer.gd")
 const REGION_SIDES := 16
 const REGION_ARC := 16
 const REGION_MARGIN := 2.0
+## A vertex of the region this near (px) the line of its neighbours is dropped: the physics engine
+## cannot build a convex hull with one.
+const FLAT_CORNER := 0.05
 ## A corner closer than this (px, at the corner's own distance) to a fan ray is never called hidden
 ## by the fan: the engine's hit positions are off a shape by up to about 0.02 px, and a hit that
 ## far off a face makes the chord between two hits leave the shape the line to a grazing corner
@@ -56,30 +59,25 @@ var corners_read := 0
 ## The job in flight reads these for every ray or corner, so they are held here, not in the job: the
 ## world it casts in, the eye, the view distance, the bubble's radius, the cone's width (rad) and
 ## the per-interval hide reaches of the even fan's rays (`_run_fan`).
-var _space: PhysicsDirectSpaceState2D
+var _space: PhysicsDirectSpaceState3D
 var _from := Vector2.ZERO
 var _reach := 0.0
 var _near := 0.0
 var _fov := 0.0
 var _fan_hide := PackedFloat64Array()
 var _shapes := Shapes.new()
-## The sight rule (`SightRay`), asked with the coverage the shapes already know and with the low
-## pieces in reach left out.
+## The sight rule (`SightRay`): a level 3D ray at the eye's height, which looks over what is lower.
 var _ray := SightRay.new()
 ## The job in flight (inputs and progress) and what it holds and builds (the back buffer).
 var _job := Job.new()
 var _build := Buffer.new()
 
 
-func _init() -> void:
-	_ray.rated = _shapes.rated()
-
-
 ## Rebuild both polygons for an eye at `from` facing `facing`, casting in `space`, leaving `exclude`
-## (rids) out and seeing by `sight` (`Character.sight()`), all at once: `begin` and `step` to the
-## end.
+## (the rids of twins, 3D bodies: `TwinSpace.twin_for(body)`'s, not a 2D body's) out and seeing by
+## `sight` (`Character.sight()`), all at once: `begin` and `step` to the end.
 func rebuild(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	from: Vector2,
 	facing: Vector2,
 	exclude: Array,
@@ -93,7 +91,7 @@ func rebuild(
 ## changes until `step` says the job is done. The job casts in `space` (the world's own direct
 ## state, which stays valid between physics frames) and must be stepped in the physics tick.
 func begin(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	from: Vector2,
 	facing: Vector2,
 	exclude: Array,
@@ -104,7 +102,7 @@ func begin(
 	_reach = float(sight["view_distance"])
 	_near = float(sight["awareness_radius"])
 	_fov = deg_to_rad(float(sight["fov_degrees"]))
-	_job.start(facing, exclude, float(sight["see_over_coverage"]))
+	_job.start(facing, exclude, float(sight["eye_height"]))
 	_build.clear()
 	_fan_hide = PackedFloat64Array()
 	_shapes.see_over = _job.see_over
@@ -138,6 +136,8 @@ func step(units: int) -> bool:
 		match _job.stage:
 			Job.Stage.CORNERS:
 				_read_corners()
+			Job.Stage.HITS:
+				_run_hits(until)
 			Job.Stage.FAN:
 				_run_fan(until)
 			Job.Stage.VISIBLE:
@@ -149,15 +149,52 @@ func step(units: int) -> bool:
 	return _job.stage == Job.Stage.DONE
 
 
-## Stage 1: the shapes about the eye, in one piece (a shape query, asked again while it is full).
+## Stage 1: the shapes about the eye, as the region's shape query alone (asked again while it is
+## full): its hits are folded into corners by `_run_hits`, a chunk of them a piece of work, so the
+## frame a job starts in is not the whole of the corners.
 func _read_corners() -> void:
 	var asked := _shapes.queries
-	_build.found = _shapes.corners(_space, _from, _reach, _job.exclude, _region(_from, _job.facing))
+	_build.hits = _shapes.read_hits(
+		_space,
+		_from,
+		_reach,
+		_job.exclude,
+		_region(_from, _job.facing),
+	)
 	_job.work += (_shapes.queries - asked) * VisionSliceConfig.cost_shape
+	_job.index = 0
+	_job.stage = Job.Stage.HITS
+	if _build.hits.is_empty():
+		_corners_done()
+
+
+## Stage 1b: fold the hits into the corners, `VisionSliceConfig.hit_chunk` of them for each
+## `cost_hits` units, until the work reaches `until` or the last hit is folded.
+func _run_hits(until: int) -> void:
+	var hits := _build.hits
+	var chunk := VisionSliceConfig.hit_chunk
+	var work := _job.work
+	var index := _job.index
+	while index < hits.size() and work < until:
+		var stop := mini(index + chunk, hits.size())
+		_shapes.fold_corners(hits, index, stop, _build.seen)
+		work += VisionSliceConfig.cost_hits
+		index = stop
+	_job.work = work
+	_job.index = index
+	if index >= hits.size():
+		_corners_done()
+
+
+## The corners are all read: the rays come next.
+func _corners_done() -> void:
+	_build.found = _build.seen.values()
 	_build.corners_read = _build.found.size()
-	# Every low collider in reach is left out of the rays from here on: each meets the first blocker
-	# in one cast, where it would otherwise cast again past each low piece on its way.
-	_ray.leave_out(_job.exclude + _shapes.lows())
+	_build.hits = []
+	_build.seen = {}
+	# The rays are level at the eye's height: a piece lower than it is under the ray, so each ray
+	# meets the first blocker in one cast.
+	_ray.leave_out(_job.exclude)
 	_job.index = 0
 	_job.stage = Job.Stage.FAN if _job.facing != Vector2.ZERO else Job.Stage.VISIBLE
 
@@ -323,8 +360,30 @@ func _region(from: Vector2, facing: Vector2) -> PackedVector2Array:
 		for i in REGION_ARC + 1:
 			var angle := -half + float(i) / float(REGION_ARC) * _fov
 			points.append(from + facing.rotated(angle) * round_arc)
-	var grown := Geometry2D.offset_polygon(Geometry2D.convex_hull(points), REGION_MARGIN)
-	return PackedVector2Array() if grown.is_empty() else grown[0]
+	# a mitered grow: one corner for each of the hull's, where a round one would be dozens of near
+	# straight turns the physics engine cannot build a convex hull of
+	var grown := Geometry2D.offset_polygon(
+		Geometry2D.convex_hull(points), REGION_MARGIN, Geometry2D.JOIN_MITER
+	)
+	return PackedVector2Array() if grown.is_empty() else _without_flat_corners(grown[0])
+
+
+## `ring` (a convex polygon) without the vertices on, or almost on, the line between their
+## neighbours (`FLAT_CORNER`): a bubble vertex in the direction of a sector's edge makes one, and
+## the physics engine fails to build a hull of a polygon that has one. What is dropped is far inside
+## the region's margin.
+static func _without_flat_corners(ring: PackedVector2Array) -> PackedVector2Array:
+	var kept := PackedVector2Array()
+	var count := ring.size()
+	for i in count:
+		var before := ring[(i + count - 1) % count]
+		var after := ring[(i + 1) % count]
+		var along := after - before
+		if (along.length_squared() > 0.0
+				and absf(along.cross(ring[i] - before)) / along.length() < FLAT_CORNER):
+			continue
+		kept.append(ring[i])
+	return kept
 
 
 ## Whether `point` is inside the cone or the bubble polygon.
@@ -341,7 +400,7 @@ func _hide_reach(a: Dictionary, a_distance: float, b: Dictionary, b_distance: fl
 		return -1.0
 	if a["collider_id"] != b["collider_id"] or a["shape"] != b["shape"]:
 		return -1.0
-	if _shapes.polygon_of(a["collider"], a["shape"]).is_empty():
+	if _shapes.polygon_of(a["twin"], a["shape"]).is_empty():
 		return -1.0
 	return maxf(a_distance, b_distance)
 

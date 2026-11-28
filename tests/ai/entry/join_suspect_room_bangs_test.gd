@@ -9,7 +9,7 @@ extends GameTest
 ## kitchen, is `join_unsuspected_quiet`.
 ##
 ## Scripted Von (one mechanism: the join stack's mode): whenever asked, SEARCH, ENTER, the back
-## door (`Entry.rules`, its shared switches: no trespass hostility, no flyover). Armed the way Main
+## door (`Entry.rules`, its shared switches: no trespass hostility). Armed the way Main
 ## arms a spawn, the lead with no grenade and the sergeant with one stun (the premise: the stun is
 ## the joiner's). The gunfire is a `hit` event nobody known fired, in the kitchen (as
 ## `tests/_ai/investigate_probe.gd` posts it), more than an awareness radius from the team.

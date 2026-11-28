@@ -12,6 +12,10 @@ class_name CharacterUse extends RefCounted
 ## Extra gap (px) around the body before the collision with a body it left (`keep_clear_of`) is
 ## restored.
 const CLEAR_MARGIN := 3.0
+## How high (px) the overlap test's cylinder starts: clear of a floor slab's top.
+const CLEAR_FROM := 1.0
+## How many results a page of the overlap test holds (`TwinSpace.intersecting` pages it).
+const CLEAR_HITS := 64
 ## Interaction component (Interaction domain): finds and runs object interactions;
 ## `nearest_in_reach`, `is_busy()` and `interaction_label()` go through it.
 const CharacterInteraction = preload("res://scenes/interaction/character_interaction.gd")
@@ -21,7 +25,7 @@ const CharacterInteraction = preload("res://scenes/interaction/character_interac
 const CharacterVehicleUse = preload("res://scenes/vehicle/character_vehicle_use.gd")
 
 ## The character occupied.
-var character: CharacterBody2D
+var character: Node2D
 ## Its use of doors (`character_doors.gd`): the door in reach, working it.
 var doors: CharacterDoors
 ## The CharacterInteraction child, built by `attach()`.
@@ -36,19 +40,16 @@ var _ride_step := Vector2.ZERO
 ## The bodies just left (an interaction's object, a vehicle) whose collision exception waits for the
 ## body to clear them.
 var _clearing: Array = []  # untyped: a body freed while waiting stays in it until the next check
-## The character's collision circle, off while it rides.
-var _shape: CollisionShape2D
 
 
 ## What occupies `host`.
-func _init(host: CharacterBody2D) -> void:
+func _init(host: Node2D) -> void:
 	character = host
 	doors = CharacterDoors.new(host)
 
 
 ## Add the interaction and the vehicle use as children of the character (from its `_ready`).
 func attach() -> void:
-	_shape = character.get_node(^"CollisionShape2D")
 	_interaction = CharacterInteraction.new()
 	character.add_child(_interaction)
 	_vehicle_use = CharacterVehicleUse.new()
@@ -169,7 +170,6 @@ func set_ride_pose(at: Vector2, toward: Vector2, fold: float, step := Vector2.ZE
 	if not _riding:
 		_riding = true
 		character.ammo.cancel()
-		_shape.set_deferred("disabled", true)
 	character.global_position = at
 	character.facing = toward.normalized()
 	character.movement.aim_point = at + character.facing * 64.0
@@ -184,7 +184,6 @@ func set_ride_pose(at: Vector2, toward: Vector2, fold: float, step := Vector2.ZE
 func end_ride() -> void:
 	if _riding:
 		_riding = false
-		_shape.set_deferred("disabled", false)
 	_ride_step = Vector2.ZERO
 	character.movement.aim_point = character.global_position + character.facing * 64.0
 	character.anatomy.invalidate_rig()
@@ -248,7 +247,10 @@ func restore_cleared() -> void:
 		if not is_instance_valid(body):
 			_clearing.remove_at(i)
 		elif not _overlaps(body):
-			character.remove_collision_exception_with(body)
+			TwinSpace.share_space(character, body, false)
+			var contacts := body.get(&"contacts") as VehicleContacts  # a vehicle's own list
+			if contacts != null:
+				contacts.share_space(character, false)
 			_clearing.remove_at(i)
 
 
@@ -259,16 +261,22 @@ func _stand_if_busy() -> void:
 		character.movement.stand_up()
 
 
-## Whether the body (its circle plus `CLEAR_MARGIN`) overlaps `body`'s collider on the solid layer.
+## Whether the body (its circle plus `CLEAR_MARGIN`, as tall as it stands) overlaps `body`'s 3D body
+## in the twin space (interface 29): a piece, a wall or a door, or a vehicle.
 func _overlaps(body: Node) -> bool:
-	var circle := CircleShape2D.new()
-	circle.radius = character.radius + CLEAR_MARGIN
-	var params := PhysicsShapeQueryParameters2D.new()
-	params.shape = circle
-	params.collision_mask = PhysicsLayers.SOLID
-	params.exclude = [character.get_rid()]
-	params.transform = Transform2D(0.0, character.global_position)
-	for result in character.get_world_2d().direct_space_state.intersect_shape(params, 32):
-		if result["collider"] == body:
+	var space := TwinSpace.space_of(character)
+	if space == null:
+		return false
+	var cylinder := CylinderShape3D.new()
+	cylinder.radius = (character.radius + CLEAR_MARGIN) * RenderConfig.unit
+	cylinder.height = BodyHeights.head_top(character.movement.body_posture()) - CLEAR_FROM
+	var params := PhysicsShapeQueryParameters3D.new()
+	params.shape = cylinder
+	params.collision_mask = PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE
+	params.transform = Transform3D(
+		Basis(), PlanSpace.lift(character.global_position, CLEAR_FROM + cylinder.height * 0.5)
+	)
+	for result in TwinSpace.intersecting(space, params, CLEAR_HITS):
+		if TwinSpace.owner_of(result["collider"]) == body:
 			return true
 	return false

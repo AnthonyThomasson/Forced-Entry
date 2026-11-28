@@ -88,8 +88,9 @@ func _completed_snapshots(t: TestContext) -> void:
 	if not t.require(await t.until(seen, 3.0), "set-up: the invader sees two hostiles"):
 		return
 	var perception: Node = brain.get("_perception")
-	var fast: Dictionary = perception.sense(brain.get("goal"), "", 0)
-	var plain: Dictionary = perception.sense(brain.get("goal"), "", 0)
+	var engaged: int = t.actor(&"h1").get_instance_id()  # an NPC with none analyses one hostile
+	var fast: Dictionary = perception.sense(brain.get("goal"), "", engaged)
+	var plain: Dictionary = perception.sense(brain.get("goal"), "", engaged)
 	(plain["demand"].ctx as Dictionary).erase("tactics_cache")
 	fast["demand"].complete()
 	plain["demand"].complete()
@@ -136,12 +137,13 @@ func _order(snap: Dictionary) -> Dictionary:
 func _rings_match_combat_spots(tactics: RefCounted, ctx: Dictionary, hostiles: Array) -> bool:
 	for _pass in 2:
 		for target in hostiles:
-			var tpos: Vector2 = target["pos"]
 			for radius in [tactics.combat_ring_radius, tactics.combat_ring_radius * 2.0]:
 				var ex: Array = ctx["exclude"] + tactics.body_rid(target)
-				var ring: Dictionary = tactics._self_combat_spots(ctx, tpos, ex, radius)
+				var ring: Dictionary = tactics.fire_spots._self_combat_spots(
+					tactics, ctx, target, ex, radius
+				)
 				var plain: Dictionary = tactics.combat_spots(
-					ctx["space"], ctx["self_pos"], tpos, ex, radius
+					ctx["space"], ctx["self_pos"], target, ex, radius
 				)
 				if ring != plain:
 					return false
@@ -154,7 +156,7 @@ func _two_target_snapshot(tactics: RefCounted, ctx: Dictionary, hostiles: Array)
 	for target in hostiles:
 		var front: float = ctx["fronts"][target["id"]]
 		out[target["id"]] = {
-			"fire": tactics.fire_positions(ctx, target),
+			"fire": tactics.fire_spots.fire_positions(tactics, ctx, target),
 			"flanks": tactics.flank_sides(ctx, target, front),
 			"advance": tactics.advance_positions(ctx, target),
 		}
@@ -168,10 +170,10 @@ func _context(t: TestContext, hostiles: Array) -> Dictionary:
 	for h in hostiles:
 		fronts[h["id"]] = (npc.global_position - (h["pos"] as Vector2)).angle()
 	return {
-		"space": npc.get_world_2d().direct_space_state,
-		"map": npc.get_world_2d().navigation_map,
+		"space": TwinSpace.space_of(npc),
+		"map": NavWorld.map_of(npc),
 		"self_pos": npc.global_position,
-		"exclude": [npc.get_rid()],
+		"exclude": SightRay.exclude_of(npc),
 		"hostiles": hostiles,
 		"allies": [],
 		"callouts": [],
@@ -184,7 +186,6 @@ func _context(t: TestContext, hostiles: Array) -> Dictionary:
 func _tactics() -> RefCounted:
 	var tactics := AgentTactics.new()
 	tactics.vision = AgentVision.new()
-	tactics.cover_min = 40.0
 	tactics.flank_distance = 120.0
 	tactics.flank_arc = 30.0
 	tactics.flank_ally_radius = 80.0

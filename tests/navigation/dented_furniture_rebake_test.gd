@@ -16,7 +16,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 700, 400))
-	s.switch(&"projectile.flyover", false)
 	s.switch(&"nav.rebake", true)
 	s.actor(&"shooter", &"puppet", Vector2(120, 200), { "start_slot": 3 })
 	s.object(&"chair", "chair", Vector2(500, 200))
@@ -29,6 +28,6 @@ func run(t: TestContext) -> void:
 	await t.seconds(0.5)
 	shooter.shoot()
 	await t.seconds(3.0)  # past two re-bake ticks
-	var map := t.world.get_world_2d().navigation_map
-	var path := NavigationServer2D.map_get_path(map, Vector2(60, 100), Vector2(640, 300), false)
+	var map := NavWorld.map_of(t.world)
+	var path := NavPlan.path(map, Vector2(60, 100), Vector2(640, 300), false)
 	t.check(path.size() >= 2, "the re-baked map still routes across the arena")

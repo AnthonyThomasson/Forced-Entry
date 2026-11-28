@@ -1,26 +1,16 @@
 extends RefCounted
-## Small procedural props dressing a surface (Objects domain, private): monitors, keyboards,
-## mugs, books, bowls, tools and the like, drawn by the table / cabinet / counter painters from a
-## piece's `art_opts.props` list. Each prop is painted in the host's canonical frame (front toward
+## Small procedural props dressing a surface (Objects domain, private): the cabinet and tech
+## painters still draw a plate or a keyboard, mug and papers with `draw`; the home tops' props
+## (monitors, keyboards, mugs, books, bowls, tools) are items now (`item_home_painter.gd`,
+## `piece_carries.gd`), and this file is the oracle
+## `tests/objects/home_items_keep_the_old_look_test.gd`
+## measures them against. Each prop is painted in the host's canonical frame (front toward
 ## +y), raised so it casts a shadow onto the surface, with sizes in art px scaled by
 ## ArtCanvasConfig.pixel_size and colors from ObjectArtDecorConfig.prop_colors. A monitor's lit
 ## screen edge is drawn `glowing` (it gives light), in the host's screen colour.
 
 ## Props stand above the surface they sit on (cast-shadow height).
 const _HEIGHT := 7
-
-
-## Draw each `{ "kind": String, "at": Vector2 }` entry of `props`; `at` is relative to `area`. A
-## screen glows in `glow` (transparent: the prop palette's `glow`).
-static func draw_all(c: PixelCanvas, props: Array, area: Rect2i, glow := Color(0, 0, 0, 0)) -> void:
-	for p: Dictionary in props:
-		var at: Vector2 = p.get("at", Vector2(0.5, 0.5))
-		draw(
-			c,
-			String(p.get("kind", "")),
-			area.position + Vector2i((Vector2(area.size) * at).round()),
-			glow,
-		)
 
 
 ## Draw one prop of `kind` centred on `o` (a screen glowing in `glow`, transparent: the palette's).

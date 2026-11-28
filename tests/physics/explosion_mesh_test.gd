@@ -38,12 +38,24 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var mirror := _mirror(t)
 	var layer := PhysicsMeshes.install(mirror)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	t.expect_eq(layer.blasts.shown(), 0, "no burst, no blast")
 	t.check(not _any_visible(layer), "and no part showing")
+	_check_smoke_warmed(t)
 	await _check_a_frag(t, layer)
 	await _check_a_stun(t, layer)
 	await _check_the_pool(t, layer)
+
+
+## Every burst's smoke art is in the toon's atlas once the effects are installed, before any goes
+## off. (The atlas is the process's: run this test on its own to see a missing warm.)
+func _check_smoke_warmed(t: TestContext) -> void:
+	var cold := PhysicsExplosionConfig.looks.values().filter(
+		func(row: Dictionary) -> bool:
+			var art := BlastRig._puff_texture(row.get("smoke_color", Color.GRAY))
+			return not ToonAtlas.holds(art)
+	)
+	t.expect_eq(cold.size(), 0, "every burst's smoke is in the atlas before it goes off")
 
 
 ## A frag: its parts at its place, swelling, cooling, then gone.
@@ -175,10 +187,10 @@ func _any_visible(layer: FxLayer) -> bool:
 	return false
 
 
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	return mirror

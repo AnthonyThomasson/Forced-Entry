@@ -107,16 +107,16 @@ func _door_turn(t: TestContext, brain: Node, perception: Node, views: RefCounted
 ## A re-bake swapped in inside the window drops what was remembered, and the lead equals the plain
 ## one over the new map.
 func _rebake(t: TestContext, brain: Node, perception: Node, views: RefCounted) -> void:
-	var region: NavigationRegion2D = t.world.find_children(
-		"NavRegion", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"NavRegion", "NavigationRegion3D", true, false,
 	)[0]
 	var map := region.get_navigation_map()
-	var before := NavigationServer2D.map_get_iteration_id(map)
+	var before := NavPlan.iteration(map)
 	t.object(&"chair").global_position = Vector2(100, 100)
 	NavBuilder.rebake(region, t.world.house, t.rooms)
 	if not t.require(
 			await t.until(
-				func(): return NavigationServer2D.map_get_iteration_id(map) != before, 3.0,
+				func(): return NavPlan.iteration(map) != before, 3.0,
 			),
 			"set-up: the re-baked map is swapped in",
 	):

@@ -90,7 +90,7 @@ func _note_shot_from(at: Vector2, from: Vector2) -> void:
 		return
 	var far: Vector2 = at + dir * perception.tuning.senses.hearing_radius
 	var hit: Dictionary = perception.sight.vision.wall_hit(
-		perception._character.get_world_2d().direct_space_state, at, far
+		TwinSpace.space_of(perception._character), at, far
 	)
 	var end: Vector2 = (hit["position"] as Vector2) - dir * 4.0 if not hit.is_empty() else far
 	var cell := "%d,%d" % [floori(end.x / 200.0), floori(end.y / 200.0)]

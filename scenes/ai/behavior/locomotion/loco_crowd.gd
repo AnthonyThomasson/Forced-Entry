@@ -79,6 +79,10 @@ var _replan_at := WAIT
 var step_out := Vector2.INF
 ## Where the NPC stood when the hold under way began (INF: none yet).
 var _hold_at := Vector2.INF
+## Seconds since the walk's last tick: the NPC's beat (`npc_pace.gd`) carries a coast's seconds, so
+## every wait a walk counts (a door, a held way, giving way) counts real time. Set by
+## `Behavior.apply`.
+var step := 1.0 / 60.0
 
 
 func _init(locomotion: Node) -> void:
@@ -118,6 +122,20 @@ func held_at() -> Vector2:
 ## (`begin_hold`): how long it has stood held.
 func held_time() -> float:
 	return held_for if loco._way == loco.Way.HELD else 0.0
+
+
+## Seconds until a held walk re-plans (`check_held`), 0 or less once it is due: what an entry reads
+## to ask for the map its verdict on the slot is read from just before it is needed
+## (`EntryApproach.tick_approach`). Meaningful while the walk is held.
+func replan_in() -> float:
+	return _replan_at - held_for
+
+
+## Bring the held walk's next re-plan in to `within` s from now when it is later than that (an entry
+## whose verdict on its slot met a map not baked yet asks again when it has landed,
+## `EntryApproach._slot_sealed`).
+func pull_replan(within: float) -> void:
+	_replan_at = minf(_replan_at, held_for + within)
 
 
 ## True once each time a held walk has re-planned and found no way through (the body seals the only
@@ -267,8 +285,9 @@ func at_rest(around: Vector2, reach: float) -> Array:
 		if int(b.get("id", 0)) == ignore_id:
 			continue
 		var pos: Vector2 = b["pos"]
-		if ((b.get("vel", Vector2.ZERO) as Vector2).length() < rest_speed
-				and pos.distance_to(around) <= reach):
+		# The nearness first: most bodies are far, and the two tests do not depend on each other.
+		if (pos.distance_to(around) <= reach
+				and (b.get("vel", Vector2.ZERO) as Vector2).length() < rest_speed):
 			out.append(pos)
 	return out
 

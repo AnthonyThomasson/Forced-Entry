@@ -57,7 +57,7 @@ navigation map.
 _Avoid_: ruin, building (a tower)
 
 **Steering tile**:
-One 512 px region of a district's steering map (`NavTiles`), re-baked only when what reaches it changed. A tick that finds several due bakes one a physics frame, never two on a frame (the tiles holding a walker, a living character moving at `REST_SPEED` or more, first, nearest first, then the grid's order), and lands them all in the frame of the last: the steering map synchronises once a tick, not once a tile (its edge-connection pass is off: ~0.3 ms, it was ~12 ms). A tile's polygon edges along a border are split at the vertices its neighbour has there (the **seam weld**, `NavSeams`), so both sides hold the same edges to the server; the tiles lie on a grid of whole pixels (`NavTiles.whole_pixels`).
+One 512 px region of a district's steering map (`NavTiles`), re-baked only when what reaches it changed. A tick that finds several due tiles starts their bakes a physics frame each on worker threads, never two on a frame (the tiles holding a walker, a living character moving at `REST_SPEED` or more, first, nearest first, then the grid's order), and lands them all together `NavBakeConfig.tile_frames` after the last: the steering map synchronises once a tick, not once a tile (its edge-connection pass is off: ~0.3 ms, it was ~12 ms). A tile's polygon edges along a border are split at the vertices its neighbour has there (the **seam weld**, `NavSeams`), so both sides hold the same edges to the server; the tiles lie on the bake's 4 px cells (`NavTiles.on_cells`).
 _Avoid_: chunk, nav cell
 
 **Elevator lobby**:
@@ -65,6 +65,99 @@ The empty placeholder room in every tower, marked on its floor "WIP ELEVATOR LOB
 the upper floors will go. It holds no furniture and has one interior doorway and no door to the street. In the house it
 is an ordinary room to the AI.
 _Avoid_: lobby (a tower's front room), elevator
+
+### Height and cover
+
+**Top height**:
+How high a piece of furniture really stands, in px above the floor at 1 px to a 3D unit and 42.3 px to a metre (a 1.75 m
+person is 74 px): the top of its mass (`PieceHeights.top_of`), with its parts (a sofa's seat, arms and back; a bed's
+mattress and headboard) and the base of a piece that hangs or stands over the head. The meshes' sizes are the one truth
+(`ObjectMesh*Config`), the height reads them, and `docs/research/3d-cover-heights.md` gives the real sizes. A piece at
+least as tall as a posture's head top hides that posture. (The garage's car is a prop, 40 to 60 px; the drivable cars' own heights, `VehicleMeshConfig`, are the vehicles').
+_Avoid_: coverage (the 0 to 100 abstract height, gone: cover is the real 3D line against real heights), cover height
+
+**Duck**:
+The low posture of a character behind cover: a head top of about 0.85 m (36 px) (`BodyHeights.DUCK`), so a piece of at
+least that top hides the whole body. The crouch (C, `movement.set_posture(&"crouch")`) is the duck: the drawn body, the twin and sight
+are all 36 px tall. A ducked character fires by rising to a fire-over (or standing) pose.
+_Avoid_: kneel
+
+**Fire-over**:
+The pose a ducked character rises to for a burst when the cover it is behind blocks its muzzle line: its bore about 1.02 m
+(43 px), clearing 0.9 m cover with the head and shoulders exposed (`BodyHeights.FIRE_OVER`); it drops back after a short
+dwell (`CharacterRiseConfig`, `character.weapon.rise`: `docs/cover-and-stance.md` P6). Player and NPCs alike. It rises only as far as it must (`BodyHeights.lowest_clearing`): fire-over for cover up to
+its muzzle (about 1.0 m), standing for taller cover up to a standing muzzle (about 1.55 m), and above that it does not rise: it fires from where it stands and the round meets the cover.
+_Avoid_: pop-up, peek
+
+**Level shot**:
+A shot aimed with nothing under the cursor but floor: it leaves the muzzle (its posture's bore, `BodyHeights.muzzle`) and
+flies level toward the floor point, striking whatever stands in that line at that height (a table under the bore is cleared,
+a wardrobe over it is not). With a body or the cover hiding one under the cursor the shot is aimed at that point instead
+(`Pointer.aim_hit`); an NPC aims at the middle of its target's torso.
+_Avoid_: flat shot, fly-over (the old chance a round cleared cover)
+
+**Plan space**:
+The floor plan the AI, world generation, navigation and most tests think in: a `Vector2` `(x, y)` that is `(x, z)` on the
+3D ground. `PlanSpace` lifts a plan point and a height to a `Vector3` `(x, height, y)` and back, on the render's one
+scale (`RenderConfig.unit`); height enters only where it matters (an eye, a muzzle, a top, a grenade's altitude).
+_Avoid_: world space (the 3D world's own axes), 2D space
+
+**Plan handle**:
+The plain `Node2D` that stands for one sim root (a wall, a floor, a piece, a door, a vehicle, a character) in plan space: its place,
+facing and plain data (outline, footprint, groups `BODIES` and its kind's). It is no physics body and holds no shape or layer: no 2D
+physics exists. The twin is the truth, the handle the footprint written from it (a wall's, once).
+_Avoid_: 2D body, collider
+
+**Twin**:
+A 3D body in the twin space (`TwinSpace`) that stands for one solid root, with its real heights: a wall (96 px; its dents are kept as polygon
+data on the `Wall` handle, `segment_shapes()`, and cut into the twin), a floor slab, a piece of furniture as one box per part (`PieceHeights`), a door's leaf, a vehicle's body, a
+character's upright cylinder whose height follows its posture (`BodyHeights`; off while it rides, when nothing reads it). Built by each
+domain from outline data lifted by `PlanSpace`; a free piece, a vehicle and a character lead their plan handle, which is written from the
+twin each physics frame (only when it moved); mapped back by `TwinSpace.owner_of` (ADR 0014).
+_Avoid_: mirror (the old registry that followed the 2D bodies with meshes of its own; it is gone: a mesh is carried on the twin), shadow, proxy (the old stand-in box; there is none)
+
+**Twin space**:
+The 3D physics space of the twins (Jolt), the only physics space: no 2D physics is left (`World2D` is read only to find the twin world, whose navigation map the nav is on). Built by `MatchBuilder.stage` for every match and test world, headless too. Gameplay reads it: a 3D ray for a bullet, a
+fragment, a sight line.
+
+**Seam**:
+A stretch of a room's wall that an earlier room's wall already stands on (`Wall.seams`, `WallFactory.seams_for`): two rooms that touch share
+one wall there, built once by the room built first (one 3D wall, one lintel over a doorway in it). The other room's `Wall`
+keeps it as a segment, so its doorways stay cut, with no twin shape.
+_Avoid_: shared wall (as two walls), coincident wall
+
+**Walk-over item**:
+A small piece (`ItemBody`: a plate, a cup, a bowl, a book) whose highest point is within a step (`DoorFallConfig.step_over`, 10 px) of the floor.
+It lies on `PhysicsLayers.TWIN_WALKOVER`: a walker or a car does not meet it and nothing pushes it, the nav map has floor under it, while a round, a
+blast and anything that falls onto it still meet it. Stood up, tipped or set on a table it is on `TWIN_WORLD` and an obstacle. `docs/stacked-items.md`.
+_Avoid_: flat item, small item (as a rule)
+
+**Emptied piece** (a piece that carries):
+A piece whose look used to build loose things in (a shelf's books, a crate stack's crates, a pallet's wrapped boxes, a hotplate's plate and pan, a desk's monitor and mug, a counter's board) and now carries them as items, set where they were drawn (`PieceCarries`, `RoomItems.carry`; its catalogue row's `carries`, or a shelf's `art_opts.loose`). It is drawn and built bare, and the random few-per-top fill skips it. A **place** is one with no mass or art of its own (`crate_stack`, `wrapped_pallet`). `docs/stacked-items.md` SI13, SI14.
+_Avoid_: unbaked piece (the decision's name, D21)
+
+**Top** (of a piece):
+A flat surface a small item can rest on: a table, desk, counter, shelf or cabinet (`ItemsCatalog.TOPS` by key, `TOPS_BY_ART` by painter; an
+empty row, a basin or a mirror is no top). `RoomItems` sets 1 to 3 items on about half of them (a plate or book may be stacked on one) and stacks boxes and crates 2 to 3 high
+on a storage room's floor, from an RNG stream of its own after the furniture. `docs/stacked-items.md` SI9. A piece that `carries` items
+(a desk's monitor, keyboard, mug and papers; a counter's cutting board: SI13, SI14) holds them from the start and takes no random fill.
+_Avoid_: surface (a `SoundSurface` is a floor's sound)
+
+**Lintel**:
+The header of a wall over a doorway, from the door's top (84 px) to the wall's (96 px): a twin of the doorway (`ObjectTwins`), so a
+ray or a grenade at that height is stopped where one lower passes under. Not the door's leaf, which stands only as high as the door.
+_Avoid_: header, transom
+
+**Release height**:
+How high (px above the floor) a thrown grenade leaves the hand: the thrower's posture's, standing about 72 px, ducked about 55,
+a risen pose between (`BodyHeights.release`, from `CharacterMovement.body_posture()`).
+_Avoid_: throw height, hand height
+
+**Arc planner**:
+`GrenadeArc`, Items' one planner of a throw, for the human's throw and the AI's judgment of one: from the release height to the aim,
+the lowest arc (by its peak) that clears what is in the twin space and lands near the aim, flown by the same `SmallFlight` stepper the
+node uses. Only a roof caps a peak (96 px under a house's or a tower's; `GrenadeConfig.max_apex` in the open).
+_Avoid_: trajectory, lob test (the AI's `can_lob` asks the planner)
 
 ### Game tests
 
@@ -179,7 +272,7 @@ One NPC decision as a resumable job (`decision_job.gd`): the claim against the f
 _Avoid_: decision walk (the planner's part of it), decision task
 
 **Work unit**:
-What `DecisionBudget` counts: a pool of `per_frame` units a physics frame shared by every NPC, spent by pieces at their static `cost_*`. Counted, never timed, so a decision starts the same frame on any machine. A unit is about a millisecond (`decision-prices.md`): the default pool is 4 a frame and a typical decision lands over two to three frames. The pool is served oldest claim first (`decision_roster.gd`), at most one decision beginning in a frame.
+What `DecisionBudget` counts: a pool of `per_frame` units a physics frame shared by every NPC, spent by pieces at their static `cost_*`. Counted, never timed, so a decision starts the same frame on any machine. A unit is about a millisecond (`decision-prices.md`): the default pool is 3 a frame and a decision's build lands in two frames (an ambush ranking in eight). The pool is served oldest claim first (`decision_roster.gd`), at most one decision beginning in a frame.
 _Avoid_: tick, time slice, budget (the pool's own name is `DecisionBudget`)
 
 **Piece**:
@@ -191,7 +284,7 @@ The decision job's piece between the order-refusal step and the walk: the `grena
 _Avoid_: grenade piece (the other piece's name), throw stage
 
 **Group piece**:
-The decision job's piece between the order-refusal step and the throw piece: it builds ahead of the walk the option groups the root reads whatever the situation, `leads` (and `entries` first while a stun can be thrown), a lead or a doorway a step (`GroupBuild`, `GroupSteps`, priced by `DecisionBudget`'s `cost_group_unit`), only for a decision that starts at the root. Its groups equal the one-shot build's and are stored in the snapshot's demand, so the planner finds them built. The **grenade piece**, after the throw piece, builds the throws at the hostile the search found one at, one grenade kind a step (`decision-groups.md`).
+The decision job's piece between the order-refusal step and the throw piece: it builds ahead of the walk the option groups the root reads whatever the situation, `leads` (and `entries` first while a stun can be thrown), a lead or a doorway a step (`GroupBuild`, `GroupSteps`, priced by `DecisionBudget`'s `cost_group_unit`), only for a decision that starts at the root. Its groups equal the one-shot build's and are stored in the snapshot's demand, so the planner finds them built. The **grenade piece**, after the throw piece, builds the throws at the hostile the search found one at, one grenade kind a step (a walk level that reads another hostile's stalls on it and the job builds it, `Stage.STALL`) (`decision-groups.md`).
 _Avoid_: lead piece, prefetch
 
 ### Where an NPC acts
@@ -265,7 +358,7 @@ _Avoid_: posted ambusher (one still walking to its post is not primed), camper
 
 **Doorway**:
 The gap in a wall between two rooms, or between a room and the street, as `WorldGen.get_openings` reports it: its centre
-(`pos`) and its `width` (60 px inside, 69 px for the front and the exits), cut in the wall's centreline. A wall's collider
+(`pos`) and its `width` (60 px inside, 69 px for the front and the exits), cut in the wall's centreline. A wall's outline
 reaches half its thickness into the gap, so the free passage between the jambs is narrower by a wall's thickness. A
 doorway with no door is an open gap.
 _Avoid_: door (the leaf that may stand in it), opening (the data record of one)
@@ -278,8 +371,8 @@ _Avoid_: door stack (the AI's stack of members at a doorway), vehicle door (a ca
 
 **Leaf**:
 The swinging panel of a door, which the door's body is: a rectangle a little shorter than the door's `width` (`DoorConfig.leaf_slack`) and `leaf_thickness` thick (`leaf_size()`), turned about its
-hinge between shut and `open_angle` (90°). Knocked down, it lies flat on the floor as a slab and is no longer a leaf in the doorway.
-_Avoid_: panel, slab (the leaf lying down)
+hinge between shut and `open_angle` (90°). Knocked down, it comes off its hinges as a free body that lies where physics leaves it (flat, or leaning on something) and is no longer a leaf in the doorway.
+_Avoid_: panel
 
 **Push side / pull side**:
 The two sides of a door. The pull side is the room the door swings into (`swing_into`): the leaf comes toward someone
@@ -337,19 +430,13 @@ _Avoid_: visible region, culled
 ### The 3D render
 
 **3D render**:
-How every match is drawn: the near top-down view that mirrors the 2D sim, 80 degrees, wearing the 2D painters' flat art (there is no 2D render and no render mode: it was deleted, ADR 0013). The 2D world is
+How every match is drawn: the near top-down view of the twin space's 3D world, 80 degrees, wearing the 2D painters' flat art (there is no 2D render and no render mode: there is no mirror, ADR 0015). The 2D world is
 hidden and never drawn; a test world is shown by the same view in a window.
 _Avoid_: render mode, view mode, graphics setting, 2D render
 
-**3D mirror**:
-The registry (`WorldMirror`, Art) that follows every drawn 2D body in a 3D world each frame, so the 3D view shows what the sim does
-without simulating it: 2D `(x, y)` becomes 3D `(x, 0, y)` at the one scale `RenderConfig.unit`, and height is visual only.
-_Avoid_: 3D world (the sim is still 2D), scene graph copy
-
-**Proxy**:
-The coloured box, cylinder or capsule the 3D mirror shows a collision shape as, sized from the shape (walls full height, floors flat),
-until a domain's own mesh replaces it through the mirror's hook.
-_Avoid_: placeholder, stand-in
+**Mesh carrier**:
+Art's `MeshCarrier`: the view draws the twin space's 3D world, and the carrier hangs each body's mesh (the one its domain's builder makes) on that body's twin, so the picture is where the twin is and nothing writes the mesh. A body no builder answers has no mesh (there is no stand-in box); the drawn things that are no body (a floor stencil, a lying item) are shown by Art's `MeshFollower`. 2D `(x, y)` is 3D `(x, 0, y)` at the one scale `RenderConfig.unit` (ADR 0015, which supersedes ADR 0013's mirror).
+_Avoid_: 3D mirror, proxy
 
 **Mesh kit**:
 Art's code-built low-poly solids (`MeshKit`: box, wedge, cylinder, sphere, capsule, cone, extrude, loft, revolve, and `pose` to turn and place a solid), their cache (`MeshCache`: the same inputs, the same `Mesh`) and node helpers (`MeshNodes`: the
@@ -357,14 +444,14 @@ shared toon material, a decal), in the art's px so a builder never multiplies by
 _Avoid_: model, asset (no model files are imported)
 
 **Mesh hook**:
-The mirror's `builders`, a key (a body kind, or a finer key for one `ObjectArt` id) to the domain's function that builds a body's mesh; with `track` / `track_group` for drawn things that are no physics body. A mesh node may update itself (`mirror_update`), be rebuilt (`remirror`) and decide its death (`on_body_died`).
-A body no builder answers keeps its proxy.
+The carrier's `builders`, a key (a body kind, or a finer key for one `ObjectArt` id) to the domain's function that builds a body's mesh; the follower's `track` / `track_group` for drawn things that are no physics body. A mesh node may update itself (`mirror_update`), be rebuilt (`remirror`) and decide its death (`on_body_died`).
+A body no builder answers has no mesh.
 _Avoid_: plugin, mesh registry
 
 **Pixel post**:
 What makes the 3D picture read as pixel art (`PixelPostConfig`, Art): the scene is drawn at a low internal resolution (a picture pixel is one art pixel,
-`round(zoom)` screen pixels wide, `RenderConfig.texel_match`; at most `max_lines` rows) and shown with nearest filtering, through one toon material that steps
-the light into bands of `ArtSurfaceConfig`'s tones and an outline pass under the camera.
+`round(zoom)` screen pixels wide, `RenderConfig.texel_match`; at most `max_lines` rows) and shown with nearest filtering, through toon materials that share
+one light (the sun stepped into `PixelPostConfig.bands` bands, a lamp's pool shaded by `ToonLightConfig.pool_levels`) and an outline pass under the camera.
 _Avoid_: shader (it is the material, the outline and the resolution together), filter
 
 **Flat paint**:
@@ -372,7 +459,7 @@ A painter's own art with no light baked in (`PixelArt.render_flat`, Art): what t
 _Avoid_: albedo render, unlit paint
 
 **Textured toon**:
-The toon material of a mesh that wears flat paint (`MeshNodes.textured`, `toon_tex.gdshader`): the art projected straight down onto the top faces, the art's edge texels on the sides, one material per texture.
+The toon material of a mesh that wears flat paint (`MeshNodes.textured`, `toon_tex.gdshader`): the art projected straight down onto the top faces, the art's edge texels on the sides, every texture read from one texture array.
 _Avoid_: texture mapping, UVs (the art is projected, no mesh carries UVs)
 
 **Quarter turn**:

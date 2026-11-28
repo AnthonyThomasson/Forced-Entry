@@ -7,7 +7,7 @@ class_name CharacterAmmo extends RefCounted
 ## `EventBus` at its start and once done.
 
 ## The character carrying the magazines.
-var character: CharacterBody2D
+var character: Node2D
 ## The spare magazines carried, as `MagazineConfig.types` ids (several of a kind are fine): two for
 ## each gun. Carried from the character's `_ready` (`restock`); tests and sandboxes set it through
 ## `actor(..., props)` as `"ammo:spare_magazine_types"`.
@@ -23,7 +23,7 @@ var _reload_left := 0.0
 
 
 ## The magazines of `host`.
-func _init(host: CharacterBody2D) -> void:
+func _init(host: Node2D) -> void:
 	character = host
 
 

@@ -25,15 +25,116 @@ const SMOOTH_MAX_MS := 33.4
 ## catalogue holds, and a plan added or dropped changes no seed's load. A small flat would put both
 ## sides in each other's sight from the start, which is a different load. The district is the load
 ## the game plays in: a navigation map about seven times a house's polygons, a few hundred solid
-## furniture footprints and a defender's house that is one of nine (at seed 2: 939 polygons, 406
-## footprints, about 7,700 nodes; the seed 7 it had been: 1,006, 404 and 7,400).
-## Seed 2 since the match plays the same fight on every run (perf-determinism-causes.md): a seed's
-## fight is one fixed fight, and seed 7's (the seed until then, where a run's luck had put contact
-## at 6 to 30 s) became the slow one, the invaders clearing the living room for 18 s before they met
-## the defenders in ambush, so the grenade guard never saw contact within `MATCH_CONTACT_WITHIN`.
-## Seed 2 meets at 7.7 s in the 5v5, 8.1 s in the grenade guard and 6.0 s in both 10v10s, with no
-## late nav bake (seed 13 had four or five in the 5v5, each a 30 to 50 ms frame).
-const MATCH_SEED := 2
+## furniture footprints and a defender's house that is one of nine.
+## The seed is 23: a seed plays one fixed fight, the same on every run
+## (perf-determinism-causes.md). The rule that picked it is in the last of the dated notes below,
+## just above `MATCH_SEED`; the earlier ones were measured on the seeds before it.
+## Re-pick tried on the real-height fragments and escape judgments (#194, 2026-11-18), seeds 1 to 28
+## (1 to 5 runs each, the five match guards and `perf/ambush_order_stress`): none holds them all and
+## their replays, so the seed stayed 2 then. Seed 5 holds the four match guards (5v5 4.8 / 6.7,
+## grenade 6.1 / 10.7, 10v10 11.0 / 17.5 to 18.4, viewed NPC 13.0 to 13.3 / 17.9 to 18.9 ms avg /
+## p95, three runs, no late bake) but meets at 0.78 s in the opening: its window is 348 frames,
+## under the 360 `perf/match_10v10_opening_replay` asks, and the opening guard's max is 40 to 42 ms.
+## The seeds that meet at once (1, 9, 12, 14, 16, 18, 20, 22 to 28) fail the same way or on p95; 17
+## holds four guards and the opening but the viewed invader dies; 19 holds four but a late bake is a
+## 65 to 68 ms frame in the opening and the ambush guard; 3, 13, 15, 21 have late bakes or meet
+## late.
+## Accepted drift (#194, 2026-11-18): `perf/grenade_match_stress` reads +5.5% and +5.9% of the
+## base's average (42a14e18, two A/B runs, different fights) over its 5% bar. Changing
+## either fragment number (damage, flatness: tried 7.5/12, 12/6, 7.5/6, 12/12) re-rolls the fight
+## that guard plays (27 blast hits at the base, 21 now) and costs about 0.5 ms a frame in it,
+## whatever the numbers, while a single frag and stun burst is cheaper than the base's
+## (`perf/grenade_burst_stress` 2.7 against 2.9 ms avg, max 12 against 15): the guard reads the
+## fight it plays, not the code.
+## Accepted drift (#194, 2026-11-19): furniture is a free 3D body led through Jolt, with a
+## frozen 2D footprint twin (D13), and the 10v10 guards play another fight from frame 59: `perf/
+## match_10v10_stress` first contact at 12.9 s (6.0 s at the base) with 21 shots in its window (4),
+## avg 16.1 to 17.0 ms (11.1 to 11.7 at the base), p95 20.7 to 22.3 (14 to 16), max 95 to 104 (20);
+## `match_10v10_opening` p95 18.6 to 22.4, max 37 to 39; `match_npc_vision` fails its premise
+## (the viewed invader lives: it did at the base, too). Attributed, not tuned: the twin bookkeeping
+## itself (`TwinSpace.update` over 706 rows) is 0.2 ms a frame, the engine step with Jolt and the
+## 2D space 1 to 3 ms, and 0 to 3 of 168 free pieces are awake in the window. The 95 to 104 ms
+## frame is one cold ambush ranking (`EntryPosts._ambush_ranking`, 76 ms; 18 ms at 761) the first
+## time an NPC is ordered to ambush a door in the window (nav ready, a cache miss), and the two are
+## two doors (`door_-490_760`, `door_-500_360`: not the same work). The pieces do not make a ray
+## dearer: 4000 random rays over the district (3563 hits) cost 1.7 to 2.0 us each with the 168
+## pieces free `PieceBody`s in Jolt's tree and 1.7 to 2.0 us with them `StaticBody3D`s (the house
+## alone, 8 pieces: 1.2 against 1.2 us). The fight, not the pieces. No surviving 2D consumer showed
+## as the cost (nav bakes 86 of 86 in time against 70 at the base). The twin bookkeeping and the 2D
+## footprint go with the 2D space; the budgets are left to the performance work.
+## A/B (`tools/perf_ab.sh eb62a885 09478516 --different-fights`): `match_5v5_stress` +2.5%,
+## `grenade_match_stress` -12.3%, `match_10v10_opening` -2.5%, `match_npc_vision` -21.9%,
+## `match_10v10_stress` +54.7% (avg; the fight above).
+## Accepted drift (#194, 2026-11-21): the houses and the district tower rooms are built with
+## small items on their flat tops and boxes and crates stacked on a storage floor (`RoomItems`,
+## `docs/stacked-items.md` SI9: the district of seed 2 holds 785 twin bodies, 729 before, 56 of them
+## `ItemBody`; Jolt's cap is 10240). The items change the fights (a bullet meets a plate, a monitor,
+## a box stack; an item goes only on what is as big as it, the review's M1 fix, which moved the
+## stacks again): `tools/perf_ab.sh f25eef47 9cfd891c --different-fights`, 6 rounds, medians avg /
+## p95 / max in ms): `match_5v5_stress` 7.86 / 12.73 / 29.16 to 7.69 / 12.84 / 21.85,
+## `grenade_match_stress` 8.32 / 14.26 / 24.67 to 7.01 / 12.58 / 30.13, `match_10v10_stress`
+## 10.34 / 15.57 / 22.30 to 13.82 / 19.17 / 23.93 (+33.8% avg: the fight differs from frame 47 and
+## it is another one; the first A/B before the fix read +32%; single runs read p95 20.2 to 29, over
+## its 20 ms), `match_npc_vision` 13.14 / 18.63 / 23.34 to 11.40 / 16.69 / 34.00 (the max is the
+## opening frame: a decision, a cone start, three callouts; its premise, the viewed invader
+## living, fails at the base too). Two more guards miss their budgets with the items, and are left
+## so (two runs each, a quiet machine): `match_10v10_opening` p95 21.8 and 22.4 ms (20.2 and 20.8 at
+## the base, over its 20 already), `match_npc_vision` max 34.6 ms over its 33.4 (and the premise).
+## Not tuned, no standard loosened: the items moved the fight and the seed pick was left open (the
+## 10v10 guards over at least 24 seeds a side on a quiet machine, the `match_npc_vision` premise
+## and seed).
+## Accepted drift (#194, 2026-11-21): the shelves and the stock give up what they built
+## in (`docs/stacked-items.md` SI13: books in runs of up to six, shelf boxes, shoes, two or three
+## loose crates a stack, a pallet with four wrapped boxes, the hotplate's plate and pan are items;
+## the crate stacks and pallets are non-solid places, and the stockroom's floor is strewn with
+## stacks of boxes and crates around them again).
+## Twin bodies, counted one way: `TwinSpace.bodies()` 120 frames after `s.district(MATCH_SEED,
+## "garage_home")` is built (the bodies that have a twin; the plan is named with every count, since
+## another plan is another count): seed 2 holds 881 and seed 13 1031 at eaf06c4f, and
+## 1165 and 1410 with the shops' items (the shop, noodle, clinic and ripperdoc pieces
+## carry what they drew, `docs/stacked-items.md` SI16), against Jolt's 10240. The figures given
+## earlier (865 and 984, then 731 and 895) were counted another way or not reproduced.
+##
+## Absolute standards (`tools/run_tests.sh --domain=perf`, `--base=08f43a10` and the tip,
+## the failing ones again alone, one after the other, load 6 to 13 from other workers: a loaded
+## run fails nearly every guard at either revision): at the tip every guard passes alone but
+## `perf/match_npc_vision`; the five that failed in the loaded run (`nav_plan_ring_stress`,
+## `nav_snap_repeat_stress`, `npc_crowd_stress`, `shot_layer_cost`, `vehicle_fleet_stress`) pass
+## alone at both revisions, as do the four match guards at the tip (the base's own 10v10 p95 read
+## 23.4 and 20.6 in that run). `match_npc_vision` fails at both: at the base its premise (the
+## viewed invader lives) and a 35.8 max, at the tip the invader lives the whole window (the fight
+## moved) and the window reads avg 18.4 / p95 27.9 / max 34.0 over 16.7 / 20 / 33.4. Not tuned, no
+## standard loosened: the seed and premise were left to the re-pick below.
+## Red at the tip, left to the re-pick below (#194, 2026-11-21; measured at e9156c56, before the
+## shelves' items merge: not again after it, the home tops add 7 bodies to a 691-body district;
+## `match_10v10_stress` max 39 against its 33.4 budget, passed at the base; not accepted, not
+## tuned): the painted props of the desk,
+## side table, console, nightstand, dresser, counters, island and workbench are items now
+## (`RoomItems.carry`, SI13), and those tops take no random fill; the district of seed 2 holds 782
+## bodies (775 at 08f43a10, 63 `ItemBody` against 56; seed 35, the most of ten tried, 818 against
+## 817; Jolt's cap is 10240) and every item is asleep within 4 s. Two runs a side at 08f43a10 and
+## e9156c56 (load 4 to 5, not quiet): `match_10v10_stress` max 27.3 and under 33.4 at the base, 39.2
+## and 39.8 at the tip (avg 13.8 and 14.2, p95 18.6 and 19.0: inside), `match_10v10_opening` max
+## 30.0 and 31.1 against 42.6 and 39.8 (it misses its avg and p95 at the base already),
+## `match_npc_vision` red at both (the premise, the viewed invader living). The fight is another
+## one, not a dearer one: the first frame it differs on is 65 (an NPC 1 px off), contact comes at
+## 14.6 s against 6.0 s, 72 decisions asked against 60, and its worst frames hold the same work as
+## the base's (a decision with a grenade build, a shot's sounds). The items' own cost is nil: over a
+## fixed 6 s warm-up and 300 frames in that district (no wait for contact), avg / p95 / max in ms
+## read 14.4 to 15.0 / 19.6 to 20.7 / 23.3 to 31.0 at the base and 10.7 to 11.3 / 12.8 to 13.7 /
+## 15.2 to 22.3 at the tip, with at most 3 rigid bodies awake after it at the base and none at the
+## tip. Not tuned, no budget loosened: the 10v10 seeds (at least 24 a side) and the
+## `match_npc_vision` premise were left to the re-pick below.
+## #194 re-pick (2026-11-24, was 2): at the 3D tip the first contact comes in the match's
+## first second (a sighting through a window over real heights; seed 2 contacted at 7.1 s before
+## the 3D world, 3.1 s with it). Over seeds 1 to 32 (one play each, load 3 to 6, alone, at
+## b3ca278b) the first contact reads 0 to 0.5 s on 15 seeds, 0.5 to 1 s on 7, 1 to
+## 3 s on 3, 3 to 6 s on 3, 6 to 10 s on 3 and 17 s on one: the median is 0.525 s. The rule that
+## picks the seed: the contact time nearest that median, the viewed invader living through the
+## `match_npc_vision` window, the contact inside the opening window: seed 23 (contact 0.50 s).
+## Seed 2 is a 7.1 s outlier of the 3D fight and its viewed invader dies in the window. Not a pick
+## by passing (opening passes on 2 of 32 seeds, stress 5, vision 0): the guards' budgets stand.
+const MATCH_SEED := 23
 const MATCH_PLAN := "garage_home"
 ## Test seconds a match guard's warm-up runs before it waits for contact (`warm_until_contact`).
 const MATCH_WARMUP_S := 6.0
@@ -58,8 +159,9 @@ const MATCH_LOGS := [
 	"NavigationPolygon polygon convex partition failed",
 ]
 
-## `NavBake`'s started and late counts when the running guard's warm-up began (`log_late_bakes`):
-## empty until `warm_until_contact` takes one, and again once `log_late_bakes` has read it.
+## `NavBake`'s started and late counts and `NavGather`'s late fusings when the running guard's
+## warm-up began (`log_late_bakes`): empty until `warm_until_contact` takes one, and again once
+## `log_late_bakes` has read it.
 static var _bakes_mark: Array = []
 
 
@@ -103,7 +205,7 @@ static func warm_until_contact(t: TestContext, label: String, characters: Array)
 ## Take the nav bakes' counts now, for `log_late_bakes` (a guard whose window opens by itself, not
 ## through `warm_until_contact`, marks where it opens).
 static func mark_bakes() -> void:
-	_bakes_mark = [NavBake.started_total, NavBake.late_total]
+	_bakes_mark = [NavBake.started_total, NavBake.late_total, NavGather.late_total]
 
 
 ## Wait for the fight's first sign: a shot fired or some NPC among `characters` knowing a hostile,
@@ -226,20 +328,21 @@ static func within(t: TestContext, label: String, value: float, limit: float) ->
 	return t.check(value <= limit, "%s: %.2f is over its budget of %.2f" % [label, value, limit])
 
 
-## Log (`PERF <label> nav bakes late N of M`) how many of the nav bakes started since the guard's
-## `warm_until_contact` were still running when their landing frame came (`NavBake`: a late one
-## holds the frame), so a creeping share shows in the log before it shows in a frame budget. Logs
-## nothing for a test that took no mark (it never ran `warm_until_contact`: not a match guard), and
-## reads the mark once, so one guard's mark never reaches the next test.
+## Log (`PERF <label> nav bakes late N of M, gather fusings late K`) how many of the nav bakes
+## started since the guard's `warm_until_contact` were still running when their landing frame came
+## (`NavBake`: a late one holds the frame), so a creeping share shows in the log before it shows in
+## a frame budget. Logs nothing for a test that took no mark (it never ran `warm_until_contact`: not
+## a match guard), and reads the mark once, so one guard's mark never reaches the next test.
 static func log_late_bakes(label: String) -> void:
 	if _bakes_mark.is_empty():
 		return
 	var mark := _bakes_mark
 	_bakes_mark = []
-	GameLog.say("PERF %s nav bakes late %d of %d" % [
+	GameLog.say("PERF %s nav bakes late %d of %d, gather fusings late %d" % [
 		label,
 		NavBake.late_total - mark[1],
 		NavBake.started_total - mark[0],
+		NavGather.late_total - mark[2],
 	])
 
 

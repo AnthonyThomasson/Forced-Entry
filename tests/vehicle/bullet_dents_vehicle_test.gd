@@ -1,17 +1,19 @@
 extends GameTest
 ## V6 (ticket #54): bullets hit a vehicle like furniture: get_surface() reports metal with high
-## coverage and a high resistance to being shot through, and take_hit dents it (a Deformable records
+## a high resistance to being shot through, and take_hit dents it (a Deformable records
 ## the impact) and throws debris. There is no vehicle destruction: after more rounds it is still
 ## there.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+## A round aimed this low (px) meets a chair, a lamp or a car; a level one at the muzzle flies over.
+const LOW := 10.0
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "A bullet dents a vehicle",
 		"description": "A pistol puppet shoots the car: the hit names the car, its surface is "
-			+ "metal (coverage 60+, penetration 80+), its Deformable records the impact, debris "
+			+ "metal (penetration 80+), its Deformable records the impact, debris "
 			+ "flies, and six more rounds leave it standing.",
 		"tags": ["vehicle", "car", "hittable", "deformation", "pistol"],
 		"timeout": 15.0,
@@ -21,7 +23,6 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 900, 500), { "floor": "concrete" })
 	s.switch(&"nav.rebake", false)
-	s.switch(&"projectile.flyover", false)
 	s.vehicle(&"car", &"car", Vector2(560, 250))
 	s.actor(&"shooter", &"puppet", Vector2(150, 250), { "start_slot": 3 })
 
@@ -46,16 +47,12 @@ func run(t: TestContext) -> void:
 	var surface: Dictionary = car.get_surface()
 	t.expect_eq(surface.get("material"), "metal", "the car's surface is metal")
 	t.check(
-		float(surface.get("coverage", 0.0)) >= 60.0,
-		"with high coverage (%s)" % surface.get("coverage"),
-	)
-	t.check(
 		float(surface.get("penetration", 0.0)) >= 80.0,
 		"and a high resistance to being shot through (%s)" % surface.get("penetration"),
 	)
 
 	var shooter := t.puppet(&"shooter")
-	shooter.aim_at(car.global_position)
+	shooter.aim_at(car.global_position, LOW)
 	await t.seconds(0.5)
 	shooter.shoot()
 	if not t.require(

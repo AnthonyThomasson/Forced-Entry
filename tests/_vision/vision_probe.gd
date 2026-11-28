@@ -16,31 +16,34 @@ extends RefCounted
 ##   - `static watch(root, viewer) -> PlayerView`: build it for `viewer` (null while
 ##     `VisionConfig.enabled` is off).
 ## - `VisionConfig.enabled` (class_name static holder): the switch.
-## - The viewer is any character: `global_position`, `facing`, `get_rid()`.
-## - The world is plain Godot physics: the solid layer (`PhysicsLayers.SOLID`, bit 1) and each
-##   piece's `get_surface().coverage`.
+## - The viewer is any character: `global_position`, `facing`.
+## - The world is plain Godot physics: the twin world layer (`PhysicsLayers.TWIN_WORLD`) and each
+##   piece's real top (the twin space's, `SightRay.top_of`).
 
 const GROUP := &"player_view"
 const WorldScript := preload("res://scenes/testing/test_world.gd")
+const RawTwins := preload("res://tests/_vision/raw_twins.gd")
 ## The visibility bits of the spec (V5): what stays where it is, what moves, the overlays.
 const WORLD := 1
 const MOVING := 2
 const OVERLAY := 4
 ## The spec's sight (V1), kept here on its own: the cone's width (degrees) and reach (px), the
-## bubble's radius (px) and the height (coverage) a line of sight looks over.
+## bubble's radius (px) and the height (px) a line of sight looks over: a standing eye's, 1.64 m at
+## 42.3 px a metre.
 const FOV := 110.0
 const REACH := 2520.0
 const BUBBLE := 48.0
-const SEE_OVER := 60.0
+const SEE_OVER := 69.4
 ## How far (px) a vertex of a cone may sit from the reference cone's: the reach is 2520 px, so this
 ## is 4e-7 of it.
 const TOLERANCE := 0.001
-## The dents the cone tests deal: this many volleys, from this random seed, and a sight that looks
-## over only what is lower than `LOOK_OVER_LOW` (a standing body, 60, blocks it; a crouched one, 35,
-## does not).
+## The height (px) of the column `solid_near` asks over a point: over everything.
+const SOLID_COLUMN := 200.0
+## The height (px) a floor's slab reaches: a solid is what stands above it.
+const FLOOR_LINE := 4.0
+## The dents the cone tests deal: this many volleys, from this random seed.
 const VOLLEYS := 8
 const HIT_SEED := 31
-const LOOK_OVER_LOW := 50.0
 ## The layout the cone tests share: a living room and a kitchen east of it, joined by a doorway
 ## (`DOOR`, 100 px wide) in the wall they share.
 const ROOMS := [
@@ -135,7 +138,14 @@ static func build_world(t: TestContext, setup: TestSetup) -> Node2D:
 	world.process_mode = Node.PROCESS_MODE_PAUSABLE
 	t.world.get_parent().add_child(world)
 	await world.build(setup)
+	RawTwins.register(world)
 	return world
+
+
+## Have `world` (a test's own, or one of `build_world`) twin the bare solids a test adds to it
+## (`raw_twins.gd`).
+static func twin_bare_solids(world: Node) -> void:
+	RawTwins.register(world)
 
 
 ## Free a world made by `build_world` and give back what its setup changed.
@@ -179,20 +189,20 @@ static func _caught_up(t: TestContext, who: Node2D) -> bool:
 	)
 
 
-## The physics space of the test world.
-static func space(t: TestContext) -> PhysicsDirectSpaceState2D:
-	return t.world.get_world_2d().direct_space_state
+## The twin space of the test world (the 3D physics space its bodies' twins stand in).
+static func space(t: TestContext) -> PhysicsDirectSpaceState3D:
+	return TwinSpace.space_of(t.world)
 
 
-## The first thing on the line `from` to `to` too tall to see over (the spec's V1 line of sight), or
-## {}; `exclude` the rids left out.
+## The first thing on the line `from` to `to` too tall to see over (above a standing eye) (the
+## spec's V1 line of sight), or {}; `exclude` the rids left out.
 static func blocker(
 	t: TestContext,
 	from: Vector2,
 	to: Vector2,
 	exclude: Array,
 ) -> Dictionary:
-	return SightRay.hit(space(t), from, to, exclude, SEE_OVER)
+	return SightRay.plan_hit(space(t), from, to, exclude, SEE_OVER)
 
 
 ## Whether `point` is in the sight of an eye at `from` facing `facing` by the spec's V1: within the
@@ -216,20 +226,27 @@ static func in_sight(
 ## Whether something solid lies within `margin` px of `point` (a sample on a wall's edge is neither
 ## clearly seen nor clearly hidden, so a test leaves it out).
 static func solid_near(t: TestContext, point: Vector2, margin: float) -> bool:
-	var circle := CircleShape2D.new()
-	circle.radius = margin
-	var query := PhysicsShapeQueryParameters2D.new()
-	query.shape = circle
-	query.transform = Transform2D(0.0, point)
-	query.collision_mask = PhysicsLayers.SOLID
+	var column := CylinderShape3D.new()
+	column.radius = margin
+	column.height = SOLID_COLUMN - FLOOR_LINE
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = column
+	query.transform = Transform3D(
+		Basis.IDENTITY,
+		PlanSpace.lift(point, (SOLID_COLUMN + FLOOR_LINE) * 0.5),
+	)
+	query.collision_mask = SightRay.MASK
 	return not space(t).intersect_shape(query, 1).is_empty()
 
 
-## How many collision shapes `targets` hold between them.
+## How many collision shapes the twins of `targets` hold between them (a wall's twin is cut again
+## by a dent; a piece's keeps the outline it was built with, so it adds the same number).
 static func collision_shapes(targets: Array[Node2D]) -> int:
 	var count := 0
 	for target in targets:
-		count += target.find_children("*", "CollisionShape2D", false, false).size()
+		var twin := TwinSpace.twin_for(target)
+		if twin != null:
+			count += twin.find_children("*", "CollisionShape3D", false, false).size()
 	return count
 
 

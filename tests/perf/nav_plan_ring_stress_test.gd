@@ -37,8 +37,8 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)  # the first bake is applied a frame or two after the build
-	var region: NavigationRegion2D = t.world.find_children(
-		"NavRegion", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"NavRegion", "NavigationRegion3D", true, false,
 	)[0]
 	var map := region.get_navigation_map()
 	if not t.require(NavBuilder.ready(map), "premise: the planning map answers"):

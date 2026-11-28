@@ -59,7 +59,7 @@ func pieces() -> Array[FxPiece]:
 
 
 ## A burst: `made` is the dict `HitParticles.spawn` made (its amount, direction, spread, speeds,
-## damping, sizes, life, colour and place), flung off a surface at its `height` (0..100, negative:
+## damping, sizes, life, colour and place), flung off a surface at its `height` (px, negative:
 ## the floor).
 func burst(made: Dictionary) -> void:
 	var batch := _sparks if made["spark"] else _bits

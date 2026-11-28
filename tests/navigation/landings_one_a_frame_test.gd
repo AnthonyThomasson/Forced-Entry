@@ -1,13 +1,14 @@
 extends GameTest
 ## Planning, ring and avoid bakes never land more than one on a `GameClock` frame (#195). Every
-## landing welds a polygon, assigns it and so makes its map synchronise on the next step, and a
+## landing assigns a polygon and so makes its map synchronise on the next step, and a
 ## frame that held six of them (a planning bake, the ring and four avoid maps started in the same
 ## few frames) cost 37 to 40 ms in the 5v5 guard, with the bakes whose thread was late waiting for
 ## it in the same frame. A landing that comes due on a frame that already holds one slips to the
 ## next frame, in the order the bakes were started, so the same frames on every run.
 ## Here five avoid maps and a re-bake are started in one frame: all are due on the same frame
 ## (`NavBakeConfig.house_frames` on), and they land one a frame in the order they were asked, the
-## first on its due frame, the last `ASKED - 1` frames after it.
+## first on its due frame, the last `ASKED - 1` frames after it. No bake waits its turn here
+## (`NavBakeConfig.at_once` raised): that rule is `bakes_wait_their_turn`'s.
 
 const ARENA := Rect2(0, 0, 800, 500)
 ## Avoid maps asked in the one frame; the re-bake is one more landing.
@@ -17,9 +18,9 @@ const ASKED := 5
 func describe() -> Dictionary:
 	return {
 		"name": "Bakes land one a frame, in the order they were started",
-		"description": "Five avoid maps and a re-bake started in one frame come due on one frame: "
-			+ "no frame takes in two, they land in the order asked, the first on its due frame "
-			+ "and the last within the number of bakes of it.",
+		"description": "With a place for every one, five avoid maps and a re-bake started in one "
+			+ "frame come due on one frame: no frame takes in two, they land in the order asked, "
+			+ "the first on its due frame and the last within the number of bakes of it.",
 		"tags": ["navigation", "bake", "rebake", "avoid"],
 		"timeout": 20.0,
 	}
@@ -28,17 +29,18 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.arena(ARENA)
 	s.switch(&"nav.rebake", false)
+	s.set_static(NavBakeConfig, &"at_once", ASKED + 1)
 
 
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)  # the first bake is applied a frame or two after the build
-	var region := NavBuilder.planning_region(t.world.get_world_2d().navigation_map)
+	var region := NavBuilder.planning_region(NavWorld.map_of(t.world))
 	if not t.require(region != null, "the planning region is found from the world's map"):
 		return
 	var landed: Array[int] = []  # the GameClock frame of each landing, in the order asked
 	landed.resize(ASKED + 1)
 	landed.fill(-1)
-	var regions: Array[NavigationRegion2D] = []
+	var regions: Array[NavigationRegion3D] = []
 	var start := GameClock.frame()
 	for i in ASKED:
 		var hole := PackedVector2Array([
@@ -46,7 +48,7 @@ func run(t: TestContext) -> void:
 			Vector2(140 + i * 100, 400), Vector2(100 + i * 100, 400),
 		])
 		NavBuilder.avoid_map(region, "key%d" % i, [hole])
-		regions.append(region.get_child(region.get_child_count() - 1) as NavigationRegion2D)
+		regions.append(region.get_child(region.get_child_count() - 1) as NavigationRegion3D)
 	NavBuilder.rebake_async(
 		region, t.world.house, t.rooms, NavBuilder.AGENT_RADIUS,
 		func() -> void: landed[ASKED] = GameClock.frame(),
@@ -54,7 +56,7 @@ func run(t: TestContext) -> void:
 	for _frame in NavBakeConfig.house_frames + 3 * ASKED:
 		await t.frames(1)
 		for i in ASKED:
-			if landed[i] < 0 and regions[i].navigation_polygon != null:
+			if landed[i] < 0 and NavPlan.polygon_of(regions[i]) != null:
 				landed[i] = GameClock.frame()
 	if not t.require(not landed.has(-1), "every bake landed (frames %s)" % str(landed)):
 		return

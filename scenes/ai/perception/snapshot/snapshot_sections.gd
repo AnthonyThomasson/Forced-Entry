@@ -30,8 +30,9 @@ func bind(character: Node) -> void:
 	_character = character
 
 
-## Where the NPC is, whether it is free, what it holds and how hurt it is.
-func situation_text(rooms: Array) -> String:
+## Where the NPC is, whether it is free, what it holds and how hurt it is (`dmg`, the damage it
+## has taken: the build's start read it).
+func situation_text(rooms: Array, dmg: float) -> String:
 	var room := HouseRooms.at(_character.global_position, rooms)
 	var where := (("in the %s, inside the house" % _v.room_name(room["type"]))
 			if not room.is_empty()
@@ -42,7 +43,7 @@ func situation_text(rooms: Array) -> String:
 	return "You are %s, holding a %s.%s%s You are %s." % [
 		where, _character.inventory.current_item().display_name, busy,
 		_v.own_posture_text(_character.movement.posture()),
-		_v.health_band(_character.damage_taken()),
+		_v.health_band(dmg),
 	]
 
 
@@ -194,8 +195,9 @@ func exposure_text(
 	var line: Dictionary = a["line"]
 	var text := ""
 	if line["clear"] and line["in_range"]:
-		text = ("You have a clear shot at %s from where you stand. You are exposed to their fire."
-				% t["name"])
+		var over: String = "" if line["over"] == "" else " over the %s" % line["over"]
+		text = ("You have a clear shot at %s%s from where you stand. You are exposed to their fire."
+				% [t["name"], over])
 	elif line["clear"]:
 		text = "%s is too far to shoot. They can see you." % t["name"]
 	elif line["cover"] != "":
@@ -213,9 +215,7 @@ func exposure_text(
 		text += " %s is blinded by a flash and cannot see you." % t["name"]
 	if t["visible"] and _v.aim_text(t, ctx["self_pos"], []) == "aiming at you":
 		text += " They are aiming at you."
-	var others: Array = _tactics.exposed_to(
-		ctx["space"], ctx["self_pos"], ctx["hostiles"], t["id"], ctx["exclude"],
-	)
+	var others: Array = _tactics.exposed_to(ctx, ctx["self_pos"], ctx["hostiles"], t["id"])
 	if not others.is_empty():
 		text += " You are also exposed to the fire of %s." % ", ".join(others)
 	return text

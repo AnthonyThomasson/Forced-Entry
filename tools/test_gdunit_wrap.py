@@ -5,7 +5,7 @@
 
 gdUnit's own discovery (the one its editor panel runs, through tools/gdunit_discover.gd, headless) must find:
   - one wrapper suite per domain, `tests/<domain>/<domain>_suite.gd`, and one per AI topic folder,
-    `tests/ai/<topic>/<topic>_suite.gd` (27 today), each listing exactly the tests of its folder;
+    `tests/ai/<topic>/<topic>_suite.gd`, each listing exactly the tests of its folder;
   - every catalog test (`tests/**/*_test.gd`, the harness's own in `tests/_harness/` aside) listed by exactly one
     wrapper suite case, named by its id: the case takes one parameter, the id (`test_<x>:<n> ('<id>')`);
   - the harness tests listed only by one self-test suite of their own, which lists nothing else;
@@ -100,9 +100,12 @@ class WrapperSuiteDiscoveryTests(unittest.TestCase):
         self.assertEqual(self.log_scan.returncode, 0, "an engine error or warning during discovery\n" + self.log_scan.stdout)
 
     def test_the_catalog_has_tests_to_wrap(self):
-        # The premise: the files this test reads are the ones the brief counts (27 folders, harness tests apart).
-        self.assertEqual(len(self.wrappers), 27, sorted(self.wrappers))
-        self.assertTrue(self.ids and self.harness)
+        # The premise: there are folders and tests to read, and each folder has its wrapper file.
+        self.assertTrue(self.wrappers and self.ids and self.harness)
+        unwrapped = {i.rsplit("/", 1)[0] + "/" for i in self.ids} - set(self.wrappers.values())
+        self.assertEqual(sorted(unwrapped), [], "folders holding tests that no wrapper is expected for")
+        absent = [s for s in self.wrappers if not (ROOT / s.removeprefix("res://")).is_file()]
+        self.assertEqual(absent, [], "folders with no wrapper file")
 
     def test_one_wrapper_suite_per_domain_and_per_ai_topic_folder(self):
         missing = sorted(s for s in self.wrappers if s not in self.by_suite)

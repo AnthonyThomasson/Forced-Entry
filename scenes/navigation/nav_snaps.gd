@@ -15,7 +15,7 @@ static var _answers: Dictionary = {}
 
 ## `p` snapped onto `map`, from what was learned of it if it was asked again.
 static func closest(map: RID, p: Vector2) -> Vector2:
-	var iteration := NavigationServer2D.map_get_iteration_id(map)
+	var iteration := NavPlan.iteration(map)
 	var kept: Dictionary = _answers.get(map, {})
 	if kept.get("iteration", -1) != iteration or (kept["points"] as Dictionary).size() >= KEPT:
 		if _answers.size() > MAPS_KEPT:
@@ -25,7 +25,7 @@ static func closest(map: RID, p: Vector2) -> Vector2:
 	var points: Dictionary = kept["points"]
 	if points.has(p):
 		return points[p]
-	var answer := NavigationServer2D.map_get_closest_point(map, p)
+	var answer := NavPlan.closest(map, p)
 	points[p] = answer
 	return answer
 

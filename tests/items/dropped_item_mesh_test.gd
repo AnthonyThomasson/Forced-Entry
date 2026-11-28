@@ -39,7 +39,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var mirror := _mirror(t)
 	ItemMeshes.register(mirror)
-	mirror.mirror(t.world)
+	mirror.follow(t.world)
 	await _check_falls_then_lies(t, mirror)
 	await _check_follows_a_skid(t, mirror)
 	await _check_still_costs_nothing(t, mirror)
@@ -48,7 +48,7 @@ func run(t: TestContext) -> void:
 
 ## From the hand it is high and falling; on the floor it is flat, on it, at its place, its muzzle
 ## along its angle (it spins as it lands, so the angle is read from the node).
-func _check_falls_then_lies(t: TestContext, mirror: WorldMirror) -> void:
+func _check_falls_then_lies(t: TestContext, mirror: MeshFollower) -> void:
 	var rifle := _drop(t, 6, Vector2(300, 300), 0.0, Vector2.ZERO)
 	var item: Item = rifle.item
 	await t.frames(2)
@@ -92,7 +92,7 @@ func _check_points_along(
 
 
 ## Thrown off at a speed it skids across the floor, and its mesh stays on its node.
-func _check_follows_a_skid(t: TestContext, mirror: WorldMirror) -> void:
+func _check_follows_a_skid(t: TestContext, mirror: MeshFollower) -> void:
 	var smg := _drop(t, 5, Vector2(200, 500), 0.0, Vector2(260, 0))
 	await t.frames(2)
 	var shown := _shown(t, mirror, smg, "the skidding SMG")
@@ -111,7 +111,7 @@ func _check_follows_a_skid(t: TestContext, mirror: WorldMirror) -> void:
 
 ## A still item is neither written nor updated: the mirror writes nothing and the mesh keeps its
 ## transform.
-func _check_still_costs_nothing(t: TestContext, mirror: WorldMirror) -> void:
+func _check_still_costs_nothing(t: TestContext, mirror: MeshFollower) -> void:
 	var rifle := _drop(t, 6, Vector2(700, 200), 0.3, Vector2.ZERO)
 	await _rest(t, rifle)
 	await t.frames(3)
@@ -128,7 +128,7 @@ func _check_still_costs_nothing(t: TestContext, mirror: WorldMirror) -> void:
 
 
 ## When the node goes, its mesh goes; a hidden node's mesh is hidden.
-func _check_gone_with_its_node(t: TestContext, mirror: WorldMirror) -> void:
+func _check_gone_with_its_node(t: TestContext, mirror: MeshFollower) -> void:
 	var gun := _drop(t, 3, Vector2(800, 500), 0.0, Vector2.ZERO)
 	await _rest(t, gun)
 	await t.frames(2)
@@ -154,8 +154,10 @@ func _drop(t: TestContext, slot: int, at: Vector2, angle: float, velocity: Vecto
 
 
 ## The mesh instance the mirror shows `node` by (null, and a failed requirement, when none).
-func _shown(t: TestContext, mirror: WorldMirror, node: Node2D, what: String) -> MeshInstance3D:
-	var proxies := mirror.proxies_of(node)
+func _shown(t: TestContext, mirror: MeshFollower, node: Node2D, what: String) -> MeshInstance3D:
+	var proxies: Array[Node3D] = []
+	if mirror.mesh_of(node) != null:
+		proxies.append(mirror.mesh_of(node))
 	if not t.require(proxies.size() == 1, "%s is shown by one mesh" % what):
 		return null
 	var found := proxies[0].find_children("*", "MeshInstance3D", true, false)
@@ -184,10 +186,10 @@ func _rest(t: TestContext, node: DroppedItem) -> void:
 	await t.until(func(): return not node.is_physics_processing(), 10.0)
 
 
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshFollower:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshFollower.new()
 	view.add_child(mirror)
 	return mirror

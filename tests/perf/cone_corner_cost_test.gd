@@ -10,20 +10,31 @@ extends GameTest
 ## unit. Each eye is taken `REPEATS` times and the median kept, so a hiccup of the machine falls
 ## out. The test logs the medians (`PERF cone corners: ...`) and holds the price to the measured
 ## ratio within `PRICE_SLACK`, so a retune of the cone that makes the corners much cheaper or
-## dearer than their price fails here, where the price is made again. Timing: run it on a quiet
-## machine (`--quiet`), a loaded run says nothing (`perf.md`).
+## dearer than their price fails here, where the price is made again. The price held is `PRICE`,
+## the user's 225 (2026-11-19), a constant: the run's own price (`cost_shape` for the query and
+## `cost_hits` a chunk of the hits, the median of what a read counted) is held near it, and the two
+## parts, the query (the first step) and the chunks (the steps after it), are each timed apart and
+## held within `PRICE_SLACK` of their own price. Timing: run it on a quiet machine (`--quiet`), a
+## loaded run says nothing (`perf.md`).
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 const Cone := preload("res://scenes/vision/view_cone.gd")
+const Job := preload("res://scenes/vision/view_cone_job.gd")
 const PER_SIDE := 10
 const GRID := 9
 const FACINGS := 3
 const REPEATS := 5
 const SOLID_CLEAR := 20.0
 const INSET := 80.0
+## What the corners cost, in units: the price the user chose (`cost_shape` plus `cost_hits` a chunk
+## are set to make it, in the median read).
+const PRICE := 225.0
 ## The price may differ from the measured ratio by this factor either way.
 const PRICE_SLACK := 2.0
+## How far the run's own median price may be from `PRICE` (a share of it): the chunks a read counts
+## differ by the region it holds.
+const PRICE_DRIFT := 0.15
 ## Fewest eyes the premise needs.
 const MIN_EYES := 20
 ## Health of the viewer, so it lives through the read.
@@ -77,16 +88,57 @@ func run(t: TestContext) -> void:
 		]
 	)
 	t.trace("cone corners in units", ratio)
-	var price := float(VisionSliceConfig.cost_shape)
+	_check_prices(t, reads, ratio)
+
+
+## The prices held: the corners' whole, the run's own price near it, and the query and the chunks
+## each near their own price.
+func _check_prices(t: TestContext, reads: Dictionary, ratio: float) -> void:
+	var price := _median(reads["corner_units"])
 	t.check(
-		price * PRICE_SLACK >= ratio and price <= ratio * PRICE_SLACK,
-		"cost_shape %d is not within %.0fx of the corners' measured %.0f units"
-		% [VisionSliceConfig.cost_shape, PRICE_SLACK, ratio],
+		PRICE * PRICE_SLACK >= ratio and PRICE <= ratio * PRICE_SLACK,
+		"the corners' price (%.0f units) is not within %.0fx of their measured %.0f units"
+		% [PRICE, PRICE_SLACK, ratio],
+	)
+	t.check(
+		absf(price - PRICE) <= PRICE * PRICE_DRIFT,
+		(
+			"the corners' median read costs %.0f units (cost_shape %d, cost_hits %d a chunk), "
+			+ "not the %.0f they are priced at"
+		) % [price, VisionSliceConfig.cost_shape, VisionSliceConfig.cost_hits, PRICE],
+	)
+	var query := _median(reads["query_ratio"])
+	var shape := float(VisionSliceConfig.cost_shape)
+	t.check(
+		shape * PRICE_SLACK >= query and shape <= query * PRICE_SLACK,
+		"the query (cost_shape %d) is not within %.0fx of its measured %.0f units"
+		% [VisionSliceConfig.cost_shape, PRICE_SLACK, query],
+	)
+	var chunks := _median(reads["chunks_ratio"])
+	var chunk_price := _median(reads["chunk_units"])
+	t.check(
+		reads["chunks_ratio"].size() >= MIN_EYES
+		and chunk_price * PRICE_SLACK >= chunks and chunk_price <= chunks * PRICE_SLACK,
+		(
+			"the chunks (%.0f units a read: cost_hits %d) are not within %.0fx of their measured "
+			+ "%.0f units, over %d reads"
+		) % [chunk_price, VisionSliceConfig.cost_hits, PRICE_SLACK, chunks,
+			reads["chunks_ratio"].size()],
+	)
+	GameLog.say(
+		(
+			"PERF cone corners: query %.0f units measured (cost_shape %d), chunks %.0f units "
+			+ "measured (priced %.0f median, cost_hits %d a chunk), corners priced %.0f, "
+			+ "user price %.0f"
+		)
+		% [query, VisionSliceConfig.cost_shape, chunks, chunk_price, VisionSliceConfig.cost_hits,
+			price, PRICE]
 	)
 
 
 ## Every clear eye of a grid over `bounds` with `FACINGS` facings, read by `_measure`: the
-## arrays `corners_us`, `unit_us`, `ratio`, `corner_units` and `rest_units`, one entry a read.
+## arrays `corners_us`, `unit_us`, `ratio`, `corner_units`, `rest_units` and `query_ratio`, one
+## entry a read, and `chunks_ratio` and `chunk_units` for each read that had a chunk to fold.
 func _read_grid(t: TestContext, bounds: Rect2, sight: Dictionary) -> Dictionary:
 	var space := Probe.space(t)
 	var reads := {
@@ -95,6 +147,9 @@ func _read_grid(t: TestContext, bounds: Rect2, sight: Dictionary) -> Dictionary:
 		"ratio": [],
 		"corner_units": [],
 		"rest_units": [],
+		"query_ratio": [],
+		"chunks_ratio": [],
+		"chunk_units": [],
 		"ticks": [],
 		"ticks_unpriced": [],
 	}
@@ -105,44 +160,81 @@ func _read_grid(t: TestContext, bounds: Rect2, sight: Dictionary) -> Dictionary:
 				continue
 			for k in FACINGS:
 				var facing := Vector2.RIGHT.rotated(TAU * float(k) / float(FACINGS) + 0.3)
-				var read := _measure(space, at, facing, sight)
-				for key: String in reads:
-					reads[key].append(read[key])
+				_keep(reads, _measure(space, at, facing, sight))
 	return reads
 
 
-## Begin a bare job from `at` and time the corners and then the rest, the median of `REPEATS`.
+## Keep one read in `reads`: every figure of it, and its chunks' where it had a chunk to fold (a
+## region of no hits has none to price).
+func _keep(reads: Dictionary, read: Dictionary) -> void:
+	for key: String in reads:
+		if key != "chunks_ratio" and key != "chunk_units":
+			reads[key].append(read[key])
+	if read["chunk_units"] > 0:
+		reads["chunks_ratio"].append(read["chunks_ratio"])
+		reads["chunk_units"].append(read["chunk_units"])
+
+
+## Begin a bare job from `at` and time the corners (the query, then the chunks) and then the rest,
+## the median of `REPEATS`.
 func _measure(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	at: Vector2,
 	facing: Vector2,
 	sight: Dictionary,
 ) -> Dictionary:
-	var corners: Array[float] = []
-	var rest: Array[float] = []
-	var corner_units := 0
-	var rest_units := 0
+	var times := { "corners": [], "query": [], "chunks": [], "rest": [] }
+	var once := {}
 	for _r in REPEATS:
-		var cone := Cone.new()
-		var t0 := Time.get_ticks_usec()
-		cone.begin(space, at, facing, [], sight)
-		cone.step(1)
-		var t1 := Time.get_ticks_usec()
-		corner_units = cone.work_units()
-		cone.step(1 << 60)
-		var t2 := Time.get_ticks_usec()
-		corners.append(float(t1 - t0))
-		rest.append(float(t2 - t1))
-		rest_units = cone.work_units() - corner_units
-	var unit := _median(rest) / maxf(float(rest_units), 1.0)
+		once = _once(space, at, facing, sight)
+		for key: String in times:
+			times[key].append(once[key])
+	var unit := _median(times["rest"]) / maxf(float(once["rest_units"]), 1.0)
 	return {
-		"corners_us": _median(corners),
+		"corners_us": _median(times["corners"]),
 		"unit_us": unit,
-		"ratio": _median(corners) / maxf(unit, 0.001),
-		"corner_units": corner_units,
-		"rest_units": rest_units,
+		"ratio": _median(times["corners"]) / maxf(unit, 0.001),
+		"corner_units": once["corner_units"],
+		"rest_units": once["rest_units"],
+		"query_ratio": _median(times["query"]) / maxf(unit, 0.001),
+		"chunks_ratio": _median(times["chunks"]) / maxf(unit, 0.001),
+		"chunk_units": once["corner_units"] - once["query_units"],
 		"ticks": _ticks(space, at, facing, sight),
 		"ticks_unpriced": _ticks(space, at, facing, sight, 1),
+	}
+
+
+## One bare job from `at`, timed (us): `corners` (`begin` to the last chunk), of which `query` (the
+## first step, stage CORNERS) and `chunks` (the steps of stage HITS, one chunk a step), and `rest`;
+## and the units counted: `query_units`, `corner_units`, `rest_units`.
+func _once(
+	space: PhysicsDirectSpaceState3D,
+	at: Vector2,
+	facing: Vector2,
+	sight: Dictionary,
+) -> Dictionary:
+	var cone := Cone.new()
+	var t0 := Time.get_ticks_usec()
+	cone.begin(space, at, facing, [], sight)
+	var job: Variant = cone.get("_job")
+	var ta := Time.get_ticks_usec()
+	cone.step(1)
+	var tb := Time.get_ticks_usec()
+	var query_units := cone.work_units()
+	while job.stage == Job.Stage.HITS:
+		cone.step(1)
+	var t1 := Time.get_ticks_usec()
+	var corner_units := cone.work_units()
+	cone.step(1 << 60)
+	var t2 := Time.get_ticks_usec()
+	return {
+		"corners": float(t1 - t0),
+		"query": float(tb - ta),
+		"chunks": float(t1 - tb),
+		"rest": float(t2 - t1),
+		"query_units": query_units,
+		"corner_units": corner_units,
+		"rest_units": cone.work_units() - corner_units,
 	}
 
 
@@ -151,21 +243,24 @@ func _measure(
 ## steps it on): the cone shown is up to twice this less one frames old (`docs/player-vision.md` V1:
 ## 2 to 4 frames old is three ticks).
 func _ticks(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	at: Vector2,
 	facing: Vector2,
 	sight: Dictionary,
 	corners_price := 0,
 ) -> int:
 	var kept := VisionSliceConfig.cost_shape
+	var kept_hits := VisionSliceConfig.cost_hits
 	if corners_price > 0:
 		VisionSliceConfig.cost_shape = corners_price
+		VisionSliceConfig.cost_hits = 0
 	var cone := Cone.new()
 	cone.begin(space, at, facing, [], sight)
 	var ticks := 1
 	while not cone.step(VisionSliceConfig.slice_units) and ticks < 100:
 		ticks += 1
 	VisionSliceConfig.cost_shape = kept
+	VisionSliceConfig.cost_hits = kept_hits
 	return ticks
 
 

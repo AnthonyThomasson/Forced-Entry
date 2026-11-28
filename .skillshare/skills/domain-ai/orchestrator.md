@@ -5,11 +5,14 @@ The AI's own composition root. It holds the NPC's tunables as `tuning` (`NpcTuni
 ## Parts (preloaded, no `class_name`, built once in `_ready`)
 
 - `npc_cadence.gd` (`_cadence`) — a data leaf: the decide timer (`due(delta)`), `forced` and why (`force(reason)`), the hostile-belief window and its pending decision, the walks started, an order awaiting its decision (`order_from`), the salient key and the last snapshot's facts, sections, `last_demand` (`SnapshotDemand`: `complete()` and `full_options()` build and return every option group for the overlay) and analysed target ids.
+- `npc_pace.gd` (`_pace`) — the beat: whether this frame is the NPC's own and the seconds it carries (`beat.md`).
 - `npc_comms.gd` (`_comms`) — the queued EventBus intake (`event_queue`, `process_events`: `&"hit"`, `&"footfall"` within earshot, allies' `&"callout"`, `&"grenade"`, `&"explosion"`, the leader's `&"order"`) and every callout the NPC radios, entry claims (`post_entry_call`) included. A combat callout carries `target_pos`; an investigation one `lead_pos` (read only by its squad, LD29).
 - `npc_reflexes.gd` (`_reflexes`) — following the squad, the grenade evade and the blind roll (its RNG seeded in `bind`), the confinement refresh, and priming an ambusher at its post (`prime`).
 - The decision job (`_job`, `decision/decision_job.gd`) holds the planner (`_job.planner`), which builds and owns the Von client (`DecisionPlanner.setup(tuning.decision)`).
 
 ## One tick
+
+SENSE (2) and ACT (3) run on the NPC's **beat**, one frame in two, staggered by spawn order and woken at once by a hit, a grenade, an order and the rest of `beat.md`; the queued events, the decision job (THINK) and the body run every frame.
 
 1. Queued hits and callouts go into perception; `observe()` refreshes what it sees and remembers; the controller reads `contacts.known()` and behaviour resolves those contacts and honours commitments.
 2. THINK: when free (or forced) and routes can be measured as they will be walked (`AgentPerception.views.routes_ready`, `perception-views.md`), the controller asks its **decision job** (`_job`, `decision-job.md`) for a decision with `request(forced)`; claimed against the frame's `DecisionBudget` pool, it books the decision (`decisions`, the reason, the timer, `_apply_config`), refused, it keeps its wish for the next frame. Every tick `_job.advance()` runs the job's pieces the pool allows: the snapshot build, the order-refusal step, the planner's levels. A forced decision whose entry differs from the job in flight's, and claims, drops it; otherwise the job carries on (`decision-job.md`). The controller holds only its gates and this call; one request site, `_request`.

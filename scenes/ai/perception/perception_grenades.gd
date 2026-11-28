@@ -79,18 +79,17 @@ func _note_flash(data: Dictionary) -> void:
 	if by != perception._character and not (is_instance_valid(by) and _is_ally_body(by)):
 		return
 	var burst: Vector2 = data["position"]
-	var space: PhysicsDirectSpaceState2D = perception._character.get_world_2d().direct_space_state
-	var rids := character_rids()
+	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(perception._character)
+	var point := PlanSpace.lift(burst, float(data.get("height", Explosion.BURST_CENTRE)))
 	var flash := float(data.get("radius", 0.0))  # (The flash radius the burst reports.)
 	var cover := CoverRule.new()
-	cover.height = throw.stand_height()
-	cover.exclude = rids
+	cover.posture = BodyHeights.STAND
 	cover.cover_reach = throw.cover_reach(&"stun")
 	for c in perception.contacts.sightings(null, perception.tuning.memory.lead_ttl, -1.0, true):
 		var d: float = burst.distance_to(c["pos"])
 		if d > flash:
 			continue
-		if Explosion.shields(space, burst, c["pos"], cover):
+		if Explosion.shields(space, point, c["pos"], cover):
 			continue
 		perception._memory.remember(
 			&"flashed",
@@ -115,8 +114,8 @@ func evade_plan() -> Dictionary:
 	if not live.has_known():
 		return {}
 	return live.plan(
-		perception._character.get_world_2d().direct_space_state,
-		perception._character.get_world_2d().navigation_map,
+		TwinSpace.space_of(perception._character),
+		NavWorld.map_of(perception._character),
 		character_rids(),
 	)
 
@@ -132,22 +131,23 @@ func announcements() -> Array:
 ## `can_lob`). `walked`: the thrower walks to `at` first, so the lob must be clear wherever that
 ## walk may end (`throw_clear_on_arrival`).
 func can_lob(at: Vector2, to: Vector2, kind: StringName, walked := false) -> bool:
-	var space: PhysicsDirectSpaceState2D = perception._character.get_world_2d().direct_space_state
+	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(perception._character)
 	var rids: Array = character_rids()
 	if not walked:
-		return throw.can_lob(space, at, to, throw.range_of(kind), rids)
+		return throw.can_lob(space, at, to, rids, kind)
 	return (at.distance_to(to) <= throw.range_of(kind)
-			and throw.throw_clear_on_arrival(space, at, to, rids))
+			and throw.throw_clear_on_arrival(space, at, to, rids, kind))
 
 
 ## Whether the lob a thrower standing at `at` throws onto `to` flies clear, from its hand (any
 ## distance: the range is `AgentThrow.range_of`'s).
-func throw_clear(at: Vector2, to: Vector2) -> bool:
+func throw_clear(at: Vector2, to: Vector2, kind: StringName = &"") -> bool:
 	return throw.throw_clear(
-		perception._character.get_world_2d().direct_space_state,
+		TwinSpace.space_of(perception._character),
 		at,
 		to,
 		character_rids(),
+		kind,
 	)
 
 
@@ -165,24 +165,22 @@ func fuse(kind: StringName) -> float:
 
 ## Whether a standing body at `p` is inside the danger zone of a grenade of `kind` bursting at
 ## `burst`: within its reach (a frag's blast radius and the evade margin, a stun's flash radius) and
-## not shielded from the burst by a wall or taller furniture (agent_throw.gd `in_zone`; bodies
-## shield nothing). False for a kind the NPC has never met.
+## not shielded from the burst by the real 3D line (agent_throw.gd `in_zone`; bodies shield
+## nothing). False for a kind the NPC has never met.
 func in_zone(kind: StringName, burst: Vector2, p: Vector2) -> bool:
 	var threat := GrenadeThreat.new()
 	threat.kind = kind
 	threat.radius = throw.radius_of(kind)
 	threat.burst = burst
 	return throw.in_zone(
-		perception._character.get_world_2d().direct_space_state, threat, p, throw.stand_height(),
-		character_rids(),
+		TwinSpace.space_of(perception._character), threat, p, BodyHeights.STAND
 	)
 
 
-## The rids of every character in the world, this NPC included: the bodies a blast or a lob goes
+## The twin rids of every character in the world, this NPC included: the bodies a lob goes
 ## through.
 func character_rids() -> Array:
-	var rids := [perception._character.get_rid()]
+	var rids := SightRay.exclude_of(perception._character)
 	for other in perception.sight.others():
-		if other is CollisionObject2D:
-			rids.append(other.get_rid())
+		rids.append_array(SightRay.exclude_of(other))
 	return rids

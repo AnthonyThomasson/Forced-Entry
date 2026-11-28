@@ -161,7 +161,7 @@ func _stack_room() -> String:
 func routes_ready() -> bool:
 	var world: World2D = perception._character.get_world_2d()
 	if views.warm(
-			perception._character.global_position, world.navigation_map, world.direct_space_state
+			perception._character.global_position, NavWorld.map_in(world), TwinSpace.space_in(world)
 	):
 		_warming_since = -1
 		return true
@@ -176,7 +176,7 @@ func routes_ready() -> bool:
 func avoided() -> Array:
 	var world: World2D = perception._character.get_world_2d()
 	return (views.views_from(
-		perception._character.global_position, world.navigation_map, world.direct_space_state,
+		perception._character.global_position, NavWorld.map_in(world), TwinSpace.space_in(world),
 	)
 			if views.avoid_views
 			else [])
@@ -202,5 +202,5 @@ func walk_route(to: Vector2, entering := "", from := Vector2.INF) -> Dictionary:
 ## agent_door_views.gd `plain_enters`).
 func walk_enters(to: Vector2, key: String, on := RID(), from := Vector2.INF) -> bool:
 	var at: Vector2 = perception._character.global_position if from == Vector2.INF else from
-	var map: RID = on if on.is_valid() else perception._character.get_world_2d().navigation_map
+	var map: RID = on if on.is_valid() else NavWorld.map_of(perception._character)
 	return views.plain_enters(at, to, map, key)

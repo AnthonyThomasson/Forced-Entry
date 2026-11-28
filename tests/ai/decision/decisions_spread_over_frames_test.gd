@@ -2,12 +2,20 @@ extends GameTest
 ## NPCs that want to decide on the same frame build their decision snapshots over several frames,
 ## not all in one (`DecisionBudget`): eight invaders spawned together all see a hostile from their
 ## first frame; at most one of them starts a decision each frame (a choice that is done on arrival,
-## like firing from where it stands, is decided again on the next), every one of them has decided
-## within two frames apiece (none starves), and with the pool raised to all eight they go on
-## deciding at their cadence (the starts are still one a frame, whatever the pool holds).
+## like firing from where it stands, is decided again on the next), each of them has decided by the
+## frame the pool's own pace gives it (none starves, none waits longer than the one before it by
+## more than a decision's frames), and with the pool raised to all eight they go on deciding at
+## their cadence (the starts are still one a frame, whatever the pool holds).
 
 const COUNT := 8
-const SPREAD_FRAMES := 2 * COUNT + 4
+## The frame the k-th decision lands on, counted from the first frame (#194, measured
+## at the shipped pool and prices, twice the same: the frames are a count, not a time, so nothing
+## varies run to run). Eight invaders with one hostile each: a decision is 14 units (start 1, rings
+## 2, spots 3, two flanks 2, rest 2, retreat 3, finish 1) on a pool of 6, so about two and a half
+## frames apiece, and the eighth lands on frame 20 (frame 31 on a pool of 4, frame 11 before the
+## pieces were split and priced: `decision-prices.md`).
+const LANDS_ON := [3, 5, 8, 10, 13, 15, 18, 20]
+const SPREAD_FRAMES := 20 + 2
 const TARGET := Vector2(900, 60)
 
 
@@ -15,8 +23,8 @@ func describe() -> Dictionary:
 	return {
 		"name": "Decisions are spread over frames",
 		"description": "Eight invaders spawned together start at most one decision per frame and "
-			+ "all decide within two frames apiece; with the pool raised they keep deciding at "
-			+ "their cadence, still one start a frame.",
+			+ "each lands on the frame the pool's pace gives it; with the pool raised they keep "
+			+ "deciding at their cadence, still one start a frame.",
 		"tags": ["ai", "decision", "scripted"],
 		"timeout": 12.0,
 	}
@@ -62,8 +70,8 @@ func run(t: TestContext) -> void:
 		decided_after.append(_decided(brains))
 	t.trace("decided", decided_after[SPREAD_FRAMES - 1])
 	t.check(
-		decided_after[0] <= 2,
-		"on the first frame at most one snapshot started (%d NPCs had decided)" % decided_after[0],
+		decided_after[0] == 0,
+		"on the first frame no decision has landed (%d NPCs had decided)" % decided_after[0],
 	)
 	var one_at_a_time := true
 	for k in range(1, SPREAD_FRAMES):
@@ -75,6 +83,14 @@ func run(t: TestContext) -> void:
 		"all %d had decided within %d frames, none starved (%s)"
 			% [COUNT, SPREAD_FRAMES, decided_after],
 	)
+	for k in COUNT:
+		# The frame (counted from 1) on which the (k+1)-th decision had landed.
+		var lands := decided_after.find_custom(func(n: int) -> bool: return n > k) + 1
+		t.check(
+			lands == LANDS_ON[k],
+			"decision %d landed on frame %d exactly (on frame %d; %s)"
+				% [k + 1, LANDS_ON[k], lands, decided_after],
+		)
 
 	# The pool raised to hold every NPC's pieces (the test harness restores the static afterwards):
 	# still one decision starts a frame (`DecisionRoster.may_start`), so they decide again a frame

@@ -2,7 +2,7 @@ extends GameTest
 ## The 3D mesh of a car and a van (#193 phase 2, Vehicles; `domain-art/meshes.md`): Vehicles
 ## registers a builder under the mirror's vehicle kind and the mirror shows each vehicle by a
 ## kit-built body in place of its proxy box. The hull is the kind's footprint, stands at the
-## how-to's heights (a car 36 px at the belt and 52 at the roof, a van 46 and 78), carries the
+## how-to's heights (a car 40 px at the belt and 60 at the roof, a van 46 and 78), carries the
 ## vehicle's paint and shares one `Mesh` with every vehicle of its kind and paint; four wheels stand
 ## on their sides at the axles and the front pair steer; each door's leaf follows the 2D door (a
 ## swing door's free edge where the
@@ -18,7 +18,7 @@ const VAN_AT := Vector2(500, 600)
 const TURN := 0.5
 const BLUE := Color(0.15, 0.25, 0.7)
 ## Per kind: [belt, roof] heights (px) and the footprint (length, width).
-const CAR := { "belt": 36.0, "roof": 52.0, "size": Vector2(220, 110), "sill": 9.0 }
+const CAR := { "belt": 40.0, "roof": 60.0, "size": Vector2(220, 110), "sill": 9.0 }
 const VAN := { "belt": 46.0, "roof": 78.0, "size": Vector2(260, 125), "sill": 11.0 }
 const MATCH := {
 	"seed": 2,
@@ -61,7 +61,7 @@ func run(t: TestContext) -> void:
 	var mirror := _mirror(t)
 	VehicleMeshes.register(mirror.builders)
 	var materials := ToonMaterial.textured_count()
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	var car := t.vehicle(&"car") as Node2D
 	var van := t.vehicle(&"van") as Node2D
@@ -87,7 +87,7 @@ func run(t: TestContext) -> void:
 
 
 ## The rig the mirror shows `body` by, when it is one of ours.
-func _rig_of(mirror: WorldMirror, body: Node) -> VehicleMeshRig:
+func _rig_of(mirror: MeshCarrier, body: Node) -> VehicleMeshRig:
 	var shown := mirror.proxies_of(body)
 	if shown.size() == 1 and shown[0] is VehicleMeshRig:
 		return shown[0] as VehicleMeshRig
@@ -122,7 +122,8 @@ func _check_hull(t: TestContext, rig: VehicleMeshRig, body: Node2D, spec: Dictio
 	t.check(white, "every face is white: the art is the texture's, the shape the mesh's")
 	var skin := VehicleSkin.body(body.get("kind"), body.get("color"))
 	t.check(
-		_hull(rig).material_override == ToonMaterial.textured(skin["texture"], false),
+		_hull(rig).material_override == ToonMaterial.textured(skin["texture"], false)
+			and MeshNodes.shown_texture(_hull(rig)) == skin["texture"],
 		"it wears the 2D art of its kind and paint (the textured toon)",
 	)
 	var rect: Vector4 = Vector4(
@@ -138,7 +139,7 @@ func _check_hull(t: TestContext, rig: VehicleMeshRig, body: Node2D, spec: Dictio
 
 
 ## Vehicles of one kind share one hull mesh; one paint shares a texture, another has its own.
-func _check_sharing(t: TestContext, mirror: WorldMirror, rig: VehicleMeshRig) -> void:
+func _check_sharing(t: TestContext, mirror: MeshCarrier, rig: VehicleMeshRig) -> void:
 	var twin := _rig_of(mirror, t.vehicle(&"twin"))
 	var blue := _rig_of(mirror, t.vehicle(&"blue"))
 	t.check(
@@ -149,14 +150,19 @@ func _check_sharing(t: TestContext, mirror: WorldMirror, rig: VehicleMeshRig) ->
 		twin != null and _hull(twin).material_override == _hull(rig).material_override,
 		"and the one textured material",
 	)
+	var worn := MeshNodes.shown_texture(_hull(rig))
+	t.check(
+		twin != null and MeshNodes.shown_texture(_hull(twin)) == worn,
+		"and one texture",
+	)
 	t.check(
 		blue != null and _hull(blue).mesh == _hull(rig).mesh,
 		"a car of another paint shares the mesh (the paint is in the texture)",
 	)
 	if blue != null:
 		t.check(
-			_hull(blue).material_override != _hull(rig).material_override,
-			"but has a texture and material of its own",
+			MeshNodes.shown_texture(_hull(blue)) != MeshNodes.shown_texture(_hull(rig)),
+			"but has a texture of its own",
 		)
 		var image := (VehicleSkin.body(&"car", BLUE)["texture"] as Texture2D).get_image()
 		var found := false
@@ -166,14 +172,15 @@ func _check_sharing(t: TestContext, mirror: WorldMirror, rig: VehicleMeshRig) ->
 		t.check(found, "and it is painted in that paint")
 
 
-## Each door leaf wears its own panel's 2D art, and the textured materials are one per texture:
+## Each door leaf wears its own panel's 2D art, and the textures are shared:
 ## a hull and a leaf each, per kind and paint (two cars and a van here), not per vehicle.
 func _check_leaves(t: TestContext, rig: VehicleMeshRig, car: Node2D, before: int) -> void:
 	for def: Dictionary in VehicleConfig.kinds[&"car"]["doors"]:
 		var skin := VehicleSkin.door(&"car", def, car.get("color"))
 		var leaf: MeshInstance3D = rig.doors[def["id"]]["node"]
 		t.check(
-			leaf.material_override == ToonMaterial.textured(skin["texture"], false),
+			leaf.material_override == ToonMaterial.textured(skin["texture"], false)
+				and MeshNodes.shown_texture(leaf) == skin["texture"],
 			"the %s leaf wears its panel's art" % def["id"],
 		)
 		var front: bool = (VehicleConfig.looks[&"car"]["mirror"] as Array).has(def["id"])
@@ -185,7 +192,7 @@ func _check_leaves(t: TestContext, rig: VehicleMeshRig, car: Node2D, before: int
 	var added := ToonMaterial.textured_count() - before
 	t.check(
 		added >= 5 and added <= 16,
-		"textured materials are one per kind, paint and part, not per vehicle (+%d)" % added,
+		"textures are one per kind, paint and part, not per vehicle (+%d)" % added,
 	)
 
 
@@ -215,7 +222,7 @@ func _check_wheels(t: TestContext, rig: VehicleMeshRig, body: Node2D) -> void:
 
 
 ## A turned vehicle carries its mesh round with it.
-func _check_turned(t: TestContext, mirror: WorldMirror) -> void:
+func _check_turned(t: TestContext, mirror: MeshCarrier) -> void:
 	var rig := _rig_of(mirror, t.vehicle(&"turned"))
 	if not t.require(rig != null, "a turned car is shown by a mesh"):
 		return
@@ -360,7 +367,7 @@ func _check_scale(t: TestContext, car: Node2D) -> void:
 	RenderConfig.unit = 0.5
 	var halved := _mirror(t)
 	VehicleMeshes.register(halved.builders)
-	halved.mirror(t.world)
+	halved.carry(t.world)
 	await t.frames(3)
 	var rig := _rig_of(halved, car)
 	if t.require(rig != null, "a car at half scale is shown by a mesh"):
@@ -383,7 +390,7 @@ func _check_main(t: TestContext) -> void:
 	var view := main.get_node_or_null("View3D")
 	if t.require(view != null, "Main built the 3D view"):
 		t.check(
-			view.mirror.builders.has(MirrorProxy.VEHICLE),
+			view.carrier.builders.has(MeshKinds.VEHICLE),
 			"Main's view registers the vehicle's builder",
 		)
 	await MainProbe.close(t, window)
@@ -393,10 +400,10 @@ func _near(a: Color, b: Color) -> bool:
 	return absf(a.r - b.r) + absf(a.g - b.g) + absf(a.b - b.b) < 0.04
 
 
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	return mirror

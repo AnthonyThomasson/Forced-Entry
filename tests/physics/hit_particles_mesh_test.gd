@@ -9,8 +9,9 @@ extends GameTest
 
 const SCRATCH := "user://settings_hit_particles_mesh_test.json"
 const AT := Vector2(400, 300)
-## A hit's 0..100 height is this many px (a wall's 100 is 96); a bit on the floor lies this high.
-const HEIGHT_PX := 0.96
+## A hit's height is px; the test scales it (`PhysicsMeshConfig.height_scale`) so a mesh that
+## ignored the scale would show. A bit on the floor lies this high.
+const HEIGHT_PX := 2.0
 const REST := 2.1
 ## The wood style (`HitParticles.STYLES`): the size of a bit (px), its cone (degrees either side),
 ## and the longest a bit lives (s). A lone impact is a full-strength burst: its speed is 1.3 times
@@ -39,6 +40,7 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 1000, 700))
 	s.switch(&"nav.rebake", false)
 	s.set_static(RenderConfig, &"unit", 1.0)
+	s.set_static(PhysicsMeshConfig, &"height_scale", HEIGHT_PX)
 	s.set_static(Settings, &"path", SCRATCH)
 	s.set_static(Settings, &"setup", {})
 	s.set_static(Settings, &"overlays", {})
@@ -51,7 +53,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var mirror := _mirror(t)
 	var layer := PhysicsMeshes.install(mirror)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	t.expect_eq(layer.bursts.shown(), 0, "no burst, no bit")
 	await _check_a_burst(t, layer)
 	await _check_sparks(t, layer)
@@ -144,10 +146,10 @@ func _burst(_t: TestContext, material: String, height: float) -> Dictionary:
 	return HitParticles.spawn(hit, surface, HitParticles.Kind.IMPACT)
 
 
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	return mirror

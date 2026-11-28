@@ -13,7 +13,10 @@ const CALLOUT_OUT := Color(1.0, 0.55, 0.9)
 const SENT_SHOW := 6.0
 
 ## Whether to draw the hearing overlay.
-@export var show_hearing: bool = false
+@export var show_hearing: bool = false:
+	set(value):
+		show_hearing = value
+		_sync_processing()
 
 
 ## Whether this overlay's toggle is on.

@@ -16,7 +16,7 @@ var _source: Node2D
 
 
 ## The mesh that shows `source` (a node with an `item`, `altitude()`, `heading()` and `shifted`), or
-## null when its item has no loose mesh. A builder for `WorldMirror.track_group`.
+## null when its item has no loose mesh. A builder for `MeshFollower.track_group`.
 static func build(source: Node2D) -> Node3D:
 	var item: Item = source.get(&"item")
 	var flipped: bool = source.has_method(&"flipped") and source.flipped()

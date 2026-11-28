@@ -29,9 +29,7 @@ static func impact_impulse(hit: HitInfo) -> Vector2:
 ## a few red droplets and chips from the entry. Particles need PhysicsConfig.hit_particles_enabled,
 ## chips PhysicsConfig.debris_enabled, and the blood bits BloodConfig.enabled.
 static func spawn_debris(parent: Node, hit: HitInfo, surface: Dictionary) -> void:
-	PhysicsFxHook.hit_height = hit.height  # the 3D render's: where the chips leave the surface
 	_spray(parent, hit, surface)
-	PhysicsFxHook.hit_height = -1.0
 
 
 ## `spawn_debris`'s bursts and chips.
@@ -57,20 +55,17 @@ static func _spray(parent: Node, hit: HitInfo, surface: Dictionary) -> void:
 			hit.blood * 0.7,
 		)
 		if PhysicsConfig.debris_enabled:
-			DebrisSpawner.spawn(
-				hit.position, spray, parent, PhysicsDeformLookConfig.blood_mark_color, "flesh",
-			)
+			var flesh := { "color": PhysicsDeformLookConfig.blood_mark_color, "material": "flesh" }
+			DebrisSpawner.spawn(hit.position, spray, parent, flesh, hit.height)
 	if not PhysicsConfig.debris_enabled:
 		return
-	var base_color: Color = surface.get("color", Color(0.6, 0.6, 0.6))
-	var material: String = surface.get("material", "")
-	DebrisSpawner.spawn(hit.position, spray, parent, base_color, material)
+	DebrisSpawner.spawn(hit.position, spray, parent, surface, hit.height)
 
 
 ## Start a dead body's bleed-out: one slow, flowing pool (BloodPoolConfig.bleed_out_*) spreading
 ## from where its blood leaves it — `source.blood_origin()` if it has one (where it lies), else its
-## position — added under `parent`. `exclude` is the body's RID(s). Returns the pool (null while
-## BloodConfig.enabled is off).
+## position — added under `parent`. `exclude` is the body's twin RID(s). Returns the pool (null
+## while BloodConfig.enabled is off).
 static func bleed_out(parent: Node, source: Node2D, exclude: Array) -> Node:
 	if not BloodConfig.enabled:
 		return null

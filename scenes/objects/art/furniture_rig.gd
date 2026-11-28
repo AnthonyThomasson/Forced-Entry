@@ -119,4 +119,4 @@ func _dented() -> void:
 		return
 	_tint = tinted
 	for solid in _solids:
-		solid.set_instance_shader_parameter(&"base_color", tinted)
+		MeshNodes.base_color(solid, tinted)

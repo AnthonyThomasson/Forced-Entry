@@ -20,6 +20,8 @@ extends RefCounted
 ## argues for. Options are places and things, never verbs — the decision tree decides what to do at
 ## them.
 
+const AgentTactics := preload("res://scenes/ai/perception/agent_tactics.gd")
+const AgentCover := preload("res://scenes/ai/perception/agent_cover.gd")
 const SnapshotBuild = preload("res://scenes/ai/perception/snapshot/snapshot_build.gd")
 const SnapshotVocab = preload("res://scenes/ai/perception/snapshot/snapshot_vocab.gd")
 const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
@@ -121,6 +123,10 @@ func advance_build(staged: SnapshotBuild) -> void:
 			_start_build(staged)
 		SnapshotBuild.Piece.HOSTILE:
 			_hostile_piece(staged)
+		SnapshotBuild.Piece.AMBUSH:
+			_ambush_piece(staged)
+		SnapshotBuild.Piece.RETREAT:
+			_retreat_piece(staged)
 		SnapshotBuild.Piece.FINISH:
 			_finish_build(staged)
 
@@ -154,11 +160,16 @@ func _start_build(staged: SnapshotBuild) -> void:
 	var ctx := _context(knowledge["contacts"], knowledge["callouts"])
 	ctx["engaged_id"] = int(knowledge.get("engaged_id", 0))
 	staged.ctx = ctx
-	staged.parts = { "per_target": {}, "per_sections": {}, "analyses": {}, "targets": {} }
+	# The damage taken is read here once: the RETREAT piece, the facts and the situation line all
+	# use it, whatever lands on the NPC before the build ends.
+	staged.parts = {
+		"per_target": {}, "per_sections": {}, "analyses": {}, "targets": {}, "half": {},
+		"dmg": _character.damage_taken(),
+	}
 	staged.analysed = _analysed_ids(ctx)
-	staged.piece = SnapshotBuild.Piece.FINISH
-	if not ctx["hostiles"].is_empty():
-		staged.piece = SnapshotBuild.Piece.HOSTILE
+	staged.piece = SnapshotBuild.Piece.HOSTILE
+	if ctx["hostiles"].is_empty():
+		_after_hostiles(staged)
 
 
 ## The decision's context every group reads: where the NPC stands, its world, space, map and body,
@@ -170,11 +181,11 @@ func _context(known: Array, callouts: Array) -> Dictionary:
 	var allies: Array = known.filter(func(c): return c["ally"] and not c["hostile"])
 	var ctx := {
 		"world": _character.get_world_2d(),
-		"space": _character.get_world_2d().direct_space_state,
-		"map": _character.get_world_2d().navigation_map,
+		"space": TwinSpace.space_of(_character),
+		"map": NavWorld.map_of(_character),
 		"self_pos": self_pos,
 		"self_id": _character.get_instance_id(),
-		"exclude": [_character.get_rid()],
+		"exclude": SightRay.exclude_of(_character),
 		"hostiles": hostiles,
 		"allies": allies,
 		"callouts": callouts,
@@ -199,12 +210,13 @@ func _context(known: Array, callouts: Array) -> Dictionary:
 	return ctx
 
 
-## One HOSTILE piece: the next hostile given full analysis, with the cheap `line` entries of the
-## listed hostiles ahead of it in the contacts' nearest-first order (and, after the last analysed
-## one, of those that follow it). Per hostile the build gathers the combat geometry (`analyses`),
-## the option groups (`per_target`) and the sections that follow from it (`per_sections`), each by
-## hostile id; `targets` holds each hostile given full analysis with its geometry, for what `demand`
-## builds of it later (its grenade throws and its exposure).
+## One HOSTILE-run piece: a step of the analysis of the next hostile given full analysis
+## (`_analyse_step`: a run of pieces a hostile, so no frame holds all of its geometry), with the
+## cheap `line` entries of the listed hostiles ahead of it in the contacts' nearest-first order
+## (and, after the last analysed one, of those that follow it). Per hostile the build gathers the
+## combat geometry (`analyses`), the option groups (`per_target`) and the sections that follow from
+## it (`per_sections`), each by hostile id; `targets` holds each hostile given full analysis with
+## its geometry, for what `demand` builds of it later (its grenade throws and its exposure).
 func _hostile_piece(staged: SnapshotBuild) -> void:
 	_own_scratch(staged)
 	var ctx := staged.ctx
@@ -214,18 +226,68 @@ func _hostile_piece(staged: SnapshotBuild) -> void:
 	var listed: int = vocab.tuning.decision.max_options_per_level
 	while staged.cursor < hostiles.size():
 		var i := staged.cursor
-		staged.cursor += 1
 		var t: Dictionary = hostiles[i]
 		if not staged.analysed.has(t["id"]):
+			staged.cursor += 1
 			# The hostile bind lists the nearest `max_options_per_level` hostiles and needs only
 			# this cheap line fact of one beyond the cap; hostiles further out need nothing.
 			if i < listed:
 				analyses[t["id"]] = { "line": _line(ctx, t) }
 			continue
-		_analyse_target(staged, t)
+		if not _analyse_step(staged, t):
+			return
+		staged.cursor += 1
 		if _analysed_ahead(staged):
 			return
+	_after_hostiles(staged)
+
+
+## What follows the hostiles: the ambush ranking when the order is an ambush whose posts are not
+## ranked yet, else the retreat spots and the finish.
+func _after_hostiles(staged: SnapshotBuild) -> void:
+	staged.ambush_work = _orders.ambush_work(staged.ctx, staged.knowledge["order"], staged.rooms)
+	_before_finish(staged)
+	if not NavBuilder.ready(staged.ctx["map"]):
+		# Nothing is kept on an unbaked map: a ranking in chunks would be made again by the option.
+		staged.ambush_work = {}
+	if not staged.ambush_work.is_empty():
+		staged.piece = SnapshotBuild.Piece.AMBUSH
+
+
+## What runs before the finish: the RETREAT piece when there is a threat to fall back from (a
+## hostile known, or fire it came from), else the finish itself.
+func _before_finish(staged: SnapshotBuild) -> void:
+	var threat: bool = not staged.ctx["hostiles"].is_empty() or _memory.under_fire()
+	staged.piece = SnapshotBuild.Piece.RETREAT if threat else SnapshotBuild.Piece.FINISH
+
+
+## The RETREAT piece: where to fall back to (the retreat group of the finish's option groups, the
+## heaviest of them: the rings of cover spots round the NPC, the known rooms, a spot beside each
+## ally, each with its route and exposure), worked out ahead of the finish so the finish is not a
+## frame's lump.
+func _retreat_piece(staged: SnapshotBuild) -> void:
+	_own_scratch(staged)
+	var ctx := staged.ctx
+	staged.parts["retreat"] = _options.retreat_group(
+		ctx, ctx["hostiles"], staged.knowledge["known_rooms"], staged.parts["dmg"]
+	)
 	staged.piece = SnapshotBuild.Piece.FINISH
+
+
+## The AMBUSH piece: a chunk of the ambush ranking the finish's order option reads; the retreat
+## spots, or the finish, when the ranking is done.
+func _ambush_piece(staged: SnapshotBuild) -> void:
+	_own_scratch(staged)
+	_orders.ambush_step(staged.ambush_work, staged.ctx)
+	if staged.ambush_work.get("stale", false):
+		# The house changed under the chunks: begin again, the finish when it is kept already.
+		var order: Dictionary = staged.knowledge["order"]
+		staged.ambush_work = _orders.ambush_work(staged.ctx, order, staged.rooms)
+		if staged.ambush_work.is_empty():
+			_before_finish(staged)
+	elif staged.ambush_work.has("ranking"):
+		staged.ambush_work = {}
+		_before_finish(staged)
 
 
 ## Whether a hostile given full analysis is yet to come in the contacts' order.
@@ -237,11 +299,81 @@ func _analysed_ahead(staged: SnapshotBuild) -> bool:
 	return false
 
 
-## The full analysis of hostile `t`: its geometry, option groups and sections, into `staged.parts`.
-func _analyse_target(staged: SnapshotBuild, t: Dictionary) -> void:
+## One step of the full analysis of hostile `t` (a HOSTILE, SPOTS, FLANKS or REST piece, in that
+## order: `parts["half"]["next"]` says which is next and holds what the steps so far made): its
+## line of fire and the rings of fire spots (HOSTILE), its fire spots and ambush spot (SPOTS), the
+## flank on one side of it each (FLANKS), then its advance positions, option groups and sections
+## into `staged.parts` (REST), so no frame holds all of its geometry. Whether the hostile is done:
+## the REST piece ends it. Every step reads the hostile through one pinned copy (`_pinned`), so a
+## hostile that ducks or is freed between the pieces is the hostile the first saw.
+func _analyse_step(staged: SnapshotBuild, t: Dictionary) -> bool:
+	var half: Dictionary = staged.parts["half"]
+	if half.is_empty():
+		_rings_piece(staged, t)
+		return false
+	var pin: Dictionary = half["pin"]
+	pin["node"] = pin["node"] if is_instance_valid(pin["node"]) else null  # Freed since the first.
+	match half["next"]:
+		SnapshotBuild.Piece.SPOTS:
+			_spots_piece(staged, pin)
+		SnapshotBuild.Piece.FLANKS:
+			_flank_piece(staged, pin)
+		_:
+			_rest_piece(staged, t, pin)
+			return true
+	return false
+
+
+## The HOSTILE piece of hostile `t`: read it once, its line of fire and the rings of fire spots.
+func _rings_piece(staged: SnapshotBuild, t: Dictionary) -> void:
+	var ctx := staged.ctx
+	var pinned := _pinned(t)
+	var front: float = ctx["fronts"][t["id"]]
+	staged.parts["half"] = {
+		"pin": pinned,
+		"next": SnapshotBuild.Piece.SPOTS,
+		"a": {
+			"front": front,
+			"own_side": _tactics.side_of(t["pos"], front, ctx["self_pos"]),
+			"line": _line(ctx, pinned),
+		},
+	}
+	staged.parts["half"]["fire"] = _tactics.fire_spots.begin(_tactics, ctx, pinned)
+
+
+## The SPOTS piece: the fire spots and the ambush spot, and the sides a flank is tried on.
+func _spots_piece(staged: SnapshotBuild, pin: Dictionary) -> void:
+	var half: Dictionary = staged.parts["half"]
+	var a: Dictionary = half["a"]
+	_tactics.fire_spots.spots_step(_tactics, staged.ctx, pin, half["fire"])
+	a["fire"] = half["fire"]["out"]
+	half.erase("fire")
+	a["flanks"] = []
+	half["sides"] = _tactics.flank_sides_to_try(staged.ctx, pin, a["front"])
+	half["next"] = (
+		SnapshotBuild.Piece.FLANKS if not half["sides"].is_empty() else SnapshotBuild.Piece.REST
+	)
+
+
+## A FLANKS piece: the flank on the next side (none when the side has no reachable point).
+func _flank_piece(staged: SnapshotBuild, pin: Dictionary) -> void:
+	var half: Dictionary = staged.parts["half"]
+	var a: Dictionary = half["a"]
+	var side: String = (half["sides"] as Array).pop_front()
+	var flank: Variant = _tactics.flank_side(staged.ctx, pin, a["front"], side)
+	if flank != null:
+		a["flanks"].append(flank)
+	if (half["sides"] as Array).is_empty():
+		half["next"] = SnapshotBuild.Piece.REST
+
+
+## The REST piece: the hostile's advance positions, its option groups and its sections.
+func _rest_piece(staged: SnapshotBuild, t: Dictionary, pin: Dictionary) -> void:
 	var ctx := staged.ctx
 	var parts := staged.parts
-	var a := _analyze(ctx, t)
+	var a: Dictionary = parts["half"]["a"]
+	a["advance"] = _tactics.advance_positions(ctx, pin)
+	parts["half"] = {}
 	parts["analyses"][t["id"]] = a
 	parts["targets"][t["id"]] = { "t": t, "a": a }
 	parts["per_target"][t["id"]] = {
@@ -251,6 +383,16 @@ func _analyse_target(staged: SnapshotBuild, t: Dictionary) -> void:
 		"melee": _options.melee_group(ctx["self_pos"], t),
 	}
 	parts["per_sections"][t["id"]] = _target_sections(ctx, t, a)
+
+
+## A copy of contact `t` with its hostile read once: the eye its posture sets and the twin rid to
+## leave out of a ray, which the geometry of every piece of its analysis reads instead of the node.
+func _pinned(t: Dictionary) -> Dictionary:
+	var pin := t.duplicate()
+	pin["eye"] = AgentCover.eye_of(t.get("node"))
+	pin["rids"] = AgentCover.rids_of(t)
+	pin["node"] = pin["node"] if is_instance_valid(pin.get("node")) else null  # Freed since START.
+	return pin
 
 
 ## The FINISH piece: what the whole decision shares, the facts, the option groups, the demand that
@@ -347,7 +489,10 @@ func _primary_section(snapshot: Dictionary, ctx: Dictionary, name: String) -> St
 
 ## The ids of the hostiles that get full analysis (fire, flank, advance and melee options, and
 ## sections): the engaged one when known, then the nearest others, at most the smaller of
-## `max_analysed_targets` and `max_options_per_level` in all.
+## `max_analysed_targets` and `max_options_per_level` in all; an NPC with no engaged hostile
+## analyses one (the second slot is for the one that is fighting): the nearest in sight now, else
+## the nearest by its last known spot. A remembered hostile behind a wall does not take the slot
+## from a farther one in plain view (the one that shoots it is the one the decision is about).
 func _analysed_ids(ctx: Dictionary) -> Array:
 	var cap := mini(
 		vocab.tuning.decision.max_analysed_targets, vocab.tuning.decision.max_options_per_level
@@ -356,6 +501,11 @@ func _analysed_ids(ctx: Dictionary) -> Array:
 	var engaged_id: int = ctx["engaged_id"]
 	if ctx["hostiles"].any(func(t): return t["id"] == engaged_id):
 		selected.append(engaged_id)
+	else:
+		cap = mini(cap, 1)
+		var seen_now: Array = ctx["hostiles"].filter(func(t): return t["visible"])
+		if not seen_now.is_empty():
+			selected.append(seen_now[0]["id"])
 	for t in ctx["hostiles"]:
 		if selected.size() >= cap:
 			break
@@ -374,18 +524,18 @@ func _target_sections(ctx: Dictionary, t: Dictionary, a: Dictionary) -> Dictiona
 
 
 ## What the whole decision shares beyond the hostiles: whether the stack has a stun (`stun_stack`),
-## the damage taken (`dmg`), the gun it fights with (`gun`) and its rounds (`ammo`, -1 without one).
+## the gun it fights with (`gun`) and its rounds (`ammo`, -1 without one); the damage taken (`dmg`)
+## was read by the START.
 ## The doorways to enter by, the leads, the throws and the other groups the walk reads rarely are
 ## `demand`'s.
 func _shared(ctx: Dictionary, knowledge: Dictionary) -> Dictionary:
 	var carried: Array = knowledge["carried_grenades"]
 	var stun_stack: bool = (carried.has(&"stun")
 			or ctx["callouts"].any(func(c): return int(StackClaim.decode(c).get("stuns", 0)) > 0))
-	var dmg: float = _character.damage_taken()
 	# Rounds in the gun it fights with (-1 without one): the AI shoots, reloads and plans around it.
 	var gun: int = _character.inventory.gun_slot()
 	var ammo: int = _character.ammo.rounds(gun) if gun >= 0 else -1
-	return { "stun_stack": stun_stack, "dmg": dmg, "gun": gun, "ammo": ammo }
+	return { "stun_stack": stun_stack, "gun": gun, "ammo": ammo }
 
 
 ## The named facts a `requires` or an entry rule gates on, from the context and the `parts` worked
@@ -442,7 +592,7 @@ func _state_sections(
 			break
 	return {
 		"goal": fill_goal(goal),
-		"situation": _sections.situation_text(rooms),
+		"situation": _sections.situation_text(rooms, parts["dmg"]),
 		"loadout": _sections.loadout_text(
 			parts["gun"],
 			parts["ammo"],
@@ -470,38 +620,64 @@ func _option_groups(ctx: Dictionary, parts: Dictionary, knowledge: Dictionary) -
 		"threat": { "summary": _sections.threat_summary(self_pos, hostiles) },
 		"hostiles": _options.hostile_group(ctx, hostiles, parts["analyses"]),
 		"reload": _options.reload_group(parts["gun"]),
-		"retreat_positions": _options.retreat_group(ctx, hostiles, known_rooms, parts["dmg"]),
+		"retreat_positions": _retreat(ctx, parts, known_rooms),
 		"shooter": _options.shooter_group(ctx, hostiles),
 		"order": _orders.group(ctx, knowledge["order"], rooms),
 	}
 
 
-## The combat geometry around hostile `t`: its frame (front bearing), the line between the NPC and
-## it, and the candidate fire / flank / advance positions.
-func _analyze(ctx: Dictionary, t: Dictionary) -> Dictionary:
-	var self_pos: Vector2 = ctx["self_pos"]
-	var front: float = ctx["fronts"][t["id"]]
-	return {
-		"front": front,
-		"own_side": _tactics.side_of(t["pos"], front, self_pos),
-		"line": _line(ctx, t),
-		"fire": _tactics.fire_positions(ctx, t),
-		"flanks": _tactics.flank_sides(ctx, t, front),
-		"advance": _tactics.advance_positions(ctx, t),
-	}
+## The retreat group: the RETREAT piece's when it ran, else made now (a build with no threat to fall
+## back from, or one made whole).
+func _retreat(ctx: Dictionary, parts: Dictionary, known_rooms: Array) -> Dictionary:
+	if parts.has("retreat"):
+		return parts["retreat"]
+	return _options.retreat_group(ctx, ctx["hostiles"], known_rooms, parts["dmg"])
 
 
-## The clear-shot line to hostile `t`, also computed for hostiles outside the full-analysis cap.
+## The line of fire to hostile `t`, also computed for hostiles outside the full-analysis cap:
+## `clear` (a round reaches where the NPC aims at it, the real 3D line: over a low piece, stopped by
+## a tall one), `in_range`, `cover` (the cover-grade piece the NPC stands behind, as it faces the
+## hostile), `blocker` (what stops the round, "" when none) and `over` (the piece the line of a
+## clear shot passes over, "" when none).
 func _line(ctx: Dictionary, t: Dictionary) -> Dictionary:
 	var self_pos: Vector2 = ctx["self_pos"]
-	var ex: Array = ctx["exclude"] + _tactics.body_rid(t)
-	var obj = _tactics.blocker(ctx["space"], self_pos, t["pos"], ex)
+	var ex: Array = ctx["exclude"] + AgentCover.rids_of(t)
+	var plan = _tactics.blocker(ctx["space"], self_pos, t["pos"], ex)
+	var node: Variant = t.get("node")
+	var target: Node2D = node if is_instance_valid(node) else null
+	var shot: Dictionary = _tactics.vision.fire_stop_from(
+		ctx["space"], self_pos, t["pos"], target
+	)
+	var stop = shot.get("body")
+	var body: Node2D = (
+		_tactics.vision.body_in_fire_line(_character, target, t["pos"], _welcome(ctx))
+		if shot.is_empty()
+		else null
+	)
+	if body != null:
+		shot = { "body": body }
+		stop = body
 	return {
-		"clear": obj == null,
+		"clear": shot.is_empty(),
 		"in_range": self_pos.distance_to(t["pos"]) <= vocab.tuning.combat.shoot_range,
-		"cover": _tactics.object_label(obj) if _tactics.is_cover(obj) else "",
-		"blocker": _tactics.object_label(obj),
+		"cover": _tactics.object_label(
+			_tactics.vision.hiding_piece(
+				ctx["space"], self_pos, t["pos"], AgentCover.eye_of_contact(t), ex
+			)
+		),
+		"blocker": "" if shot.is_empty() else _tactics.object_label(stop),
+		"over": (
+			_tactics.object_label(plan)
+			if shot.is_empty() and plan != null and not plan.is_in_group(&"characters")
+			else ""
+		),
 	}
+
+
+## The bodies a round may hit without holding the shot: the hostiles this snapshot knows.
+func _welcome(ctx: Dictionary) -> Callable:
+	return func(body: Node) -> bool:
+		return (ctx["hostiles"] as Array).any(func(h): return h.get("node") == body)
 
 
 ## The goal text with `{gun}` replaced by what the NPC calls its gun ("shoot them with your {gun}"

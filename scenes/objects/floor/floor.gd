@@ -33,6 +33,10 @@ const StreetMarks = preload("res://scenes/objects/decals/street_marks.gd")
 ## only by the street lamps, the flashes and the street's own sky, so a floor spanning the whole
 ## house is never crowded by the house's lights.
 @export var light_layer: String = ""
+## Whether a roof stands over it (a room of a house or a tower): the twin space has a ceiling over
+## it at the walls' height (`ObjectTwins`), which stops a lob. Open ground, the street, an arena
+## and a roofless shell have none.
+@export var roofed: bool = false
 
 ## The room's wear node (`WearFactory.spawn` sets it: the room's `RoomWear`, in this floor's frame),
 ## whose floor marks the 3D mesh lays on the slab; null for a floor with none.

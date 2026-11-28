@@ -13,6 +13,7 @@ extends RefCounted
 ## `{ id, pos, width, out, room }` (`out` the unit normal away from the room).
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 ## `door_view_depth`: how far (px) the view reaches out of the doorway, along its edge rays.
 const DEPTH := 450.0
 ## `door_avoid_ratio` / `door_avoid_slack`: a route round the views is taken when it is no longer
@@ -271,15 +272,4 @@ static func _sees_doorway(t: TestContext, door: Dictionary, p: Vector2) -> bool:
 ## Whether no wall (a static body) lies on the line from `a` to `b`; furniture and characters are
 ## looked past.
 static func _walls_clear(t: TestContext, a: Vector2, b: Vector2) -> bool:
-	var space := t.world.get_world_2d().direct_space_state
-	var exclude: Array = []
-	for i in 12:
-		var query := PhysicsRayQueryParameters2D.create(a, b, PhysicsLayers.SOLID)
-		query.exclude = exclude
-		var hit := space.intersect_ray(query)
-		if hit.is_empty():
-			return true
-		if hit["collider"] is StaticBody2D:
-			return false
-		exclude.append(hit["rid"])
-	return false
+	return PlanProbe.walls_clear(t.world, a, b)

@@ -1,8 +1,8 @@
 extends Node
-## AI BEHAVIOUR sub-domain — LOCOMOTION. Owns the NavigationAgent2D and turns a target point into
-## steering on the character: `move_to()` writes `character.movement.move_input` to follow a
-## navigated path around walls and furniture and through doorways. The navmesh (baked by the
-## Navigation domain) carves out furniture and rings the house with a walkable outdoor strip, so
+## AI BEHAVIOUR sub-domain — LOCOMOTION. Owns the NavigationAgent3D (`agent`) and turns a target
+## point into steering on the character: `move_to()` writes `character.movement.move_input` to
+## follow a navigated path around walls and furniture and through doorways. The navmesh (baked by
+## the Navigation domain) carves out furniture and rings the house with a walkable outdoor strip, so
 ## paths route around a piece and reroute through another doorway when one is blocked.
 ##
 ## A walk accounts for the characters the NPC KNOWS of (its part `crowd`, locomotion/loco_crowd.gd:
@@ -43,6 +43,8 @@ const Stall := preload("res://scenes/ai/behavior/locomotion/loco_stall.gd")
 const Doors := preload("res://scenes/ai/behavior/locomotion/loco_doors.gd")
 const DoorLeaves := preload("res://scenes/ai/behavior/locomotion/loco_door_leaves.gd")
 const Aim := preload("res://scenes/ai/behavior/locomotion/loco_aim.gd")
+## The walk's agent in plan terms: the walk's seam to the nav's 3D (`NavigationAgent3D`).
+const Agent := preload("res://scenes/ai/behavior/locomotion/loco_agent.gd")
 ## The walk's last-leg rule (`PASS_CLEARANCE`), held once with the doorway geometry that predicts
 ## it (`AgentEntry.slot_reach`).
 const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
@@ -91,7 +93,7 @@ var leaves := DoorLeaves.new(self)
 ## Pointing the agent at the goal only when that can change its path: loco_aim.gd.
 var aim := Aim.new()
 ## Pathfinding agent, or null (falls back to straight-line).
-var _agent: NavigationAgent2D
+var _agent: Agent
 ## The world's navigation map: furniture only, what points are snapped and tested on.
 var _plan_map: RID
 ## The agent's own arrival distance (px), what a walk arrives within unless it asks for less.
@@ -110,18 +112,18 @@ var _character: Node
 ## everything falls back to straight line steering). The agent starts on the world's own map
 ## (`_plan_map`: furniture only, which points are snapped to and tested on); `_set_way` moves it to
 ## the steering map for a walk that goes round a body at rest.
-func setup(agent: NavigationAgent2D, npc_tuning: NpcTuning) -> void:
+func setup(agent: NavigationAgent3D, npc_tuning: NpcTuning) -> void:
 	tuning = npc_tuning
-	_agent = agent
 	if agent == null:
 		return
+	_agent = Agent.new(agent)
 	# The agent has not picked its map yet (its own _ready comes after the controller's), so read it
 	# off the world its character stands in.
-	var body := agent.get_parent() as Node2D
+	var body := _agent.body()
 	if body != null and body.is_inside_tree():
-		_plan_map = body.get_world_2d().navigation_map
+		_plan_map = NavWorld.map_of(body)
 	crowd.steering_map = NavBuilder.steering_map(_plan_map)
-	_reach = agent.target_desired_distance
+	_reach = _agent.target_desired_distance
 
 
 ## Hand in the NPC's body. Called once by `Behavior.bind()`.
@@ -243,7 +245,7 @@ func move_to(dest: Vector2, within := 0.0) -> void:
 	if _check():
 		# The walk changed map or goal: steer by its new path.
 		next = _agent.get_next_path_position()
-	if leaves.work(get_physics_process_delta_time()):
+	if leaves.work(crowd.step):
 		return  # A door in the way is being opened: the walk waits for it.
 	var here: Vector2 = _character.global_position
 	if _way == Way.ROUND:
@@ -371,7 +373,7 @@ func _check() -> bool:
 	if frame == crowd.checked_frame:
 		return false
 	crowd.checked_frame = frame
-	var delta := get_physics_process_delta_time()
+	var delta := crowd.step
 	var from: Vector2 = _character.global_position
 	var resting := crowd.at_rest(from, LOOKAHEAD + PASS_CLEARANCE)
 	var was_map := _agent.get_navigation_map()
@@ -395,8 +397,10 @@ func _check() -> bool:
 ## `_check` for a walk under way (plain, round or round the doorway views): a body on its path
 ## (`blocker`) is gone round by the steering map when it can be, else holds the walk; a walk round a
 ## body that keeps out of the doorway views goes back to the avoid map once its route there is
-## clear, and one whose route round now goes into the room a held stack's member keeps out of (the
-## map has carved the walker itself since, D38) back to its free way, to be held or gone round anew.
+## clear (and, for a held stack's member, does not go into the room it keeps out of: the map was
+## given from where it was, not from here), and one whose route round now goes into the room a held
+## stack's member keeps out of (the map has carved the walker itself since, D38) back to its free
+## way, to be held or gone round anew.
 func _check_walking(
 	from: Vector2,
 	resting: Array,
@@ -414,12 +418,20 @@ func _check_walking(
 		crowd.recheck_in -= delta
 		if crowd.recheck_in <= 0.0:
 			crowd.recheck_in = RECHECK
-			if doors.map.is_valid() and _clear_on(doors.map, from, resting):
+			if _doors_clear(from, resting):
 				_set_way(Way.DOORS)
 			elif crowd.step_out == Vector2.INF and doors.enters_kept_out(crowd.steering_map):
 				# The steering map has carved the walker since (its own body at rest): its route
 				# round now goes into the room it keeps out of. Its free way again, looked at anew.
 				_set_way(_free_way())
+
+
+## Whether a walk round a body may go back to the avoid map from `from`: the map's route is clear
+## of the bodies at rest `resting` and does not take a held stack's member into the room it keeps
+## out of (the map was given from where the walk was, not from here).
+func _doors_clear(from: Vector2, resting: Array) -> bool:
+	return (doors.map.is_valid() and _clear_on(doors.map, from, resting)
+			and not doors.enters_kept_out(doors.map, from))
 
 
 ## The way a walk goes when no body is in it: round the doorway views when it has been given the

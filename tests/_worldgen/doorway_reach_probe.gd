@@ -16,7 +16,7 @@ const REACH_TOLERANCE := 6.0
 
 ## True when the nav map has a path from `a` to (near) `b`.
 static func _reachable(map: RID, a: Vector2, b: Vector2) -> bool:
-	var path := NavigationServer2D.map_get_path(map, a, b, true)
+	var path := NavPlan.path(map, a, b)
 	return not path.is_empty() and path[path.size() - 1].distance_to(b) <= REACH_TOLERANCE
 
 
@@ -67,14 +67,14 @@ static func check_built(
 	t.check(exits.size() <= 1, "%s has %d exits" % [label, exits.size()])
 
 	var region := NavBuilder.build(house, rooms, t.world, AGENT_RADIUS)
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	# The bake is applied to the shared map a frame or more later, and under load later still: wait
 	# until the map answers with this house's navmesh (a query before that reads the old map, or
 	# logs an engine error).
 	var centre: Vector2 = (rooms[0]["rect"] as Rect2).get_center()
 	var synced := func() -> bool:
-		return (NavigationServer2D.map_get_iteration_id(map) > 0
-				and NavigationServer2D.map_get_closest_point_owner(map, centre) == region.get_rid())
+		return (NavPlan.iteration(map) > 0
+				and NavPlan.owner_at(map, centre) == region.get_rid())
 	await t.until(synced, 5.0, "%s: the nav map took in the house's navmesh" % label)
 
 	_check_rooms(t, label, map, rooms, openings)

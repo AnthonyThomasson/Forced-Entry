@@ -3,20 +3,12 @@
 A drivable **car** and **van** (issue #54), for the player in a sandbox: get in and out with **Space** by the nearest door, with the
 door and the character animated throughout, drive with WASD and the handbrake, crash, shove furniture, run people down, and hear
 all of it. Behaviours V1 to V9 are the spec; each has its tests named under it, following the convention of `docs/grenades.md`.
-The tests are in `tests/vehicle/` (`tools/run_tests.sh --domain=vehicle`, 30 tests) plus `tests/audio/vehicle_sounds_test.gd`,
+The tests are in `tests/vehicle/` (`tools/run_tests.sh --domain=vehicle`) plus `tests/audio/vehicle_sounds_test.gd`,
 `tests/audio/vehicle_door_tone_test.gd`, `tests/general/camera_zooms_out_driving_test.gd` and `tests/general/space_vehicle_key_test.gd`. They drive puppets (no AI) and read
 the game only through the drivable contract (`architecture` interface 19), via `tests/_vehicle/vehicle_probe.gd`, which keeps the
 plan's numbers as its own consts so a test checks this file and not the code, and its siblings `vehicle_frame_probe.gd` (the
 vehicle's frame) and `vehicle_ride_probe.gd` (placing, boarding, getting out and driving). The code is the Vehicles domain (`scenes/vehicle/`,
 skill `domain-vehicle`).
-
-**Verification (14 October 2026, on the finished branch).** `tools/lint.sh` and the headless load check: clean. The 34 tests the
-feature adds (the 30 in `tests/vehicle/`, `audio/vehicle_sounds`, `audio/vehicle_door_tone`, `general/camera_zooms_out_driving`,
-`general/use_vehicle_key`, since renamed `general/space_vehicle_key`): 34 passed. `tools/run_tests.sh --changed --summary --jobs=auto` (which runs everything): 332 passed,
-0 failed, 24 skipped (they need the Von server), 0 `gap`; `--self-test`: 7 passed, 1 failed, `_harness/catalog_selection` ("an ai
-test's category is the folder between its domain and its file"), which fails the same way on the clean base commit. Measured
-(`vehicle/top_speed`, `vehicle/launch_and_brake`): tops 1280 / 880; 0 → 640 in 0.75 s, van 0 → 440 in 0.97 s; stop from the top
-1.42 / 1.70 s.
 
 All distances are px, speeds px/s and times seconds. The numbers are the Vehicles holders' (`scenes/vehicle/vehicle_*_config.gd`: `VehicleConfig`'s per-kind rows and the
 shared `VehicleBoardingConfig`, `VehicleDoorConfig`, `VehicleDriveConfig`, `VehicleCollisionConfig`, `VehicleArtConfig`, `VehicleMeshConfig`). A
@@ -128,15 +120,27 @@ and passenger click the trigger of a loaded pistol: no shot, hit or shot sound, 
 
 ### Collisions
 
-**V6. Collisions: full physical.** The vehicle is a `RigidBody2D` on `PhysicsLayers.SOLID`.
+**V6. Collisions: full physical.** The vehicle is a free 3D body locked upright (`VehicleBody`, a `RigidBody3D` in the twin space: it
+cannot roll or pitch, it turns about up and slides on the floor; its mass, its grip and its driving model are the 2D body's) and its
+2D body is a plain `Node2D` plan handle (no 2D shape or layer) the twin space writes from it. It is the same vehicle: the
+numbers below hold.
 - Walls stop it; it loses most of its speed on the impact (`bounce` **0.025**: a crash at the top speed rebounds slower than rolling
   resistance stops within a second).
-- Furniture is shoved by the physics engine (the pushable contract) and does not stop it.
+- The 3D engine caps a body's speed at 5000 px/s (`max_linear_velocity`, global): above the car's top speed (1280), so no raise.
+- Furniture is a free 3D body too: the engine solves the two (the pushable contract) and the vehicle carries on. The bumper's blow
+  adds to that at the height it meets a piece (`strike_height`, the sill and half the bumper: 14.5 px for a car): a piece first met
+  faster than `crash_min_speed` is struck with `strike_share` **0.4** of the closing speed times its mass there, so a tall thin
+  piece (a bookshelf) is kicked low and goes over, and a low heavy one (a sofa) only slides on, upright. The blow is momentum **added on top of** the engine's own solve of the contact (the car does not
+  lose it): energy put in on purpose so a strike tips a tall piece, tuned by `strike_share`. A vehicle cannot be tipped:
+  a blow at any height turns it about up or slides it. Only its roll and pitch are locked, not its height: gravity and the floor
+  hold it down, and a piece tipped under the hull could lift it a little (it comes back down; not asserted).
 - A character struck is knocked back (`apply_impulse`) and takes `take_damage(health x (closing − 90) / (300 − 90))`: nothing below
   `harm_min_speed` **90**, death at `harm_kill_speed` **300** or faster. One run-in is one blow: a character struck again within
   `rehit_time` **0.5** s of the last time it was against the vehicle is shoved on but not hurt again. A dead body is rolled over, and
   lies on the floor under the vehicle.
-- The vehicle is never stopped dead by a character: it loses only the momentum the character takes, and what the character is pressed
+- The vehicle does not collide with a character in 3D (it overlaps the character's cylinder), so it is never stopped dead by one:
+  what it is struck at, the shove and the harm are judged by shape queries after each step (never by the engine's contact events).
+  It loses only the momentum the character takes, and what the character is pressed
   against. What stands in front of it is a pile: the character struck and the pieces of furniture or other characters it is pressed
   against (each within `pile_gap` **4** px along the push, at most `pile_depth` **4** bodies), or a piece pressed against a character.
   The vehicle and the pile meet as two bodies, the pile's mass all its members' (a character bounces off with `harm_bounce` **0.4** of
@@ -149,17 +153,23 @@ and passenger click the trigger of a loaded pistol: no shot, hit or shot sound, 
   hurts nobody; only a vehicle does.
 - Each new impact faster than `crash_min_speed` **60** posts a `vehicle` `crash` event with its closing speed and the struck material
   (`""` for a wall), or a `bump_character` for a character.
-- Bullets hit it like furniture: `get_surface()` is metal, coverage **70** (car) / **80** (van), penetration **90**; `take_hit` dents it
+- Bullets hit it like furniture: `get_surface()` is metal, penetration **90**; `take_hit` dents it
   (`Deformable`, at most 3 px deep, the last 24 dents kept), throws debris and shoves it at the hit. It is never destroyed, and its
   occupants are not hit through the body.
-Tests: `vehicle/crash_into_wall_stops` (driven flat out into a wall: a crash event with the impact speed, the kind and a material; most
+Tests: `vehicle/vehicle_is_a_locked_upright_3d_body` (the vehicle's truth is a `RigidBody3D` locked about the horizontal axes: a huge
+shove at its roof height turns it and slides it, never leans it), `vehicle/car_tips_a_bookshelf_but_slides_a_sofa` (a car rolling at 500
+into a bookshelf lays it over, into a sofa only slides it), `vehicle/drive_script_matches_the_2d_body` (a fixed input script's path,
+heading and speed within 3 px, 0.01 rad and 2 % of what the 2D body did; the 3D body is read), `vehicle/vehicle_started_before_its_3d_body_drives` (a car started the
+frame it is built drives at once and may not sleep), `vehicle/vehicle_rolled_to_a_stop_goes_to_sleep` (a stopped vehicle, engine off, sleeps: the step writes a
+velocity only when it changed), `vehicle/car_strikes_the_right_bodies_among_a_crowd` (32 chairs along the flanks do not crowd the four characters ahead out of the strike
+query), `vehicle/vehicle_gravity_is_the_furniture_gravity`, `vehicle/crash_into_wall_stops` (driven flat out into a wall: a crash event with the impact speed, the kind and a material; most
 of the speed lost; it stays this side of the wall and stops), `vehicle/pushes_furniture` (an armchair is shoved well along the car's
 path, the car keeps moving, a crash names fabric), `vehicle/hits_character_damage_by_speed` (empty cars rolling at 60, midway between
 the two speeds, and past 300: shoved and unhurt, hurt and alive, dead), `vehicle/pinned_character_crushed` (empty cars at 200 into a
 character pinned on a heavy armchair, one pinned on the wall, one in the open and one behind the armchair: the pinned ones take at least
 the open hit's harm and the shielded one half of it; 0.1 s after the touch the car keeps 30 % / 70 % / 50 % of its speed (pinned / open /
 shielded) and shoves the chair; on the wall it posts a crash; measured harm 25.4 open, 25.4 pinned on the chair and on the wall, 17.6
-behind the chair; kept 130 / 168 / 139 px/s, the chair shoved 63 and 57 px), `vehicle/bullet_dents_vehicle` (a metal surface with coverage
+behind the chair; kept 130 / 168 / 139 px/s, the chair shoved 63 and 57 px), `vehicle/bullet_dents_vehicle` (a metal surface with
 60+ and penetration 80+, a recorded dent, debris; six more rounds leave it standing).
 
 ### Presentation
@@ -219,7 +229,7 @@ vehicle; nothing under
 | Bounce, friction | 0.025, 0.4 | 0.025, 0.4 |
 | Steering: lock, rate, demand at speed | 0.65 rad, 3.5 rad/s, 1 | 0.62 rad, 2.5 rad/s, 1 |
 | Grip front / rear (px/s²), handbrake | 850 / 1100, 0.8 % | 330 / 420, 0.8 % |
-| Surface | metal, coverage 70, penetration 90 | metal, coverage 80, penetration 90 |
+| Surface | metal, penetration 90 | metal, penetration 90 |
 | Doors | four swing doors | two front swing doors, a slide door (right), two rear doors |
 
 Shared: reach 60; board and exit below 20; doors 0.35 open and shut, a slide 0.5; fold 0.5; slide across 0.6; turn 9 rad/s; harm from 90,

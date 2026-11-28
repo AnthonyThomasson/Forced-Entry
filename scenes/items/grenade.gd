@@ -104,6 +104,7 @@ func _release() -> void:
 	var throw := GrenadeThrow.new()
 	throw.kind = kind
 	throw.from = from
+	throw.release = BodyHeights.release(user.movement.body_posture())
 	throw.to = user.weapon.aim_target()
 	throw.thrower = user
 	throw.style = art.style

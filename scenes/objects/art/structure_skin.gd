@@ -89,11 +89,6 @@ static func _turn(image: Image, turn: StringName) -> Image:
 	return image
 
 
-## `texture` mirrored across its length (the 2D leaf lying flipped), a copy made once.
-static func flipped(texture: Texture2D) -> Texture2D:
-	return _variant(texture, &"flip_y")
-
-
 ## The size in px a flat `texture` covers (one art pixel `ArtCanvasConfig.pixel_size` px).
 static func extent(texture: Texture2D) -> Vector2:
 	return texture.get_size() * ArtCanvasConfig.pixel_size

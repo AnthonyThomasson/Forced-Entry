@@ -85,11 +85,19 @@ func note_team(entry: Entry, team: Array) -> void:
 			through[m["id"]] = m["slot"]
 		if not m["bang"]:
 			entry.listen.quiet_seen[m["id"]] = true
-	var ready_heard := func(m): return m["order_id"] == entry.orders.id and m["step"] != "claim"
 	if (entry.orders.id != ""
 			and entry.orders.ready_at < 0.0
-			and (ready_said or team.any(ready_heard))):
+			and (ready_said or _ready_heard(entry, team))):
 		entry.orders.ready_at = state.time
+
+
+## Whether a claim of the stack says the order this entry stacks under is ready (an ordered `ready`
+## heard).
+func _ready_heard(entry: Entry, team: Array) -> bool:
+	for m in team:
+		if m["order_id"] == entry.orders.id and m["step"] != "claim":
+			return true
+	return false
 
 
 ## Radio `ready`, once per walk into the slot: in its slot (E2, E6), or, the other side's front man
@@ -284,7 +292,7 @@ func note_all_in(entry: Entry, team: Array) -> void:
 	var all_in := ready_at >= 0.0
 	for m: Node in entry.orders.recipients():
 		var id := m.get_instance_id()
-		all_in = all_in and team.any(func(c): return c["id"] == id and c["step"] != "claim")
+		all_in = all_in and _in_slot(team, id)
 	if not all_in:
 		all_in_at = -1.0
 	elif all_in_at < 0.0:
@@ -309,19 +317,45 @@ func stack_ready(entry: Entry, team: Array) -> bool:
 			ready_at,
 			team_grew_at,
 		) >= world.tuning.entry.ready_timeout
-		return waited or team.all(func(m): return m["step"] != "claim")
+		return waited or _none_claiming(team)
 	if entry.orders.capped():
 		return true
-	if (all_in_at < 0.0
-			or team.any(func(m): return m["step"] == "claim" and entry.orders.leads(entry, m))):
-		return false
+	return all_in_at >= 0.0 and _ordered_ready(entry, team)
+
+
+## An ordered stack's readiness once its recipients are in their slots (`stack_ready`): no claim
+## still on its way is one the order leads, and the wait since all were in (or the stack last grew)
+## has run out, or each claim still on its way is one the order does not wait for.
+func _ordered_ready(entry: Entry, team: Array) -> bool:
+	for m in team:
+		if m["step"] == "claim" and entry.orders.leads(entry, m):
+			return false
 	var waited_all := state.time - maxf(
 		all_in_at,
 		team_grew_at,
 	) >= world.tuning.entry.ready_timeout
-	return waited_all or team.all(
-		func(m): return m["step"] != "claim" or entry.orders.waits_for(entry, m),
-	)
+	if waited_all:
+		return true
+	for m in team:
+		if m["step"] == "claim" and not entry.orders.waits_for(entry, m):
+			return false
+	return true
+
+
+## Whether no member of the stack is still claiming its slot.
+func _none_claiming(team: Array) -> bool:
+	for m in team:
+		if m["step"] == "claim":
+			return false
+	return true
+
+
+## Whether the claim of member `id` is in the stack and past the claiming step.
+func _in_slot(team: Array, id: int) -> bool:
+	for c in team:
+		if c["id"] == id and c["step"] != "claim":
+			return true
+	return false
 
 
 ## The point crosses once the stack is ready, unless a hostile stands in view (E14; not in the

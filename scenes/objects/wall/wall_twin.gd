@@ -1,0 +1,47 @@
+class_name WallTwin
+extends StaticBody3D
+## Objects domain, the 3D body of a wall (`ObjectTwins`, interface 29): its truth for the 3D reads
+## (a bullet's ray, a fragment, a lob, a sight line; the dent state itself stays in the `Wall`, its
+## plan handle). A static body, built once from the wall's segments, a box (or the convex pieces of
+## a dented outline) from the floor to the wall's top for each segment the wall owns, and a lintel
+## over each doorway it owns. When a hit dents a segment (`Wall.segment_rebuilt`) the segment's
+## shapes are cut again from the same dents as the wall's outlines, so the 3D wall, the 3D mesh and
+## the nav bake (`NavTwins`) keep one outline.
+
+## The wall this is the body of.
+var _wall: Node2D
+## Segment index -> the `CollisionShape3D`s that stand for it now.
+var _segment_shapes := {}
+
+
+## Give this body the shapes of `wall`'s segments, and keep them following its dents.
+func follow(wall: Node2D) -> void:
+	_wall = wall
+	var shapes: Dictionary = wall.call(&"segment_shapes")
+	for index: int in shapes:
+		_put(index, shapes[index])
+	wall.connect(&"segment_rebuilt", _on_rebuilt)
+
+
+## The shapes of segment `index` as the 2D wall has them now are lifted to 3D again.
+func _on_rebuilt(index: int) -> void:
+	if not is_instance_valid(_wall):
+		return
+	for old: Node in _segment_shapes.get(index, []):
+		if is_instance_valid(old):
+			remove_child(old)
+			old.free()
+	_put(index, (_wall.call(&"segment_shapes") as Dictionary).get(index, []))
+
+
+## Lift each outline of `holders` (a segment's) to the wall's height, in the wall's frame.
+func _put(index: int, holders: Array) -> void:
+	var made: Array[CollisionShape3D] = []
+	for outline: PackedVector2Array in holders:
+		var lifted := TwinShapes.lift_outline(
+			outline, Transform2D.IDENTITY, 0.0, ObjectStructureMeshConfig.wall_height
+		)
+		if lifted != null:
+			add_child(lifted)
+			made.append(lifted)
+	_segment_shapes[index] = made

@@ -15,7 +15,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 800, 400))
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"shooter", &"puppet", Vector2(150, 200), { "start_slot": 3 })
 	s.actor(&"target", &"puppet", Vector2(450, 200), { "max_health": 400.0 })
 

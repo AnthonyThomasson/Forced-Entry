@@ -13,7 +13,10 @@ const COVER := Color(0.4, 0.65, 1.0)
 const DEST := Color(0.9, 0.9, 0.3)
 
 ## Whether to draw the combat overlay.
-@export var show_combat: bool = false
+@export var show_combat: bool = false:
+	set(value):
+		show_combat = value
+		_sync_processing()
 
 
 ## Whether this overlay's toggle is on.

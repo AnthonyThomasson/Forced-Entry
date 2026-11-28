@@ -10,15 +10,15 @@ extends RefCounted
 ## none).
 var fired := 0
 var landed_at := -1
-var _regions: Array[NavigationRegion2D] = []
+var _regions: Array[NavigationRegion3D] = []
 var _before: Array = []
 
 
 ## Start counting `world`'s nav updater ticks against the polygons `regions` have now.
-func watch(world: Node, regions: Array[NavigationRegion2D]) -> void:
+func watch(world: Node, regions: Array[NavigationRegion3D]) -> void:
 	_regions = regions
 	_before = regions.map(
-		func(region: NavigationRegion2D) -> NavigationPolygon: return region.navigation_polygon,
+		func(region: NavigationRegion3D) -> NavigationPolygon: return NavPlan.polygon_of(region),
 	)
 	var timer := world.get_node("NavUpdater/RebakeTimer") as Timer
 	timer.timeout.connect(_on_tick)
@@ -30,6 +30,6 @@ func _on_tick() -> void:
 	if landed_at >= 0:
 		return
 	for i in _regions.size():
-		if _regions[i].navigation_polygon != _before[i]:
+		if NavPlan.polygon_of(_regions[i]) != _before[i]:
 			landed_at = fired
 			return

@@ -3,19 +3,21 @@ extends GameTest
 ## on a snapshot of a moment ago). One that is blocked by then is given up before the grenade is
 ## taken in hand: nothing is thrown before the NPC has re-decided, and Von is asked again. One
 ## mechanism, scripted Von that answers slowly (30 physics frames a level): the invader has a clear
-## lob onto a hostile hidden behind a desk when GRENADE is offered; a wardrobe (coverage 95, over a
-## lob's clearance) is put on the line while its question is in flight. The re-decision may offer
+## lob onto a hostile hidden behind a desk when GRENADE is offered; a wardrobe (78 px, more than the
+## highest lob clears where it has come down this far along its flight) is put on the line, near the
+## hostile, while its question is in flight. The re-decision may offer
 ## GRENADE again through a throw spot round the wardrobe (issue #51 R13): a throw that follows
 ## leaves from at least 40 px from where the invader stood when it gave the first one up, with a
 ## clear lob.
 
+const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Spot := preload("res://tests/_ai/throw_spot_probe.gd")
 const START := Vector2(100, 150)
 const HOSTILE := Vector2(520, 150)
 const ASIDE := Vector2(250, 40)
-const ON_THE_LINE := Vector2(250, 150)
+const ON_THE_LINE := Vector2(440, 150)
 
 
 func describe() -> Dictionary:
@@ -31,11 +33,12 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	Hiding.von_out(s)
 	s.layout(
 		[{ "key": "hall", "type": "living_room", "rect": Rect2(0, 0, 900, 300) }],
 		[{ "pos": Vector2(880, 0), "width": 60.0 }],
 	)
-	s.object(&"desk", "desk", Vector2(330, 150))
+	s.object(&"desk", Hiding.low_cover("desk"), Vector2(420, 150))
 	s.object(&"wardrobe", "wardrobe", ASIDE)
 	s.von_script(
 		[
@@ -48,7 +51,6 @@ func configure(s: TestSetup) -> void:
 		30,
 	)
 	s.switch(&"ai.hostile_on_trespass", false)
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"i", &"invader", START, { "facing": Vector2.RIGHT })
 	GrenadeAi.hostile(s, &"h", HOSTILE, START)
 
@@ -56,19 +58,20 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var inv := t.actor(&"i")
 	Probe.arm(inv, 0, 1)
+	if not await Hiding.duck_after_seen(t, &"h", &"i"):
+		return
 	if not t.require(
 			Probe.count(inv, Probe.FRAG) == 1,
 			"the invader carries a frag (item_count(8) = %d)" % Probe.count(inv, Probe.FRAG),
 	):
 		return
 	var brain := t.controller(&"i", &"debug_state")
-	if not t.require(
-			await t.until(
-				func(): return brain.debug_state().get("decision", {}).get("pending", false),
-				10.0,
-			),
-			"the NPC asked Von (the snapshot is made)",
-	):
+	# Von has been asked the level that offers GRENADE (its answer is 30 frames away): the snapshot
+	# is made, however many frames the build took, and the lob is blocked while the answer is in
+	# flight.
+	var offered := func() -> bool:
+		return DecisionStub.requests.any(func(r): return (r["options"] as Array).has(&"grenade"))
+	if not t.require(await t.until(offered, 10.0), "Von was asked with GRENADE on offer"):
 		return
 	await _block_the_lob(t)
 	var seen: Array = []
@@ -86,9 +89,7 @@ func run(t: TestContext) -> void:
 
 func _block_the_lob(t: TestContext) -> void:
 	var wardrobe := t.object(&"wardrobe")
-	# a frozen body takes a teleport (a free one is put back by the physics step)
-	wardrobe.freeze = true
-	await t.frames(1)
+	# a script's teleport of a free piece is adopted by its 3D body
 	wardrobe.global_position = ON_THE_LINE
 	await t.frames(1)
 

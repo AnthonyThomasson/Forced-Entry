@@ -22,7 +22,6 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"ai.hostile_on_sight", false)
 	s.switch(&"ai.hostile_on_trespass", false)
 	s.switch(&"nav.rebake", false)
-	s.switch(&"projectile.flyover", false)  # every shot that arrives lands
 	s.actor(&"pinned", &"defender", Vector2(700, 150))
 	s.actor(&"bystander", &"defender", Vector2(700, 480))
 	s.actor(

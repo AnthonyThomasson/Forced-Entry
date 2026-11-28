@@ -52,11 +52,16 @@ var _nav_debug: Node2D = null
 var _leader_overlay: Node2D = null
 
 
+## The world's twin space (`TwinSpace`, interface 29), which the stage built as a match's is.
+func twin_space() -> TwinSpace:
+	return get_node_or_null(^"Twins") as TwinSpace
+
+
 ## Build everything `setup` declares. Statics and switches are applied before anything spawns, so
 ## spawning already sees them. The world stage (nav map, its overlay and re-baker, the dusk
 ## lighting, then the wait for the navigation maps) is Main's own, `MatchBuilder.stage`, over the
 ## house, layout or arena built here with its objects in place, so the bake carves them; it steps
-## two physics frames (the walls' colliders go live on a step) and waits until both maps answer with
+## two physics frames (the walls' twins go live on a step) and waits until both maps answer with
 ## this world's navmesh before any actor enters: an NPC thinking on its first tick would otherwise
 ## see through the walls and plan on an empty map.
 func build(setup: TestSetup) -> void:
@@ -116,6 +121,12 @@ func _spawn_objects(setup: TestSetup) -> void:
 	for o in setup.objects:
 		var opts: Dictionary = o["opts"].duplicate()
 		opts["name"] = String(o["id"])
+		if opts.has("on"):
+			var base: Node2D = objects[opts["on"]]
+			objects[o["id"]] = ObjectFactory.spawn_on(
+				o["definition"], base, o["position"], house, opts
+			)
+			continue
 		objects[o["id"]] = ObjectFactory.spawn(
 			o["definition"],
 			house.to_local(o["position"]),
@@ -185,6 +196,7 @@ func _build_squads(setup: TestSetup) -> void:
 func restore() -> void:
 	AllocationPadding.release()
 	Pointer.release()
+	FadedTwins.clear()
 	_remove_settings_scratch()
 	for i in range(_saved_statics.size() - 1, -1, -1):
 		var s: Array = _saved_statics[i]

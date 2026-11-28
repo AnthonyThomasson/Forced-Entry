@@ -1,13 +1,14 @@
 extends RefCounted
 ## Objects domain, the 3D mesh of the tower shop's pieces (the pattern is
 ## `table_mesh.gd`, `domain-art/meshes.md`): at the piece's own footprint and `shop_painter.gd`'s
-## proportions, in grimy steel, by `kind`. `counter` is a steel counter with a rust-orange lip, a
-## till (its screen glowing), a jar and a few packs; `aisle` is two shelf runs back to back, tiers
-## of packs on each, a steel lip along each outer edge; `fridge` is a tall drinks fridge with a lit
-## glass of drinks along its front; `snack` is a snack machine with a keypad and a lit window of
-## packs. What is lit (the till's screen, the fridge's and the machine's glass) is a glow node of
-## the piece's rig, no real light (the Lighting domain's); the drinks and packs stand proud in front
-## of the glass.
+## proportions, in grimy steel, by `kind`. `counter` is a steel counter with a rust-orange lip
+## (its till, jar and packs are items: `ShopItemsCatalog`); `aisle` is two shelf runs back to back,
+## boards in tiers, a steel lip along each outer edge; `fridge` is a tall drinks fridge and `snack`
+## a snack machine with a keypad, both with a bay behind a glass front: the three are hollow
+## (`ShopHollow`: a box per part, the glass a collider and not drawn) and their stock is free items
+## on the boards (`ShopStock`). What is lit (the lit front of a fridge or a machine, with a window
+## cut for each bottle or pack) is a glow node of the piece's rig, no real light (the Lighting
+## domain's).
 
 const OPTIONS := ["kind", "top_color", "accent_color", "glass_color", "fridge_glow", "height"]
 ## How far a feature stands proud of the face it is laid on.
@@ -21,21 +22,23 @@ static func build(piece: Node2D) -> Node3D:
 	var rig := FurnitureMesh.show(piece, FurnitureMesh.fetch(
 		"shop", spec, tuning, func() -> Mesh: return _mesh(spec)
 	))
-	if _kind(spec) != "aisle":
+	if kind_of(spec) in ["fridge", "snack"]:
 		var glow := FurnitureMesh.fetch_glow(
 			"shop", spec, tuning, func() -> Mesh: return _glass(spec)
 		)
-		var strength := (
-			ObjectMeshStateConfig.screen_strength
-			if _kind(spec) == "counter"
-			else ObjectMeshStateConfig.window_strength
-		)
-		rig.add_glow(glow, _glow_colour(spec), strength)
+		rig.add_glow(glow, _glow_colour(spec), ObjectMeshStateConfig.window_strength)
+	if kind_of(spec) == "snack":
+		for colour in _pack_colours(spec):
+			var faces := FurnitureMesh.fetch_glow(
+				"shop_pack_%s" % colour.to_html(), spec, tuning,
+				func() -> Mesh: return _pack_faces(spec, colour)
+			)
+			rig.add_glow(faces, colour, ObjectMeshStateConfig.window_strength)
 	return rig
 
 
 ## The kind the piece is: its `art_opts.kind`, else the painter's.
-static func _kind(spec: FurnitureSpec) -> String:
+static func kind_of(spec: FurnitureSpec) -> String:
 	return String(spec.opts.get("kind", "counter"))
 
 
@@ -44,7 +47,7 @@ static func height_of(spec: FurnitureSpec) -> float:
 	var own: Variant = spec.opts.get("height")
 	if own is float or own is int:
 		return float(own)
-	match _kind(spec):
+	match kind_of(spec):
 		"aisle":
 			return ObjectMeshShopConfig.aisle_height
 		"fridge":
@@ -65,9 +68,9 @@ static func _colour(spec: FurnitureSpec, name: String) -> Color:
 	return spec.opts.get(name, defaults[name])
 
 
-## The colour the glowing part glows in: the till's and the snack machine's glass, the fridge's.
+## The colour the glowing part glows in: the snack machine's glass, the fridge's.
 static func _glow_colour(spec: FurnitureSpec) -> Color:
-	return _colour(spec, "fridge_glow" if _kind(spec) == "fridge" else "glass_color")
+	return _colour(spec, "fridge_glow" if kind_of(spec) == "fridge" else "glass_color")
 
 
 ## Every value the shape reads, so a retuned one is another mesh.
@@ -79,34 +82,27 @@ static func _tuning(spec: FurnitureSpec) -> Dictionary:
 		"glass": _colour(spec, "glass_color"),
 		"glow": _colour(spec, "fridge_glow"),
 		"height": height_of(spec),
-		"till": ObjectMeshShopConfig.till_height,
 		"tiers": ObjectMeshShopConfig.aisle_tiers,
-		"packs": ObjectArtShopConfig.shop_packs,
+		"windows": ShopStock.windows(spec),
 	}
 
 
 ## The solids of the piece, built once per cache key.
 static func _mesh(spec: FurnitureSpec) -> Mesh:
 	var kit := spec.kit()
-	match _kind(spec):
-		"aisle":
-			_aisle(spec, kit)
-		"fridge":
-			_fridge(spec, kit)
-		"snack":
-			_snack(spec, kit)
-		_:
-			_counter(spec, kit)
+	if ShopHollow.has(spec):
+		_hollow(spec, kit)
+	else:
+		_counter(spec, kit)
 	return kit.build()
 
 
-## The counter: the steel body and top, the rust lip, the till with its keys, a jar and packs.
+## The counter: the steel body and top and the rust lip.
 static func _counter(spec: FurnitureSpec, kit: MeshKit) -> void:
 	var w := spec.size.x
 	var d := spec.size.y
 	var height := height_of(spec)
 	var top := _colour(spec, "top_color")
-	var packs: Array[Color] = ObjectArtShopConfig.shop_packs
 	kit.box(MeshKit.volume(spec.area(0, 0, w, d), 0.0, height), spec.color, top)
 	kit.box(
 		MeshKit.volume(
@@ -115,148 +111,156 @@ static func _counter(spec: FurnitureSpec, kit: MeshKit) -> void:
 			1.0,
 		), _colour(spec, "accent_color")
 	)
-	var till := Rect2(8, 7, 26, 17)
-	var till_top := height + ObjectMeshShopConfig.till_height
-	kit.box(
-		MeshKit.volume(
-			spec.area(till.position.x, till.position.y, till.size.x, till.size.y),
-			height,
-			ObjectMeshShopConfig.till_height,
-		),
-		spec.color.darkened(0.3),
-	)
-	for k in 4:
-		kit.box(
-			MeshKit.volume(
-				spec.area(till.position.x + 4.0 + k * 5.0, till.position.y + 10.0, 3, 3),
-				till_top,
-				0.8,
-			),
-			Color(0.78, 0.78, 0.74),
-		)
-	kit.box(MeshKit.volume(spec.area(42, 9, 12, 10), height, 9.0), Color(0.8, 0.78, 0.7))
-	for k in 5:
-		kit.box(
-			MeshKit.volume(spec.area(62.0 + k * 7.0, 8.0 + (k % 2) * 6.0, 5, 5), height, 9.0),
-			packs[k % packs.size()],
-		)
 
 
-## The till's screen and the tablet of glass over its top.
+## What glows: the lit front of a fridge (pale blue) or a snack machine (its glass colour), a thin
+## panel just inside the glass with a window cut for each bottle or pack (`ShopStock.windows`), so
+## the free stock stands behind it and shows against the glow round it. Nothing is drawn where the
+## glass is: a clear pane has no mesh.
 static func _glass(spec: FurnitureSpec) -> Mesh:
 	var kit := spec.kit()
-	var w := spec.size.x
-	var d := spec.size.y
-	var height := height_of(spec)
-	match _kind(spec):
-		"counter":
+	var area: Rect2 = ShopHollow.bays(spec)[0]["area"]
+	var low := ShopHollow.KICK
+	var high := height_of(spec) - ShopHollow.FRAME
+	if kind_of(spec) == "snack":
+		low = ShopHollow.SNACK_SILL
+		high = low + ShopHollow.SNACK_WINDOW
+	var front := _pane_y(spec, area)
+	var windows := ShopStock.windows(spec)
+	var xs: Array[float] = [area.position.x, area.end.x]
+	for window in windows:
+		xs.append_array([window.position.x, window.end.x])
+	xs.sort()
+	for k in xs.size() - 1:
+		var from := clampf(xs[k], area.position.x, area.end.x)
+		var to := clampf(xs[k + 1], area.position.x, area.end.x)
+		if to - from < 0.01:
+			continue
+		for span in _free_spans(windows, from, to, low, high):
 			kit.box(
 				MeshKit.volume(
-					spec.area(11, 9, 20, 5), height + ObjectMeshShopConfig.till_height, 0.4
+					spec.area(from, front, to - from, PROUD), span.x, span.y - span.x
 				),
-				_colour(spec, "glass_color"),
-			)
-		"fridge":
-			kit.box(
-				MeshKit.volume(spec.area(3, d - PROUD, w - 6.0, PROUD), 8.0, height - 18.0),
-				_colour(spec, "fridge_glow"),
-			)
-		_:
-			kit.box(
-				MeshKit.volume(spec.area(3, d - PROUD, w - 6.0, PROUD), 10.0, height * 0.4),
-				_colour(spec, "glass_color"),
+				_glow_colour(spec),
 			)
 	return kit.build()
 
 
-## The aisle: two runs back to back, each with its end posts, a back panel on the face where they
-## touch, tiers of boards and packs open to the outside, and only the lip along its outer edge on
-## top, so the packs show from the aisle's sides and from above.
-static func _aisle(spec: FurnitureSpec, kit: MeshKit) -> void:
-	var depth := floorf(spec.size.y / 2.0)
-	var steel := spec.color
-	var top := _colour(spec, "top_color")
-	var height := height_of(spec)
-	var tiers := maxi(1, ObjectMeshShopConfig.aisle_tiers)
-	var packs: Array[Color] = ObjectArtShopConfig.shop_packs
-	for run in 2:
-		var y0 := 0.0 if run == 0 else spec.size.y - depth
-		for x: float in [0.0, spec.size.x - 2.0]:
+## The colours of the packs a snack machine holds, each once.
+static func _pack_colours(spec: FurnitureSpec) -> Array[Color]:
+	var out: Array[Color] = []
+	for face: Dictionary in ShopStock.faces(spec):
+		if not out.has(face["color"]):
+			out.append(face["color"])
+	return out
+
+
+## The packs of one `colour` as they show in the machine's lit window: each pack's face a glow tile
+## of its own colour in its window (the packs themselves stand dark in the shade of the roof, so
+## without it the window would show them black against the pane).
+static func _pack_faces(spec: FurnitureSpec, colour: Color) -> Mesh:
+	var kit := spec.kit()
+	var y := _pane_y(spec, ShopHollow.bays(spec)[0]["area"])
+	for face: Dictionary in ShopStock.faces(spec):
+		if face["color"] == colour:
+			var window: Rect2 = face["window"]
 			kit.box(
-				MeshKit.volume(spec.area(x, y0, 2, depth), 0.0, height),
-				MeshKit.tone(steel, &"dark"),
+				MeshKit.volume(
+					spec.area(window.position.x, y, window.size.x, PROUD), window.position.y,
+					window.size.y
+				),
+				colour,
 			)
-		kit.box(
-			MeshKit.volume(
-				spec.area(2, y0 + (depth - 1.0 if run == 0 else 0.0), spec.size.x - 4.0, 1),
-				0.0,
-				height - 2.0,
-			),
-			MeshKit.tone(steel, &"dark"),
-		)
-		for tier in tiers:
-			var at := 1.0 + float(tier) * (height - 4.0) / float(tiers)
-			kit.box(MeshKit.volume(spec.area(2, y0, spec.size.x - 4.0, depth), at, 1.5), steel)
-			for x in range(3, int(spec.size.x) - 6, 6):
-				var pack := packs[(int(x / 6.0) + tier + int(y0)) % packs.size()].darkened(0.1)
-				kit.box(MeshKit.volume(spec.area(x, y0 + 3.0, 5, 6), at + 1.5, 6.0), pack)
-		var outer := y0 if run == 0 else spec.size.y - 2.0
-		kit.box(MeshKit.volume(spec.area(1, outer, spec.size.x - 2.0, 2), height - 2.0, 2.4), top)
+	return kit.build()
 
 
-## The fridge: a steel body and top with vents, the glass framed in dark and the drinks proud of it.
-static func _fridge(spec: FurnitureSpec, kit: MeshKit) -> void:
-	var w := spec.size.x
-	var d := spec.size.y
-	var height := height_of(spec)
+## Where the lit pane of `spec` stands (px from the back, in the bay `area`'s frame): a fridge's
+## just inside its glass, a snack machine's flush with its face, in the light of the room, not in
+## the shade of the band above.
+static func _pane_y(spec: FurnitureSpec, area: Rect2) -> float:
+	if kind_of(spec) == "snack":
+		return area.end.y + ShopHollow.GLASS - PROUD
+	return area.end.y - PROUD
+
+
+## The heights, `Vector2(from, to)`, between `low` and `high` that no window covers across the
+## width `from` to `to`.
+static func _free_spans(
+	windows: Array[Rect2], from: float, to: float, low: float, high: float
+) -> Array[Vector2]:
+	var blocked: Array[Vector2] = []
+	for window in windows:
+		if window.position.x <= from + 0.01 and window.end.x >= to - 0.01:
+			blocked.append(Vector2(window.position.y, window.end.y))
+	blocked.sort()
+	var out: Array[Vector2] = []
+	var at := low
+	for span in blocked:
+		if span.x > at:
+			out.append(Vector2(at, minf(span.x, high)))
+		at = maxf(at, span.y)
+	if at < high:
+		out.append(Vector2(at, high))
+	return out
+
+
+## The hollow pieces (`ShopHollow`): a box per part but the glass, steel with the lighter top, and
+## on a fridge the vents on its roof and the frame of its glass, on a snack machine the keypad.
+static func _hollow(spec: FurnitureSpec, kit: MeshKit) -> void:
+	var size := Vector2(maxf(spec.size.x, 1.0), maxf(spec.size.y, 1.0))
 	var top := _colour(spec, "top_color")
-	var packs: Array[Color] = ObjectArtShopConfig.shop_packs
-	kit.box(MeshKit.volume(spec.area(0, 0, w, d - PROUD), 0.0, height), spec.color, top)
-	for k in range(6, int(w) - 6, 4):
-		kit.box(MeshKit.volume(spec.area(k, 5, 2, 5), height, 0.4), spec.color.darkened(0.35))
-	var frame := spec.color.darkened(0.55)
-	kit.box(
-		MeshKit.volume(spec.area(2, d - PROUD, w - 4.0, PROUD * 0.5), 6.0, height - 14.0),
-		frame,
-	)
-	for k in range(0, int(w) - 9, 5):
-		kit.box(
-			MeshKit.volume(spec.area(4 + k, d - PROUD, 3, PROUD), 10.0, height - 26.0),
-			packs[int(k / 5.0) % packs.size()],
+	var h := height_of(spec)
+	for part: Dictionary in ShopHollow.parts(spec):
+		if part.get("material", "") == "glass":
+			continue
+		var rect: Rect2 = part["rect"]
+		var area := spec.area(
+			rect.position.x * size.x, rect.position.y * size.y, rect.size.x * size.x,
+			rect.size.y * size.y,
 		)
+		var lid: bool = float(part["top"]) >= h - 0.01
+		kit.box(
+			MeshKit.volume(area, part["base"], part["top"] - part["base"]), spec.color,
+			top if lid else spec.color,
+		)
+	_details(spec, kit)
 
 
-## The snack machine: a steel body, the keypad, a framed window with packs proud of its glass.
-static func _snack(spec: FurnitureSpec, kit: MeshKit) -> void:
-	var w := spec.size.x
+## What a fridge has on it besides its parts: the vents on its roof and the frame of its glass;
+## a snack machine the keypad.
+static func _details(spec: FurnitureSpec, kit: MeshKit) -> void:
+	match kind_of(spec):
+		"fridge":
+			_trim(spec, kit)
+		"snack":
+			_keypad(spec, kit)
+
+
+## A snack machine's keypad: a dark plate on its keypad column with six keys.
+static func _keypad(spec: FurnitureSpec, kit: MeshKit) -> void:
+	var pad := spec.size.x - ShopHollow.KEYPAD
 	var d := spec.size.y
-	var height := height_of(spec)
-	var packs: Array[Color] = ObjectArtShopConfig.shop_packs
+	var base := ShopHollow.SNACK_SILL + 12.0
 	kit.box(
-		MeshKit.volume(spec.area(0, 0, w, d - PROUD), 0.0, height),
-		spec.color,
-		_colour(spec, "top_color"),
-	)
-	kit.box(
-		MeshKit.volume(spec.area(w - 12.0, d - PROUD, 7, PROUD), height * 0.55, 10.0),
+		MeshKit.volume(spec.area(pad + 2.0, d - PROUD, 7, PROUD), base, 10.0),
 		Color(0.1, 0.1, 0.12),
 	)
 	for k in 6:
 		kit.box(
 			MeshKit.volume(
-				spec.area(w - 11.0 + (k % 2) * 3.0, d - PROUD, 2, PROUD),
-				height * 0.55 + 1.0 + int(k / 2.0) * 3.0,
-				2.0,
+				spec.area(pad + 3.0 + (k % 2) * 3.0, d - PROUD, 2, PROUD),
+				base + 1.0 + int(k / 2.0) * 3.5, 2.0,
 			),
 			Color(0.8, 0.8, 0.76),
 		)
-	kit.box(
-		MeshKit.volume(spec.area(2, d - PROUD, w - 4.0, PROUD * 0.5), 8.0, height * 0.4 + 4.0),
-		spec.color.darkened(0.5),
-	)
-	for row in 2:
-		for k in range(0, int(w) - 9, 4):
-			kit.box(
-				MeshKit.volume(spec.area(4 + k, d - PROUD, 3, PROUD), 12.0 + row * 12.0, 8.0),
-				packs[(int(k / 4.0) + row) % packs.size()],
-			)
+
+
+## A fridge's trim: the vents on its roof and the frame above and below its glass.
+static func _trim(spec: FurnitureSpec, kit: MeshKit) -> void:
+	var h := height_of(spec)
+	var w := spec.size.x
+	for k in range(6, int(w) - 6, 4):
+		kit.box(MeshKit.volume(spec.area(k, 5, 2, 5), h, 0.4), spec.color.darkened(0.35))
+	var front := spec.area(ShopHollow.WALL, spec.size.y - PROUD, w - 8.0, PROUD)
+	for z: float in [ShopHollow.KICK, h - ShopHollow.FRAME - 0.8]:
+		kit.box(MeshKit.volume(front, z, 0.8), spec.color.darkened(0.55))

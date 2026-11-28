@@ -1,9 +1,11 @@
 extends RefCounted
 ## Objects domain, the 3D mesh of a coat rack (the pattern is `table_mesh.gd`,
 ## `domain-art/meshes.md`): within the inscribed circle of its round footprint, a wooden post on a
-## round foot with four hook arms at the top, three coats hanging round it and a hat on top
-## (`coat_rack_painter.gd`; the coats' and the hat's colours are picked by a generator seeded from
-## the look from `ObjectArtDecorConfig.prop_colors`). Shared by every coat rack of one look.
+## round foot with four hook arms at the top and three coats hanging round it
+## (`coat_rack_painter.gd`; the coats' colours are picked by a generator seeded from the look from
+## `ObjectArtDecorConfig.prop_colors`). The hat on top is a loose item the rack carries (`hat`,
+## `docs/stacked-items.md` SI15); the coats hang from their hooks and stay drawn (a hanging coat
+## has no rest: a pin the twin space does not carry). Shared by every coat rack of one look.
 
 
 ## The node a coat rack `piece` is shown by, in 3D units with its origin at the piece's origin.
@@ -54,9 +56,6 @@ static func _mesh(spec: FurnitureSpec) -> Mesh:
 			_pick(rng, "coats"),
 		)
 	spec.level(kit)
-	var hat := _pick(rng, "coats")
-	kit.cylinder(Vector3(0.0, height, 0.0), maxf(2.0, radius * 0.42), 1.0, hat.darkened(0.2))
-	kit.cylinder(Vector3(0.0, height + 1.0, 0.0), maxf(1.0, radius * 0.27), 3.0, hat)
 	return kit.build()
 
 

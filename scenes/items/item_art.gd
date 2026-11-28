@@ -28,15 +28,16 @@ func _look_handle(look: Dictionary) -> int:
 
 
 ## Make ahead of time what this item shows (`ItemRegistry` asks every item it makes): its held and
-## loose meshes and flat art, which the mesh and the paint caches then hand out, so no first paint
-## or build lands mid-fight. Fills the caches only: what is shown never changes. Nothing for an item
-## that shows nothing.
+## loose meshes and flat art, which the mesh and the paint caches then hand out, and the art in the
+## toon's atlas (`MeshNodes.warm_textured`), so no first paint, build, readback or page write lands
+## mid-fight. Fills the caches only: what is shown never changes. Nothing for an item that shows
+## nothing.
 func prepaint() -> void:
 	held_mesh()
-	held_texture()
+	MeshNodes.warm_textured(held_texture())
 	for flip in [false, true]:
 		dropped_mesh(flip)
-		dropped_texture(flip)
+		MeshNodes.warm_textured(dropped_texture(flip))
 
 
 ## The item's 3D mesh in a hand, for the 3D render (`GunMesh`, `GrenadeMesh`): shared by kind

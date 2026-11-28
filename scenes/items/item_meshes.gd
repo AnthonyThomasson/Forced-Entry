@@ -11,7 +11,8 @@ extends RefCounted
 const GROUPS: Array[StringName] = [&"dropped_items", &"live_grenades"]
 
 
-## Have `mirror` show every loose item by its mesh, those already in the match and each as it joins.
-static func register(mirror: WorldMirror) -> void:
+## Have `follower` (Art's `MeshFollower`) show every
+## loose item by its mesh, those already in the match and each as it joins.
+static func register(follower: Node3D) -> void:
 	for group in GROUPS:
-		mirror.track_group(group, Callable(LyingItemMesh, &"build"))
+		follower.track_group(group, Callable(LyingItemMesh, &"build"))

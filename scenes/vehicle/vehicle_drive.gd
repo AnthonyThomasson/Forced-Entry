@@ -36,7 +36,7 @@ var slip := 0.0
 var rpm := 0.0
 var engine_load := 0.0
 ## The vehicle it drives.
-var vehicle: RigidBody2D
+var vehicle: Node2D
 ## The drive intent the driver handed on (`{ throttle, steer, handbrake, brake }`: the body's
 ## `drive_input`, or `brake_input`); zero with nobody at the wheel.
 var intent := { "throttle": 0.0, "steer": 0.0, "handbrake": false, "brake": false }
@@ -46,24 +46,26 @@ var running := false
 var _skidding := false
 
 
-func _init(body: RigidBody2D) -> void:
+func _init(body: Node2D) -> void:
 	vehicle = body
 
 
-## Step the model one physics step on `state`, for a vehicle of `row` driven by its `intent`
+## Step the model one physics step on `state` (the 3D body's, in plan space: the floor plan `(x, z)`
+## and the turn about up), for a vehicle of `row` driven by its `intent`
 ## (`brake` holds the brakes to a stop and never reverses), while the engine runs (`running`).
-func step(state: PhysicsDirectBodyState2D, row: Dictionary) -> void:
+func step(state: PhysicsDirectBodyState3D, row: Dictionary) -> void:
 	var dt := state.step
-	var fwd := state.transform.x.normalized()
-	var right := state.transform.y.normalized()
-	var speed := state.linear_velocity.length()
+	var fwd := PlanSpace.plan_of(state.transform.basis.x).normalized()
+	var right := PlanSpace.plan_of(state.transform.basis.z).normalized()
+	var velocity := PlanSpace.plan_of(state.linear_velocity)
+	var speed := velocity.length()
 	var throttle: float = clampf(intent["throttle"], -1.0, 1.0) if running else 0.0
 	var tyres := TyreSolve.new()
-	tyres.vx = state.linear_velocity.dot(fwd)
-	tyres.vy = state.linear_velocity.dot(right)
-	tyres.w = state.angular_velocity
+	tyres.vx = velocity.dot(fwd)
+	tyres.vy = velocity.dot(right)
+	tyres.w = -state.angular_velocity.y  # a 2D body's sign: clockwise on the y-down plan
 	tyres.mass = 1.0 / maxf(state.inverse_mass, 0.0001)
-	tyres.inertia = 1.0 / maxf(state.inverse_inertia, 0.000001)
+	tyres.inertia = 1.0 / maxf(state.inverse_inertia_tensor.y.y, 0.000001)
 
 	# Steering: the share eased toward the input (full lock in steer_angle / steer_rate s), times
 	# the lock at this speed.
@@ -85,9 +87,22 @@ func step(state: PhysicsDirectBodyState2D, row: Dictionary) -> void:
 		tyres.vx = 0.0
 		tyres.vy = 0.0
 		tyres.w = 0.0
-	state.linear_velocity = fwd * tyres.vx + right * tyres.vy
-	state.angular_velocity = tyres.w
+	var along := fwd * tyres.vx + right * tyres.vy
+	_write(state, along, tyres.w)
 	_update_engine(row, tyres.vx, throttle if not braking else 0.0, dt)
+
+
+## Give `state` the velocity `along` (plan space, px/s) and the turn `spin` (a 2D body's sign), the
+## vertical speed left to the floor and gravity. Written only when it changed: the physics engine
+## counts a write that changes anything, however little (a rounding), as a push and would never let
+## a vehicle at rest go back to sleep.
+func _write(state: PhysicsDirectBodyState3D, along: Vector2, spin: float) -> void:
+	var moving := Vector3(along.x, state.linear_velocity.y, along.y) * RenderConfig.unit
+	if not moving.is_equal_approx(state.linear_velocity):
+		state.linear_velocity = moving
+	var turning := Vector3(0.0, -spin, 0.0)
+	if not turning.is_equal_approx(state.angular_velocity):
+		state.angular_velocity = turning
 
 
 ## Ease `steer_share` toward the `steer` input (-1..1) at a rate that reaches full lock in

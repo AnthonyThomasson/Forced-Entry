@@ -22,7 +22,6 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	s.von_script([{ "pick": "idle" }, { "pick": "go" }, { "pick": "room_hall" }], 60)
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"npc", &"defender", Vector2(700, 250))
 	# IDLE > GO is only offered to an NPC at rest
 	s.set_props(&"npc", "GoalController", { "tuning:decision:pursue_hostiles": false })
@@ -45,7 +44,7 @@ func run(t: TestContext) -> void:
 	var wall_frames := 0
 	for i in 60:
 		await t.frames(1)
-		top_speed = maxf(top_speed, (npc.get_real_velocity() as Vector2).length())
+		top_speed = maxf(top_speed, (TwinSpace.real_velocity_of(npc) as Vector2).length())
 		if Gaze.wall_ahead(npc):
 			wall_frames += 1
 	t.trace("drift", npc.global_position.distance_to(settled))

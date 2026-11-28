@@ -1,9 +1,15 @@
 class_name Door
-extends AnimatableBody2D
-## A hinged door standing in a doorway (Objects domain, `docs/doors.md`). A driven body, not a
+extends Node2D
+## A hinged door standing in a doorway (Objects domain, `docs/doors.md`), a plan handle (a `Node2D`
+## in the groups `doors` and `TwinSpace.BODIES`: no 2D shape, no 2D layer). A driven body, not a
 ## physics hinge (`docs/adr/0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md`): the code
-## turns its leaf about the hinge and the engine moves the body kinematically, so a swing is exact
-## and never knocked about by what leans on it. It publishes the door contract (architecture
+## turns its leaf about the hinge, so a swing is exact and never knocked about by what leans on it.
+## The leaf is led in 3D: its truth is a `DoorBody` in the twin space (an
+## `AnimatableBody3D` locked upright, `TwinSpace`, interface 29) that the swing turns, and this
+## handle is its follower, written from it in the same step (`_drive`). Knocked down (0 HP) the leaf
+## comes off its hinges as a free `DoorSlab` (D18, `docs/doors.md` DR11) that falls and lies as
+## physics decides, this handle its footprint (`fallen_footprint`: polygon data the slab writes). It
+## publishes the door contract (architecture
 ## interface 24) and is hit, shoved and damaged through the hittable (3) and pushable (5)
 ## contracts. Shown by the 3D render (`door_mesh.gd`); its parts are `look`, `damage`, `swing` and
 ## `push`. Its tuning is `DoorConfig`, `DoorPushConfig` and `DoorMaterialConfig`. It posts a
@@ -21,10 +27,13 @@ extends AnimatableBody2D
 signal changed
 
 const DoorDamage = preload("res://scenes/objects/door/door_damage.gd")
+const DoorFootprint = preload("res://scenes/objects/door/door_footprint.gd")
 const DoorLook = preload("res://scenes/objects/door/door_look.gd")
 const DoorPush = preload("res://scenes/objects/door/door_push.gd")
 const DoorSwing = preload("res://scenes/objects/door/door_swing.gd")
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
+## The most bodies a swing's query reads at once.
+const OVERLAP_HITS := 32
 
 ## The hinge: a world point on the jamb the leaf turns about.
 var hinge := Vector2.ZERO
@@ -51,28 +60,24 @@ var deformable: Deformable
 var _row: Dictionary = {}
 ## Whether it has been knocked down.
 var _down := false
-## What a swing asks the physics space about before it turns there: the leaf's shape, a pixel
-## slimmer all round (`DoorConfig.probe_inset`), so a leaf lying against a jamb or a wall it clears
-## by a hair is not counted as in it (`_overlapping` sizes it for each query).
-var _probe: RectangleShape2D
+## Its fallen leaf's footprint (`door_footprint.gd`): polygon data the slab writes, what a bake
+## carves and the doorway's gap reads.
+var footprint := DoorFootprint.new()
+## What a swing asks the twin space about before it turns there: the leaf's box, a pixel slimmer
+## all round (`DoorConfig.probe_inset`), so a leaf lying against a jamb or a wall it clears by a
+## hair is not counted as in it (`_overlapping` sizes it for each query).
+var _probe := BoxShape3D.new()
 ## Unit vector along the shut leaf, hinge to latch.
 var _along := Vector2.RIGHT
-## The game second the door last began opening, -INF before it has or once a closing swing has begun
-## since: a swing opening it within `DoorConfig.latch_gap` of that carries on one movement (a run of
-## scroll notches), which has sounded its latch already.
-var _opened_at := -INF
+
+
+func _enter_tree() -> void:
+	# a plan handle the twin space twins (and the game finds bodies by)
+	add_to_group(TwinSpace.BODIES)
+	add_to_group(TwinSpace.HARD)
 
 
 func _ready() -> void:
-	collision_layer = PhysicsLayers.SOLID
-	collision_mask = 0
-	var size := leaf_size()
-	var col := CollisionShape2D.new()
-	var leaf := RectangleShape2D.new()
-	leaf.size = size
-	col.shape = leaf
-	_probe = RectangleShape2D.new()
-	add_child(col)
 	deformable = Deformable.new()
 	deformable.max_depth = DoorConfig.dent_depth
 	deformable.allow_chunks = false
@@ -95,7 +100,7 @@ func _physics_process(delta: float) -> void:
 		changed.emit()
 		return
 	swing.advance(delta)
-	global_transform = leaf_pose(swing.angle)
+	_drive(leaf_pose(swing.angle))
 	if not swing.moving():
 		set_physics_process(false)
 		changed.emit()
@@ -152,12 +157,11 @@ func leaf_pose(angle_degrees: float) -> Transform2D:
 	return Transform2D(turned, pivot + middle.rotated(turned))
 
 
-## The door's surface for a striker (interface 3): full cover, its material's penetration, the
+## The door's surface for a striker (interface 3): its material's penetration, the
 ## surface material it sounds as (a steel door's is wood's) and, for the glass-panel door,
 ## `transparent`: sight passes through it.
 func get_surface() -> Dictionary:
 	var surface := {
-		"coverage": 100.0,
 		"penetration": _row["penetration"],
 		"material": _row.get("broken_sound", _row["sound"]) if look.broken else _row["sound"],
 		"color": ObjectArt.drawn_color(look.color),
@@ -187,10 +191,13 @@ func open_amount() -> float:
 
 
 ## The width a character can pass through (px): the straight way from the leaf's free end to the
-## latch jamb, never more than the doorway; the whole doorway once the door is down.
+## latch jamb, never more than the doorway; once the door is down what its fallen leaf leaves of the
+## doorway (all of it when it lies flat or elsewhere, `DoorFootprint.clear_width`).
 func gap() -> float:
 	if _down:
-		return width
+		var middle := _doorway_middle()
+		var half := _along * width * 0.5
+		return DoorFootprint.clear_width(fallen_footprint(), middle - half, middle + half)
 	return minf(2.0 * width * sin(deg_to_rad(swing.angle) * 0.5), width)
 
 
@@ -226,32 +233,49 @@ func latch_side_spot(from: Vector2) -> Vector2:
 	)
 
 
-## Whether the leaf has been knocked down (0 HP): off its hinges and lying flat, the doorway clear.
+## Whether the leaf has been knocked down (0 HP): off its hinges, a free body lying where it fell
+## (`fallen_footprint()`), the doorway clear.
 func is_down() -> bool:
 	return _down
 
 
 ## A round or a blast struck the leaf (hittable contract, interface 3): a dent or hole shows, debris
 ## flies, the glass-panel door's panes shatter, and the hit takes its material's factor of its
-## damage off the hit points (a blast is a hit with no speed: `speed_factor` 0 and no height).
+## damage off the hit points (a blast is a hit with no speed: `speed_factor` 0 and no height; its
+## shove is the grenade's, given by the pusher). A round that fells it throws the leaf by its own
+## impulse at the height it struck. A door already down is a free body: a round throws debris and
+## shoves it as a light piece (`Knockback.push`) at the height it struck, and costs it nothing.
 func take_hit(hit: HitInfo) -> void:
 	if _down:
+		Physics.spawn_debris(get_parent(), hit, _debris_surface())
+		if TwinSpace.leader_of(self) != null:
+			Knockback.push(
+				self,
+				Physics.impact_impulse(hit),
+				hit.position - global_position,
+				hit.height,
+			)
 		return
 	var kind := &"blast" if hit.speed_factor <= 0.0 and hit.height < 0.0 else &"round"
 	deformable.record(hit)
 	Physics.spawn_debris(get_parent(), hit, _debris_surface())
 	if look.material == "glass":
 		_shatter()
-	_hurt(hit.damage, kind, hit.direction)
+	_hurt(hit.damage, kind, hit.direction, Physics.impact_impulse(hit), hit.height)
 
 
 ## A strike of `kind` (`&"punch"` or `&"kick"`, the melee strike's own name for itself) dealt
-## `amount` while shoving along `impulse` (the character's melee, interface 3): the hit points drop
-## by the material's factor for that kind, and a kick from the push side wears the latch.
-func take_blow(kind: StringName, amount: float, impulse: Vector2) -> void:
+## `amount` while shoving along `impulse` at `height` px up (the character's melee, interface 3; -1:
+## no height known): the hit points drop by the material's factor for that kind, and a kick from the
+## push side wears the latch. A blow that fells the leaf throws it by that shove, at that height (a
+## kick's, at the lock: the leaf's middle).
+func take_blow(kind: StringName, amount: float, impulse: Vector2, height := -1.0) -> void:
 	if _down:
 		return
-	_hurt(amount, &"kick" if kind == &"kick" else &"melee", impulse)
+	var kicked := kind == &"kick"
+	# a breaching kick is aimed at the lock, at the leaf's middle: a foot's resting height (knee
+	# high) would kick the leaf's foot out from under it and tip it back onto the kicker
+	_hurt(amount, &"kick" if kicked else &"melee", impulse, impulse, -1.0 if kicked else height)
 
 
 ## Plain damage with no kind (a test's wound, the contract's `take_damage`): counted as a punch.
@@ -264,7 +288,12 @@ func take_damage(amount: float) -> void:
 ## against its weight, away from the body (`door.push`, `docs/doors.md` DR5, DR10). `at` is where
 ## it lands, from the leaf's middle.
 func apply_impulse(impulse: Vector2, at := Vector2.ZERO) -> void:
-	if _down or swing.moving() or swing.angle <= 0.0:
+	if _down:
+		# the free body that is the leaf now (a door with no twin space has none to push)
+		if TwinSpace.leader_of(self) != null:
+			Knockback.push(self, impulse, at)
+		return
+	if swing.moving() or swing.angle <= 0.0:
 		return
 	if not push.moving():
 		push.began_at = swing.angle
@@ -283,10 +312,16 @@ func get_mass() -> float:
 ## the door swings) throws an ajar door fully open at once, whatever its material: it is not
 ## latched. On a shut door it wears the latch by the strike itself (a boot cannot move a steel
 ## door's bolt), and when the latch gives the door bursts open.
-func _hurt(strike: float, kind: StringName, direction: Vector2) -> void:
+func _hurt(
+	strike: float,
+	kind: StringName,
+	direction: Vector2,
+	shove := Vector2.ZERO,
+	height := -1.0,
+) -> void:
 	push.note_blow()
 	if damage.hurt(strike * damage.factor(kind)):
-		_fall(direction)
+		_fall(direction, shove, height)
 		return
 	changed.emit()
 	if kind != &"kick" and kind != &"blast":
@@ -297,22 +332,40 @@ func _hurt(strike: float, kind: StringName, direction: Vector2) -> void:
 		_burst()
 
 
-## The leaf comes off its hinges at 0 HP and falls flat into the room the last blow pushed it toward
-## (`direction`; the room it swings into when the blow had none): it lies on the floor beyond the
-## doorway with its length along the way it fell, walk-over (no collider), casting no shadow, in the
-## doorway's way no more.
-func _fall(direction: Vector2) -> void:
+## The leaf comes off its hinges at 0 HP (D18, `docs/doors.md` DR11): its leader is replaced by a
+## free body that stands where the leaf stood (`TwinSpace.retwin`, a `DoorSlab`), thrown by the blow
+## that felled it (`shove`, plan space, at `height` px up; a blast's is given by its pusher next)
+## and wrenched over across its face the way the blow came (`direction`; the room it swings into
+## when the blow had none), and it falls and lies as physics decides. This body is its footprint
+## from then: solid while the leaf stands or leans higher than a step, no collider once it lies
+## flat, and in the doorway's way no more. It is unusable, and the doorway counts as clear (`gap`).
+func _fall(direction: Vector2, shove: Vector2, height: float) -> void:
 	_down = true
 	set_physics_process(false)
+	var ajar := swing.angle > 0.0
 	swing.angle = open_angle
 	swing.halt()
 	push.stop()
-	var toward := swing_into if direction.dot(swing_into) >= 0.0 else -swing_into
-	var doorway := _doorway_middle()
-	var lies := doorway + toward * (DoorConfig.fallen_length * 0.5 + DoorConfig.leaf_thickness)
-	collision_layer = 0
-	global_transform = Transform2D(toward.angle(), lies)
-	look.flipped = -_along.dot(toward.rotated(-PI / 2.0)) < 0.0
+	var across := global_transform.y.normalized()
+	var side := signf(direction.dot(across))
+	if is_zero_approx(side):
+		side = signf(across.dot(swing_into))
+	var fall := across * (side if side != 0.0 else 1.0)
+	var out := Vector2.ZERO
+	if ajar and not is_zero_approx(across.dot(swing_into)):
+		# a leaf ajar stands on a diagonal across its doorway's wall line, where whichever way it
+		# tipped its ends would catch a jamb: it falls with the blow (the room it swings into when
+		# the blow had none), away from whoever knocked it down, and is carried out of the frame
+		# that way first (`DoorSlab.release`); a leaf only falls flat across its face, so that is
+		# the face on the blow's side, however edge-on to the blow it stands
+		out = -swing_into if direction.dot(swing_into) < 0.0 else swing_into
+		fall = across * signf(across.dot(out))
+	TwinSpace.retwin(self)
+	var slab := TwinSpace.twin_for(self) as DoorSlab
+	if slab != null:
+		slab.release(shove, height, fall, out, hinge.dot(out))
+	else:
+		footprint.flat = true  # no twin space to fall in: out of the way
 	changed.emit()
 	_post(&"down")
 
@@ -329,7 +382,7 @@ func _pushed(delta: float) -> void:
 		push.stop()
 	else:
 		swing.rest_at(to)
-		global_transform = leaf_pose(to)
+		_drive(leaf_pose(to))
 		push.slow(delta)
 		if to <= 0.0 or to >= open_angle:
 			push.stop()
@@ -350,7 +403,7 @@ func _blocked(to: float, delta: float, nudging: bool) -> bool:
 	for body in _overlapping(pose, DoorConfig.probe_inset):
 		if not _is_character(body):
 			return true
-		if nudging and not _nudged(body as CharacterBody2D, pose, delta):
+		if nudging and not _nudged(body as Node2D, pose, delta):
 			return true
 	if nudging:
 		return false
@@ -358,35 +411,67 @@ func _blocked(to: float, delta: float, nudging: bool) -> bool:
 	# furniture in its way, which a slimmer probe would let it overlap ever so slightly, and the
 	# engine would press aside, a shove a frame for as long as the walker pushes
 	for body in _overlapping(pose, 0.0):
-		if _is_character(body) or body is RigidBody2D:
+		# (a vehicle is the footprint of a free 3D body, as a piece is: it is as loose as one)
+		if (
+			_is_character(body) or body.is_in_group(TwinSpace.PIECES)
+			or TwinSpace.leader_of(body) != null
+		):
 			return true
 	return false
 
 
-## The solid bodies the leaf standing at `pose`, `inset` px slimmer all round, overlaps.
+## The solid bodies the leaf standing at `pose`, `inset` px slimmer all round, overlaps: their 2D
+## bodies, each once, by where they stand (the order the engine reports them in is not stable
+## run to run), found with the leaf's box in the twin space, so a tipped piece or a door lying on
+## its side is where it really is. None in a world with no twin space.
 func _overlapping(pose: Transform2D, inset: float) -> Array:
-	_probe.size = leaf_size() - Vector2.ONE * inset * 2.0
-	var query := PhysicsShapeQueryParameters2D.new()
+	var space := TwinSpace.space_of(self)
+	var own := TwinSpace.twin_for(self) as CollisionObject3D
+	if space == null or own == null:
+		return []
+	var size := leaf_size()
+	var height := ObjectStructureMeshConfig.door_height
+	_probe.size = Vector3(size.x, height, size.y) * RenderConfig.unit - Vector3.ONE * inset * 2.0
+	var query := PhysicsShapeQueryParameters3D.new()
 	query.shape = _probe
-	query.transform = pose
-	query.collision_mask = PhysicsLayers.SOLID
-	query.exclude = [get_rid()]
+	query.transform = PlanSpace.lift_transform(pose, height * 0.5)
+	query.collision_mask = PhysicsLayers.TWIN_ALL
+	query.exclude = [own.get_rid()]
 	var bodies := []
-	for found in get_world_2d().direct_space_state.intersect_shape(query, 8):
-		bodies.append(found["collider"])
+	for found in space.intersect_shape(query, OVERLAP_HITS):
+		var body := TwinSpace.owner_of(found["collider"])
+		if _walked_over(found["collider"]):
+			continue
+		if body != null and body != self and not bodies.has(body):
+			bodies.append(body)
+	bodies.sort_custom(_nearer_the_origin)
 	return bodies
+
+
+## Whether `collider` is an item lying within a step (`ItemBody.walk_over`): the leaf swings over a
+## plate as a walker steps over it. A fallen door's leaf lies as flat and is no item: it stops the
+## leaf.
+func _walked_over(collider: Object) -> bool:
+	return collider is ItemBody and (collider as ItemBody).is_flat()
+
+
+## Bodies in a fixed order: by where they stand.
+static func _nearer_the_origin(a: Node2D, b: Node2D) -> bool:
+	if a.global_position.x != b.global_position.x:
+		return a.global_position.x < b.global_position.x
+	return a.global_position.y < b.global_position.y
 
 
 ## Whether `body` is a living character (one the leaf may nudge).
 func _is_character(body: Object) -> bool:
-	return body is CharacterBody2D and (body as Node).is_in_group(&"characters")
+	return body is Node and (body as Node).is_in_group(&"characters")
 
 
 ## Move character `body` clear of the leaf standing at `pose`, straight away from it, by what it
 ## takes (no more than `DoorConfig.nudge_speed` allows this step). False when it cannot be moved
 ## that far: the leaf outruns the nudge, or a wall, a piece of furniture or another body stands in
 ## its way.
-func _nudged(body: CharacterBody2D, pose: Transform2D, delta: float) -> bool:
+func _nudged(body: Node2D, pose: Transform2D, delta: float) -> bool:
 	var half := leaf_size().x * 0.5
 	var line_a := pose * Vector2(-half, 0.0)
 	var line_b := pose * Vector2(half, 0.0)
@@ -399,15 +484,9 @@ func _nudged(body: CharacterBody2D, pose: Transform2D, delta: float) -> bool:
 	if need > DoorConfig.nudge_speed * delta:
 		return false
 	var aside := (away.normalized() if away.length() > 0.001 else pose.y) * need
-	var excepted := body.get_collision_exceptions().has(self)
-	if not excepted:
-		body.add_collision_exception_with(self)
-	var free := not body.test_move(body.global_transform, aside)
-	if free:
-		body.move_and_collide(aside)
-	if not excepted:
-		body.remove_collision_exception_with(self)
-	return free
+	var walker := TwinSpace.walker_of(body)
+	var leaf := TwinSpace.twin_for(self) as PhysicsBody3D
+	return walker != null and leaf != null and walker.call(&"shift", aside, leaf)
 
 
 ## Swing toward `to` degrees (clamped to the door's range), taking the share of
@@ -420,8 +499,8 @@ func _turn_to(to: float) -> void:
 		return
 	push.stop()
 	var opens := goal > swing.angle
-	var begins := opens and GameClock.seconds() - _opened_at >= DoorConfig.latch_gap
-	_opened_at = GameClock.seconds() if opens else -INF
+	var begins := opens and GameClock.seconds() - swing.opened_at >= DoorConfig.latch_gap
+	swing.opened_at = GameClock.seconds() if opens else -INF
 	swing.begin(goal, DoorConfig.swing_time * absf(goal - swing.angle) / open_angle)
 	set_physics_process(true)
 	changed.emit()
@@ -444,6 +523,24 @@ func _shatter() -> void:
 		return
 	look.broken = true
 	_post(&"glass")
+
+
+## Move the leaf to `pose` (the world transform of its middle): its 3D leader is turned and this
+## body written from it (`DoorBody.drive`). With no twin space the body is moved directly.
+func _drive(pose: Transform2D) -> void:
+	var leader := TwinSpace.twin_for(self) as DoorBody
+	if leader != null:
+		leader.drive(pose)
+	else:
+		global_transform = pose
+
+
+## The footprint of a fallen leaf that is an obstacle (a ring in the world), or empty when the leaf
+## stands, is gone, or lies flat to be walked over: what a nav bake carves (interface 9, 24).
+func fallen_footprint() -> PackedVector2Array:
+	if not _down:
+		return PackedVector2Array()
+	return footprint.ring(leaf_size(), global_transform)
 
 
 ## The point the leaf turns about: the hinge, half a leaf's thickness toward the room it swings

@@ -24,8 +24,8 @@ static func fuse(outlines: Array) -> Array:
 	return fusion.result()
 
 
-## Fuse `outlines` in too, in order: a fusion fed its outlines in chunks, a frame at a time, has
-## the result one fed them all at once has.
+## Fuse `outlines` in too, in order: a fusion fed its outlines in several calls has the result one
+## fed them all at once has.
 func add_all(outlines: Array) -> void:
 	for outline in outlines:
 		var cur: PackedVector2Array = outline
@@ -63,21 +63,20 @@ func _fuse_with_one(cur: PackedVector2Array, box: Rect2) -> PackedVector2Array:
 	for id in ids:
 		if not box.intersects(_boxes[id]):
 			continue
-		var merged := Geometry2D.merge_polygons(cur, _kept[id])
-		var outer: Array = merged.filter(_is_outer)
-		if outer.size() != 1:
+		var outer := PackedVector2Array()
+		var rings := 0
+		for ring: PackedVector2Array in Geometry2D.merge_polygons(cur, _kept[id]):
+			if not Geometry2D.is_polygon_clockwise(ring):
+				outer = ring
+				rings += 1
+		if rings != 1:
 			continue
 		for cell in _cells_of(_boxes[id]):
 			_cells[cell].erase(id)
 		_kept.erase(id)
 		_boxes.erase(id)
-		return outer[0]
+		return outer
 	return PackedVector2Array()
-
-
-## Whether `poly` is an outer ring of a merge (not a hole in it).
-static func _is_outer(poly: PackedVector2Array) -> bool:
-	return not Geometry2D.is_polygon_clockwise(poly)
 
 
 ## The grid cells `box` reaches.

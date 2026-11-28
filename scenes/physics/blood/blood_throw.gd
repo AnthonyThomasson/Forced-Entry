@@ -11,3 +11,6 @@ var direction: Vector2 = Vector2.RIGHT
 var energy: float = 0.0
 ## The bleeding body's RID(s), ignored by the splat's wall clipping.
 var exclude: Array = []
+## Where it lands when that is not the floor (`BloodLanding.trace`: a wall's face or a piece's top),
+## else empty: the splat is then laid on that surface and not clipped by the walls round it.
+var surface: Dictionary = {}

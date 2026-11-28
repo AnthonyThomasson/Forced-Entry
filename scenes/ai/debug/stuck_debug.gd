@@ -11,7 +11,10 @@ const STUCK_FULL := 3.0
 const RING_RADIUS := 20.0
 
 ## Whether to draw the stuck overlay.
-@export var show_stuck: bool = false
+@export var show_stuck: bool = false:
+	set(value):
+		show_stuck = value
+		_sync_processing()
 
 
 ## Whether this overlay's toggle is on.

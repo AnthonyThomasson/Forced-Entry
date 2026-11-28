@@ -12,10 +12,10 @@ extends GameTest
 ##   job (a job is started per cone published, one in flight apart);
 ## - an eye jumped past the bound (a teleport, a vehicle: 60 px) has its cone built whole in that
 ##   very frame, and a facing turned 90 degrees at once is not a jump but a pose change;
-## - a character that blocks (the viewer looks over only what is lower than a standing body, and
-##   one stands in the way) is a change of the world in every frame: a job is started or restarted
-##   every frame, and after two restarts in a row the third frame builds the cone whole, so a cone
-##   is published at least every fourth frame;
+## - a blocker that moves in every frame (a wardrobe in the viewer's way, moved a pixel each frame)
+##   is a change of the world in every frame: a job is started or restarted every frame, and after
+##   two restarts in a row the third frame builds the cone whole, so a cone is published at least
+##   every fourth frame;
 ## - the seen mask (the memory) draws only cones the view published.
 ## The sight numbers' own case is `vision/view_watch_suite`'s; a world that changes between slices:
 ## `vision/cone_restarts_on_world_change`.
@@ -23,10 +23,10 @@ extends GameTest
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 const Checker := preload("res://tests/_vision/cone_checker.gd")
 const EYE_AT := Vector2(200, 300)
-## A character in the viewer's way, east of it.
-const STANDER_AT := Vector2(400, 300)
-## The slice (units) that makes a job of this house three frames: the corners take one,
-## priced at a slice as the default price is (`cost_shape`), and the rays two.
+## A wardrobe in the viewer's way, east of it, moved a pixel a frame while it is looked at.
+const BLOCKER_AT := Vector2(400, 300)
+## The slice (units) that makes a job of this house three frames: the corners take one, priced at
+## a slice here (`cost_shape` is set to it: the default price is lower), and the rays two.
 const SLICE := 140
 ## The viewer's step in a frame (px) and its turn (degrees).
 const WALK := Vector2(2.0, 0.0)
@@ -45,8 +45,8 @@ const MOST_BETWEEN := CAP + 2
 ## to prove the job is sliced.
 const OLDEST := 4
 const YOUNGEST := 2
-## A long job (#195, the user's choice 2026-11-12: the corners are priced honestly, so a job is the
-## corners' tick and its rays' ticks): the slice (units) that makes this house's job six ticks, the
+## A long job (#195, the user's choice 2026-11-12, and 2026-11-19 for the corners' price: a job is
+## its corners and its rays' ticks): the slice (units) that makes this house's job six ticks, the
 ## longest a district's job takes, and the oldest its cone may be then, twice the ticks less one.
 const LONG_SLICE := 50
 const LONG_TICKS := 6
@@ -77,10 +77,11 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Probe.building(s, EYE_AT)
 	s.switch(&"vision.enabled", true)
-	s.set_static(CharacterVisionConfig, &"see_over_coverage", Probe.LOOK_OVER_LOW)
 	s.set_static(VisionSliceConfig, &"slice_units", SLICE)
 	s.set_static(VisionSliceConfig, &"cost_shape", SLICE)
-	s.actor(&"stander", &"puppet", STANDER_AT)
+	# the cap's whole build is what it pins: no job settles through a slow move
+	s.set_static(VisionSliceConfig, &"settle_px", 0.0)
+	s.object(&"blocker", _anchored_wardrobe(), BLOCKER_AT, { "rotated": true })
 	s.view(&"eye")
 
 
@@ -95,8 +96,8 @@ func run(t: TestContext) -> void:
 	_checker = Checker.new(_view, _eye)
 	t.world.add_child(_checker)
 	await t.frames(3)
-	await _blocking_character()
-	if not await _crouch_stander():
+	await _moving_blocker()
+	if not await _settled_again():
 		return
 	await _walking()
 	await _turning()
@@ -105,17 +106,19 @@ func run(t: TestContext) -> void:
 	_whole()
 
 
-## The character stands in the way and blocks the viewer's sight: the world changes every frame,
-## so a job is started or restarted every frame, and the third restart is a whole build.
-func _blocking_character() -> void:
+## The wardrobe moves in every frame in the viewer's way: the world changes every frame, so a job is
+## started or restarted every frame, and the third restart is a whole build.
+func _moving_blocker() -> void:
+	var blocker: Node2D = _t.object(&"blocker")
 	var starts := _view.starts()
 	var published := _view.rebuilds()
 	for i in 12:
 		_eye.global_position += WALK
+		blocker.global_position += Vector2(0.0, 1.0 if i % 2 == 0 else -1.0)
 		await _t.frames(1)
 	_t.check(
 		_view.starts() - starts == 12,
-		"a viewer walking before a blocker starts or restarts a job every frame (%d in 12)"
+		"a viewer walking before a moving blocker starts or restarts a job every frame (%d in 12)"
 		% (_view.starts() - starts),
 	)
 	_t.check(
@@ -125,18 +128,19 @@ func _blocking_character() -> void:
 	)
 
 
-## The character crouches and no longer blocks; the viewer is put back where it started.
-func _crouch_stander() -> bool:
-	var stander := _t.actor(&"stander")
-	if not _t.require(
-		await _t.until(func(): return stander.movement.set_posture(&"crouch"), 3.0),
-		"the character crouches",
-	):
-		return false
+## The wardrobe rests; the viewer is put back where it started.
+func _settled_again() -> bool:
 	await _t.frames(8)
 	if not _t.require(await Probe.place(_t, _eye, EYE_AT, Vector2.RIGHT), "the viewer faces east"):
 		return false
 	return await _settled()
+
+
+## A wardrobe that stays where it is put (a frozen body).
+func _anchored_wardrobe() -> Dictionary:
+	var definition: Dictionary = WorldGen.object_definition("wardrobe").duplicate()
+	definition["anchored"] = true
+	return definition
 
 
 ## The viewer walks `FRAMES` frames at `WALK` a frame.

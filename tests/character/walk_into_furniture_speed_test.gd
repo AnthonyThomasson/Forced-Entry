@@ -68,7 +68,7 @@ func run(t: TestContext) -> void:
 	for i in FRAMES:
 		await t.frames(1)
 		for id in prev:
-			var sp: float = t.actor(id).get_real_velocity().length()
+			var sp: float = TwinSpace.real_velocity_of(t.actor(id)).length()
 			t.trace(String(id), sp)
 			# Only judge once the walker has touched (budged) its piece.
 			if not contact[id] and t.object(id).global_position.distance_to(start[id]) > 0.5:

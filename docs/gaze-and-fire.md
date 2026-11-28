@@ -16,6 +16,10 @@ A *threat* is a hostile contact (`Watch._pick_threat`): the one it is fighting i
 else the one it is fighting as last seen, else the nearest it saw within `tuning.watch.lost_gaze` s. A contact it cannot see only
 counts while it has a clear line to where it was last seen (it does not stare at a wall because someone is behind it).
 
+*Can see* is the eye ray of `docs/player-vision.md` V2 (#194 D9): a 3D line from the NPC's eye, at the height of its posture, to the head,
+chest or hips of the other body at that body's posture, clear for any one. A standing NPC looks over a table and sees a standing body behind
+a sofa but not one ducked right behind it; a ducked NPC cannot look over a counter. A body in the way hides nothing.
+
 ## Behaviours
 
 **W1. A threat holds the eyes.** Whatever the primitive is doing (a move, a search covering a room, a hold, a reload, an
@@ -32,7 +36,14 @@ of a tactical entry, the approach, the stack and the pie included, so an invader
 view fires on it from outside (E3). A gaze step of the entry that cannot settle because the entrant is looking at a threat
 counts as settled, so the entry carries on rather than waiting at the pie. Peek-and-cover and the ambush shoot only once the
 facing has settled on the contact; a peek ducks only after a shot left the barrel (or on the click of an empty gun, where the
-cover phase reloads), not after a refused one.
+cover phase reloads), not after a refused one. The round is aimed at the middle of the part of the threat that shows
+(`movement.aim_height` left to its automatic setting, `SightRay.aim_height`: the centre of the parts the shooter's eye sees, the head
+when only the head shows over cover, and the middle of the torso at its posture when none does; the 3D ray of
+`docs/cover-and-stance.md` H1), not at a roll of the dice: a threat behind cover it clears is struck over it, one the cover is taller
+than is not, so the shot is taken whenever it is available and what stops it is geometry. The AI's own "clear line" is that same
+line (`AgentVision.fire_line_clear`: from the shooter's muzzle at its pose, or at the pose its gun would rise to, to the aimed
+height), so an NPC never pulls the trigger on a line its round cannot fly, and never holds back on one it can: a hostile crouched
+behind a sofa is not shot through, one behind a coffee table is shot over it. Any living body standing in the line holds the shot but a known hostile (a round hits it; sight looks through it): an ally, a bystander, the human player; a ducked one under the line is shot over. The firing and flank spots the planner ranks ignore bodies (a body moves; only the trigger asks). An NPC aims at where it last knew its target, so the gate cannot leak the body's real position: the visible part is read from the last-known point and from the eye of the pose it fires in. Tests: `aim_at_visible_part`, `aim_from_last_known`, `no_rounds_into_cover`, `fire_line_held_by_any_body`.
 Tests: `entry_guard_fires_from_outside`, `gaze_search_turns_to_threat`, `combat_waits_for_facing`.
 
 **W3. An empty gun is reloaded.** With a threat in view and a spare magazine, an empty gun is reloaded at once, not carried
@@ -55,6 +66,12 @@ Tests: `gaze_arrival_stops`.
 (`run_through_fire` on the RETREAT node): it is about leaving the line, not trading shots.
 Tests: `ai_runs_to_destination`, `retreat_keeps_running`.
 
+## The beat: where it looks and fires one frame in two (#194)
+
+An NPC senses and acts on a beat, one frame in two (`npc_pace.gd`; the rule, its wake list and the cost: the `domain-ai` skill's `beat.md`). Its aim (`aim_point`), its walk and its decision to fire are written on its beat; the body turns toward the aim and walks on the intent every frame. So an NPC sights a character in its cone at most a frame later than before, aims at it a frame later, and a gun's cooldown rounds up to its beat (a shot the weapon allows between beats is fired on the next). It never waits for a beat when a frame late would show: a burst owing a round, a throw, a tactical entry (its stack, pie and crossing, and its approach near the doorway: a team's choreography is timed against the other bodies, and a guard that covers a doorway a beat after the invader is abreast of it is a different behaviour) and a door being worked, a grenade run, a primed ambusher and a flash-blinded NPC run every frame, and a hit on it, a grenade event (thrown, landed, burst) or an order wake it for the frame. A character held in view is re-tested every second beat (4 frames).
+
+Tests: `npc_beats_on_its_frames`, `sight_follows_a_moving_target`, `gaze_arrival_stops`.
+
 ## Tuning (the NPC's `tuning.watch`)
 
 `tuning.watch.look_ahead` (150 px), `tuning.watch.door_dwell` (2.5 s), `tuning.watch.lost_gaze` (2 s). The turn between doorways uses
@@ -62,5 +79,5 @@ Tests: `ai_runs_to_destination`, `retreat_keeps_running`.
 
 ## Not modelled
 
-Shooting across low furniture an NPC can see over (a table, a counter): the line of fire is fully physical, as it is for
-fire spots, flanks and the snapshot's `clear_shot`, so such a shot is not taken (the NPC still faces the enemy).
+Shooting through glass (a glass-panel door passes sight, not a round): the line of fire is fully physical, as it is for fire spots,
+flanks and the snapshot's `clear_shot`, so such a shot is not taken (the NPC still faces the enemy).

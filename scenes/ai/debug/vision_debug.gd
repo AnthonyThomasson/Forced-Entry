@@ -14,7 +14,10 @@ const CONE_RAYS := 64
 const BUBBLE_RAYS := 48
 
 ## Whether to draw the vision overlay at all.
-@export var show_vision: bool = true
+@export var show_vision: bool = true:
+	set(value):
+		show_vision = value
+		_sync_processing()
 ## Fill colour for the forward view cone's line-of-sight area.
 @export var cone_color: Color = Color(0.3, 0.8, 1.0, 0.12)
 ## Fill colour for the near-awareness bubble's line-of-sight area.

@@ -32,6 +32,8 @@ const VonGate = preload("res://scenes/testing/test_von_gate.gd")
 const MAIN_VIEW3D := preload("res://scenes/main_view3d.gd")
 ## The verdicts that carry a bundle (event log, final state, traces) and a `--shots` screenshot.
 const BUNDLED := ["FAIL", "TIMEOUT", "GAP"]
+## How far (px) outside every room of the world an actor stands before the camera stops framing it.
+const OFF_STAGE := 1500.0
 ## The skip reason of a live-only test in a `--record-von` run: nothing of it is recorded.
 const LIVE_ONLY_RECORD := "live-only: nothing to record (--require-von runs it against the server)"
 
@@ -49,6 +51,10 @@ var bundle_dir := ""
 ## its window is to be looked at: the in-game runner, a `--shots` run). A test that builds its own
 ## picture (`TestSetup.own_picture`) is left to it.
 var picture := false
+## Whether this is a batch run whose perf tests measure their own render (the batch host sets it,
+## `GameTestSuite.before`, unless `shots`): a perf test then gets no view of the session's. The
+## in-game runner leaves it off, so a perf test opened there shows its picture.
+var measures_perf := false
 ## The open test's descriptor ({} between tests; the setup, context and world below are null then).
 var entry: Dictionary = {}
 ## The open test's setup, as its `configure` declared it.
@@ -69,8 +75,6 @@ var _concluded := false
 ## How the open requires_von test's Von decisions are answered, and what that run leaves behind
 ## (its recording, the asks it had no answer for).
 var _von_run: VonRun = null
-## Whether the open test was skipped for want of the Von decision server (its record says so).
-var _von_skipped := false
 
 
 func _process(_delta: float) -> void:
@@ -110,7 +114,7 @@ func start(test_entry: Dictionary) -> void:
 	entry = test_entry
 	setup = null
 	_concluded = false
-	_von_skipped = false
+	von.skipped = false
 	var skip_reason := await _begin_von()
 	ctx = TestContext.new(get_tree(), entry)
 	if skip_reason == VonGate.NOT_LIVE and (von.require or von.record):
@@ -126,7 +130,7 @@ func start(test_entry: Dictionary) -> void:
 		_fail_at_start("Test script " + String(entry["error"]))
 		return
 	if skip_reason != "":
-		_von_skipped = true
+		von.skipped = true
 		ctx.skip(skip_reason)
 		return
 	var test: GameTest = load(entry["path"]).new()
@@ -149,11 +153,17 @@ func start(test_entry: Dictionary) -> void:
 	for id in world.actors:
 		_observe_actor(id, world.actors[id])
 	world_built.emit(setup)
-	if picture and not setup.owns_picture:
+	if picture and not setup.owns_picture and not _measures_its_own_render():
 		_show_picture()
 	_drive(test, ctx)
 	if not ctx.is_finished:
 		await ctx.finished
+
+
+## Whether the open test is a perf test in a batch that measures them (`measures_perf`): its frame
+## times are the cost of what it draws itself, so the session adds no view of its own.
+func _measures_its_own_render() -> bool:
+	return measures_perf and entry["domain"] == "perf"
 
 
 ## The 3D view that shows the open test's world (`picture`), or null: what a test of the picture
@@ -196,7 +206,8 @@ func _left_out_if_world(node: Node) -> void:
 	if not is_instance_valid(node) or not is_instance_valid(_view) or not is_instance_valid(world):
 		return
 	if (node.has_meta("rooms") or node.has_meta("towers")) and is_instance_valid(world.house):
-		_view.mirror.leave_out(world.house)
+		_view.carrier.leave_out(world.house)
+		_view.follower.leave_out(world.house)
 
 
 ## Decide how the open test's Von decisions are answered (`_von_run`). Returns why it does not run
@@ -285,7 +296,7 @@ func result(snapshot := {}) -> Dictionary:
 		"status": ctx.verdict.status, "reason": ctx.verdict.reason,
 		"time": snappedf(ctx.time, 0.01),
 		"checks": ctx.verdict.checks.duplicate(), "logs": ctx.verdict.logs.duplicate(),
-		"manual": entry.get("manual", false), "von": _von_skipped,
+		"manual": entry.get("manual", false), "von": von.skipped,
 	}
 	if BUNDLED.has(ctx.verdict.status):
 		record["events"] = ctx.bundle.plain_events(ctx.events)
@@ -294,6 +305,20 @@ func result(snapshot := {}) -> Dictionary:
 		record["traces"] = ctx.bundle.traces.duplicate(true)
 		record["shots"] = ctx.bundle.shots.duplicate()
 	return record
+
+
+## The ground the open world's camera frames its targets on: the world's rooms (a district's every
+## room) grown by `OFF_STAGE` each way; empty with none, so the framing keeps to no ground. An actor
+## parked beyond it (a test puts one far off to take it out of the fight) is not framed.
+func camera_ground() -> Rect2:
+	var rooms: Array = (
+		WorldGen.district_rooms(world.district) if world.district != null else world.rooms
+	)
+	var ground := Rect2()
+	for i in rooms.size():
+		var rect: Rect2 = rooms[i]["rect"]
+		ground = rect if i == 0 else ground.merge(rect)
+	return ground.grow(OFF_STAGE) if not rooms.is_empty() else ground
 
 
 ## The nodes the open world's camera frames: the setup's camera targets (default: every actor); an

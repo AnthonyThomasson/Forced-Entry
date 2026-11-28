@@ -5,7 +5,8 @@ class_name ProjectileSpawner
 const Projectile = preload("res://scenes/projectile/projectile.gd")
 
 
-## Spawn a bullet at `position` travelling along `direction` into `parent` (the world root), flying
+## Spawn a bullet at `position` (plan point, at the shot's `height`) travelling along plan
+## `direction` (climbing at the shot's `rise`) into `parent` (the world root), flying
 ## as `shot` says (its shooter, damage, speed, power and range; null = a plain round, every field
 ## its default). Returns the node so the caller can connect its `hit` signal.
 static func spawn(position: Vector2, direction: Vector2, parent: Node, shot: Shot = null) -> Node:
@@ -17,6 +18,8 @@ static func spawn(position: Vector2, direction: Vector2, parent: Node, shot: Sho
 	proj.position = position
 	ViewLayers.set_moving(proj, true)
 	proj.direction = direction
+	proj.height = shot.height if shot.height >= 0.0 else BodyHeights.muzzle(BodyHeights.STAND)
+	proj.rise = shot.rise
 	proj.ignore = shot.shooter
 	proj.strikes_shooter = shot.strikes_shooter
 	if shot.max_range > 0.0:

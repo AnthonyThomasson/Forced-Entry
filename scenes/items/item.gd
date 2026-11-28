@@ -60,6 +60,17 @@ func tick(_delta: float) -> void:
 	pass
 
 
+## Whether `secondary` would fire a round now: a gun loaded, not reloading and between rounds.
+## Default: no (only a gun fires).
+func can_fire() -> bool:
+	return false
+
+
+## Seconds a gun takes between rounds (its row's `fire_interval`). Default: 0.
+func fire_interval() -> float:
+	return 0.0
+
+
 ## Whether holding the trigger keeps repeating the secondary action (a controller re-presses it
 ## every frame) instead of needing a fresh press each time. Default: no.
 func is_automatic() -> bool:

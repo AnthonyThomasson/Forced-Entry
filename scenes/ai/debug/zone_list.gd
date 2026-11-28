@@ -44,9 +44,9 @@ static func from_options(options: Dictionary) -> Array:
 ## Append each option in `group` that has a world location to `out`, tagged `category` — except the
 ## non-room waypoints (WAYPOINT_IDS), re-tagged `waypoint`. Each entry also carries the option's
 ## `label` and `desc` (the human text Von reads, which spells out the deciding facts: cover, route,
-## range) so an inspector can expose a clicked point's details, and a throw's `from`. The location
-## is the option's `point` param, or an interactable's current position. Options with neither (a
-## punch, a hostile bind) are skipped.
+## range) so an inspector can expose a clicked point's details, a throw's `from` and a flank's
+## `via`. The location is the option's `point` param, or an interactable's current position. Options
+## with neither (a punch, a hostile bind) are skipped.
 static func _collect(out: Array, group: Dictionary, category: StringName) -> void:
 	for opt in group.get("options", []):
 		var params: Dictionary = opt.get("params", {})
@@ -63,4 +63,6 @@ static func _collect(out: Array, group: Dictionary, category: StringName) -> voi
 			}
 			if params.has("from"):
 				zone["from"] = params["from"]
+			if params.get("via", Vector2.INF) != Vector2.INF:
+				zone["via"] = params["via"]
 			out.append(zone)

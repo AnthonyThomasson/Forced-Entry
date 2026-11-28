@@ -7,8 +7,9 @@ extends RefCounted
 ##   `{ pick: String, question: String (optional) }`: the first rule whose `pick` is among the
 ##   offered option ids (and whose `question` text, when given, occurs in the level's question)
 ##   wins;
-##   with no matching rule the first offered id is taken. `fail` makes every ask fail, as if the
-##   server were down; `latency_frames` holds an answer back like a slow server.
+##   with no matching rule the first offered id is taken. `latency_frames` holds an answer back like
+##   a slow server.
+## - `fail` makes every ask fail whatever the mode, as if the server were down (the NPCs hold).
 ## - REPLAY: the answer recorded for the ask (`recording`, a `VonRecording`) by its `VonKey`; an ask
 ##   the recording lacks, or whose recorded pick no offered option matches, fails and is kept in
 ##   `misses` (with its `why`) for the session to fail the test with.

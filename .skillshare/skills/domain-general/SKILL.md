@@ -5,7 +5,7 @@ description: Use when editing scenes/general/: keybinds, settings, camera, comma
 
 # General domain (`scenes/general/`)
 
-Infrastructure every domain may use. Cross-domain API: `architecture` interfaces 7, 10, 11, 13, 14, 15, 19, 24 (`scroll_notches`, `INTERACT`), 26 (`Pointer`). HUDs and menus are `domain-ui`. Tests: `tests/general/` (camera, keybinds, settings, WeightedPick, SightRay, SeenArea, Pointer (pointer_converts, pointer_inject), verdict; it also holds match-building tests, listed in `domain-main` ("Tests"), and squad tests, in `domain-ai` (`team.md`)).
+Infrastructure all domains use. Cross-domain API: `architecture` interfaces 7, 10, 11, 13, 14, 15, 19, 24 (`scroll_notches`, `INTERACT`), 26 (`Pointer`), 29 (`TwinSpace`). HUDs and menus: `domain-ui`. Tests `tests/general/` (camera, keybinds, settings, WeightedPick, SightRay, SeenArea, BodyHeights, PlanSpace, TwinSpace (`twin_space_world`, `twin_space_in_match`), Pointer (pointer_converts, pointer_inject), verdict; it also holds match-building tests, in `domain-main` ("Tests"), and squad tests, in `domain-ai` (`team.md`)).
 
 Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock`, plus Audio's `Sound`. The rest are `class_name` static holders (no instance). Tuning holders: `CameraConfig`, `CameraShakeConfig` (ADR 0003), read live, so a test may `set_static` them.
 
@@ -20,15 +20,18 @@ Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock`, p
 | `despawner.gd` | cap on transient bodies |
 | `camera_controller.gd` (+ the two config holders) | `Camera2D` |
 | `command_server.gd` | dev command server |
-| `pointer.gd` | `Pointer` (26; `pointer.md`) |
+| `pointer.gd`, `faded_twins.gd` | `Pointer` (26; `pointer.md`), `FadedTwins` (which twins the wall fade holds faded: Art writes, Pointer reads; 27) |
 | `ground_layer.gd` | `GroundLayer`: flat 3D overlays (`camera3d.md`) |
 | `physics_layers.gd`, `view_layers.gd` | shared ids |
 | `world_rng.gd` | each world's random stream and its characters' spawn order (`helpers.md`) |
 | `weighted_pick.gd`, `match_verdict.gd`, `sight_ray.gd`, `seen_area.gd` | shared helpers (`helpers.md`) |
+| `body_heights.gd`, `plan_space.gd` | `BodyHeights` (real posture heights, 42.3 px a metre), `PlanSpace` (plan `Vector2` <-> 3D): `heights.md` |
+| `twin_worlds.gd` | `TwinWorlds` (the twin space beside a `World2D`; `twins.md`) |
+| `twin_space.gd`, `twin_shapes.gd` | `TwinSpace` (the twin 3D space: a 3D twin per solid 2D body, synced each physics frame, the hook each domain builds its twin through), `TwinShapes` (a 2D shape lifted to a 3D one): `twins.md` |
 
 ## Shared ids
 
-- `PhysicsLayers.SOLID` is the layer walls, solid furniture and bodies sit on; every ray and sweep that must hit a wall reads it (add a layer here, never a magic number).
+- `PhysicsLayers` holds the twin 3D space's layer bits (`TWIN_WORLD`, `TWIN_VEHICLE`, `TWIN_CHARACTER`, `TWIN_WALKOVER`, the masks `TWIN_ALL` / `TWIN_BLOCKS` / `TWIN_SURFACES`, `twins.md`); every ray and sweep reads one (add a layer here, never a magic number). No 2D layer exists: every sim root is a plan handle (`Node2D`).
 - `ViewLayers` holds the visibility bits that say what the player's view may remember (`helpers.md`).
 
 ## Game clock
@@ -71,7 +74,7 @@ All input goes through `Keybinds`; gameplay never hard-codes action strings or `
 
 ## Camera
 
-`camera_controller.gd` follows its exported `target_path`, or **frames** a list (`frame(targets)`: the midpoint of the live targets, zoomed to fit plus `frame_margin`, dropping any `is_dead`; the spectator view). `pan_enabled` (per instance) removes hand pan; the test runner turns it off for a human-driven player, where WASD walks.
+`camera_controller.gd` follows its exported `target_path`, or **frames** a list (`frame(targets, within := Rect2())`: the midpoint of the live targets, zoomed to fit plus `frame_margin`, dropping any `is_dead` and any outside `within`, the test host's world ground; the spectator view). `pan_enabled` (per instance) removes hand pan; the test runner turns it off for a human-driven player, where WASD walks.
 
 - **Zoom** (both modes; 3D: whole steps, `camera3d.md`): the wheel, or a trackpad's `InputEventPanGesture` (macOS sends no wheel events; not rebindable), scales a lasting `_zoom_bias` that multiplies the automatic zoom `_base_zoom`, so it works the same in both modes and may pass the fit's `min_zoom`/`max_zoom` (limited by `wheel_min_zoom`/`wheel_max_zoom`). Both are read through `Keybinds.scroll_notches(event)`, in `_unhandled_input`, so scrolling UI gets the wheel first, and a door held by Space takes the event before it (`_input` of the player's controller).
 - **Hand pan** (framing only): camera keys, or the mouse within `edge_pan_margin` of an edge (only once the pointer was seen moving over the window, cleared on mouse-exit / focus-out), set `_manual`, which suspends the framing position; `manual_hold` seconds without panning eases back in. Test: `tests/general/camera_manual_pan_test.gd`.

@@ -1,7 +1,8 @@
 extends RefCounted
 ## Top-down pixel-art SHOP painter (Objects domain, private): the tower shop's pieces in grimy
 ## steel, `kind` in the options.
-##   `counter`: a steel counter with a till and a few packs, the customer side toward +y;
+##   `counter`: a steel counter, the customer side toward +y (its till, jar and packs are items:
+## `ShopItemsCatalog`);
 ## `aisle`: a double-sided shelf aisle, two shelf runs back to back, a steel lip along each outer
 ## edge;
 ##   `fridge`: a glass-door drinks fridge, its glass along the front (+y) glowing;
@@ -34,26 +35,14 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 	Decay.rust(c, maxi(2, int(c.w * c.h / 300.0)))
 
 
-## The counter: a steel top with a lip, a till with a lit screen and keys, a jar and packs.
+## The counter: a steel top with a lip, bare.
 static func _counter(c: PixelCanvas, base: Color, top: Color, opts: Dictionary) -> void:
-	var packs: Array[Color] = ObjectArtShopConfig.shop_packs
 	Tech.box(c, Rect2i(0, 0, c.w, c.h), base, _COUNTER_HEIGHT, 2)
 	var surface := Rect2i(3, 3, c.w - 6, c.h - 11)
 	Tech.box(c, surface, top, 8, 1)
 	c.surface(PixelShape.rounded(surface, 1), "metal", top)
 	var lip: Color = opts.get("accent_color", ObjectArtShopConfig.shop_accent_color)
 	Kit.fill_rect(c, Rect2i(3, c.h - 7, c.w - 6, 2), lip)
-	var till := Rect2i(8, 7, 26, 17)
-	Tech.box(c, till, base.darkened(0.3), 12, 1)
-	var screen: Color = opts.get("glass_color", ObjectArtShopConfig.shop_glass_color)
-	var till_screen := Rect2i(till.position + Vector2i(3, 2), Vector2i(20, 5))
-	c.glowing(func() -> void: Kit.fill_rect(c, till_screen, screen))
-	for k in 4:
-		Kit.fill_rect(c, Rect2i(till.position + Vector2i(4 + k * 5, 10), Vector2i(3, 3)),
-				Color(0.78, 0.78, 0.74))
-	Tech.box(c, Rect2i(42, 9, 12, 10), Color(0.8, 0.78, 0.7), 9, 0)
-	for k in 5:
-		Kit.fill_rect(c, Rect2i(62 + k * 7, 8 + (k % 2) * 6, 5, 5), packs[k % packs.size()], 9)
 
 
 ## The aisle: two shelf runs back to back.
@@ -76,7 +65,9 @@ static func _shelf_run(c: PixelCanvas, base: Color, top: Color, row: Rect2i) -> 
 	Kit.fill_rect(c, Rect2i(1, outer_y, c.w - 2, 2), top, 10)
 
 
-## The fridge: a steel body and top with vents, its lit glass of drinks along the front.
+## The fridge: a steel body and top with vents, its lit glass of drinks along the front. The 3D
+## picture lays this flat art over the roof; the front it shows is the mesh's lit pane with the real
+## bottles in its windows (`ShopMesh`).
 static func _fridge(c: PixelCanvas, base: Color, top: Color, opts: Dictionary) -> void:
 	var packs: Array[Color] = ObjectArtShopConfig.shop_packs
 	Tech.box(c, Rect2i(0, 0, c.w, c.h), base, _FRIDGE_HEIGHT, 2)
@@ -94,7 +85,9 @@ static func _fridge(c: PixelCanvas, base: Color, top: Color, opts: Dictionary) -
 	)
 
 
-## The snack machine: a steel body, a keypad and a lit window of packs along the front.
+## The snack machine: a steel body, a keypad and a lit window of packs along the front. The 3D
+## picture lays this flat art over the roof; the front it shows is the mesh's lit pane with the real
+## packs in its windows (`ShopMesh`).
 static func _snack(c: PixelCanvas, base: Color, top: Color, opts: Dictionary) -> void:
 	var packs: Array[Color] = ObjectArtShopConfig.shop_packs
 	Tech.box(c, Rect2i(0, 0, c.w, c.h), base, 12, 2)

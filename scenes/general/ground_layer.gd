@@ -13,11 +13,12 @@ extends CanvasLayer
 ## 3D floor under it, at any camera yaw.
 ##
 ## There is ONE layer for all the match's debug overlays (`overlays`, made by the 3D view with
-## `shared`), not one per NPC: each overlay is moved under it and the layer puts it back on its
-## owner, the node it was a child of, every frame (an overlay draws from its owner's origin and
-## turns with it, as in 2D), frees it when the owner leaves the tree, and answers which overlays an
-## owner has (`overlays_of`). The player's view is not one of them in 3D: it is two masks the toon
-## shaders read (`ViewGround`), so nothing of it is drawn flat.
+## `shared`), not one per NPC: each overlay is moved under it, beside its owner's others in one
+## holder, and the layer puts the holder on its owner, the node they were children of, every frame
+## (an overlay draws from its owner's origin and turns with it, as in 2D; one write moves all of an
+## owner's, since a match holds hundreds), frees them when the owner leaves the tree, and answers
+## which overlays an owner has (`overlays_of`). The player's view is not one of them in 3D: it is
+## two masks the toon shaders read (`ViewGround`), so nothing of it is drawn flat.
 
 ## The group an overlay made while no layer stood waits in (a test world's build makes its overlays
 ## before the session builds the 3D view); `shared` adopts the group when the layer is made.
@@ -27,8 +28,9 @@ const WAITING := &"ground_overlay_waiting"
 ## after it. Untyped so a freed one is checked, not read.
 static var overlays: Variant = null
 
-## The overlays this layer holds, per owner: the owner's instance id -> a plain `Node` holding that
-## owner's overlays under their own names (two owners both have a `VisionDebug`).
+## The overlays this layer holds, per owner: the owner's instance id -> a `Node2D` holding that
+## owner's overlays under their own names (two owners both have a `VisionDebug`), standing where
+## the owner does.
 var _held := {}
 
 
@@ -48,9 +50,9 @@ func _process(_delta: float) -> void:
 		if not home is Node2D:
 			continue
 		var pose: Transform2D = (home as Node2D).global_transform
-		for item: Node in (_held[id] as Node).get_children():
-			if item is Node2D and (item as Node2D).transform != pose:
-				(item as Node2D).transform = pose
+		var held: Node2D = _held[id]
+		if held.transform != pose:
+			held.transform = pose
 
 
 ## The match's overlay layer, on `RenderConfig.overlay_layer`: the 3D view adds it as its child; the
@@ -102,8 +104,8 @@ static func _move(item: CanvasItem) -> void:
 		return
 	item.remove_from_group(WAITING)
 	var parent := item.get_parent()
-	if parent is GroundLayer:
-		return
+	if parent.get_parent() is GroundLayer:
+		return  # already moved: its parent is its owner's holder
 	if is_instance_valid(overlays):
 		(overlays as GroundLayer)._take(item, parent)
 
@@ -112,8 +114,10 @@ static func _move(item: CanvasItem) -> void:
 func _take(item: CanvasItem, home: Node) -> void:
 	var id := home.get_instance_id()
 	if not _held.has(id):
-		var held := Node.new()
+		var held := Node2D.new()
 		held.name = "For%d" % id
+		if home is Node2D:
+			held.transform = (home as Node2D).global_transform
 		add_child(held)
 		_held[id] = held
 		home.tree_exiting.connect(_release.bind(id), CONNECT_ONE_SHOT)

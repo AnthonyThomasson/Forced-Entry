@@ -45,13 +45,14 @@ func update(delta: float, drive: PoseDrive) -> void:
 ## the stride phase advanced by the distance walked.
 func _step_stride(delta: float, velocity: Vector2, top_speed: float) -> void:
 	var speed := velocity.length()
-	_walk = lerpf(_walk, clampf(speed / maxf(top_speed, 1.0), 0.0, 1.0), 1.0 - exp(-8.0 * delta))
+	var ease_by := 1.0 - exp(-8.0 * delta)
+	_walk = lerpf(_walk, clampf(speed / maxf(top_speed, 1.0), 0.0, 1.0), ease_by)
 	# Past walking speed is running: how far toward a full run, smoothed like the walk.
 	var run_span := maxf(CharacterPaceConfig.run_speed_mult - 1.0, 0.01)
 	_run = lerpf(
 		_run,
 		clampf((speed / maxf(top_speed, 1.0) - 1.0) / run_span, 0.0, 1.0),
-		1.0 - exp(-8.0 * delta),
+		ease_by,
 	)
 	var stride_length := lerpf(CharacterStrideConfig.pose_stride_length,
 			CharacterStrideConfig.pose_run_stride_length, _run)

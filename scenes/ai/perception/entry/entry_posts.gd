@@ -41,6 +41,10 @@ const AMBUSH_DEPTH := 110.0
 const AMBUSH_LATERALS := [30.0, 60.0, 90.0, 120.0, 150.0, 180.0, 220.0, 260.0]
 ## Inset (px) of an ambush post from the room's walls.
 const AMBUSH_INSET := 22.0
+## A chunk of the ranking's candidate offsets that is one piece of a decision's build
+## (`ambush_step`: 4 of the 80 offsets, about 1 ms), and one past them all.
+const AMBUSH_CHUNK := 4
+const AMBUSH_WHOLE := 1 << 30
 ## How far apart (px) two ambushers' posts on one side of the doorway stand (a stack's slot spacing:
 ## clear of each other's footprint).
 const AMBUSH_SPACING := 44.0
@@ -61,10 +65,10 @@ const RANK_NO_COVER := 300.0
 ## The grenades an entry may throw in, in the order an ambush post is shielded from them.
 const BANG_KINDS: Array[StringName] = [&"frag", &"stun"]
 
-## The ambush posts every NPC on a navigation map shares (map RID -> "<geometry key>|<crouch>|
-## <opening id>><room key>" -> a ranking, `_ambush_ranking`): a doorway's posts are the house's and
-## the map's, ranked by nothing of the NPC but the tunables its key names (the geometry's and the
-## sight's, `EntryLayouts.key`, and the crouched height), every line of the ranking looking through
+## The ambush posts every NPC on a navigation map shares (map RID -> "<geometry key>|<opening id>>
+## <room key>" -> a ranking, `_ambush_ranking`): a doorway's posts are the house's and the map's,
+## ranked by nothing of the NPC but the tunables its key names (the geometry's and the sight's,
+## `EntryLayouts.key`), every line of the ranking looking through
 ## the characters' bodies, so they are ranked once a map, not once a member. Only an NPC's ranking
 ## is kept here (a geometry with no body keeps its own). Forgotten with the map's planning region.
 static var _shared := {}
@@ -72,13 +76,9 @@ static var _shared := {}
 ## "<opening id>><room key>" -> the ranking of that doorway's ambush posts, room side
 ## (`_ambush_ranking`).
 var cache := {}
-## How tall (the coverage scale) the ambusher's body is crouched at its post
-## (`CharacterMovement.posture_coverage`), handed in by the perception once it knows its body: what
-## a piece of furniture must stand above to shield it from a grenade's burst.
-var crouch := 0.0
-## The NPC's body, handed in by the perception beside `crouch`: the characters under its world root
-## (the group `characters`, interface 7), itself among them, are the bodies a burst's line passes
-## through. Null for a geometry built with no NPC (it then excludes none).
+## The NPC's body, handed in by the perception once it knows its body: the characters under its
+## world root (the group `characters`, interface 7), itself among them, are the bodies a sight line
+## passes through. Null for a geometry built with no NPC (it then excludes none).
 var body: Node = null
 
 
@@ -96,7 +96,7 @@ func defend_spot(
 	room_key: String,
 	place: Vector2i,
 	map: RID,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 ) -> Dictionary:
 	var nth := place.x
 	var count := place.y
@@ -163,7 +163,7 @@ func _defend_best(
 	entry: AgentEntry,
 	f: Dictionary,
 	map: RID,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 ) -> Dictionary:
 	var best := {}
 	for at: Array in _offsets(DEFEND_DEPTHS, DEFEND_LATERALS):
@@ -240,7 +240,7 @@ func _defend_candidate(
 	f: Dictionary,
 	raw: Vector2,
 	map: RID,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 ) -> Dictionary:
 	var inner := (f["room"] as Rect2).grow(-DEFEND_INSET)
 	if not inner.has_point(raw):
@@ -267,17 +267,20 @@ func _defend_candidate(
 	return { "spot": p, "funnel": funnel, "sees": sees.size(), "sees_door": sees, "cover": cover }
 
 
-## Whether low furniture stands on the line from `from` to `to` (a piece of furniture is the first
-## thing the ray meets, `bodies` passed through).
+## Whether furniture hides a ducked body at `from` from a standing eye at `to`, which the caller has
+## already found seen: the 3D line from that eye to the ducked body's head is stopped by a piece
+## (`AgentVision.hiding_piece`, `docs/cover-and-stance.md` A4; a body is no cover, `bodies` is
+## unused in a twin world). A coffee table does not count: it hides nobody.
 static func _low_cover(
 	entry: AgentEntry,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	from: Vector2,
 	to: Vector2,
 	bodies: Array,
 ) -> bool:
-	return (space != null
-			and entry.vision.raycast(space, from, to, bodies).get("collider") is RigidBody2D)
+	if space == null:
+		return false
+	return entry.vision.hiding_piece(space, from, to, -1.0, bodies) != null
 
 
 ## Where member `nth` of `count` (`place`: x which post, y of how many) ordered to ambush a doorway
@@ -300,7 +303,7 @@ func ambush_spot(
 	g: Dictionary,
 	place: Vector2i,
 	map: RID,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 ) -> Dictionary:
 	var nth := place.x
 	var count := place.y
@@ -320,7 +323,7 @@ func ambush_spot(
 				func(t): return (t as Vector2).distance_to(c["spot"]) < AMBUSH_SPACING,
 			),
 		)
-		pick = _best_post(ranking, open, first if k % 2 == 0 else -first, space, bodies)
+		pick = _best_post(ranking, open, first if k % 2 == 0 else -first, space)
 		if pick.is_empty():
 			return {}
 		taken.append(pick["spot"])
@@ -331,13 +334,12 @@ func ambush_spot(
 ## `wanted`: the lowest score, `RANK_SIDE` added off that side, the first among equals. Every rank
 ## below `seen` adds up to less than one `RANK_SEEN`, so only the posts tied on the least `seen` and
 ## side can be it, and only theirs have their exposures to an entry's grenade counted (`_expose`,
-## once a post, `bodies` looked through). `{ score, spot, seen }`, or {} for none.
+## once a post). `{ score, spot, seen }`, or {} for none.
 func _best_post(
 	ranking: Dictionary,
 	open: Array,
 	wanted: int,
-	space: PhysicsDirectSpaceState2D,
-	bodies: Array,
+	space: PhysicsDirectSpaceState3D,
 ) -> Dictionary:
 	var least := INF
 	for c: Dictionary in open:
@@ -346,7 +348,7 @@ func _best_post(
 	for c: Dictionary in open:
 		if _coarse_rank(c, wanted) > least:
 			continue
-		_expose(ranking, c, space, bodies)
+		_expose(ranking, c, space)
 		var score := float(c["score"]) + (0.0 if int(c["side"]) == wanted else RANK_SIDE)
 		if pick.is_empty() or score < float(pick["score"]):
 			pick = { "score": score, "spot": c["spot"], "seen": c["seen"] }
@@ -360,17 +362,12 @@ static func _coarse_rank(c: Dictionary, wanted: int) -> float:
 
 
 ## Add to post `c`'s score (of `ranking`) the landings of an entry's grenade that reach it
-## (`_exposures`, `bodies` looked through), a frag's at `RANK_FRAG` each and a stun's at
-## `RANK_STUN`, once: a post `exposed` already is left as it is.
-func _expose(
-	ranking: Dictionary,
-	c: Dictionary,
-	space: PhysicsDirectSpaceState2D,
-	bodies: Array,
-) -> void:
+## (`_exposures`), a frag's at `RANK_FRAG` each and a stun's at `RANK_STUN`, once: a post `exposed`
+## already is left as it is.
+func _expose(ranking: Dictionary, c: Dictionary, space: PhysicsDirectSpaceState3D) -> void:
 	if c["exposed"]:
 		return
-	var exposed := _exposures(ranking["landings"], c["spot"], space, bodies)
+	var exposed := _exposures(ranking["landings"], c["spot"], space)
 	c["score"] = (float(c["score"]) + float(exposed[&"frag"]) * RANK_FRAG
 			+ float(exposed[&"stun"]) * RANK_STUN)
 	c["exposed"] = true
@@ -383,26 +380,43 @@ func _expose(
 ## `score` the post's rank before the side is weighed, the lower the better: hidden first, shielded
 ## from an entry's grenade once `exposed` (`_expose`, counted only for a post that can be picked),
 ## out of every funnel, cover on its line, then nearest `AMBUSH_DEPTH`) and `landings` where an
-## entry's grenades land (`_bang_landings`), every line passed through `bodies` (`_bodies`).
+## entry's grenades land (`_bang_landings`), the lines of sight passed through `bodies` (`_bodies`).
 func _ambush_ranking(
 	entry: AgentEntry,
 	g: Dictionary,
 	map: RID,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	bodies: Array,
+) -> Dictionary:
+	var work := ambush_begin(entry, g, map, bodies)
+	while not work.has("ranking"):
+		ambush_step(work, map, space, AMBUSH_WHOLE)
+	return work["ranking"]
+
+
+## `ambush_begin` for a build's piece, the characters' bodies read as `ambush_spot` reads them.
+func ambush_start(entry: AgentEntry, g: Dictionary, map: RID) -> Dictionary:
+	return ambush_begin(entry, g, map, _bodies())
+
+
+## The ranking of `g`'s ambush posts, begun: `{ ranking }` when it is worked out already (the NPC's
+## own `cache` or the map's `_shared`), else the work in hand for `ambush_step`, which goes through
+## the candidate offsets a chunk at a time and ends with `ranking` in it. The same ranking whatever
+## the chunk, and kept (as `_ambush_ranking` keeps it) when the last chunk is done.
+func ambush_begin(
+	entry: AgentEntry, g: Dictionary, map: RID, bodies: Array = []
 ) -> Dictionary:
 	var room_key := String(g["into"])
 	var key := "%s>%s" % [g["id"], room_key]
 	if cache.has(key):
-		return cache[key]
+		return { "ranking": cache[key] }
 	# Only an NPC's ranking (its body known: every body under its world root looked through) is
 	# shared; a geometry with no NPC keeps its own.
 	var npc := is_instance_valid(body)
-	var shared := EntryLayouts.per_map(_shared, map) if npc else {}
-	var shared_key := "%s|%s|%s" % [entry.layouts.key(entry), crouch, key]
-	if shared.has(shared_key):
-		cache[key] = shared[shared_key]
-		return cache[key]
+	var shared_key := "%s|%s" % [entry.layouts.key(entry), key]
+	if npc and EntryLayouts.per_map(_shared, map).has(shared_key):
+		cache[key] = EntryLayouts.per_map(_shared, map)[shared_key]
+		return { "ranking": cache[key] }
 	var f := {
 		"id": g["id"],
 		"pos": g["pos"],
@@ -414,19 +428,41 @@ func _ambush_ranking(
 		"entry": entry,
 		"bodies": bodies,
 	}
-	var observers := _observers_of(g)
-	var out: Array = []
-	for at: Array in _offsets(AMBUSH_DEPTHS, AMBUSH_LATERALS):
-		var post := _ambush_post(f, at, observers, map, space)
+	return {
+		"key": key, "shared_key": shared_key, "npc": npc, "g": g, "f": f,
+		"observers": _observers_of(g), "offsets": _offsets(AMBUSH_DEPTHS, AMBUSH_LATERALS),
+		"cursor": 0, "posts": [], "layout": entry.layouts.key(entry),
+	}
+
+
+## The next `count` candidate offsets of the ranking in hand (`ambush_begin`), the last of them
+## ending it: `ranking` is `{ posts, landings }` (`_ambush_ranking`) and is kept on a baked map. A
+## ranking whose house or tunables (`EntryLayouts.key`) changed since `ambush_begin` is a mix of two
+## layouts: it is kept nowhere and the work says `stale`, for its owner to begin again.
+func ambush_step(
+	work: Dictionary, map: RID, space: PhysicsDirectSpaceState3D, count: int
+) -> void:
+	var offsets: Array = work["offsets"]
+	var posts: Array = work["posts"]
+	var end := mini(int(work["cursor"]) + count, offsets.size())
+	for i in range(int(work["cursor"]), end):
+		var post := _ambush_post(work["f"], offsets[i], work["observers"], map, space)
 		if not post.is_empty():
-			out.append(post)
-	var ranking := { "posts": out, "landings": _bang_landings(g) }
+			posts.append(post)
+	work["cursor"] = end
+	if end < offsets.size():
+		return
+	var entry: AgentEntry = work["f"]["entry"]
+	if work["layout"] != entry.layouts.key(entry):
+		work["stale"] = true  # The house or a tunable changed under the chunks: keep nothing.
+		return
+	var ranking := { "posts": posts, "landings": _bang_landings(work["g"]) }
 	if NavBuilder.ready(map):
 		# Only keep what was snapped onto a baked map.
-		cache[key] = ranking
-		if npc:
-			shared[shared_key] = ranking
-	return ranking
+		cache[work["key"]] = ranking
+		if work["npc"]:
+			EntryLayouts.per_map(_shared, map)[work["shared_key"]] = ranking
+	work["ranking"] = ranking
 
 
 ## The ambush post at offset `at` (`_offsets`) in frame `f` (`_ambush_ranking`: the doorway, its
@@ -440,7 +476,7 @@ func _ambush_post(
 	at: Array,
 	observers: Array,
 	map: RID,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 ) -> Dictionary:
 	var entry: AgentEntry = f["entry"]
 	var rect: Rect2 = f["room"]
@@ -481,31 +517,42 @@ func _bang_landings(g: Dictionary) -> Dictionary:
 
 ## How many landings of an entry's grenade of each kind (`bangs`, `_bang_landings`) reach a body
 ## crouched at `p`: within the kind's danger radius and not shielded from the burst by the blast's
-## own cover rule (`Explosion.shields`: a wall, or furniture above `crouch`, for a stun's flash only
-## within its reach of it), the lines passed through `bodies`. Kind -> count.
+## own cover rule (`Explosion.shields`: the real 3D line from a landing on the floor to a ducked
+## body, stopped by a wall or by furniture the line cannot clear; for a stun's flash the line to the
+## eye, furniture only within its reach of it). Kind -> count.
 func _exposures(
 	bangs: Dictionary,
 	p: Vector2,
-	space: PhysicsDirectSpaceState2D,
-	bodies: Array,
+	space: PhysicsDirectSpaceState3D,
 ) -> Dictionary:
 	var out := {}
 	for kind: StringName in BANG_KINDS:
 		var bang: Dictionary = bangs[kind]
 		var cover := CoverRule.new()
-		cover.height = crouch
-		cover.exclude = bodies
+		cover.posture = BodyHeights.DUCK
 		cover.cover_reach = bang["reach"]
 		out[kind] = (bang["landings"] as Array).filter(
-			func(l): return (
-				(l as Vector2).distance_to(p) <= float(bang["radius"])
-				and (space == null or not Explosion.shields(space, l, p, cover))
-			),
+			func(l): return _reaches(l, p, float(bang["radius"]), space, cover),
 		).size()
 	return out
 
 
-## The rids of every character under the world root of `body` (a grenade's line passes through
+## Whether a burst on the floor at `landing` reaches a body at `p`: within `radius` and not shielded
+## from it by `cover` (a null `space` shields nothing).
+static func _reaches(
+	landing: Vector2,
+	p: Vector2,
+	radius: float,
+	space: PhysicsDirectSpaceState3D,
+	cover: CoverRule,
+) -> bool:
+	if landing.distance_to(p) > radius:
+		return false
+	var burst := PlanSpace.lift(landing, Explosion.BURST_CENTRE)
+	return space == null or not Explosion.shields(space, burst, p, cover)
+
+
+## The twin rids of every character under the world root of `body` (a sight line passes through
 ## bodies, and who stands where while a post is worked out has no say in where it is), read once a
 ## call of `ambush_spot` for its ranking and its picks alike; none without a body in the tree.
 func _bodies() -> Array:
@@ -514,9 +561,11 @@ func _bodies() -> Array:
 	var root: Node = body.world_root()
 	if root == null:
 		return []
-	return body.get_tree().get_nodes_in_group(&"characters").filter(
-		func(c): return c is CollisionObject2D and root.is_ancestor_of(c),
-	).map(func(c): return (c as CollisionObject2D).get_rid())
+	var rids: Array = []
+	for c in body.get_tree().get_nodes_in_group(&"characters"):
+		if root.is_ancestor_of(c):
+			rids.append_array(SightRay.exclude_of(c))
+	return rids
 
 
 ## Who could see an ambush post of entry geometry `g` from outside: its `lookouts`, then each side's
@@ -533,7 +582,7 @@ func _observers_of(g: Dictionary) -> Array:
 ## sees, the most that see any of the 8 points `AMBUSH_SLACK` round it.
 func _seen_by(
 	entry: AgentEntry,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	observers: Array,
 	p: Vector2,
 	bodies: Array,
@@ -554,7 +603,7 @@ func _seen_by(
 ## see of a post once it looks.
 func _sees_from(
 	entry: AgentEntry,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	from: Vector2,
 	to: Vector2,
 	bodies: Array,

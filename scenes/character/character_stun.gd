@@ -6,7 +6,7 @@ class_name CharacterStun extends RefCounted
 ## clears it on death. Tuning: CharacterStunConfig.
 
 ## The character the stun is on.
-var character: CharacterBody2D
+var character: Node2D
 ## Seconds left blind.
 var _blind_left := 0.0
 ## The blind seconds at the burst.
@@ -20,7 +20,7 @@ var _phase := Vector2.ZERO
 
 
 ## The stun of `host`.
-func _init(host: CharacterBody2D) -> void:
+func _init(host: Node2D) -> void:
 	character = host
 
 

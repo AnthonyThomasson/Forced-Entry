@@ -17,6 +17,10 @@ const Walk := preload("res://tests/_ai/snapshot_walk_probe.gd")
 const START := 0
 const HOSTILE := 1
 const FINISH := 2
+const SPOTS := 5
+const FLANKS := 6
+const REST := 7
+const RETREAT := 8
 ## What the scripted Von answers in the fight: COMBAT, then ENGAGE.
 const FIGHT := [{ "pick": "combat" }, { "pick": "engage" }]
 ## Where the invader stands: the back garden, outside the kitchen's back door.
@@ -24,6 +28,9 @@ const NPC := Vector2(900, 190)
 ## Where the trespassers wait until the fight (inside, out of the NPC's sight).
 const FOE_AWAY := Vector2(260, 190)
 const FOE_AWAY_TOO := Vector2(260, 260)
+
+## The engaged hostile the builds are made for (0: none).
+var _engaged := 0
 
 
 func describe() -> Dictionary:
@@ -68,6 +75,8 @@ func run(t: TestContext) -> void:
 	)
 	if not t.require(await t.until(seen, 3.0), "set-up: the invader sees both trespassers"):
 		return
+	# One of the two is engaged: an NPC with none analyses only the nearest.
+	_engaged = t.actor(&"foe").get_instance_id()
 	await _compare(t, brain, "fight", FIGHT, 2)
 
 
@@ -77,12 +86,18 @@ func _compare(
 		t: TestContext, brain: Node, label: String, rules: Array, hostiles: int,
 ) -> void:
 	DecisionStub.rules = rules
-	var both := _build_both(t, brain)
+	var both := _build_both(t, brain, _engaged)
 	var whole: Dictionary = both["whole"]
 	var stepped: Dictionary = both["stepped"]
 	var expected: Array = [START]
 	for i in hostiles:
-		expected.append(HOSTILE)
+		# A run of pieces a hostile: its line and the fire rings, its fire spots, a flank for each
+		# of the two sides it is tried on, the rest.
+		expected.append_array([HOSTILE, SPOTS, FLANKS, FLANKS, REST])
+	# With a hostile known there is a threat to fall back from: its retreat spots, ahead of the
+	# finish.
+	if hostiles > 0:
+		expected.append(RETREAT)
 	expected.append(FINISH)
 	t.expect_eq(both["kinds"], expected, "%s: the pieces a build runs, in order" % label)
 	var walked_whole := await Walk.walk(t, brain, whole)
@@ -108,7 +123,7 @@ func _compare(
 ## `kinds` the kinds of piece it ran. Older decisions of an NPC that thought it stood in a house
 ## room are completed between the pieces, as the debug overlay does: a build that read their
 ## room would have the `inside` fact true.
-func _build_both(t: TestContext, brain: Node) -> Dictionary:
+func _build_both(t: TestContext, brain: Node, engaged := 0) -> Dictionary:
 	var perception: Node = brain.get("_perception")
 	var goal: String = brain.get("goal")
 	var here: Vector2 = t.actor(&"npc").global_position
@@ -116,11 +131,11 @@ func _build_both(t: TestContext, brain: Node) -> Dictionary:
 		"key": "old", "type": "kitchen", "rect": Rect2(here - Vector2(50, 50), Vector2(100, 100)),
 	}]
 	var olds: Array = []
-	for i in 5:
-		olds.append(perception.sense(goal, "", 0))
+	for i in 24:  # more than a build has pieces
+		olds.append(perception.sense(goal, "", engaged))
 		olds[i]["demand"].rooms = old_rooms
-	var whole: Dictionary = perception.sense(goal, "digging in", 0)
-	var staged = perception.begin_sense(goal, "digging in", 0)
+	var whole: Dictionary = perception.sense(goal, "digging in", engaged)
+	var staged = perception.begin_sense(goal, "digging in", engaged)
 	var kinds: Array = []
 	while not staged.done():
 		kinds.append(staged.next_piece())

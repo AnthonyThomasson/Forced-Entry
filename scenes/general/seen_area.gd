@@ -7,6 +7,10 @@ extends RefCounted
 ## whether a disc of it (`reaches`) reaches the area, and skips the work while it wholly does not
 ## (Art's mirror, the shots). With no area
 ## set (no view, a view lifted, a switch off) every disc reaches, so nothing is skipped.
+##
+## It also knows whose eye the view is (`set_viewer`), so a character inside the cone can be asked
+## whether the eye sees any point of its body (`hides`): the cone is a floor-plan polygon over the
+## low pieces, a body ducked behind a sofa is in it and not seen (`docs/player-vision.md` V3).
 
 ## The polygons of the seen area (the cone, the bubble) and their bounds; `_set` says whether an
 ## area is set at all.
@@ -14,6 +18,8 @@ static var _polygons: Array = []
 static var _bounds := Rect2()
 static var _set := false
 static var _version := 0
+## The character whose eye the view is, while an area is set.
+static var _viewer: Node2D = null
 
 
 ## Set the seen area to `polygons` (`PackedVector2Array`s, each a simple polygon: the cone, the
@@ -38,10 +44,33 @@ static func version() -> int:
 
 ## Forget the area: every disc reaches again.
 static func clear() -> void:
+	_viewer = null
 	_polygons = []
 	_bounds = Rect2()
 	_set = false
 	_version += 1
+
+
+## The character whose eye the view is (`hides` asks from its eye, at its posture's height).
+static func set_viewer(viewer: Node2D) -> void:
+	_viewer = viewer
+
+
+## Whether the living character `body` is hidden from the viewer's eye, though a cone shows its
+## ground: not one of its body points (head, chest, hips at its posture, `SightRay`) is clear.
+## False for anything that is no character, a dead one, the viewer itself, and while no area or no
+## viewer is set.
+static func hides(body: Node2D) -> bool:
+	if not _set or not is_instance_valid(_viewer) or body == _viewer:
+		return false
+	if body.get("movement") == null or body.get("is_dead") == true:
+		return false
+	var space := TwinSpace.space_of(_viewer)
+	if space == null:
+		return false
+	return not SightRay.sees(
+		space, SightRay.eye_point(_viewer), body.global_position, SightRay.target_heights(body)
+	)
 
 
 ## Whether any part of the disc at `center` of `radius` px lies inside the seen area; always true

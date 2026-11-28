@@ -1,11 +1,11 @@
 extends GameTest
-## The mirror's mesh hook, made usable by phase 2 (#193, interface 27): a domain registers a builder
-## for a kind (`MirrorProxy.FURNITURE`) or for a finer key (`MirrorProxy.furniture_key("table")`,
-## the `ObjectArt` id: the finer key wins, the kind answers the rest), for the floors
-## (`MirrorProxy.FLOOR` or `floor_key(art)`), and for a drawn thing that is not a physics body
-## (`track(node, builder)`, `track_group(group, builder)`: a dropped item, a bullet) that the mirror
-## follows with the same rules as a body: written only when its transform changed, hidden with its
-## node, freed when it leaves the tree. A body no builder answers keeps its proxy.
+## The mesh hook (#193, interface 27): a domain registers a builder with the carrier for a kind
+## (`MeshKinds.FURNITURE`) or for a finer key (`MeshKinds.furniture_key("table")`, the `ObjectArt`
+## id: the finer key wins, the kind answers the rest), for the floors (`MeshKinds.FLOOR` or
+## `floor_key(art)`), and with the follower for a drawn thing that is not a physics body
+## (`track(node, builder)`, `track_group(group, builder)`: a dropped item, a bullet) that it follows
+## by the rules of a body: written only when its transform changed, hidden with its node, freed when
+## it leaves the tree. A body no builder answers is shown by nothing.
 
 const WallProbe := preload("res://tests/_art/art_wall_probe.gd")
 const TABLE_AT := Vector2(260, 180)
@@ -14,7 +14,7 @@ const CHAIR_AT := Vector2(520, 300)
 
 func describe() -> Dictionary:
 	return {
-		"name": "The mirror's hook takes a finer key, the floors and nodes that are not bodies",
+		"name": "The mesh hook takes a finer key, the floors and nodes that are not bodies",
 		"description": "A builder for a table's own key wins over the furniture kind's; a floor "
 			+ "builder places the floor's own mesh at its corner; a tracked node follows, is "
 			+ "hidden and freed with its node and is written only when it moved; a group "
@@ -36,26 +36,46 @@ func run(t: TestContext) -> void:
 	await t.frames(5)
 	var mirror := _mirror(t)
 	mirror.builders[&"furniture:table"] = func(_body: Node2D) -> Node3D: return _named("TableMesh")
-	mirror.builders[MirrorProxy.FURNITURE] = func(_body: Node2D) -> Node3D:
+	mirror.builders[MeshKinds.FURNITURE] = func(_body: Node2D) -> Node3D:
 		return _named("KindMesh")
-	mirror.builders[MirrorProxy.FLOOR] = func(_floor: Node2D) -> Node3D: return _named("FloorMesh")
-	mirror.mirror(t.world)
+	mirror.builders[MeshKinds.FLOOR] = func(_floor: Node2D) -> Node3D: return _named("FloorMesh")
+	mirror.carry(t.world)
 	await t.frames(3)
 	_check_keys(t, mirror)
 	_check_floor(t, mirror)
-	await _check_track(t, mirror)
-	await _check_group(t, mirror)
-	await _check_group_before_mirror(t)
+	var follower := _follower(t)
+	follower.follow(t.world)
+	await _check_track(t, follower)
+	await _check_group(t, follower)
+	await _check_group_before_follow(t)
 	await _check_key_is_for_furniture(t)
 
 
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	return mirror
+
+
+func _follower(t: TestContext) -> MeshFollower:
+	var view := SubViewport.new()
+	view.own_world_3d = true
+	t.world.add_child(view)
+	var follower := MeshFollower.new()
+	view.add_child(follower)
+	return follower
+
+
+## What shows `node` by a follower: its one mesh, or nothing.
+func _meshes(follower: MeshFollower, node: Node) -> Array[Node3D]:
+	var out: Array[Node3D] = []
+	var mesh := follower.mesh_of(node)
+	if mesh != null:
+		out.append(mesh)
+	return out
 
 
 func _label(node: Node) -> String:
@@ -69,7 +89,7 @@ func _named(label: String) -> Node3D:
 
 
 ## The table is shown by its own key's mesh, the armchair by the kind's, a character by its proxy.
-func _check_keys(t: TestContext, mirror: WorldMirror) -> void:
+func _check_keys(t: TestContext, mirror: MeshCarrier) -> void:
 	var table := mirror.proxies_of(t.object(&"table"))
 	var chair := mirror.proxies_of(t.object(&"chair"))
 	t.check(
@@ -82,13 +102,13 @@ func _check_keys(t: TestContext, mirror: WorldMirror) -> void:
 	)
 	var person := mirror.proxies_of(t.actor(&"a"))
 	t.check(
-		person.size() == 1 and (person[0] as MeshInstance3D).mesh is CapsuleMesh,
-		"a kind no builder answers keeps its proxy",
+		person.is_empty(),
+		"a kind no builder answers is shown by nothing (no stand-in)",
 	)
 
 
 ## A floor's builder gives its mesh, standing at the floor's corner (the floor's own origin).
-func _check_floor(t: TestContext, mirror: WorldMirror) -> void:
+func _check_floor(t: TestContext, mirror: MeshCarrier) -> void:
 	var floors := t.world.get_tree().get_nodes_in_group(&"floors")
 	if not t.require(not floors.is_empty(), "premise: the arena has a floor"):
 		return
@@ -114,7 +134,7 @@ func _check_floor(t: TestContext, mirror: WorldMirror) -> void:
 
 
 ## A node that is no body: followed, written only on a change, hidden, freed.
-func _check_track(t: TestContext, mirror: WorldMirror) -> void:
+func _check_track(t: TestContext, mirror: MeshFollower) -> void:
 	var item := Node2D.new()
 	t.world.add_child(item)
 	item.global_position = Vector2(300, 100)
@@ -134,7 +154,7 @@ func _check_track(t: TestContext, mirror: WorldMirror) -> void:
 	var wrote_still := false
 	for i in 3:
 		await t.frames(1)
-		var still := mirror.proxies_of(item)[0] as Node3D
+		var still := mirror.mesh_of(item)
 		var at := still.transform
 		mirror.update()
 		wrote_still = wrote_still or mirror.written > 0 and still.transform != at
@@ -151,7 +171,7 @@ func _check_track(t: TestContext, mirror: WorldMirror) -> void:
 
 
 ## A group's nodes are tracked as they join, the ones already there at once.
-func _check_group(t: TestContext, mirror: WorldMirror) -> void:
+func _check_group(t: TestContext, mirror: MeshFollower) -> void:
 	var early := Node2D.new()
 	early.name = "Early"
 	early.add_to_group(&"mesh_probe")
@@ -165,7 +185,7 @@ func _check_group(t: TestContext, mirror: WorldMirror) -> void:
 	late.global_position = Vector2(200, 150)
 	await t.frames(3)
 	for node: Node2D in [early, late]:
-		var own := mirror.proxies_of(node)
+		var own := _meshes(mirror, node)
 		if t.require(
 			own.size() == 1 and _label(own[0]) == "GroupMesh",
 			"%s is tracked" % node.name,
@@ -173,51 +193,46 @@ func _check_group(t: TestContext, mirror: WorldMirror) -> void:
 			t.expect_near(own[0].global_position.x, node.global_position.x, 0.5, "and stands on it")
 
 
-## `track_group` called before `mirror()` finds the group's nodes that are already in the world.
-func _check_group_before_mirror(t: TestContext) -> void:
+## `track_group` called before `follow()` finds the group's nodes that are already in the world.
+func _check_group_before_follow(t: TestContext) -> void:
 	var there := Node2D.new()
 	there.add_to_group(&"mesh_probe_before")
 	t.world.add_child(there)
 	there.global_position = Vector2(60, 60)
-	var body := WallProbe.new()  # a physics body of the group too: shown by the builder, once
+	var body := WallProbe.new()  # a plan handle of the group too: shown by the builder, once
 	body.add_to_group(&"mesh_probe_before")
 	t.world.add_child(body)
 	body.global_position = Vector2(700, 460)
-	var mirror := _mirror(t)
+	var mirror := _follower(t)
 	var built: Array[int] = [0]
 	mirror.track_group(&"mesh_probe_before", func(_n: Node2D) -> Node3D:
 		built[0] += 1
 		return _named("EarlyMesh")
 	)
-	mirror.mirror(t.world)
+	mirror.follow(t.world)
 	await t.frames(3)
 	t.expect_eq(built[0], 2, "each node of the group is built once (the node and the body)")
-	var own := mirror.proxies_of(there)
+	var own := _meshes(mirror, there)
 	t.check(
 		own.size() == 1 and _label(own[0]) == "EarlyMesh",
-		"a node already in the group when the mirror starts is tracked",
+		"a node already in the group when the follower starts is tracked",
 	)
 	body.queue_free()
 
 
-## The finer key is for furniture alone: a wall that carries a `look.art` of "table" is still shown
-## by its own kind's proxy, not by the table's builder.
+## The finer key is for furniture alone: a wall that carries a `look.art` of "table" is never shown
+## by the table's builder.
 func _check_key_is_for_furniture(t: TestContext) -> void:
 	var wall := WallProbe.new()
-	var shape := CollisionShape2D.new()
-	var rect := RectangleShape2D.new()
-	rect.size = Vector2(80, 24)
-	shape.shape = rect
-	wall.add_child(shape)
 	t.world.add_child(wall)
 	wall.global_position = Vector2(400, 60)
 	var mirror := _mirror(t)
 	mirror.builders[&"furniture:table"] = func(_b: Node2D) -> Node3D: return _named("TableMesh")
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	var own := mirror.proxies_of(wall)
-	var proxy := own.size() == 1 and own[0] is MeshInstance3D
-	if proxy:
-		proxy = _label(own[0]) != "TableMesh"
-	t.check(proxy, "a wall is not given a furniture mesh by the art id it carries")
+	t.check(
+		own.all(func(mesh: Node3D) -> bool: return _label(mesh) != "TableMesh"),
+		"a wall is not given a furniture mesh by the art id it carries",
+	)
 	wall.queue_free()

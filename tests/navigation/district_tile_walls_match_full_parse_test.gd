@@ -33,8 +33,8 @@ func run(t: TestContext) -> void:
 	await t.seconds(0.5)
 	var district := t.world.get("district") as Node2D
 	var house := t.world.get("house") as Node2D
-	var region: NavigationRegion2D = t.world.find_children(
-		"NavRegion", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"NavRegion", "NavigationRegion3D", true, false,
 	)[0]
 	var site := NavSite.new(district, WorldGen.district_rooms(district), RADIUS)
 	var streets := WorldGen.district_bounds(district)
@@ -56,10 +56,10 @@ func run(t: TestContext) -> void:
 
 ## The walls a planning re-bake is made from, with no furniture moved, are every wall of the whole
 ## parse.
-func _compare_planning(t: TestContext, region: NavigationRegion2D, site: NavSite) -> void:
+func _compare_planning(t: TestContext, region: NavigationRegion3D, site: NavSite) -> void:
 	var furniture := NavBuilder.furniture_holes(site.house)
 	var planning: Array = NavTiles.walls_after(region, site, furniture, furniture)["obstruction"]
-	var whole: Array = NavSource.walls_of(site.house, RADIUS)["obstruction"]
+	var whole: Array = NavSource.walls_of(site.house)["obstruction"]
 	var missing := 0
 	for wall: PackedVector2Array in whole:
 		if not planning.has(wall):
@@ -69,7 +69,7 @@ func _compare_planning(t: TestContext, region: NavigationRegion2D, site: NavSite
 
 ## A wall of `house` (a body that reports its segments).
 func _wall_of(house: Node2D) -> Node2D:
-	for node in house.find_children("*", "StaticBody2D", true, false):
+	for node in NavTwins.walls_under(house):
 		if node.has_method("wall_segments"):
 			return node
 	return null
@@ -91,13 +91,13 @@ func _dent(wall: Node2D) -> void:
 ## Every outline of the whole parse that reaches `area` is among the tile walls for `area`.
 func _compare(
 	t: TestContext,
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	site: NavSite,
 	area: Rect2,
 	when: String,
 ) -> void:
 	var tiled: Array = NavTiles.walls_reaching(region, site, [area])
-	var whole: Array = NavSource.walls_of(site.house, RADIUS)["obstruction"]
+	var whole: Array = NavSource.walls_of(site.house)["obstruction"]
 	var want := 0
 	var missing := 0
 	for outline: PackedVector2Array in whole:

@@ -13,6 +13,7 @@ const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 const AgentThrow = preload("res://scenes/ai/perception/agent_throw.gd")
 const AgentSuspicion = preload("res://scenes/ai/perception/agent_suspicion.gd")
 const ThrowScan := preload("res://scenes/ai/perception/throw_scan.gd")
+const ThrowSpots := preload("res://scenes/ai/perception/throw_spots.gd")
 const ThrowSearch := preload("res://scenes/ai/perception/snapshot/throw_search.gd")
 const GroupBuild := preload("res://scenes/ai/perception/snapshot/group_build.gd")
 ## Where along the stretch of the line back from a shot that lies in the room the shots came from a
@@ -70,9 +71,84 @@ func begin_grenade_group(ctx: Dictionary, t: Dictionary, a: Dictionary) -> RefCo
 		return GroupBuild.new().already({ "summary": "", "options": [] })
 	var options: Array = []
 	var units: Array[Callable] = []
+	var scans := {}
 	for kind: StringName in kinds:
+		units.append(_scan_unit.bind(ctx, t["pos"], kind, scans))
 		units.append(_target_throw.bind(ctx, t, a, kind, options))
 	return GroupBuild.new().begin(units, _target_summary.bind(t, a, options, hidden, held))
+
+
+## A unit of `begin_grenade_group` ahead of a kind's throw: the throw spot candidates the throw is
+## made from, scanned a block a step (`_scanned`) and the spot chosen from them a rank pass and a
+## route a step (`_wayed`), so neither is one frame's work. True while there is more to do (the
+## unit runs again first); the throw unit then reads what was worked out.
+func _scan_unit(ctx: Dictionary, spot: Vector2, kind: StringName, scans: Dictionary) -> bool:
+	var held := _held_room(ctx, spot)
+	var keep_out := Rect2() if held.is_empty() else held["rect"] as Rect2
+	return not (_scanned(ctx, spot, kind, keep_out, scans)
+			and _wayed(ctx, spot, kind, keep_out, scans))
+
+
+## Work one block of the scan of the throw spot candidates for a throw of `kind` onto `spot` (each
+## raw candidate that passes the cheap tests asks the arc planner), and whether none is left to
+## scan: the candidates are known (`_candidates` reads them), or a lob clear from where the NPC
+## stands needs none. The scans in hand are kept in `scans` (the build's, by key), not in the
+## context: a scan holds its context, and the two would hold each other.
+func _scanned(
+	ctx: Dictionary, spot: Vector2, kind: StringName, keep_out: Rect2, scans: Dictionary
+) -> bool:
+	var key := _throw_key(ctx, kind, spot, keep_out)
+	var memo := memo_of(ctx)
+	var points: Dictionary = memo["points"]
+	if points.has(key) or (memo["spots"] as Dictionary).has(key):
+		return true
+	if _throw.can_lob(ctx["space"], ctx["self_pos"], spot, know["character_rids"], kind):
+		return true
+	if not scans.has(key):
+		scans[key] = ThrowScan.new(
+			_tactics, ctx, _throw_aim(ctx, kind, spot, keep_out), know["character_rids"]
+		)
+	var scan: ThrowScan = scans[key]
+	scan.step(ThrowSpots.block_size)
+	if not scan.candidates_done:
+		return false
+	points[key] = scan.points
+	scans.erase(key)
+	return true
+
+
+## One step of the throw spot to throw a kind onto `spot` from, `_throw_way`'s work in steps (kept
+## in `scans`, as the scan is): the rank pass of the candidates, then one route of the first
+## `ThrowSpots.ROUTES` ranked, the last choosing the spot (`ThrowSpots.pick`) into the decision's
+## memo. Whether the way is worked out (a lob clear from where the NPC stands needs none, nor does
+## a way the decision holds): when not, the unit runs again.
+func _wayed(
+	ctx: Dictionary, spot: Vector2, kind: StringName, keep_out: Rect2, scans: Dictionary
+) -> bool:
+	var key := _throw_key(ctx, kind, spot, keep_out)
+	var spots: Dictionary = memo_of(ctx)["spots"]
+	if (spots.has(key)
+			or _throw.can_lob(ctx["space"], ctx["self_pos"], spot, know["character_rids"], kind)):
+		return true
+	var held: Variant = scans.get(["way", key])
+	var aim := _throw_aim(ctx, kind, spot, keep_out)
+	if held == null:
+		var ranked: Array = _tactics.throws.ranked_spots(
+			_tactics, ctx, aim, know["character_rids"], _candidates(ctx, aim, key)
+		)
+		held = { "ranked": ranked.slice(0, ThrowSpots.ROUTES), "walkable": [] }
+		scans[["way", key]] = held
+	elif not (held["ranked"] as Array).is_empty():
+		var walk: Dictionary = _tactics.throws.walk_one(
+			_tactics, ctx, (held["ranked"] as Array).pop_front(), aim.route
+		)
+		if not walk.is_empty():
+			held["walkable"].append(walk)
+	if not (held["ranked"] as Array).is_empty():
+		return false
+	spots[key] = ThrowSpots.pick(held["walkable"])
+	scans.erase(["way", key])
+	return true
 
 
 ## One unit of `begin_grenade_group`: the throw of `kind` at hostile `t` (analysis `a`), worded,
@@ -143,20 +219,39 @@ func begin_shots_group(ctx: Dictionary, hostiles: Array) -> RefCounted:
 	var options: Array = []
 	var room := [""]
 	var units: Array[Callable] = []
+	var scans := {}
 	for kind: StringName in kinds:
-		units.append(func():
-			var aim := _shots_aim(ctx, kind)
-			if aim.is_empty():
-				return
-			var option: Dictionary = aim["option"]
-			var what := "frag" if kind == &"frag" else "stun"
-			room[0] = _v.room_name(aim["room"]["type"])
-			option["id"] = what
-			option["label"] = "%s where the shots came from" % what
-			option["desc"] = ("%s grenade into the %s, where the shots came from%s"
-					% [what, room[0], _throw_from_text(ctx, option)])
-			options.append(option))
+		units.append(_shots_unit.bind(ctx, kind, [0], [options, room], scans))
 	return GroupBuild.new().begin(units, func(): return _shots_summary(options, room[0]))
+
+
+## One unit of `begin_shots_group`: the throw of `kind` onto the aim `at[0]` of the aims
+## (`_shots_aims`), its throw spot candidates scanned a block a step first (`_scanned`); the next
+## aim when it has none (`_shots_aim`'s order), else the option into `made` (`[options, room]`).
+## True while it has more to do (it runs again first).
+func _shots_unit(
+	ctx: Dictionary, kind: StringName, at: Array, made: Array, scans: Dictionary
+) -> bool:
+	var aims := _shots_aims(ctx)
+	if at[0] >= aims.size():
+		return false
+	var aim: Dictionary = aims[at[0]]
+	var rect: Rect2 = aim["room"]["rect"]
+	if aim["walk"] and not (_scanned(ctx, aim["spot"], kind, rect, scans)
+			and _wayed(ctx, aim["spot"], kind, rect, scans)):
+		return true
+	var option := _throw_option(ctx, kind, aim["spot"], aim["room"]["rect"], aim["walk"])
+	if option.is_empty():
+		at[0] += 1
+		return true
+	var what := "frag" if kind == &"frag" else "stun"
+	made[1][0] = _v.room_name(aim["room"]["type"])
+	option["id"] = what
+	option["label"] = "%s where the shots came from" % what
+	option["desc"] = ("%s grenade into the %s, where the shots came from%s"
+			% [what, made[1][0], _throw_from_text(ctx, option)])
+	made[0].append(option)
+	return false
 
 
 ## The group of the throws at the shots (`options`, as `begin_shots_group` made them), `room` the
@@ -202,17 +297,6 @@ func _held_room(ctx: Dictionary, spot: Vector2) -> Dictionary:
 		return {}
 	var here := HouseRooms.at(ctx["self_pos"], _v.rooms)
 	return {} if not here.is_empty() and here["key"] == theirs["key"] else theirs
-
-
-## Where to throw a grenade of `kind` at the shots: `{ option, room }`, the throw (`_throw_option`)
-## onto the first of the aims (`_shots_aims`) it can lob onto, from where it stands, else from a
-## throw spot; {} when there is none.
-func _shots_aim(ctx: Dictionary, kind: StringName) -> Dictionary:
-	for aim: Dictionary in _shots_aims(ctx):
-		var option := _throw_option(ctx, kind, aim["spot"], aim["room"]["rect"], aim["walk"])
-		if not option.is_empty():
-			return { "option": option, "room": aim["room"] }
-	return {}
 
 
 ## The places a grenade may be aimed at the shots, in order of preference, each `{ spot, room,
@@ -281,7 +365,7 @@ func _throw_option(
 	var rids: Array = know["character_rids"]
 	var from := self_pos
 	var route := 0.0
-	if not _throw.can_lob(space, self_pos, spot, _throw.range_of(kind), rids):
+	if not _throw.can_lob(space, self_pos, spot, rids, kind):
 		if not walk:
 			return {}
 		var way := _throw_way(ctx, kind, spot, keep_out)
@@ -429,7 +513,7 @@ func _query(search: ThrowSearch, q: Dictionary) -> void:
 	var ctx := search.ctx
 	var kind: StringName = q["kind"]
 	if _throw.can_lob(
-		ctx["space"], ctx["self_pos"], q["spot"], _throw.range_of(kind), know["character_rids"],
+		ctx["space"], ctx["self_pos"], q["spot"], know["character_rids"], kind,
 	):
 		search.found = true
 		search.over = true
@@ -473,13 +557,14 @@ func _throw_aim(ctx: Dictionary, kind: StringName, spot: Vector2, keep_out: Rect
 	aim.reach = _throw.reach_of(kind)
 	aim.keep_out = keep_out
 	aim.lob = func(p: Vector2) -> bool:
-		# What a lob is judged on is the spot and the burst, not the kind thrown.
+		# What a lob is judged on is the spot and the burst; both kinds fly the same numbers, so
+		# a frag and a stun of the same reach share the verdict.
 		var key := Vector4(p.x, p.y, spot.x, spot.y)
 		var kept: Variant = _tactics.recall(ctx, "lobs", key)
 		if kept != null:
 			return kept
 		return _tactics.remember(
-			ctx, "lobs", key, _throw.throw_clear_on_arrival(space, p, spot, rids)
+			ctx, "lobs", key, _throw.throw_clear_on_arrival(space, p, spot, rids, kind)
 		)
 	aim.route = func(p: Vector2) -> Dictionary: return _throw_walk(ctx, p)
 	return aim
@@ -512,7 +597,7 @@ func _cornered(
 	threat.kind = kind
 	threat.radius = radius
 	threat.burst = spot
-	if not _throw.in_zone(space, threat, from, _throw.stand_height(), rids):
+	if not _throw.in_zone(space, threat, from, BodyHeights.STAND):
 		return false
 	threat.fuse_left = _throw.fuse_of(kind)
 	var runner := GrenadeRunner.new()
@@ -578,6 +663,6 @@ func _ally_in_blast(ctx: Dictionary, kind: StringName, radius: float, spot: Vect
 	threat.radius = radius
 	threat.burst = spot
 	for pos: Vector2 in found.values():
-		if _throw.in_zone(ctx["space"], threat, pos, _throw.stand_height(), know["character_rids"]):
+		if _throw.in_zone(ctx["space"], threat, pos, BodyHeights.STAND):
 			return true
 	return false

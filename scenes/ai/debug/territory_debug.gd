@@ -10,7 +10,10 @@ const OUTSIDE := Color(1.0, 0.5, 0.3)
 const HOLD := Color(0.4, 0.65, 1.0)
 
 ## Whether to draw the territory overlay.
-@export var show_territory: bool = false
+@export var show_territory: bool = false:
+	set(value):
+		show_territory = value
+		_sync_processing()
 
 
 ## Whether this overlay's toggle is on.

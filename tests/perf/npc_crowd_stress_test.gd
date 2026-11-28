@@ -34,7 +34,6 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"ai.callouts", true)
 	s.switch(&"ai.vision", true)
 	s.switch(&"ai.pursuit", true)
-	s.switch(&"projectile.flyover", false)
 	# fighting shoves furniture into overlaps; re-baking is covered by perf/bake_and_path_stress
 	s.switch(&"nav.rebake", false)
 	# first-play synthesis is a one-off the game pre-warms away; sound is costed in

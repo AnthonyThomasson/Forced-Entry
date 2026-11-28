@@ -13,6 +13,7 @@ extends GameTest
 ## item's own release (`ThrownGrenade.spawn`) at the start of the invader's wind-up; the invader is
 ## armed at the start of `run`, the way Main arms a spawn.
 
+const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const I_AT := Vector2(100, 150)
@@ -36,11 +37,12 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	Hiding.von_out(s)
 	s.layout(
 		[{ "key": "hall", "type": "living_room", "rect": Rect2(0, 0, 900, 300) }],
 		[{ "pos": Vector2(880, 0), "width": 60.0 }],
 	)
-	s.object(&"desk", "desk", Vector2(330, 150))
+	s.object(&"desk", Hiding.low_cover("desk"), Vector2(330, 150))
 	s.von_script([
 		{ "pick": "combat" },
 		{ "pick": "grenade" },
@@ -49,7 +51,6 @@ func configure(s: TestSetup) -> void:
 		{ "pick": "retreat" },
 	])
 	s.switch(&"ai.hostile_on_trespass", false)
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"i", &"invader", I_AT, { "facing": Vector2.RIGHT })
 	s.actor(&"mate", &"puppet", MATE_AT, { "faction": &"invader", "max_health": 1_000_000.0 })
 	GrenadeAi.hostile(s, &"h", H_AT, I_AT)
@@ -58,6 +59,8 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var inv := t.actor(&"i")
 	Probe.arm(inv, 1, 0)
+	if not await Hiding.duck_after_seen(t, &"h", &"i"):
+		return
 	if not t.require(
 			Probe.count(inv, Probe.STUN) == 1,
 			"the invader carries a stun (item_count(7) = %d)" % Probe.count(inv, Probe.STUN),

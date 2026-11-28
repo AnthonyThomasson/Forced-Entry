@@ -50,7 +50,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	Probe.gunfire(GUNFIRE)
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	var plain := NavBuilder.route(map, START, GUNFIRE)
 	var plain_len := NavBuilder.path_length(plain)
 	var crosses := false

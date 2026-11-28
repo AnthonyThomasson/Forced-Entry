@@ -57,8 +57,8 @@ func _check_runs(t: TestContext, runner: Node, walker: Node) -> void:
 	var top_walker := 0.0
 	for i in 90:
 		await t.frames(1)
-		top_runner = maxf(top_runner, runner.get_real_velocity().length())
-		top_walker = maxf(top_walker, walker.get_real_velocity().length())
+		top_runner = maxf(top_runner, TwinSpace.real_velocity_of(runner).length())
+		top_walker = maxf(top_walker, TwinSpace.real_velocity_of(walker).length())
 	t.trace("runner_top_speed", top_runner)
 	t.trace("walker_top_speed", top_walker)
 	t.check(top_runner > WALK_SPEED * 1.3, "the runner exceeds walking speed (%.0f)" % top_runner)

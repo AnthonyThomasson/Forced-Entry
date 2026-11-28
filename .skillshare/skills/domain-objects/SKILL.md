@@ -9,53 +9,56 @@ Owns the world's objects (furniture, walls, floors, the street round a house, th
 they are hit and pushed, how they compose Physics, what they give the lighting, and their painters. It turns a plain definition
 dict from World-Gen into a node. Interfaces: 2 (World Generation → Objects, incl. `WearFactory`, `DecalFactory`, the floor's `sound_surface` /
 `marks` / `tile_from` / `light_layer` and `DoorFactory`), 3 (hittable), 4 (→ Physics), 5 (pushable), 8 (interactable), 10 (a door's
-`&"door"`), 11 (`PhysicsLayers`), 12 (→ Art), 16 (`SoundSurface`), 20 (`get_lights()`), 24 (the door contract).
+`&"door"`), 11 (`PhysicsLayers`), 12 (→ Art), 16 (`SoundSurface`), 20 (`get_lights()`), 24 (the door contract), 28 (`PieceHeights`), 29 (`ObjectTwins`: the twin 3D space).
 
 | File | Role |
 |---|---|
-| `environment_object.gd` (a `RigidBody2D`), `object_physics.gd`, `object_look.gd`, `object_lights.gd` | A piece: control node, its physics part, its art fields (`piece.look.<field>`: `art`, `art_opts`, `facing`, `overhang`), its lights. It draws nothing: its 3D mesh (`art/`) shows it. |
-| `wall/wall.gd`, `room_walls.gd` | Walls: segment math (`wall_segments()`), colliders; `RoomWalls` is `thickness`, `openings` (`{ side, offset, width }`), `style`. |
+| `environment_object.gd` (a plain `Node2D` plan handle: groups `TwinSpace.BODIES` and `PIECES`, no 2D body or shape), `object_physics.gd`, `object_look.gd`, `object_lights.gd` | A piece: control node, its physics part, its art fields (`piece.look.<field>`: `art`, `art_opts`, `facing`, `overhang`), its lights. It draws nothing: its 3D mesh (`art/`) shows it. |
+| `wall/wall.gd`, `wall/wall_twin.gd`, `room_walls.gd` | Walls: segment math (`wall_segments()`, split where a stretch another wall owns starts or ends), segment outlines (none on that stretch: a shared wall is built once, `seams`; a `Wall` is a plain `Node2D` plan handle in the groups `walls`, `TwinSpace.BODIES` and `HARD`, with no 2D shape); `WallTwin` is the 3D body; `RoomWalls` is `thickness`, `openings` (`{ side, offset, width }`), `seams`, `style`. |
 | `floor/floor.gd` | Floors. |
 | `object_factory.gd`, `wall_factory.gd`, `floor_factory.gd`, `wear_factory.gd`, `wear_plan.gd`, `door_factory.gd` | The interface-2 factories. `shared_textures.gd`: the shared flat art (pre-warm). |
-| `door/` (`door.gd` and its parts), `door_config.gd`, `door_push_config.gd`, `door_material_config.gd` | A hinged house door: `doors.md`. |
-| `collider_cuts.gd` (`ColliderCuts`) | The shared queue of convex collider cuts, run on worker threads. |
+| `door/` (`door.gd` and its parts, `door_footprint.gd`), `door_config.gd`, `door_fall_config.gd`, `door_push_config.gd`, `door_material_config.gd` | A hinged house door: `doors.md`. |
+| `door_body.gd` (`DoorBody`), `door_slab.gd` (`DoorSlab`) | A door's 3D leader (`AnimatableBody3D`, the 2D `Door` follows it) and, once knocked down, its free `RigidBody3D` (a `PieceBody`): `doors.md` DR11. |
+| `object_twins.gd` (`ObjectTwins`) | The 3D twins of walls (96 px), doors (84), floors (slabs) and solid furniture (a box per `PieceHeights` part, a round piece's full footprint a cylinder) for General's twin space (29, `heights.md`). A wall, door, floor, anchored or wall-hung piece is a `StaticBody3D` written when its body moves; a free piece on the floor is a `PieceBody`. A dent reshapes a wall's twin (`WallTwin`), not the others'. A free item: `item_body.gd`, `piece_rest.gd` (`heights.md`). |
+| `piece_body.gd` (`PieceBody`), `piece_body_config.gd` (`PieceBodyConfig`) | A free piece's 3D body (`RigidBody3D`, Jolt), the truth of the piece (ADR 0014): shaped from its real parts, mass from the catalogue, centre of mass at its shapes' middle; it slides, spins and tips; its plan handle is the footprint written from it (`TwinSpace.leader_of`). Pushed through `Knockback.push` at a real height (5); tipped past `tipped_degrees`, its footprint is the hull of its projected shapes (`footprint_stamp` for the nav), `get_interactions` drops every `move_to` action, and it sleeps when at rest. A piece spawned overlapping a wall or piece is settled clear (`settle_out`). Heights, 29. |
+| `collider_cuts.gd` (`ColliderCuts`) | The shared queue of convex cuts of a dented wall segment, run on worker threads. |
 | `decals/` | `decal_layer.gd`, `room_wear.gd`, `street_marks.gd`, `stencil_decal.gd`, `decal_factory.gd` (`DecalFactory`: the floor stencil). |
-| `art/` | Painters and holders: `art.md`, `meshes.md`, `furniture-art.md`, `structure-meshes.md`. |
+| `art/` | Painters and holders: `art.md`, `carries.md` (`PieceCarries`), `meshes.md`, `furniture-art.md`, `structure-meshes.md`. `piece_heights.gd` (`PieceHeights`: every piece's real top and parts: `heights.md`). |
 
-Layering: `environment_object.gd` / `wall.gd` / `floor/floor.gd` hold geometry, colliders and look data and draw nothing:
-the 3D meshes (`art/`, `meshes.md`) read them through the mirror. Colliders are built at runtime (`wall.gd._build_walls()`, `object_physics.gd`): the editor's "no shape" warning on a `Wall` is expected.
+Layering: `environment_object.gd` / `wall.gd` / `floor/floor.gd` hold geometry (a wall: outlines; a piece: its size and parts, which its twin is built from; a floor: its rect) and look data and draw nothing:
+the 3D meshes (`art/`, `meshes.md`) read them through the carrier. A wall's outlines are built at runtime (`wall.gd._build_walls()`), a piece's twin from `PieceHeights` parts (`ObjectTwins`); a `Wall` and a piece have no 2D shape, so no editor warning.
 
 ## The contracts
 
 - **Hittable (3):** every piece and wall implements it. The striker decides the ballistic outcome and hands over a `HitInfo`; the
   object decides what the hit *does to it* (shove, deform, debris). A melee punch or kick shoves through the pushable contract and does
   **not** deform.
-- **Pushable (5):** furniture is a `RigidBody2D`, so its native `apply_impulse(v, at)` and `get_mass()` serve the contract. A
+- **Pushable (5):** furniture is a plan handle: its `apply_impulse(v, at)` and `get_mass()` serve the contract (through the free 3D body that leads it; a pusher calls `Knockback.push`). A
   character's shoves pass the contact offset as `at`, so a piece pushed near one end turns about the far end (the body's own
-  torque, `PhysicsImpactConfig.body_angular_damp`). An **anchored** piece (`anchored: true`, the streetlight's post) is frozen static
-  in `_ready`: every shove is ignored and its `take_hit` skips `Knockback`, but it is still found by queries, struck, dented, throws
+  torque, `PhysicsImpactConfig.body_angular_damp`). An **anchored** piece (`anchored: true`, the streetlight's post) has a static twin:
+  every shove is ignored and its `take_hit` skips `Knockback`, but it is still found by queries, struck, dented, throws
   debris and is carved into the nav map (`tests/objects/anchored_piece_test.gd`, `tests/navigation/anchored_hole_test.gd`).
-- **Door (24):** a `Door` is hittable (coverage 100, its material's `penetration`) and pushable (a shut one never moves; an ajar one turns about its hinge): `doors.md`. A piece's `coverage` and a door's `transparent` are fixed at spawn: Vision caches them for the piece's life (interface 3).
+- **Door (24):** a `Door` is hittable (a full-height wall in the twin space, its material's `penetration`) and pushable (a shut one never moves; an ajar one turns about its hinge): `doors.md`. A door's `transparent` is fixed at spawn: Vision caches it for the door's life (interface 3).
 - **Interactable (8):** `get_interactions()` returns the `interactions` field of the definition; interaction is catalogue data.
 
 ## Physics parts
 
 `object_physics.gd` (`compose()`, `add_smear()`, `soak()`, `release()`) adds the Physics components as child nodes and holds them
-(`physics.knockback`, `physics.deformable`), the collider and its rebuild. A collider exists only when `solid`; non-solid decor is frozen and shapeless. A non-solid piece of cloth (`material`
+(`physics.knockback`, `physics.deformable`) and the silhouette its dents leave. A piece has no collider: its body is its twin, and non-solid decor (a rug) has none. A non-solid piece of cloth (`material`
 `fabric`: rug, mat, cardboard) registers a porous `BloodSurface` rect; other walk-over decor registers none. `BloodSmear` goes on
-solid pieces only, re-fed the footprint polygon when the collider is rebuilt.
+solid pieces only, re-fed the footprint polygon when the silhouette is rebuilt.
 
 ## Rebuilding a hit piece
 
-- A piece's dents are its `Deformable`'s records; the 3D mesh and the collider both follow them (the mesh through the mirror's
-  own change check, a wall segment's mesh `Segment<i>` alone).
-- A hit queues one deferred collider rebuild however many hits land first (a wall: one per struck segment, `_rebuild_queued`).
-  A blast dents a room's worth of pieces in one frame and cutting a dented silhouette into convex pieces is the costly part, so a
-  hit that queues a rebuild also queues its cut in `ColliderCuts` (`queue(make)`; `make` runs on the main thread, copies the dents,
-  returns a pure job: `Deformation.cut_shape` / `cut_wall`). The first rebuild's `take()` starts every other waiting cut on a worker
-  thread; later `take()`s wait for theirs and use it only if its polygon is still the silhouette (else cut there, `_pieces_of`). A
-  cut whose piece leaves the tree is dropped (`cancel()`, in `_exit_tree`; a running one is waited for). Tests:
-  `tests/objects/blast_colliders_match_plain_test.gd`, `wall_dents_share_a_rebuild_test.gd`.
+- A piece's dents are its `Deformable`'s records; the 3D mesh follows them (a piece through its signal `reshaped`, which has the carrier build the mesh again; a wall segment's mesh
+  `Segment<i>` alone), and so does the smear's footprint; a piece's twin keeps the outline it was built with.
+- A hit queues one deferred rebuild however many hits land first (a piece: `_rebuild_queued`, it lays the smear's footprint and says
+  `reshaped`; a wall: one per struck segment, `_rebuild_queued`, its twin cut again). A blast dents a room's worth of wall segments in one
+  frame and cutting a dented outline into convex pieces is the costly part, so a wall hit that queues a rebuild also queues its cut in
+  `ColliderCuts` (`queue(make)`; `make` runs on the main thread, copies the dents, returns a pure job: `Deformation.cut_wall`). The first
+  rebuild's `take()` starts every other waiting cut on a worker thread; later `take()`s wait for theirs and use it only if its polygon is
+  still the silhouette (else cut there). A cut whose wall leaves the tree is dropped (`cancel()`, in `_exit_tree`; a running one is waited
+  for). Tests: `tests/objects/blast_reshapes_dented_pieces_test.gd`, `wall_dents_share_a_rebuild_test.gd`.
 
 ## The overhang (interface 2)
 

@@ -32,7 +32,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 3000, 3000))
-	s.switch(&"projectile.flyover", false)
 	s.von_script([{ "pick": "hold" }])
 	s.actor(&"d", &"defender", NPC_AT, { "facing": Vector2.LEFT, "max_health": 1_000_000.0 })
 	s.set_props(

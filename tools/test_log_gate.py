@@ -117,6 +117,13 @@ class ScannerTests(unittest.TestCase):
     def test_von_launcher_diagnostics_are_allowed(self):
         self.assertEqual(scan("WARNING: [von] server not found\n")[0], 0)
 
+    def test_jolt_job_pool_warning_is_allowed_and_no_other_jolt_warning(self):
+        pool = ("WARNING: Jolt Physics job system exceeded the maximum number of jobs. This should not happen. "
+                "Please report this. Waiting for jobs to become available...\n   at: CreateJob (a.cpp:125)\n")
+        self.assertEqual(scan(pool)[0], 0)
+        cache = "WARNING: Jolt Physics manifold cache exceeded capacity and contacts were ignored.\n   at: step (b.cpp:1)\n"
+        self.assertEqual(scan(cache)[0], 1)
+
     def test_from_offset_skips_what_was_already_judged(self):
         head = "ERROR: judged by the runner\n"
         self.assertEqual(scan(head + "all quiet\n", f"--from={len(head)}")[0], 0)

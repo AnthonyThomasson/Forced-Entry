@@ -16,7 +16,7 @@ The controller calls `setup(perception, nav_agent, tuning)` once, then `apply_co
 | Primitive | Part | Notes | Re-decides |
 |---|---|---|---|
 | `move` | errand | Stops on arrival and zeroes `move_input` every tick after, so the NPC stands while the next decision is in flight. A `look_around` move walks INTO the room, then covers it by sight (`coverage.md`). ADVANCE is a `move` with `aim: target`. | Arrival; a `look_around` only once covered or out of budget (`max_commit_time` caps the walk in) |
-| `engage` | fight | Walk to the anchor firing at will, then peek-and-cover or ambush (`combat.md`). ENGAGE and FLANK use it. | Moving: `max_commit_time`. In position: `tactic_interval`, or `engaged` lapse |
+| `engage` | fight | Walk to the anchor firing at will (by the leaf's `via` first when a flank's route bends round the target, B2), then peek-and-cover or ambush (`combat.md`). ENGAGE and FLANK use it. | Moving: `max_commit_time`. In position: `tactic_interval`, or `engaged` lapse |
 | `melee` | fight | Closes in only while the confinement allows the contact's last-known spot. | `tactic_interval` / `engaged` lapse |
 | `interact` | errand | Walk to the object, face it, run it, hold `interaction_dwell`. | Dwell over, or approach cap |
 | `reload` | fight | Equip the gun, stand, `ammo.reload()`. | The reload ending, or `max_commit_time` |

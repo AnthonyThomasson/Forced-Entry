@@ -10,8 +10,8 @@ The world's dusk lighting. The spec is `docs/lighting.md`: the 3D lighting, each
 live in the holders and the spec, not here. Interfaces: 10 (the `shot` / `explosion` topics), 20 (Main / Testing → Lighting; a piece's
 `get_lights()`; the 3D lights), 27 (the 3D render).
 
-A **near-leaf**: it imports General (`EventBus`, `WeightedPick`, `RenderConfig`), Art's `ToonLight` (the 3D dusk's shader globals) and
-Godot, and reads the world duck-typed (`get_lights()`, the groups `floors` and `characters`). Its caller is Main (`main_view3d.gd`
+A **near-leaf**: it imports General (`EventBus`, `WeightedPick`, `RenderConfig`), Art's `ToonLight` (the 3D dusk's shader globals) and `MeshNodes` (a
+fixture's bulb: `instance`, `glow`; `changed` after the sun casters write a mesh's layers) and Godot, and reads the world duck-typed (`get_lights()`, the groups `floors` and `characters`; the sun's casters a mesh's `proxies_of` ancestor). Its caller is Main (`main_view3d.gd`
 `light_world` → `WorldLighting3D.light`); Testing's `lighting.enabled` switch and the probes read `lights()` / `fixtures()`. The
 lights and shadows of the world's things are declared by their own domains.
 
@@ -45,6 +45,15 @@ A street floor says `is_street()`.
 7. **Fixture bulb:** each room fixture has an emissive sphere (`LightingFixtureConfig.bulb_*`) over the walls, dimming with its rhythm and fade; the
    fixture's shadow is part dark (`shadow_opacity`).
 
+## The sun's shadow pass (`sun_casters.gd`)
+
+The directional shadow redraws every frame, so only what can shadow a street spot is in it. `SunCasters` (a child of `WorldLighting3D`, given the sun, the sky mask's street and house rects and the light's travel) moves a mesh whose swept shadow touches no street spot to render layer `LightingCostConfig.sun_indoor_layer` (20), which the sun's `shadow_caster_mask` leaves out; cameras and other lights see every layer. The picture is the same.
+
+- **Every `MeshInstance3D`** of the sun's world is taken as it joins the tree (judged the next frame). Batches (`MultiMeshInstance3D`) always cast.
+- **What may be left out**, by the first body above it: a `StaticBody3D`; an `AnimatableBody3D` (a standing door), looked at every frame; a `RigidBody3D` while it sleeps (every held body is asked each frame: a script's wake signals nothing; a wake or sleep also drops its freed meshes' ids); a mesh the carrier placed itself (a `proxies_of` ancestor). Anything else casts: a character, an awake body, a mesh under no body.
+- **A moved static or sleeping mesh** is found by the round of looks, `sun_recheck` (24) meshes a frame. A mesh resized in place without moving is not judged again: `sun_caster_margin` (16 px) covers a dent.
+- Tests: `lighting/sun_casts_only_what_reaches_the_street` (the rules, headless), `lighting/sun_casters_suite` (the sweep and a re-dented body's ids, on a street and house made by hand), `lighting/sun_casters_same_picture_windowed` (no pixel differs).
+
 The toon light itself (the bands, the cap, why the ambient rides the one directional light) is Art's: `domain-art/textured-toon.md`.
 **Adding a light-giving piece** is unchanged (below, Objects declares it); its 3D light follows from the declaration, its glow from
 the mesh (`FurnitureRig.add_glow`). 
@@ -54,8 +63,8 @@ the mesh (`FurnitureRig.add_glow`).
 | File | Role |
 |---|---|
 | `world_lighting_3d.gd` (`WorldLighting3D`) | The game's lights (above). `light(view, world, seed_value, rooms, focus)` (a district's `rooms`: every tower's, keys unique) returns null while `enabled` is off. |
-| `lighting_config.gd`, `lighting_3d_config.gd`, `lighting_cost_config.gd`, `lighting_fixture_config.gd` | Tuning holders: `LightingConfig` (switch, dusk colours, flash rows, `floor_reach`), `Lighting3DConfig` (the sun, heights, pools, the flash pool, the fixture shadow), `LightingCostConfig` (the caps), `LightingFixtureConfig` (the room fixtures and their bulb). |
-| `flash_pool_3d.gd`, `light_rhythm.gd` | Private parts: the flash pool; one light's seeded rhythm. |
+| `lighting_config.gd`, `lighting_3d_config.gd`, `lighting_cost_config.gd`, `lighting_fixture_config.gd` | Tuning holders: `LightingConfig` (switch, dusk colours, flash rows, `floor_reach`), `Lighting3DConfig` (the sun, heights, pools, the flash pool, the fixture shadow), `LightingCostConfig` (the light caps; the sun pass's `sun_indoor_layer`, `sun_caster_margin`, `sun_recheck`), `LightingFixtureConfig` (the room fixtures and their bulb). |
+| `flash_pool_3d.gd`, `light_rhythm.gd`, `sun_casters.gd` | Private parts: the flash pool; one light's seeded rhythm; the sun's casters (above). |
 
 A kept light's rhythm is picked from the declaration's `rhythm` weights with an RNG seeded `hash([seed, piece position
 (rounded), index])` (a fixture: `hash([seed, "fixture", room key])`), so the same seed flickers the same.
@@ -76,7 +85,7 @@ A rhythm still steps every frame and drives the light's energy, but an unchanged
 - **A light-giving piece:** a row in `ObjectArtLightConfig.specs` and its case in `object_lights.gd` (`_kind`, or
   `ObjectArt.light_kind` for a painter that lights only in some variants; colour / turn / reach in `_by_kind`; the offset is
   the row's `ahead`). Its painter draws the source inside `canvas.glowing` so the mesh glows with it.
-- **Who shadows whom:** the geometry of the meshes; which lights cast is `LightingCostConfig.shadow_lights`.
+- **Who shadows whom:** the geometry of the meshes; which lights cast is `LightingCostConfig.shadow_lights`; which meshes the sun draws is the section above (never write a mesh's `layers` elsewhere).
 - **A flash:** a `LightingConfig.flashes` row (its `wash` for a white-out) and its topic in `_on_posted`. A flash that is the whole look of something (the
   stun's) takes a `hold` and a longer `life` rather than a drawn effect beside it.
 

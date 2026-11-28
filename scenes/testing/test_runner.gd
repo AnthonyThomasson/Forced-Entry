@@ -203,7 +203,7 @@ func _close() -> Dictionary:
 ## A world with a human-driven player keeps WASD for walking, so the camera's hand-pan is off there.
 func _frame_camera() -> void:
 	_camera.set("pan_enabled", not _has_player and not _locked.has(&"camera"))
-	_camera.frame(_session.camera_targets())
+	_camera.frame(_session.camera_targets(), _session.camera_ground())
 
 
 # --- Interactive ----------------------------------------------------------------------------

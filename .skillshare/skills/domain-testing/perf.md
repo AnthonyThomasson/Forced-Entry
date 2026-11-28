@@ -27,6 +27,13 @@ the largest match (twenty characters), with no looser tail.
 The one exception is `grenade_match_stress`: p95 25 and worst frame 37, by the user's decisions on #195 (item 4, rule 13), through its own
 `P95_MS` and `MAX_MS` passed to `within_frames` as `p95_limit` and `max_limit`; its average stays 16.7. Its worst frame reads 27-31 ms
 in single runs but 34.75-36.02 inside the full perf run, at the standard's 33.4.
+`render_3d_post_cost` is a windowed-only budget guard (headless skips it: it draws nothing): the 3D view's frames on a fixed camera
+route at 1152x648 and 2560x1440 hold the same standard. It fails if, for any sampled frame, `Engine.get_frames_drawn()`
+did not move or `DisplayServer.window_can_draw()` was false at either end of it (a window that shows nothing would read
+cheap; the counter alone also moves on draws that only free GPU resources). `window_can_draw()` is false when the window
+is minimized, and on macOS also when it is fully covered; on Windows a covered window reads true. The test needs
+`--fixed-fps` (`tools/run_tests.sh`): the in-game runner paces to the clock, so there it can fail (when two samples
+share one main-loop iteration).
 One-shot work (`Perf.time_ms`) keeps a `const` budget at the
 top of its test, about 4x the baseline stated in the comment above it. `Perf.within` prints `PERF <label> <value>
 (budget <limit>)`, traces it and fails the check with the value. Counts (nodes, dents, pools) are asserted tightly.
@@ -49,8 +56,8 @@ Update the "before" numbers in a test's comment only when its load changes.
 - **What the player's view costs is held as a difference** (`perf/match_npc_vision_relative`: one 10v10 in one process, blocks of frames
   with the view on and off, interleaved, since two plays of a match differ by far more than the view costs): `perf-vision-cost.md` (split out to keep this file under the 8192-byte cap).
   State since #195: `perf/match_10v10_stress`, `match_10v10_opening` and `match_5v5_stress` pass; `grenade_match_stress` passes at its
-  p95 of 25 and worst frame of 37 (the only budgets moved, above); `match_npc_vision` is red pending #223. None is skipped or tagged. History and the
-  gates the district moved: `perf-district.md`, `perf-district-ext2.md`, `perf-district-ext3.md`.
+  p95 of 25 and worst frame of 37 (the only budgets moved, above); `match_npc_vision` is red pending #223. None is skipped or tagged. History: ADR 0017; the
+  gates the district moved: `perf-district.md`.
   What one NPC costs a frame (measured, #195): `perf-npc-cost.md`. A match's opening (`perf/match_10v10_opening`, from the first
   sighting or shot) and the worst-frames report `--verbose` prints for every frame guard: `perf-opening.md`.
 - **A wall-clock budget belongs here and nowhere else:** the lint rule `timing_in_perf` fails a `Time.get_ticks_usec()`

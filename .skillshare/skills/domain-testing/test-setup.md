@@ -8,7 +8,8 @@ only (the browser also calls it to list the switches).
   `house(seed, plan, entrance)` or `district(seed, plan, entrance)` (a downtown district: `MatchBuilder.stage` generates it and bakes the
   nav over its streets as Main's match does; `TestWorld.district` is its root, `house` / `rooms` / `openings` the centre tower's, so a
   district world takes no placed objects, `push_error`). The default is an 800×500 arena.
-- **Objects** are placed under the house or arena root before the nav bake, so they are carved.
+- **Objects** are placed under the house or arena root before the nav bake, so they are carved. `s.object(id, key, offset, { on: id })` sets a
+  small item on an earlier object's top (`ObjectFactory.spawn_on`, 2: items set on one spot in one frame stack on each other).
 - **Doors:** a `layout` doorway may declare one: `{ pos, width, door: { material, style, hinge, swing_into, angle?, name? } }`. `LayoutBuilder`
   builds it through `DoorFactory.spawn` from `WorldGen.door_definition(material, style)` (the hinge a point on the jamb where the walls'
   ends stand: 6 px in from the `width` gap's edge in a layout's 12 px walls) and `TestWorld` registers it in `objects` under its node
@@ -59,4 +60,4 @@ only (the browser also calls it to list the switches).
   write for it; it runs only live, with `--include-von` / `--require-von`).
 - **Presentation:** `show_overlays([...])`, `camera_follow([ids])` (default frames all actors; the hand-pan is off when a
   `player` actor is present, since WASD walks it) and `lock_interaction([&"camera", …])`
-  (`in-game-runner.md`, "Locking interactions"), `own_picture()` (the test builds its own 3D picture, a `Main` run whole or a `View3D` by hand: the session shows none over its world, `in-game-runner.md`; also set by tests of the 2D draw or the plain camera, which need the world as it is, until the 2D draw's jobs delete them).
+  (`in-game-runner.md`, "Locking interactions"), `own_picture()` (the test builds its own 3D picture, a `Main` run whole or a `View3D` by hand: the session shows none over its world, `in-game-runner.md`).

@@ -8,7 +8,7 @@ is the named check), `pin_height`, the spec's numbers (`ZONE_DAMAGE`, `PLATED_KI
 and not the code, shooting lanes (`lay_lanes`, `dress`, `volley`: real rounds with a gun's `GunConfig` numbers, or a frag's
 fragment, fired square on at a target with a witness behind it to show whether a round came out), and `art(c)` (the look of the character's 3D body: a `BodyMesh` the probe keeps under it, one number per visible part). `tests/_outfit` is an unknown helper folder to `--changed`, so a change to it runs the whole suite.
 
-- **A test that counts gun damage pins the bullet height** (`pin_height` pins `BallisticsFlightConfig.bullet_height`): a
-  random height picks a zone, and a head shot deals twice a torso's.
+- **A test that counts gun damage fires at a known height** (`OutfitProbe.fire(..., height)`: `Shot.height`, px above the floor; `STAND` / `CROUCH` hold one height per zone): the height the round meets the body at
+  picks a zone, and a head shot deals twice a torso's.
 - A test reading a dead body's drawing keeps it near the living actors (the camera drops the dead from its framing, and
   headless it sees only about 160 px plus the 120 px cull margin) or follows it alone with `camera_follow`.

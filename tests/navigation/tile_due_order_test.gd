@@ -14,9 +14,9 @@ const MOVE := 300.0
 ## Physics frames the walker walks before the footprints are read: its speed passes the rest speed.
 const WALK_FRAMES := 12
 
-var _tiles: Array[NavigationRegion2D] = []
+var _tiles: Array[NavigationRegion3D] = []
 var _district: Node2D
-var _region: NavigationRegion2D
+var _region: NavigationRegion3D
 
 
 func describe() -> Dictionary:
@@ -68,7 +68,7 @@ func run(t: TestContext) -> void:
 func _stage(t: TestContext) -> bool:
 	await t.seconds(0.5)
 	_district = t.world.get("district") as Node2D
-	_region = t.world.find_children("NavRegion", "NavigationRegion2D", true, false)[0]
+	_region = t.world.find_children("NavRegion", "NavigationRegion3D", true, false)[0]
 	_tiles = NavBuilder.steering_regions(_region)
 	var front := WorldGen.district_bounds(_district).position + Vector2(CORNER_IN, CORNER_IN)
 	var stopped: Array[Node2D] = [t.actor(&"a"), t.actor(&"b"), t.actor(&"c")]
@@ -94,7 +94,7 @@ func _check_order(t: TestContext, due: Array[Dictionary], walkers: Array[Vector2
 	t.check(due.size() >= 4, "premise: at least four tiles are due (%d)" % due.size())
 	var keys: Array[Array] = []
 	for entry in due:
-		var tile: NavigationRegion2D = entry["tile"]
+		var tile: NavigationRegion3D = entry["tile"]
 		var rect: Rect2 = tile.get_meta(NavTiles.RECT_META)
 		var gap := INF
 		for point in walkers:
@@ -115,7 +115,7 @@ func _check_order(t: TestContext, due: Array[Dictionary], walkers: Array[Vector2
 
 
 ## The tile whose rect holds `point` (a world point of `district`'s frame).
-func _tile_at(district: Node2D, point: Vector2) -> NavigationRegion2D:
+func _tile_at(district: Node2D, point: Vector2) -> NavigationRegion3D:
 	var local := district.to_local(point)
 	for tile in _tiles:
 		if (tile.get_meta(NavTiles.RECT_META) as Rect2).has_point(local):
@@ -124,7 +124,7 @@ func _tile_at(district: Node2D, point: Vector2) -> NavigationRegion2D:
 
 
 ## The tile one row below `tile`'s, in its column; null at the grid's bottom.
-func _below(tile: NavigationRegion2D) -> NavigationRegion2D:
+func _below(tile: NavigationRegion3D) -> NavigationRegion3D:
 	if tile == null:
 		return null
 	var rect: Rect2 = tile.get_meta(NavTiles.RECT_META)

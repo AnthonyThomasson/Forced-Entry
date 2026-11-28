@@ -1,8 +1,9 @@
 extends RefCounted
 ## Top-down pixel-art NOODLE-BAR painter (Objects domain, private): the bar's pieces in grimy steel,
 ## `kind` in the options.
-##   `bar`: a long counter with steaming pots and bowls along it, the diners' side toward +y;
-##   `stool`: a round bar stool; `booth`: two benches with a table between them;
+##   `bar`: a long counter (its pots and bowls are items: `LooseStockCatalog`, `ItemsCatalog`), the
+## diners' side toward +y;
+## `stool`: a round bar stool; `booth`: two benches with a table between them (its bowls are items);
 ##   `menu`: a menu board lit with two lines of text and three characters (glowing).
 ## Canonical frame: the front toward +y; the catalogue colour is the steel. Knobs:
 ## ObjectArtShopConfig.noodle_*. Run down (decay.gd): grime and rust.
@@ -31,25 +32,15 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 	Decay.rust(c, maxi(1, int(c.w * c.h / 300.0)))
 
 
-## The bar: a steel top with a lip, steaming pots along it and bowls at one end.
+## The bar: a steel top with a lip, bare.
 static func _bar(c: PixelCanvas, base: Color, opts: Dictionary) -> void:
 	var top: Color = opts.get("top_color", ObjectArtShopConfig.noodle_top_color)
-	var broth: Color = opts.get("broth_color", ObjectArtShopConfig.noodle_broth_color)
-	var bowl: Color = opts.get("bowl_color", ObjectArtShopConfig.noodle_bowl_color)
 	Tech.box(c, Rect2i(0, 0, c.w, c.h), base, 6, 2)
 	var surface := Rect2i(3, 3, c.w - 6, c.h - 9)
 	Tech.box(c, surface, top, 8, 1)
 	c.surface(PixelShape.rounded(surface, 1), "metal", top)
 	var lip: Color = opts.get("accent_color", ObjectArtShopConfig.noodle_accent_color)
 	Kit.fill_rect(c, Rect2i(3, c.h - 6, c.w - 6, 2), lip)
-	for x in [18, 52, 86]:
-		Kit.disc(c, Vector2i(x, 12), 8, base.darkened(0.4), 12)
-		Kit.disc(c, Vector2i(x, 12), 6, Color(0.55, 0.56, 0.58), 13)
-		Kit.disc(c, Vector2i(x, 12), 4, broth.darkened(0.2), 13)
-	for x in [112, 124, 136]:
-		Kit.disc(c, Vector2i(x, 20), 5, bowl, 9)
-		Kit.disc(c, Vector2i(x, 20), 3, broth, 9)
-	c.line(Vector2i(104, 8), Vector2i(104, 18), Color(0.6, 0.6, 0.58), 10)
 
 
 ## A round stool: a steel rim round a seat, a bolt in the middle.
@@ -65,11 +56,8 @@ static func _stool(c: PixelCanvas, base: Color, opts: Dictionary) -> void:
 	Kit.disc(c, mid, 2, base.darkened(0.4), 6)
 
 
-## A booth: a bench along each long side and a table between, a bowl in front of each seat.
+## A booth: a bench along each long side and a table between.
 static func _booth(c: PixelCanvas, base: Color, opts: Dictionary) -> void:
-	var broth: Color = opts.get("broth_color", ObjectArtShopConfig.noodle_broth_color)
-	var bowl: Color = opts.get("bowl_color", ObjectArtShopConfig.noodle_bowl_color)
-	var lip: Color = opts.get("accent_color", ObjectArtShopConfig.noodle_accent_color)
 	for y in [0, c.h - 18]:
 		Tech.box(c, Rect2i(0, y, c.w, 18), base, 5, 3)
 		for x in range(8, c.w - 4, 16):
@@ -78,11 +66,6 @@ static func _booth(c: PixelCanvas, base: Color, opts: Dictionary) -> void:
 	var top: Color = opts.get("top_color", ObjectArtShopConfig.noodle_top_color)
 	Tech.box(c, table, top, 8, 1)
 	c.surface(PixelShape.rounded(table, 1), "wood", top)
-	var mid := int(c.h / 2.0)
-	for x in [30, 70]:
-		Kit.disc(c, Vector2i(x, mid), 6, bowl, 10)
-		Kit.disc(c, Vector2i(x, mid), 4, broth, 10)
-		c.line(Vector2i(x + 8, mid - 4), Vector2i(x + 8, mid + 4), lip, 10)
 
 
 ## The menu board: lit text and characters in a frame on a dark board.

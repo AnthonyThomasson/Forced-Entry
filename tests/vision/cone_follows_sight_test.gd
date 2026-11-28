@@ -10,6 +10,7 @@ extends GameTest
 ## It reads (tests/_vision/vision_probe.gd) the `PlayerView` of the world: `cone()`, `sees(point)`.
 
 const Probe := preload("res://tests/_vision/vision_probe.gd")
+const Pieces := preload("res://tests/_objects/piece_probe.gd")
 const EYE_AT := Vector2(150, 300)
 ## From the eye to the wardrobe's centre: points on this line, farther out, are behind it.
 const WARDROBE_LINE := Vector2(300, -170)
@@ -120,8 +121,8 @@ func _doors(t: TestContext, view: PlayerView, eye: Node2D) -> void:
 		"beyond the solid door shut again is not seen",
 	)
 	hollow.take_damage(10_000.0)
-	await t.frames(20)
 	t.check(hollow.is_down(), "premise: the hollow door was knocked down")
+	t.check(await Pieces.settle(t, hollow, 10.0), "and it fell and came to rest")
 	t.check(
 		await _sees_beyond(t, view, eye, HOLLOW_Y),
 		"beyond a door knocked down is seen",

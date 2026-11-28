@@ -86,4 +86,4 @@ func _publish() -> void:
 	if demand != null and not _published:
 		_published = true
 		demand.facts["grenade_ready"] = found
-		demand.found_at(found_id())
+		demand.found_at(found_id(), ids.slice(0, maxi(source - 1, 0)) if found else [])

@@ -12,11 +12,15 @@ class_name GrenadeConfig
 ##   fuse           seconds from release to the burst (there is no cooking).
 ##   windup         seconds of drawn-back arm between the click and the grenade leaving the hand.
 ##   max_range      farthest (px) a throw first touches down; aimed past it, it comes down here and
-##   rolls on a little. throw_speed    px/s it flies across the floor at full range (a shorter throw
-##   is a slower, floatier lob). release_height height (px, the `coverage` scale) it leaves the hand
-##   at. arc_height     height (px) the lob peaks at: furniture whose `coverage` is below the arc's
-##                  height at that point is flown over, anything taller is struck.
-##   restitution    share of its speed a bounce keeps (the floor's and a wall's).
+##   rolls on a little.
+##   throw_speed    px/s across the floor the arm can give it: a lob's apex is the lowest that gets
+##                  it to the aim at or under this speed (a nearer aim is a gentler, flatter throw).
+##                  740 so that a throw of `max_range` (550 px) is the arc of a standing release
+##                  (72 px up) peaking near 90 px, about the walls' height (a faster arm would
+##                  throw it flat, a slower one lob it over the roof).
+##                  The height it leaves the hand at is the thrower's posture's
+##                  (`BodyHeights.release`).
+##   restitution    share of its velocity a bounce keeps (the floor's and a wall's).
 ##   friction       px/s² the floor skids it to a stop with.
 ##   art_size       the art's footprint (px): width across, length from base to fuze.
 ##   looks          how it is drawn, per weapon style (`ItemArt.style`: `police` issue, taped
@@ -32,7 +36,17 @@ class_name GrenadeConfig
 ##                  `blast_max_speed` (px/s) caps the speed it gives a light body (a chair), mass x
 ##                  speed.
 ##   fragments, fragment_damage, fragment_speed, fragment_range, fragment_penetration   the real
-##   projectiles it throws.
+##   projectiles it throws, as 3D rays from the burst point over the upper hemisphere.
+##   fragment_flatness   how near level they fly: each one's elevation has `sin = q^flatness` for a
+##                  draw `q` in [0, 1) spread evenly over the fragments (1 = even over the sphere's
+##                  solid angle; 6 puts about two thirds under 6 degrees, an eighth over 25, as a
+##                  shell's do). With `fragments` and `fragment_damage` it is tuned so an exposed
+##                  standing body loses (HP, after the hit zone's share) what it lost when the
+##                  fragments flew level at a drawn height, at each distance within 15% (G8),
+##                  while 9% of the hits reach the torso and the head (a vest has fragments to
+##                  stop: O9). A flatter fan keeps the distance law and lands nearly all on the
+##                  feet; a steeper one spreads the hits up the body and thins them out faster
+##                  with distance.
 ## Stun only:
 ##   flash_radius, flash_full, max_blind   blinded by sight within `flash_radius` (full inside
 ##   `flash_full`) for up to `max_blind` s. flash_cover_reach   a wall always stops the flash; a
@@ -49,7 +63,7 @@ const PipeGrenadePainter = preload("res://scenes/items/art/pipe_grenade_painter.
 static var grenades: Dictionary = {
 	&"stun": {
 		"name": "Stun grenade", "slot": 7, "fuse": 1.5, "windup": 0.3, "max_range": 550.0,
-		"throw_speed": 720.0, "release_height": 50.0, "arc_height": 82.0, "restitution": 0.35,
+		"throw_speed": 740.0, "restitution": 0.35,
 		"friction": 700.0, "flash_radius": 400.0, "flash_full": 100.0, "max_blind": 5.0,
 		"flash_cover_reach": 30.0, "bang_radius": 350.0, "max_deaf": 6.0, "wall_factor": 0.4,
 		"point_blank": 30.0, "point_blank_damage": 5.0, "art_size": Vector2(6.0, 11.0),
@@ -74,11 +88,11 @@ static var grenades: Dictionary = {
 	},
 	&"frag": {
 		"name": "Frag grenade", "slot": 8, "fuse": 3.0, "windup": 0.3, "max_range": 550.0,
-		"throw_speed": 720.0, "release_height": 50.0, "arc_height": 82.0, "restitution": 0.35,
+		"throw_speed": 740.0, "restitution": 0.35,
 		"friction": 700.0, "blast_radius": 250.0, "kill_radius": 120.0, "blast_damage": 60.0,
 		"blast_impulse": 12_000.0, "blast_max_speed": 700.0, "fragments": 40,
-		"fragment_damage": 12.0, "fragment_speed": 3600.0, "fragment_range": 500.0,
-		"fragment_penetration": 0.4, "art_size": Vector2(8.0, 10.0),
+		"fragment_damage": 12.0, "fragment_flatness": 6.0, "fragment_speed": 3600.0,
+		"fragment_range": 500.0, "fragment_penetration": 0.4, "art_size": Vector2(8.0, 10.0),
 		"looks": {
 			&"police": {
 				"painter": PoliceGrenadePainter, "finish": "metal",
@@ -101,12 +115,18 @@ static var grenades: Dictionary = {
 }
 ## The weapon style a grenade is drawn in when its `looks` has no row for its `ItemArt.style`.
 static var default_style: StringName = &"police"
-## A landing slower than this vertical speed (px/s) is not a bounce but the grenade rolling to a
-## stop.
+## A landing slower than this speed into the surface (px/s) is not a bounce but the grenade rolling
+## to a stop.
 static var min_hop_speed: float = 40.0
-## Shortest a lob's flight is held to (s), so a throw at the thrower's feet is a drop, not an
-## instant arrival.
-static var min_flight_time: float = 0.3
+## Fall acceleration of a thrown grenade (px/s²): about 16 m/s², a throw's snappier than a real
+## one's.
+static var gravity: float = 680.0
+## The highest a lob's centre peaks in the open (px, about 3.5 m): where no roof stands over the
+## thrower or the aim (outdoors, in a roofless shell) a steep drop behind low cover is possible.
+## Under a roof (a room's, `Floor.roofed`) the roof is the ceiling (`GrenadeArc`): a lob peaks
+## under it, by the grenade's size and `ROOF_SLACK`. Only a real ceiling caps a lob (D11a,
+## `docs/grenades.md`).
+static var max_apex: float = 150.0
 ## A thrown grenade's size against walls and what it strikes (px).
 static var radius: float = 3.0
 ## Spin deceleration of a thrown grenade on the floor (rad/s²).

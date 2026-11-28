@@ -11,8 +11,8 @@ extends GameTest
 ##   - a wardrobe and the walls dented again and again (their colliders cut into more shapes);
 ##   - a wardrobe shoved across the room, and one freed, and one added;
 ##   - a door swung wide and shut, a glass-panel door's panes shattered, a door knocked down;
-##   - in a world of its own, a character that blocks the viewer's sight standing and not crouched
-##     changing its posture, and dying.
+##   - in a world of its own, a counter the viewer looks over standing and not ducked, the viewer
+##     changing its posture.
 ## And the reach, in a world of its own: a solid moved every frame far outside the viewer's reach
 ## forces no rebuild, one moved within reach starts or restarts one each frame. Then a checker holds
 ## every cone published to a fresh rebuild's while a solid, built each way a body can reach further
@@ -25,10 +25,14 @@ extends GameTest
 ##
 ## It reads (tests/_vision/vision_probe.gd) the `PlayerView`: `cone()`, `bubble()`, `rebuilds()`.
 
+## The height (px) of the line a strike is taken along: a piece's side and a wall's.
+const RawTwins := preload("res://tests/_vision/raw_twins.gd")
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
+const STRIKE_HEIGHT := 20.0
 const Probe := preload("res://tests/_vision/vision_probe.gd")
+const Held := preload("res://tests/_vision/held_pieces.gd")
 const Checker := preload("res://tests/_vision/cone_checker.gd")
 const Mover := preload("res://tests/_vision/physics_mover.gd")
-const Changing := preload("res://tests/_vision/changing_body.gd")
 ## The spec's backstop (V1): the most physics frames between two rebuilds.
 const REBUILD_EVERY := 10
 const EYE_AT := Vector2(250, 250)
@@ -39,9 +43,8 @@ const ADDED_AT := Vector2(520, 250)
 const GLASS_Y := 110.0
 const WOOD_Y := 250.0
 const DOWN_Y := 390.0
-## The second world: a character at `STANDER_AT` between the viewer and a far wall, whose sight
-## looks over only what is lower than `Probe.LOOK_OVER_LOW` (a standing body, 60, blocks it; a
-## crouched one, 35, does not).
+## The second world: a kitchen counter (38 px) at `STANDER_AT` between the viewer and a far wall: a
+## standing eye (69 px) looks over it and a ducked one (32 px) does not.
 const OTHER := Vector2(4000, 0)
 const OTHER_EYE := Vector2(4100, 300)
 const STANDER_AT := Vector2(4300, 300)
@@ -71,6 +74,9 @@ const MIRROR_SCALE := 60.0
 ## A scaled solid's `far`, beyond even the bound `ViewWatch` keeps for a scale that stretches one
 ## axis only (the largest scale on both: 18 400 px for a 14 by 60 shape scaled 200 times).
 const FAR_SCALED := 25_000.0
+## The most share (%) of a world's frames in which a blocker in reach creeps: the frames the
+## checker's sliver bound, not the exact check, holds the cone to (2 % measured: 12 of 613).
+const CREEP_SHARE_PCT := 10
 ## The frames a far solid creeps before it moves into reach.
 const FAR_FRAMES := 30
 const REACH_FRAMES := 60
@@ -111,9 +117,11 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	_t = t
+	Probe.twin_bare_solids(t.world)
 	var view := Probe.view(t)
 	if not t.require(view != null, "the world has a view"):
 		return
+	t.check(view.hears_twins(), "the view's watch hears the twin space of a staged match")
 	var eye := t.actor(&"eye")
 	if not t.require(await Probe.place(t, eye, EYE_AT, Vector2.RIGHT), "the viewer faces east"):
 		return
@@ -128,7 +136,7 @@ func run(t: TestContext) -> void:
 	await _doors(t, checker)
 	_check_whole(t, checker, "the first world")
 	checker.queue_free()
-	await _posture_and_death(t)
+	await _posture_world(t)
 	await _reach(t)
 
 
@@ -147,10 +155,11 @@ func _still(t: TestContext, checker: Checker) -> void:
 
 
 ## The fewest cones published (and frames the cone changes in, and jobs started) over the 90
-## frames of the turning viewer: a job of these houses is two frames (the corners fill a slice,
-## `VisionSliceConfig.cost_shape`, and the rays are the next), so a cone is published every other
-## frame, 45 of them (40: it was 60 when the corners were priced as one unit and a house's job was
-## one frame; the longer lag is the user's choice, 2026-11-12, #195); sliced, a cycle of a job is
+## frames of the turning viewer: a job of these houses is two frames (the corners,
+## priced about 200 units, and the first rays fill a slice, the rest of the rays
+## are the next), so a cone is published every other frame, 45 of them (40: it was 60 when the
+## corners were priced as one unit and a house's job was one frame; the longer lag is the user's
+## choice, 2026-11-12, #195, and its price 2026-11-19); sliced, a cycle of a job is
 ## about five frames (`vision/cone_skip_exact_sliced`).
 func _turn_floor() -> int:
 	return 40
@@ -178,16 +187,15 @@ func _turning(t: TestContext, checker: Checker, eye: Node2D) -> void:
 ## What the viewer sees is hit again and again, at the places its cone ends on; each hit dents, and
 ## the collider is cut anew in a frame or two with no move of the body.
 func _dents(t: TestContext, checker: Checker) -> void:
-	# The pieces are held still, so that a dent re-cuts a collider with no move of its body (a piece
-	# hit while free is shoved, and a cone that rebuilds as it moves hides a missed re-cut).
-	var pieces: Array[RigidBody2D] = []
-	for node in t.world.find_children("*", "RigidBody2D", true, false):
+	# The pieces are held still, so that a dent re-cuts a wall's twin with no move of a body (a
+	# piece hit while free is shoved, and a cone that rebuilds as it moves hides a missed re-cut).
+	var pieces: Array[Node2D] = []
+	for node in PlanProbe.pieces_under(t.world):
 		pieces.append(node)
-		node.freeze_mode = RigidBody2D.FREEZE_MODE_STATIC
-		node.freeze = true
+	Held.hold_still(pieces, true)
 	var targets: Array[Node2D] = []
 	targets.append_array(pieces)
-	for node in t.world.find_children("*", "StaticBody2D", true, false):
+	for node in NavTwins.walls_under(t.world):
 		if node.has_method("wall_segments"):
 			targets.append(node)
 	var shapes := Probe.collision_shapes(targets)
@@ -199,8 +207,7 @@ func _dents(t: TestContext, checker: Checker) -> void:
 			_strike_seen(checker, rng)
 		await t.frames(5)
 	await t.frames(5)
-	for piece in pieces:
-		piece.freeze = false
+	Held.hold_still(pieces, false)
 	t.check(
 		Probe.collision_shapes(targets) > shapes,
 		"premise: the dents cut the colliders into more shapes (%d, was %d)"
@@ -214,9 +221,9 @@ func _dents(t: TestContext, checker: Checker) -> void:
 
 ## A wardrobe is shoved across the room and comes to rest.
 func _shove(t: TestContext, checker: Checker) -> void:
-	var piece: RigidBody2D = t.object(&"shoved")
+	var piece: Node2D = t.object(&"shoved")
 	var at := piece.global_position
-	piece.apply_impulse(Vector2(900.0, -400.0) * piece.get_mass() * 0.4)
+	Knockback.push(piece, Vector2(900.0, -400.0) * piece.get_mass() * 0.4)
 	await t.frames(120)
 	t.check(
 		piece.global_position.distance_to(at) > 20.0,
@@ -250,12 +257,10 @@ func _freed_and_added(t: TestContext, checker: Checker) -> void:
 ## A script gives a solid a shape, and another is moved once from its own physics frame ahead of
 ## the view (as a door swinging is): a new shape and a move that no signal tells of.
 func _shape_added_and_moved(t: TestContext, checker: Checker) -> void:
-	var slab := StaticBody2D.new()
-	slab.collision_layer = PhysicsLayers.SOLID
+	var slab := RawTwins.Solid.new()
 	slab.position = SLAB_AT
 	t.world.add_child(slab)
-	var mover := AnimatableBody2D.new()
-	mover.collision_layer = PhysicsLayers.SOLID
+	var mover := RawTwins.Solid.new()
 	mover.add_child(_solid_shape())
 	mover.position = MOVER_AT
 	t.world.add_child(mover)
@@ -486,9 +491,8 @@ func _creep(t: TestContext, body: Node2D, from: Vector2, frames := REACH_FRAMES)
 
 
 ## A solid with a shape, standing at `at` in the world.
-func _solid_at(world: Node, at: Vector2) -> StaticBody2D:
-	var body := StaticBody2D.new()
-	body.collision_layer = PhysicsLayers.SOLID
+func _solid_at(world: Node, at: Vector2) -> RawTwins.Solid:
+	var body := RawTwins.Solid.new()
 	body.position = at
 	body.add_child(_solid_shape())
 	world.add_child(body)
@@ -496,8 +500,8 @@ func _solid_at(world: Node, at: Vector2) -> StaticBody2D:
 
 
 ## A solid's shape: `SOLID_SIZE` round its body.
-func _solid_shape() -> CollisionShape2D:
-	var shape := CollisionShape2D.new()
+func _solid_shape() -> RawTwins.Shape:
+	var shape := RawTwins.Shape.new()
 	shape.shape = _solid_rect()
 	return shape
 
@@ -510,20 +514,20 @@ func _solid_rect() -> RectangleShape2D:
 
 
 ## A solid, its shape `SOLID_SIZE` round its body.
-func _plain() -> StaticBody2D:
+func _plain() -> RawTwins.Solid:
 	return _body([_solid_shape()])
 
 
 ## A solid whose shape lies `offset` from its body.
-func _offset(offset: Vector2) -> StaticBody2D:
+func _offset(offset: Vector2) -> RawTwins.Solid:
 	var shape := _solid_shape()
 	shape.position = offset
 	return _body([shape])
 
 
 ## A solid whose shape is a long thin one, turned a quarter: it runs along y.
-func _turned() -> StaticBody2D:
-	var shape := CollisionShape2D.new()
+func _turned() -> RawTwins.Solid:
+	var shape := RawTwins.Shape.new()
 	var rect := RectangleShape2D.new()
 	rect.size = Vector2(TURNED_LENGTH, 10.0)
 	shape.shape = rect
@@ -531,53 +535,55 @@ func _turned() -> StaticBody2D:
 	return _body([shape])
 
 
-## A solid made of a polygon of `SOLID_SIZE`, `offset` from its body.
-func _polygon(offset: Vector2) -> StaticBody2D:
-	var polygon := CollisionPolygon2D.new()
+## A solid made of a convex polygon of `SOLID_SIZE`, `offset` from its body.
+func _polygon(offset: Vector2) -> RawTwins.Solid:
+	var polygon := RawTwins.Shape.new()
+	var hull := ConvexPolygonShape2D.new()
 	var half := SOLID_SIZE / 2.0
-	polygon.polygon = PackedVector2Array([
+	hull.points = PackedVector2Array([
 		offset + Vector2(-half.x, -half.y), offset + Vector2(half.x, -half.y),
 		offset + Vector2(half.x, half.y), offset + Vector2(-half.x, half.y),
 	])
+	polygon.shape = hull
 	return _body([polygon])
 
 
 ## A solid whose body is stretched `WIDE_SCALE` times along x.
-func _scaled_body() -> StaticBody2D:
+func _scaled_body() -> RawTwins.Solid:
 	var body := _plain()
 	body.scale = Vector2(WIDE_SCALE, 1.0)
 	return body
 
 
 ## A solid whose shape is scaled by `by`.
-func _scaled_shape(by: Vector2) -> StaticBody2D:
+func _scaled_shape(by: Vector2) -> RawTwins.Solid:
 	var shape := _solid_shape()
 	shape.scale = by
 	return _body([shape])
 
 
 ## A solid whose shape is not set yet.
-func _unset() -> StaticBody2D:
-	return _body([CollisionShape2D.new()])
+func _unset() -> RawTwins.Solid:
+	return _body([RawTwins.Shape.new()])
 
 
 ## Set the shape of `body`'s one shape node, `offset` from its body.
-func _set_shape(body: StaticBody2D, offset: Vector2) -> void:
-	var shape: CollisionShape2D = body.get_child(0)
+func _set_shape(body: RawTwins.Solid, offset: Vector2) -> void:
+	var shape: RawTwins.Shape = body.get_child(0)
 	shape.shape = _solid_rect()
 	shape.position = offset
+	body.reshape()
 
 
 ## A solid that can say `changed`, as a door does.
-func _changing() -> StaticBody2D:
-	var body: StaticBody2D = Changing.new()
-	body.collision_layer = PhysicsLayers.SOLID
+func _changing() -> RawTwins.Solid:
+	var body: RawTwins.Solid = RawTwins.Solid.new()
 	body.add_child(_solid_shape())
 	return body
 
 
 ## Cut `body` anew, as a dent does: its shape freed, another `offset` from its body added.
-func _recut(body: StaticBody2D, offset: Vector2) -> void:
+func _recut(body: RawTwins.Solid, offset: Vector2) -> void:
 	var old := body.get_child(0)
 	body.remove_child(old)
 	old.queue_free()
@@ -587,9 +593,8 @@ func _recut(body: StaticBody2D, offset: Vector2) -> void:
 
 
 ## A solid with these shape nodes.
-func _body(shapes: Array) -> StaticBody2D:
-	var body := StaticBody2D.new()
-	body.collision_layer = PhysicsLayers.SOLID
+func _body(shapes: Array) -> RawTwins.Solid:
+	var body := RawTwins.Solid.new()
 	for shape: Node in shapes:
 		body.add_child(shape)
 	return body
@@ -616,20 +621,19 @@ func _doors(t: TestContext, checker: Checker) -> void:
 	t.check(hollow.is_down(), "premise: the hollow door was knocked down")
 
 
-## A second world: a character in the viewer's line of sight, whose sight looks over only what is
-## lower than a standing body. It crouches and stands again, and dies.
-func _posture_and_death(t: TestContext) -> void:
+## A second world: a counter in the viewer's line of sight, which the viewer looks over standing and
+## not ducked. It ducks, stands, ducks again and stands: the polygon changes with no move of the
+## world, and every cone published is a fresh rebuild's; the view then settles.
+func _posture_world(t: TestContext) -> void:
 	var s := TestSetup.new()
 	s.arena(Rect2(OTHER.x, OTHER.y, 600, 600))
 	s.switch(&"nav.rebake", false)
 	s.switch(&"vision.enabled", true)
-	s.set_static(CharacterVisionConfig, &"see_over_coverage", Probe.LOOK_OVER_LOW)
+	s.object(&"counter", "kitchen_counter", STANDER_AT)
 	s.actor(&"eye", &"puppet", OTHER_EYE)
-	s.actor(&"stander", &"puppet", STANDER_AT)
 	s.view(&"eye")
 	var world: Node2D = await Probe.build_world(t, s)
 	var eye: Node2D = world.actors[&"eye"]
-	var stander: Node2D = world.actors[&"stander"]
 	var view := Probe.views_under(world)[0]
 	TestContext.controller_of(eye, &"aim_at").aim_at(OTHER_EYE + Vector2(100, 0))
 	await t.frames(5)
@@ -637,44 +641,23 @@ func _posture_and_death(t: TestContext) -> void:
 	world.add_child(checker)
 	await t.frames(20)
 	var changed := checker.changed
-	for posture in [&"crouch", &"stand", &"crouch"]:
+	for posture in [&"crouch", &"stand", &"crouch", &"stand"]:
 		# A change of posture waits out its cooldown: ask until the body holds it.
 		if not t.require(
-			await t.until(func(): return stander.movement.set_posture(posture), 3.0),
-			"the character takes the posture %s" % posture,
+			await t.until(func(): return eye.movement.set_posture(posture), 3.0),
+			"the viewer takes the posture %s" % posture,
 		):
 			break
 		await t.frames(20)
 	t.check(
 		checker.changed - changed >= 2,
-		"premise: the posture changes what the viewer sees (%d changes)"
+		"premise: the viewer's posture changes what it sees (%d changes)"
 		% (checker.changed - changed),
 	)
-	changed = checker.changed
-	stander.take_damage(10_000.0)
-	await t.frames(90)
-	t.check(stander.is_dead, "premise: the character died")
-	await _settle_posture_world(t, checker, stander)
-	_check_whole(t, checker, "the posture world", false)
+	await t.frames(40)
+	_check_whole(t, checker, "the posture world")
 	checker.queue_free()
 	await Probe.drop_world(t, world)
-
-
-## The tail of the posture world: nothing blocks, and the view settles.
-func _settle_posture_world(t: TestContext, checker: Checker, stander: Node2D) -> void:
-	# A standing character of the first world, still in the tree, blocks at this sight (the check
-	# is not limited to reach), so the world never settles. Raising see_over to 100 looks over it:
-	# nothing blocks, the view settles, and its cone is held to the live pose's reference.
-	stander.queue_free()
-	CharacterVisionConfig.see_over_coverage = Probe.LOOK_OVER_LOW * 2.0
-	await t.frames(5)
-	var settled := checker.settled
-	await t.frames(40)
-	t.check(
-		checker.settled - settled >= 20,
-		"premise: the posture world: with nothing blocking the view was settled in %d frames"
-		% (checker.settled - settled),
-	)
 
 
 ## The checker's whole run: every cone published was the reference cone of its pose, the cone was
@@ -695,6 +678,14 @@ func _check_whole(t: TestContext, checker: Checker, where: String, settles := tr
 		"%s: %d frames held a cone other than a fresh rebuild's: %s"
 		% [where, checker.wrong(), checker.report()],
 	)
+	# The sliver bound (`Checker.SLIVER`) only loosens the check on frames a blocker in reach
+	# creeps: a change that makes everything creep would pass on that bound, so the share is held
+	# small.
+	t.check(
+		checker.age.creep_frames * 100 <= checker.frames * CREEP_SHARE_PCT,
+		"%s: %d of %d frames had a blocker in reach creeping (at most %d %%)"
+		% [where, checker.age.creep_frames, checker.frames, CREEP_SHARE_PCT],
+	)
 	t.check(
 		checker.longest_wait <= REBUILD_EVERY,
 		"%s: the longest wait between rebuilds is %d frames (at most %d)"
@@ -703,18 +694,28 @@ func _check_whole(t: TestContext, checker: Checker, where: String, settles := tr
 
 
 ## One hit on whatever the viewer sees at a random place its cone ends on: the first solid on the
-## line from its eye to there.
+## level line from its eye to there, `STRIKE_HEIGHT` px up in the twin space.
 func _strike_seen(checker: Checker, rng: RandomNumberGenerator) -> void:
 	var cone := checker.view.cone()
 	if cone.size() < 2:
 		return
 	var eye := checker.viewer.global_position
 	var end := cone[rng.randi_range(1, cone.size() - 1)]
-	var query := PhysicsRayQueryParameters2D.create(eye, eye + (end - eye) * 1.001)
-	query.collision_mask = PhysicsLayers.SOLID
-	query.exclude = [checker.viewer.get_rid()]
-	var found := checker.viewer.get_world_2d().direct_space_state.intersect_ray(query)
-	if found.is_empty() or not found["collider"].has_method("take_hit"):
+	var query := PhysicsRayQueryParameters3D.create(
+		PlanSpace.lift(eye, STRIKE_HEIGHT),
+		PlanSpace.lift(eye + (end - eye) * 1.001, STRIKE_HEIGHT),
+		PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE,
+	)
+	var found := TwinSpace.space_of(checker.viewer).intersect_ray(query)
+	if found.is_empty():
+		return
+	var struck := TwinSpace.owner_of(found["collider"])
+	if struck == null or not struck.has_method("take_hit"):
 		return
 	var damage := rng.randf_range(10.0, 40.0)
-	found["collider"].take_hit(Probe.hit(found["position"], found["normal"], damage))
+	var normal: Vector3 = found["normal"]
+	struck.take_hit(
+		Probe.hit(
+			PlanSpace.plan_of(found["position"]), Vector2(normal.x, normal.z).normalized(), damage
+		)
+	)

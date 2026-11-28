@@ -31,7 +31,7 @@ One look for every piece.
   (`decay.gd` `neon_ring`) reads the canvas's `coverage()` bytes, pinned to the plain scan by
   `tests/objects/neon_ring_matches_plain_scan_test.gd`.
 - **No light is baked in** (no glow pools, sheen, halos): what gives light is drawn bright inside `canvas.glowing(draw, area)`
-  (interface 12): a bare bulb, a CRT's screen, a monitor's lit edge (`props.gd`), a display, every neon trim. The piece's 3D mesh
+  (interface 12): a bare bulb, a CRT's screen, a monitor item's lit edge, a display, every neon trim. The piece's 3D mesh
   then shows those pixels as an emissive part (`SKILL.md`, "Lights").
 
 ## Painter conventions
@@ -39,9 +39,9 @@ One look for every piece.
 - Each knob reads `opts.get(key, ObjectArt<Topic>Config.<painter>_<key>)` (the floor, wall, street and wear knobs without the
   painter prefix: `ObjectArtFloorConfig.<key>`), so a catalogue `art_opts` picks a variant or overrides one piece.
 - Round footprints keep their art inside the inscribed circle.
-- `props.gd` dresses a surface with small props (monitor, keyboard, mug, papers, …), drawn by `table` / `cabinet` / `counter` from
-  `art_opts.props` (`{ kind, at }`, `at` relative to the surface), raised so they cast shadows; colours from
-  `ObjectArtDecorConfig.prop_colors`; a monitor's screen glows in the host's screen colour.
+- A top paints no loose things (`docs/stacked-items.md` SI14): a desk's monitor and mug, a counter's board are items (`item_home_painter.gd`,
+  a row's `carries`, `RoomItems.carry`). `table` / `counter` take no `props`; `props.gd` stays for the cabinet's plates, the tech desk and
+  `Props.pick`; colours in `ObjectArtDecorConfig.prop_colors`.
 - `wear` draws one world-placed mark a canvas (the floor's, wall's and street's marks, `SKILL.md`, "Wear").
 - `car_painter.gd` is the garage's parked car: static furniture, unrelated to the Vehicles domain's drivable car.
 
@@ -88,8 +88,8 @@ on the catalogue definitions, and for a light-giving painter add its `ObjectArtL
 ## The 3D meshes (`object_meshes.gd`, `table_mesh.gd`, `object_mesh_config.gd`)
 
 In the 3D render a piece is shown by a mesh built from Art's mesh kit (`domain-art/meshes.md`) beside its painter: `ObjectMeshes.BUILDERS` maps an `ObjectArt` id to
-`<name>_mesh.gd` (`static build(piece) -> Node3D`, 3D units, centred), and `ObjectMeshes.register(builders)` plugs them into the mirror under
-`MirrorProxy.furniture_key(art)` (Main's 3D view calls it). A piece whose art has no mesh stays a proxy box. `ObjectMeshConfig` holds the heights (px): the table's
+`<name>_mesh.gd` (`static build(piece) -> Node3D`, 3D units, centred), and `ObjectMeshes.register(builders)` plugs them into the carrier under
+`MeshKinds.furniture_key(art)` (Main's 3D view calls it). A piece whose art has no mesh has none. `ObjectMeshConfig` holds the heights (px): the table's
 `table_*` (30 tall, 22 for a small footprint, `art_opts.height` wins); a table is built like every furniture mesh, through `FurnitureSpec` and `FurnitureRig` (`table_mesh_test.gd`); the domestic kinds: `meshes.md`.
 
 Walls, doors, floors, street meshes: `structure-meshes.md`.

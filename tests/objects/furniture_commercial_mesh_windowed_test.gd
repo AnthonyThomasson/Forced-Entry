@@ -14,6 +14,7 @@ extends GameTest
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const CameraScript := preload("res://scenes/general/camera_controller.gd")
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const SCRATCH := "user://settings_furniture_commercial_mesh_windowed_test.json"
 const SIZE := Vector2i(1152, 648)
 const SPEC := {
@@ -45,7 +46,7 @@ const SCENES := [
 const GALLERY := [
 	"monitor_wall", "server_rack", "tool_cart", "cyberware_shelf", "barricade", "scanner_post",
 	"lockers", "shop_counter", "shelf_aisle", "drinks_fridge", "snack_machine", "noodle_counter",
-	"bar_stool", "noodle_booth", "menu_board", "crate_stack", "wrapped_pallet", "wall_safe",
+	"bar_stool", "noodle_booth", "menu_board", "wall_safe",
 	"vending_machine", "street_bench", "street_bin", "drain_grate", "litter", "podium", "rebar",
 	"rubble", "scaffold", "cement_bags", "wall_stain", "trash", "cables", "cable_nest", "cardboard",
 	"puddle", "neon_tube", "streetlight", "street_sign", "awning", "glyph_sign", "car",
@@ -55,7 +56,8 @@ const STEP := Vector2(300.0, 320.0)
 
 var _window: SubViewport
 var _camera: Camera2D
-var _mirror: WorldMirror
+var _mirror: MeshCarrier
+var _follower: MeshFollower
 var _world: Node
 var _gallery: Dictionary = {}
 ## The pictures to take (`COMMERCIAL_ONLY`, a comma-separated list of scene names, gallery rows,
@@ -109,7 +111,8 @@ func run(t: TestContext) -> void:
 	_camera.set_process(false)
 	_camera.set_physics_process(false)
 	await t.frames(30)
-	_mirror = main.get_node("View3D").mirror
+	_mirror = main.get_node("View3D").carrier
+	_follower = main.get_node("View3D").follower
 	_world = built["world"]
 	_hide_walls(_world)  # full-height walls would stand between the camera and the pieces
 	await _scenes(t)
@@ -140,8 +143,8 @@ func _scenes(t: TestContext) -> void:
 func _stencils(t: TestContext) -> void:
 	var stencils := _world.get_tree().get_nodes_in_group(DecalFactory.STENCIL_GROUP)
 	for sprite: Node in stencils:
-		var shown := _mirror.proxies_of(sprite)
-		t.check(shown.size() == 1, "the stencil %s is shown by one node" % sprite.name)
+		var shown := _follower.mesh_of(sprite)
+		t.check(shown != null, "the stencil %s is shown by one node" % sprite.name)
 	if stencils.is_empty() or not _wanted("stencil"):
 		return
 	var first := stencils[0] as Node2D
@@ -256,8 +259,8 @@ func _save(picture: String) -> void:
 ## Hide the proxies of every wall, so the picture shows what stands inside the rooms (the walls
 ## fade round the player only in the wall-fade job).
 func _hide_walls(world: Node) -> void:
-	for body: Node in world.find_children("*", "PhysicsBody2D", true, false):
-		if MirrorProxy.kind_of(body) == MirrorProxy.WALL:
+	for body: Node in PlanProbe.bodies_under(world):
+		if MeshKinds.kind_of(body) == MeshKinds.WALL:
 			for proxy in _mirror.proxies_of(body):
 				proxy.visible = false
 
@@ -265,7 +268,7 @@ func _hide_walls(world: Node) -> void:
 ## The first piece the match built painted as `art` with the option `kind` (a streetlight's
 ## `head`; an empty one for any).
 func _first_of(art: String, kind: String) -> Node2D:
-	for body: Node in _world.find_children("*", "RigidBody2D", true, false):
+	for body: Node in PlanProbe.pieces_under(_world):
 		var look: Variant = body.get("look")
 		if not look is Object or (look as Object).get("art") != art:
 			continue

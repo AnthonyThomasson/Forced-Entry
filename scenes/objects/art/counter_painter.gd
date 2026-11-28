@@ -4,10 +4,9 @@ extends RefCounted
 ## along the back, a bullnose front edge, optionally a sunken basin with drain and mixer tap, and
 ## an island's seating overhang. Options (`art_opts`, defaulting to
 ## ObjectArtKitchenBathConfig.counter_*): `basin` ("none" | "single" | "deep"), `backsplash`,
-## `overhang`, `props`, `neon` (a neon under-glow along the front, glowing). Run down (decay.gd):
+## `overhang`, `neon` (a neon under-glow along the front, glowing). Run down (decay.gd):
 ## grime, food and grease stains, scratches.
 
-const Props = preload("res://scenes/objects/art/props.gd")
 const Decay = preload("res://scenes/objects/art/decay.gd")
 ## Heights for cast shadows.
 const _TOP_HEIGHT := 3
@@ -40,12 +39,6 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 
 	c.bevel(body, 2, 2, t.highlight, t.dark)
 	c.outline(body, t.outline)
-	Props.draw_all(
-		c,
-		opts.get("props", []),
-		Rect2i(0, splash, c.w, c.h - splash).grow(-3),
-		Decay.screen_color(opts),
-	)
 	c.cast_shadows()
 	Decay.grime(c)
 	Decay.stain(c, Decay.STAIN, 4)

@@ -36,6 +36,7 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(80_000, 80_000, 100, 100), { "walls": false })
 	s.switch(&"nav.rebake", false)
 	var shelf: Dictionary = WorldGen.object_definition("bookshelf").duplicate()
+	shelf["art_opts"] = { "contents": "books" }  # Solid, as before the unbake (D21): boards now.
 	shelf["anchored"] = true
 	s.object(&"shelf", shelf, SHELF_AT)
 
@@ -46,7 +47,7 @@ func run(t: TestContext) -> void:
 		"fov_degrees": Probe.FOV,
 		"view_distance": Probe.REACH,
 		"awareness_radius": Probe.BUBBLE,
-		"see_over_coverage": Probe.SEE_OVER,
+		"eye_height": Probe.SEE_OVER,
 	}
 	var short := EYE + (TIP - EYE) * ((EYE.distance_to(TIP) - 1.0) / EYE.distance_to(TIP))
 	t.require(

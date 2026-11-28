@@ -5,6 +5,8 @@ extends RefCounted
 ## (`free_spot`). Built once with its Locomotion, it holds it (a node, so no reference cycle) for
 ## the body, the walk under way and the bodies its `crowd` knows of.
 
+## The walk's agent in plan terms (`loco_agent.gd`).
+const Agent := preload("res://scenes/ai/behavior/locomotion/loco_agent.gd")
 ## Whatever the walk, the NPC never steers into a known body closer than this (px, centre to
 ## centre): the part of its steering toward the body is dropped and it slides past (`keep_off`). The
 ## agent cuts a path's corners by up to its `path_desired_distance`, which can bring a walk round a
@@ -67,7 +69,7 @@ func _init(locomotion: Node) -> void:
 func apply() -> void:
 	var character: Node = loco._character
 	var me: Vector2 = character.global_position
-	var pace := maxf(character.get_real_velocity().length(), PACE_FLOOR)
+	var pace := maxf(TwinSpace.real_velocity_of(character).length(), PACE_FLOOR)
 	var mine: Vector2 = character.movement.move_input * pace
 	var horizon := minf(GIVE_HORIZON, _way_left() / pace)
 	var other := _walker_in_way(me, mine, horizon)
@@ -79,7 +81,7 @@ func apply() -> void:
 		yield_id = int(other["id"])
 		_yield_spot = Vector2.INF
 		_yield_for = 0.0
-	_yield_for += loco.get_physics_process_delta_time()
+	_yield_for += loco.crowd.step
 	if _yield_for > GIVE_MAX:
 		return
 	# With the right of way the NPC only stops for a walker on top of it.
@@ -214,7 +216,7 @@ func _converging(gap: Vector2, rel_vel: Vector2, horizon: float) -> bool:
 ## How far (px) the walk under way still goes: along the agent's path from where the NPC stands to
 ## its end.
 func _way_left() -> float:
-	var agent: NavigationAgent2D = loco._agent
+	var agent: Agent = loco._agent
 	var path: PackedVector2Array = agent.get_current_navigation_path()
 	var idx: int = agent.get_current_navigation_path_index()
 	var here: Vector2 = loco._character.global_position

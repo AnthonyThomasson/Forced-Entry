@@ -7,6 +7,9 @@ extends RefCounted
 ## into the wall (`ai/entry/stack_reach_garage_home_garage_exit` at 20 frames) and
 ## `ai/entry/entry_team_flows_in` pins that the period stays short. One per Locomotion.
 
+## The agent's seam (`loco_agent.gd`).
+const Agent := preload("res://scenes/ai/behavior/locomotion/loco_agent.gd")
+
 ## The map the target was last sent on, and the physics frame it was sent on.
 var _map := RID()
 var _frame := -1000
@@ -14,7 +17,7 @@ var _frame := -1000
 
 ## Point `agent` at `goal`: send the target when it can change the path (see above), at the latest
 ## `reask_frames` physics frames after the last send.
-func at(agent: NavigationAgent2D, goal: Vector2, reask_frames: int) -> void:
+func at(agent: Agent, goal: Vector2, reask_frames: int) -> void:
 	var map := agent.get_navigation_map()
 	var frame := Engine.get_physics_frames()
 	if (agent.target_position == goal and map == _map

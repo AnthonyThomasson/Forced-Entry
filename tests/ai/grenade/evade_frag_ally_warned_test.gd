@@ -155,25 +155,14 @@ func _check_warned(
 	t.check(Probe.blast_hits(t, b).is_empty() and not b.is_dead, "taking no blast")
 
 
-## G7 cover for a standing body at `p` (the height of B's surface while seated): whether a wall or a
-## piece of furniture taller than it stands on the straight line from the burst
-## (`GrenadeAi.shielded` reads a character's position, and B has left its seat by the time the test
-## checks).
+## G7 cover for a standing body at `p`: whether the real 3D line from the burst to each point of it
+## (`BodyHeights.sight_points`) meets a wall, a door or a piece of furniture (`GrenadeAi.shielded`
+## reads a character's position, and B has left its seat by the time the test checks).
 func _shielded(t: TestContext, burst: Vector2, p: Vector2) -> bool:
-	var exclude: Array = []
-	for body in t.world.find_children("*", "CharacterBody2D", true, false):
-		exclude.append((body as CharacterBody2D).get_rid())
-	var space := t.world.get_world_2d().direct_space_state
-	for i in 8:
-		var query := PhysicsRayQueryParameters2D.create(burst, p, PhysicsLayers.SOLID)
-		query.exclude = exclude
-		var hit := space.intersect_ray(query)
-		if hit.is_empty():
-			return false
-		var collider: Object = hit["collider"]
-		if ((float(collider.get_surface().get("coverage", 100.0))
-				if collider.has_method("get_surface")
-				else 100.0) > 60.0):
-			return true
-		exclude.append(hit["rid"])
-	return false
+	return GrenadeAi.shielded(
+		t,
+		burst,
+		t.actor(&"b"),
+		3.5,
+		{ "at": p, "posture": BodyHeights.STAND },
+	)

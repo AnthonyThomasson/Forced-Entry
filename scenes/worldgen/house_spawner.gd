@@ -73,6 +73,7 @@ static func spawn(
 	house.set_meta("openings", world_openings)
 	house.set_meta("doors", HouseDoors.build(plan, rooms, openings, house, rng.seed))
 	house.set_meta("clutter", built["clutter"])
+	house.set_meta("items", built["items"])
 	house.set_meta("wear", built["wear"])
 	house.set_meta("lobbies", built["lobbies"])
 	var street: bool = options.get("street", true)
@@ -112,9 +113,10 @@ static func _mirrored(plan: Dictionary, rng: RandomNumberGenerator) -> Dictionar
 	return { "rooms": rooms, "openings": openings }
 
 
-## Every room of `plan` built under `house` (`_build_room`), then their wear: `{ clutter, wear,
-## lobbies }`, the clutter as `[{ room, key, node }]`, the wear as `[{ room, pos, layer }]` and the
-## elevator lobbies' stencils as `[{ room, rect, node, text }]`.
+## Every room of `plan` built under `house` (`_build_room`), then their wear: `{ clutter, items,
+## wear, lobbies }`, the clutter as `[{ room, key, node }]`, the items as
+## `[{ room, key, node, on }]` (`RoomItems`), the wear as `[{ room, pos, layer }]` and the elevator
+## lobbies' stencils as `[{ room, rect, node, text }]`.
 static func _build_rooms(
 	plan: Dictionary,
 	rooms: Array,
@@ -123,7 +125,7 @@ static func _build_rooms(
 	rng: RandomNumberGenerator,
 ) -> Dictionary:
 	var blocked := _opening_clearances(rooms, openings, plan["wall_thickness"])
-	var placed := { "clutter": [], "lobbies": [] }
+	var placed := { "clutter": [], "items": [], "lobbies": [], "outlines": [] }
 	## Per room, for the wear pass: `[site, floor definition]`.
 	var dressing: Array = []
 	for room in rooms:
@@ -132,6 +134,7 @@ static func _build_rooms(
 	# Wear after every room stands, so a mark on a shared wall draws over both rooms' caps.
 	return {
 		"clutter": placed["clutter"],
+		"items": placed["items"],
 		"wear": _wear(dressing, openings, house),
 		"lobbies": placed["lobbies"],
 	}
@@ -154,7 +157,8 @@ static func _site(
 
 ## Build `site`'s room under `house`: its walls (every doorway of `openings` on them cut in), its
 ## furniture (RoomFurnisher, drawing from `rng`) and clutter (RoomDresser, appended to
-## `placed["clutter"]` as `{ room, key, node }`) under a node of its own, then its floor, the one
+## `placed["clutter"]` as `{ room, key, node }`) under a node of its own, its items (`RoomItems`, on
+## their own RNG stream, appended to `placed["items"]`) under another, then its floor, the one
 ## its furnishing palette names. A room whose recipe is `bare` (the elevator lobby) is given no
 ## clutter or neon; if the recipe has `text`, that is laid on its floor as a stencil (appended to
 ## `placed["lobbies"]`). Returns the floor's definition ({} for none).
@@ -170,6 +174,9 @@ static func _build_room(
 	var walls := RoomWalls.new()
 	walls.thickness = site.wall_thickness
 	walls.openings = WallFactory.openings_for(rect, openings)
+	# a wall two rooms share is built once, by the room built first
+	walls.seams = WallFactory.seams_for(rect, placed["outlines"])
+	placed["outlines"].append(rect)
 	walls.style = GeneralCatalog.WALL
 	WallFactory.spawn(rect, walls, room_name, house)
 
@@ -177,6 +184,9 @@ static func _build_room(
 	site.furniture.name = room_name + " Furniture"
 	house.add_child(site.furniture)
 	var interior := rect.grow(-(site.wall_thickness * 0.5 + INTERIOR_MARGIN))
+	site.items = Node2D.new()
+	site.items.name = room_name + " Items"
+	house.add_child(site.items)
 	var palette := RoomFurnisher.furnish(site, interior, rng)
 	var recipe := ArrangementDefinitions.get_recipe(site.room["type"])
 	if not recipe.get("bare", false):
@@ -189,10 +199,15 @@ static func _build_room(
 				"key": piece["key"],
 				"node": piece["node"],
 			})
+		placed["items"].append_array(RoomItems.place(site))
+	if site.items.get_child_count() == 0:  # a room with no item has no node for them
+		house.remove_child(site.items)
+		site.items.free()
+		site.items = null
 	# The floor runs to the wall centerlines, so the walls cover the seams between rooms.
 	var floor_def: Dictionary = GeneralCatalog.FLOORS.get(palette.get("floor", ""), {})
 	if not floor_def.is_empty():
-		FloorFactory.spawn(rect, floor_def, room_name + " Floor", house)
+		FloorFactory.spawn(rect, floor_def, room_name + " Floor", house, true)
 	if recipe.has("text"):
 		placed["lobbies"].append(_lay_stencil(site, recipe["text"], room_name, house))
 	return floor_def

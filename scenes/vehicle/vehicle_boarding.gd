@@ -355,7 +355,7 @@ func _left_to_walk(pos: Vector2) -> float:
 ## the body: straight when the line misses it, else round one corner of the body or two, whichever
 ## is shorter.
 func _path(from: Vector2, to: Vector2) -> Array[Vector2]:
-	var half: Vector2 = (vehicle.half_size()
+	var half: Vector2 = ((vehicle.row["size"] as Vector2) * 0.5
 			+ Vector2.ONE * (float(character.radius) + VehicleBoardingConfig.walk_margin))
 	var straight: Array[Vector2] = [to]
 	if not _crosses(from, to, half):

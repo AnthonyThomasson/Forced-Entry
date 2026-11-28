@@ -1,14 +1,17 @@
 extends GameTest
 ## V1 cost (`docs/player-vision.md`): the cone's corners are priced at what they cost, so the frame
-## a job starts in holds the corners and no full slice of rays. The corners (one region shape query
-## and its polygons) cost about as much as a slice of rays (`perf/cone_corner_cost` measures it),
-## so `VisionSliceConfig.cost_shape` fills a slice: the start step ends after the corners and the
-## rays begin the next frame.
-## - `cone`: `begin` and one default step spend the corners' units and cast no ray, over a grid of
-##   eyes in a house and in an arena whose region holds more shapes than the first query asks for
-##   (a re-ask is priced as a query), and the job then finishes at the whole rebuild's work;
-## - `pipeline`: a `ViewPipeline` tick that starts a job (the cone is held, the eye moved) casts no
-##   ray and publishes nothing, and the job publishes within `MAX_TICKS` ticks of its start.
+## a job starts in holds the corners and then the first rays, up to the slice. The corners (one
+## region shape query and its polygons) cost about 200 to 225 units of a ray's work in the twin
+## space (`perf/cone_corner_cost` measures it; the user chose that price over a slice, 2026-11-19),
+## so `VisionSliceConfig.cost_shape` is below `slice_units`: the start step spends the corners and
+## casts rays for the rest of the slice. A query asked again (a crowded region) is priced as a
+## query each time and can fill the slice with the corners alone, and then no ray is cast.
+## - `cone`: `begin` and one default step spend the slice (or end the job), the corners' units
+##   first: a ray is cast when the corners are less than a slice and none when they are not, over a
+##   grid of eyes in a house and in an arena whose region holds more shapes than the first query
+##   asks for, and the job then finishes at the whole rebuild's work;
+## - `pipeline`: a `ViewPipeline` tick that starts a job (the cone is held, the eye moved) casts
+##   rays the same way, and the job publishes within `MAX_TICKS` ticks of its start.
 
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 const Cone := preload("res://scenes/vision/view_cone.gd")
@@ -32,7 +35,7 @@ var _sight := {
 	"fov_degrees": Probe.FOV,
 	"view_distance": Probe.REACH,
 	"awareness_radius": Probe.BUBBLE,
-	"see_over_coverage": Probe.SEE_OVER,
+	"eye_height": Probe.SEE_OVER,
 }
 var _t: TestContext
 var _reads := 0
@@ -41,10 +44,11 @@ var _failures: Array[String] = []
 
 func describe() -> Dictionary:
 	return {
-		"name": "A job's start frame holds the corners and no full ray slice",
-		"description": "The first default step of a cone job spends the corners' units and no "
-			+ "ray is cast, in a house and in an arena where the region query is asked again, and "
-			+ "a pipeline tick that starts a job casts none and publishes nothing.",
+		"name": "A job's start frame holds the corners and the first rays",
+		"description": "The first default step of a cone job spends the corners' units and then "
+			+ "casts rays up to the slice (none when the corners fill it), in a house and in an "
+			+ "arena where the region query is asked again, and a pipeline tick that starts a "
+			+ "job does the same.",
 		"tags": ["vision"],
 		"timeout": 120.0,
 	}
@@ -112,8 +116,8 @@ func _read(at: Vector2, facing: Vector2) -> void:
 	_reads += 1
 
 
-## One default step from `begin`: the corners' units, no cast, the job still in flight; the rest
-## brings the work to the whole rebuild's.
+## One default step from `begin`: the corners' units and then the rays up to the slice, the job
+## still in flight; the rest brings the work to the whole rebuild's.
 func _start_of_a_cone(at: Vector2, facing: Vector2) -> void:
 	var space := Probe.space(_t)
 	var whole := Cone.new()
@@ -123,14 +127,16 @@ func _start_of_a_cone(at: Vector2, facing: Vector2) -> void:
 	var done := cone.step(VisionSliceConfig.slice_units)
 	var ray := cone.get("_ray") as CountingRay
 	var shapes := cone.get("_shapes") as CountingShapes
-	var corners := shapes.asked * VisionSliceConfig.cost_shape
-	if ray.casts > 0 or done or cone.work_units() != corners:
+	var corners := _corner_units(shapes.asked, shapes.folds)
+	var slice := VisionSliceConfig.slice_units
+	var cast_rays := corners < slice
+	if not done and (cone.work_units() < slice or (ray.casts > 0) != cast_rays):
 		_failures.append(
-			"cone at %s: %d casts, %d units for %d queries, done %s"
-			% [at, ray.casts, cone.work_units(), shapes.asked, done]
+			"cone at %s: %d casts, %d units for %d queries (%d units), done %s"
+			% [at, ray.casts, cone.work_units(), shapes.asked, corners, done]
 		)
-	if corners < VisionSliceConfig.slice_units:
-		_failures.append("cone at %s: the corners (%d units) do not fill a slice" % [at, corners])
+	if done and ray.casts == 0 and corners < slice:
+		_failures.append("cone at %s: a job that cast nothing is done" % at)
 	var steps := 0
 	while not cone.step(VisionSliceConfig.slice_units) and steps < 1_000_000:
 		steps += 1
@@ -138,25 +144,40 @@ func _start_of_a_cone(at: Vector2, facing: Vector2) -> void:
 		_failures.append("cone at %s: the rest of the job is not the whole rebuild" % at)
 
 
-## A pipeline holding a cone of `at`, the eye then moved: the tick that starts the job casts
-## nothing and publishes nothing, and the job publishes soon.
+## A pipeline holding a cone of `at`, the eye then moved: the tick that starts the job spends the
+## corners and the first rays, and the job publishes soon.
 func _start_of_a_pipeline(at: Vector2, facing: Vector2) -> void:
-	var space := Probe.space(_t)
 	var cone := _counting_cone()
+	var space := Probe.space(_t)
 	var watch := Watch.new()
 	watch.attach(_t.world.get_tree(), [])
 	var pipeline := Pipeline.new(cone, watch)
 	pipeline.tick(space, at, facing, [], _sight)
-	var ray := cone.get("_ray") as CountingRay
-	ray.casts = 0
+	(cone.get("_ray") as CountingRay).casts = 0
+	var counting := cone.get("_shapes") as CountingShapes
+	counting.asked = 0
+	counting.folds = 0
 	var moved := at + Vector2(MOVE, 0.0)
 	var published := pipeline.published
 	var started := pipeline.started
 	pipeline.tick(space, moved, facing, [], _sight)
-	if pipeline.started != started + 1 or pipeline.published != published or ray.casts > 0:
+	var casts: int = (cone.get("_ray") as CountingRay).casts
+	if (
+		pipeline.started != started + 1
+		or (
+			pipeline.published == published
+			and (casts > 0) != _rays_due(counting.asked, counting.folds)
+		)
+	):
 		_failures.append(
-			"pipeline at %s: %d starts, %d publishes, %d casts in the start tick"
-			% [at, pipeline.started - started, pipeline.published - published, ray.casts]
+			"pipeline at %s: %d starts, %d publishes, %d casts in the start tick (%d queries)"
+			% [
+				at,
+				pipeline.started - started,
+				pipeline.published - published,
+				casts,
+				counting.asked,
+			]
 		)
 	var ticks := 1
 	while pipeline.published == published and ticks < MAX_TICKS:
@@ -167,12 +188,22 @@ func _start_of_a_pipeline(at: Vector2, facing: Vector2) -> void:
 	watch.detach()
 
 
+## Whether a start step that asked the region `asked` times has room for rays after the corners.
+func _rays_due(asked: int, folds: int) -> bool:
+	return _corner_units(asked, folds) < VisionSliceConfig.slice_units
+
+
+## The units of the corners of a read that asked the region `asked` times and folded its hits in
+## `folds` chunks.
+func _corner_units(asked: int, folds: int) -> int:
+	return asked * VisionSliceConfig.cost_shape + folds * VisionSliceConfig.cost_hits
+
+
 ## A cone whose ray and shapes count what they are asked.
 func _counting_cone() -> Cone:
 	var cone := Cone.new()
 	var shapes := CountingShapes.new()
 	var ray := CountingRay.new()
-	ray.rated = shapes.rated()
 	cone.set("_shapes", shapes)
 	cone.set("_ray", ray)
 	return cone
@@ -184,8 +215,15 @@ class CountingShapes:
 	extends Shapes
 
 	var asked := 0
+	var folds := 0
 
-	func _shapes_in_reach(space: PhysicsDirectSpaceState2D) -> Array[Dictionary]:
+	func fold_corners(
+		hits: Array[Dictionary], start: int, stop: int, seen: Dictionary
+	) -> void:
+		folds += 1
+		super(hits, start, stop, seen)
+
+	func _shapes_in_reach(space: PhysicsDirectSpaceState3D) -> Array[Dictionary]:
 		var hits := super(space)
 		var cap := FIRST_RESULTS
 		asked += 1
@@ -201,6 +239,6 @@ class CountingRay:
 
 	var casts := 0
 
-	func cast(space: PhysicsDirectSpaceState2D, from: Vector2, to: Vector2) -> Dictionary:
+	func cast(space: PhysicsDirectSpaceState3D, from: Vector2, to: Vector2) -> Dictionary:
 		casts += 1
 		return super(space, from, to)

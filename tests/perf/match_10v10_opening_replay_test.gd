@@ -4,7 +4,9 @@ extends GameTest
 ## with allocation padding on, and the fingerprints (`fight_fingerprint.gd`, perf-fingerprint.md)
 ## must match line for line through the warm-up and the whole window. A match must not follow what
 ## the process allocated or ran before it. The guard's own budgets are not asked for here, only its
-## fight.
+## fight. It has no warm-up: its window (`Perf.OPENING_FRAMES`) opens at the first sign, at seed 23
+## in the first second (frame 33, a 334-frame fight), so the premise asks for the window, not for
+## the 360 frames of a warm-up.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const Replay := preload("res://tests/_perf/guard_replay.gd")
@@ -27,4 +29,4 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	await Replay.check_same_fight(t, GUARD)
+	await Replay.check_same_fight(t, GUARD, Perf.OPENING_FRAMES)

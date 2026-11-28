@@ -14,7 +14,6 @@ const OBJECTS := {
 		"art": "recliner",
 		"art_opts": { "kind": "surgical" },
 		"weight": 80,
-		"coverage": 45,
 		"penetration": 60,
 		"interactions": [
 			{ "id": "lie", "label": "Lie down", "move_to": true },
@@ -29,8 +28,12 @@ const OBJECTS := {
 		"material": "metal",
 		"art": "clinic",
 		"art_opts": { "kind": "tool_cart" },
+		"carries": [
+			{ "key": "instruments", "at": Vector2(-11, -7.5), "on_top": true },
+			{ "key": "syringe", "at": Vector2(-13, 10), "on_top": true },
+			{ "key": "screen", "at": Vector2(12.5, -8), "on_top": true },
+		],
 		"weight": 18,
-		"coverage": 45,
 		"penetration": 55,
 		"interactions": [{ "id": "examine", "label": "Examine" }],
 	},
@@ -41,9 +44,8 @@ const OBJECTS := {
 		"color": Color(0.55, 0.56, 0.6),
 		"material": "metal",
 		"art": "clinic",
-		"art_opts": { "kind": "cyberware_shelf" },
+		"art_opts": { "kind": "cyberware_shelf", "loose": true },
 		"weight": 45,
-		"coverage": 80,
 		"penetration": 70,
 		"interactions": [
 			{ "id": "browse", "label": "Browse cyberware" },

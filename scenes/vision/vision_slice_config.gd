@@ -8,13 +8,20 @@ class_name VisionSliceConfig
 ## What a piece of engine work costs, in units: a ray cast, a region shape query (the corners'),
 ## and a far-face probe (a point query) after a ray that met a blocker.
 static var cost_cast: int = 1
-## The corners (the region shape query, its polygons, the dedupe) cost about 1.95 ms against 5.4 to
-## 5.5 us a unit, 372 to 374 units (`perf/cone_corner_cost`; p25 168, p75 627 by eye), so a query
-## fills a slice, 450: the step that starts a job ends after the corners and its rays begin the next
-## frame. A job is a tick longer for it, so its cone is up to 2 (ticks - 1) frames old, 10 for the
-## longest.
-static var cost_shape: int = 450
+## The corners (the region shape query, its polygons, the dedupe) are priced 225 units
+## (`perf/cone_corner_cost`, the 3D shape query of the twin space; the user's price, held by that
+## test, within its band): the query is priced `cost_shape` and its polygons and dedupe `cost_hits`
+## a chunk, below, a median 3 chunks, so 95 + 3 * 35 = 200. A read measures about 213 units (the
+## query 54 to 61, the chunks 150, 50 each). `cost_hits` is what `vision/view_on_npc`'s 4-frame
+## bound holds at: dearer, a crowded region (about 7 chunks) makes its cone a tick older. A job
+## whose query is asked again (a crowded region) is priced for each ask.
+static var cost_shape: int = 95
 static var cost_probe: int = 1
+## The polygons and the dedupe of the corners are priced apart from the query: `hit_chunk` hits a
+## piece of work of `cost_hits` units, so a start tick holds the query and a few chunks, not all
+## of the corners.
+static var cost_hits: int = 35
+static var hit_chunk: int = 32
 ## The units one `step` runs: about 3.5 ms of a physics frame.
 static var slice_units: int = 450
 ## How many times a job in flight may be thrown away for a change of the world (a restart) before
@@ -24,3 +31,8 @@ static var restart_cap: int = 2
 ## vehicle), checked every tick, a job in flight or not: the cone is built whole in that frame, so
 ## the cone shown is never more than this behind the eye.
 static var jump_px: float = 48.0
+## How far (px) a blocker may have moved from where a job saw it for the job that follows the
+## restart cap to go on (`ViewPipeline`: a settling job, instead of a whole build in one frame): a
+## piece settling or sliding slowly. The cone it publishes differs from the world by what the piece
+## moved while it was built, and the next job starts at once. 0 builds whole at the cap.
+static var settle_px: float = 1.0

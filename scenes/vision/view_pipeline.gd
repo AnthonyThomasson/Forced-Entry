@@ -24,9 +24,10 @@ var started := 0
 var published := 0
 ## A perf probe's read of what the pipeline spent: `restarts` (a job begun again after the world
 ## changed), the whole builds by cause (`first`: no cone yet, `jump`: the eye moved past `jump_px`,
-## `cap`: the restart cap) and `units` (the engine work stepped, `VisionSliceConfig` units). Running
+## `cap`: the restart cap), `units` (the engine work stepped, `VisionSliceConfig` units) and
+## `settled` (the restarts past the cap that were a settling job, `ViewWatch.settles`). Running
 ## totals since the view was built; nothing in the pipeline reads them.
-var causes := { "restarts": 0, "first": 0, "jump": 0, "cap": 0, "units": 0 }
+var causes := { "restarts": 0, "first": 0, "jump": 0, "cap": 0, "units": 0, "settled": 0 }
 ## The pose the cone in flight is being built for, and the one the published cone is of.
 var job_eye := Vector2.ZERO
 var job_facing := Vector2.ZERO
@@ -35,6 +36,10 @@ var pose_facing := Vector2.ZERO
 ## Restarts since the last publish, and whether the view holds a cone (none after a drop: the next
 ## is built whole, like the first).
 var _restarts := 0
+## Whether the job in flight is the settling one (a restart past the cap that the world's slow
+## moves do not restart again), and whether the last publish was of one.
+var _settling := false
+var settled_publish := false
 var _has_cone := false
 var _cone: Cone
 var _watch: Watch
@@ -48,7 +53,7 @@ func _init(cone: Cone, watch: Watch) -> void:
 ## One physics tick, after the viewer has moved: start, restart or step the job. True when a cone
 ## was published in it.
 func tick(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	eye: Vector2,
 	facing: Vector2,
 	exclude: Array,
@@ -77,6 +82,7 @@ func running() -> bool:
 
 ## Drop the job in flight (the view was lifted or disabled): the next ask is a rebuild, built whole.
 func drop() -> void:
+	_unsettle()
 	_cone.abort()
 	_watch.forget()
 	_has_cone = false
@@ -90,7 +96,7 @@ func _jumped(eye: Vector2, from: Vector2) -> bool:
 
 ## Begin a job from the live pose: the watch takes its inputs as the job's.
 func _begin(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	eye: Vector2,
 	facing: Vector2,
 	exclude: Array,
@@ -106,7 +112,7 @@ func _begin(
 
 ## The world changed under the job: begin again from the live pose, or whole past the cap.
 func _restart(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	eye: Vector2,
 	facing: Vector2,
 	exclude: Array,
@@ -114,8 +120,14 @@ func _restart(
 ) -> bool:
 	_restarts += 1
 	if _restarts > VisionSliceConfig.restart_cap:
-		causes["cap"] += 1
-		return _whole(space, eye, facing, exclude, sight)
+		if _settling or not _watch.settles(sight):
+			causes["cap"] += 1
+			return _whole(space, eye, facing, exclude, sight)
+		_settling = true
+		_watch.settle(true)
+		causes["settled"] += 1
+		_begin(space, eye, facing, exclude, sight)
+		return _step()
 	causes["restarts"] += 1
 	_begin(space, eye, facing, exclude, sight)
 	return _step()
@@ -123,12 +135,13 @@ func _restart(
 
 ## Build the cone from the live pose in this one frame, and publish it.
 func _whole(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	eye: Vector2,
 	facing: Vector2,
 	exclude: Array,
 	sight: Dictionary,
 ) -> bool:
+	_unsettle()
 	_begin(space, eye, facing, exclude, sight)
 	_cone.step(1 << 60)
 	causes["units"] += _cone.work_units()
@@ -146,8 +159,17 @@ func _step() -> bool:
 ## The job is done (the cone swapped its result in): the pose it was begun for is the cone's.
 func _publish() -> bool:
 	published += 1
+	settled_publish = _settling
+	_unsettle()
 	_has_cone = true
 	_restarts = 0
 	pose_eye = job_eye
 	pose_facing = job_facing
 	return true
+
+
+## The settling job is over: the watch holds blockers to the creep bound again.
+func _unsettle() -> void:
+	if _settling:
+		_settling = false
+		_watch.settle(false)

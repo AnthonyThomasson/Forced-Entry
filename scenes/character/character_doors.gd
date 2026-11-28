@@ -6,11 +6,11 @@ class_name CharacterDoors extends RefCounted
 ## duck-typed. Tuning: `CharacterDoorConfig`.
 
 ## The character that uses the doors.
-var character: CharacterBody2D
+var character: Node2D
 
 
 ## The doors of `host`.
-func _init(host: CharacterBody2D) -> void:
+func _init(host: Node2D) -> void:
 	character = host
 
 

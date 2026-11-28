@@ -7,9 +7,17 @@ class_name CharacterMovement extends RefCounted
 
 ## The one shove a walking body gives a pushable piece it slid into.
 const CharacterPush = preload("res://scenes/character/character_push.gd")
+## `aim_height`'s two answers that name no height: fly level at the muzzle's height, or aim at the
+## torso of the body at `aim_point`.
+const AIM_LEVEL := -1.0
+const AIM_AUTO := -2.0
+## `_pace`: neither running nor ran dry, running, ran dry.
+const PACE_WALKING := 0
+const PACE_RUNNING := 1
+const PACE_EXHAUSTED := 2
 
 ## The character moving.
-var character: CharacterBody2D
+var character: Node2D
 ## The controller child it pulls intent from each frame (any node with a `control(character,
 ## delta)` method); null for none. Found by the character's `_ready`.
 var controller: Node
@@ -18,16 +26,22 @@ var controller: Node
 var move_input := Vector2.ZERO
 ## World point to face.
 var aim_point := Vector2.ZERO
+## How high the aim is, px above the floor, at `aim_point`: what a shot is aimed at (`AIM_LEVEL`: it
+## flies level at the muzzle's height, the player's aim at the floor; `AIM_AUTO`: the centre of the
+## torso of whoever stands at `aim_point`, else level, an AI's).
+var aim_height := AIM_AUTO
 ## Wants to run; honoured only while moving with stamina left.
 var run_input := false
 ## Move speed (px/s). Tests and sandboxes set it through `actor(..., props)` as `"movement:speed"`.
 var speed := 150.0
 ## Stamina as a fraction of a full bar; spent while running, regained otherwise.
 var stamina := 1.0
-## Ran dry: walks until stamina refills to `CharacterPaceConfig.run_resume_fraction`.
-var _exhausted := false
-## Running this frame.
-var _running := false
+## The plan velocity (px/s) the walk was asked for last frame, then what it left after the slide:
+## the plan handle's own, no 2D engine moves it. Read by what asks how a body moves by itself.
+var velocity := Vector2.ZERO
+## `PACE_RUNNING` this frame; `PACE_EXHAUSTED` ran dry and walks until stamina refills to
+## `CharacterPaceConfig.run_resume_fraction`.
+var _pace := PACE_WALKING
 ## The body's height: a `CharacterPostureConfig.postures` key (`stand` or `crouch`). A crouch is a
 ## smaller target and slower; only a standing character can run. Set through `set_posture()`.
 var _posture: StringName = &"stand"
@@ -45,7 +59,7 @@ var _push_slow := 1.0
 
 
 ## The movement of `host`.
-func _init(host: CharacterBody2D) -> void:
+func _init(host: Node2D) -> void:
 	character = host
 
 
@@ -55,10 +69,11 @@ func pull(delta: float) -> void:
 		controller.control(character, delta)
 
 
-## Count the posture's cooldown down and ease the drawn body toward the posture (in a vehicle the
-## ride poses the fold instead).
+## Count the posture's cooldown and the rise's timers down and ease the drawn body toward the
+## posture (in a vehicle the ride poses the fold instead).
 func tick(delta: float) -> void:
 	_posture_cooldown = maxf(_posture_cooldown - delta, 0.0)
+	character.weapon.rise.tick(delta)
 	if not character.use.is_riding():
 		_ease_posture(delta)
 
@@ -70,20 +85,26 @@ func walk(delta: float) -> void:
 	var stun: CharacterStun = character.stun
 	_update_stamina(run_input and _posture == &"stand" and stun.level() <= 0.0
 			and move_input.length() > CharacterPaceConfig.run_min_input, delta)
-	character.velocity = move_input * _move_speed() * _push_slow + _knockback + stun.drift()
-	character.move_and_slide()
+	velocity = move_input * _move_speed() * _push_slow + _knockback + stun.drift()
+	var lead := TwinSpace.walker_of(character)
+	if lead != null:
+		# the 3D body walks and the 2D body is written from it (`CharacterTwin`); a body with no
+		# twin yet (added this frame) stays where it is
+		velocity = lead.walk(velocity)
+	else:
+		velocity = Vector2.ZERO
 	_knockback = _knockback.move_toward(
 		Vector2.ZERO,
 		CharacterPushConfig.knockback_friction * delta,
 	)
-	_push_slow = _ease_push_slow(_apply_pushes(), delta)
+	_push_slow = _ease_push_slow(_apply_pushes(lead), delta)
 
 
 ## A frame held still (an interaction, a ride): no movement or input, stamina refilling, and any
 ## pending shove dropped so moving again doesn't lurch.
 func hold(delta: float) -> void:
 	move_input = Vector2.ZERO
-	character.velocity = Vector2.ZERO
+	velocity = Vector2.ZERO
 	_update_stamina(false, delta)
 	_knockback = Vector2.ZERO
 
@@ -102,13 +123,17 @@ func momentum() -> Vector2:
 ## a ride and death stand the body.
 func stand_up() -> void:
 	_posture = &"stand"
+	character.weapon.rise.drop()
 
 
 ## Draw the body folded `fold` (0 standing .. 1 seated: the crouch fold, so `posture_folded()`
 ## reads it), at once: a ride's pose, and a dying body (0) falling from the standing skeleton.
 func fold(amount: float) -> void:
-	var crouch_height: float = CharacterPostureConfig.postures[&"crouch"]["height"]
-	_posture_height = lerpf(1.0, crouch_height, clampf(amount, 0.0, 1.0))
+	_posture_height = lerpf(
+		1.0,
+		BodyHeights.height_share(BodyHeights.DUCK),
+		clampf(amount, 0.0, 1.0),
+	)
 
 
 ## Take a posture: `stand` or `crouch` (`CharacterPostureConfig.postures`). True when the character
@@ -124,10 +149,21 @@ func set_posture(wanted: StringName) -> bool:
 			or _posture_cooldown > 0.0
 			or not CharacterPostureConfig.postures.has(wanted)):
 		return false
+	if wanted == &"stand" and not has_room_for(BodyHeights.STAND):
+		return false  # a taller body would grow into what is over it
 	_posture = wanted
+	character.weapon.rise.drop()
 	_posture_cooldown = CharacterPostureConfig.change_time
 	character.anatomy.invalidate_rig()
 	return true
+
+
+## Whether the body, at `pose` (a `BodyHeights` pose), would stand clear of the solids over it: a
+## taller cylinder in the twin space is not grown into a shelf, a lintel or a piece lying across it
+## (a stand-up or a rise there is refused). True with no twin (nothing to grow into).
+func has_room_for(pose: StringName) -> bool:
+	var lead := TwinSpace.walker_of(character) as CharacterTwin
+	return lead == null or lead.fits(pose)
 
 
 ## C: crouch, or stand back up from a crouch.
@@ -140,11 +176,14 @@ func posture() -> StringName:
 	return _posture
 
 
-## The body's height on the coverage scale when in posture `which` (`stand` / `crouch`,
-## `CharacterPostureConfig.postures`): what a piece of furniture must stand above to shield it.
-## The character's `get_surface()` answers for the posture it is in.
-func posture_coverage(which: StringName) -> float:
-	return float(CharacterPostureConfig.postures[which]["coverage"])
+## The posture the body's real height is (`BodyHeights`): a standing body its stature, a crouch the
+## duck, a crouch risen over its cover to fire (`character.rise`) the pose it rose to. What its
+## twin, a bullet's zone, its eye and its muzzle and a piece of cover's shelter are judged against.
+func body_posture() -> StringName:
+	if _posture != &"crouch":
+		return BodyHeights.STAND
+	var risen: StringName = character.weapon.rise.pose()
+	return BodyHeights.DUCK if risen == BodyHeights.NONE else risen
 
 
 ## What the body is drawn at right now, easing toward the posture: a standing body's height as a
@@ -156,8 +195,11 @@ func posture_height() -> float:
 ## How folded the drawn body is, 0 (standing) .. 1 (crouched): the share the rig pitches the spine
 ## by.
 func posture_folded() -> float:
-	var crouch_height: float = CharacterPostureConfig.postures[&"crouch"]["height"]
-	return clampf((1.0 - _posture_height) / maxf(1.0 - crouch_height, 0.01), 0.0, 1.0)
+	return clampf(
+		(1.0 - _posture_height) / maxf(1.0 - BodyHeights.height_share(BodyHeights.DUCK), 0.01),
+		0.0,
+		1.0,
+	)
 
 
 ## How far further ahead (px) the hands are held at this posture: a crouch holds them out past its
@@ -172,7 +214,7 @@ func posture_hand_ahead() -> float:
 
 ## True while moving at run speed (asked to run, moving, and not out of stamina).
 func is_running() -> bool:
-	return _running
+	return _pace == PACE_RUNNING
 
 
 ## Stamina left, 0..1 of a full bar.
@@ -195,7 +237,7 @@ func walk_speed() -> float:
 ## Walking speed (slower in a lower posture, slowed to `CharacterStunConfig.speed` while stunned
 ## and by the outfit's weight), or run speed while running (only possible standing and not stunned).
 func _move_speed() -> float:
-	return _speed_in(_posture, _running)
+	return _speed_in(_posture, _pace == PACE_RUNNING)
 
 
 ## The speed (px/s) the body covers ground at in posture `which`, running or walking, as it is now
@@ -226,7 +268,7 @@ func _ease_posture(delta: float) -> void:
 	var k := 1.0 - exp(-CharacterPostureConfig.posture_ease * delta)
 	_posture_height = _eased_to(
 		_posture_height,
-		float(CharacterPostureConfig.postures[_posture]["height"]),
+		BodyHeights.height_share(body_posture()),
 		k,
 	)
 
@@ -238,36 +280,35 @@ static func _eased_to(now: float, target: float, k: float) -> float:
 
 
 ## Settle this frame's running and spend or regain stamina (a heavier outfit spends it faster).
-## Running dry latches `_exhausted`, which holds until stamina refills to `run_resume_fraction`.
+## Running dry latches `PACE_EXHAUSTED`, which holds until stamina refills to `run_resume_fraction`.
 func _update_stamina(wants_run: bool, delta: float) -> void:
-	_running = wants_run and not _exhausted and stamina > 0.0
-	if _running:
+	if _pace != PACE_EXHAUSTED:
+		_pace = PACE_RUNNING if wants_run and stamina > 0.0 else PACE_WALKING
+	if _pace == PACE_RUNNING:
 		var strain := 1.0 + _extra_weight() * CharacterPaceConfig.outfit_stamina_per_kg
 		stamina = maxf(stamina - delta * strain / CharacterPaceConfig.run_stamina_seconds, 0.0)
 		if stamina <= 0.0:
-			_exhausted = true
-			_running = false
+			_pace = PACE_EXHAUSTED
 	else:
 		stamina = minf(stamina + delta * CharacterPaceConfig.stamina_regen_per_sec, 1.0)
-		if _exhausted and stamina >= CharacterPaceConfig.run_resume_fraction:
-			_exhausted = false
+		if _pace == PACE_EXHAUSTED and stamina >= CharacterPaceConfig.run_resume_fraction:
+			_pace = PACE_WALKING
 
 
 ## Shove every pushable body the character slid into this frame; return the resulting speed
 ## multiplier (heavier furniture slows the character more, floored so it never fully locks).
-func _apply_pushes() -> float:
+func _apply_pushes(lead: CharacterBody3D) -> float:
 	var input_strength := move_input.length()
 	if input_strength <= 0.0:
 		return 1.0
 
 	var heaviest := 0.0
-	for i in character.get_slide_collision_count():
-		var collision := character.get_slide_collision(i)
-		var collider := collision.get_collider()
+	for contact in _slides(lead):
+		var collider: Object = contact["body"]
 		if collider == null or not collider.has_method("apply_impulse"):
 			continue
 		# The normal points back toward the character, so "into the object" is -normal.
-		var dir := -collision.get_normal()
+		var dir: Vector2 = -contact["normal"]
 		var impulse := (CharacterPushConfig.impulse * input_strength
 				* character.get_physics_process_delta_time())
 		if not collider.has_method("get_mass"):
@@ -279,8 +320,12 @@ func _apply_pushes() -> float:
 			collider,
 			dir,
 			impulse,
-			collision.get_position(),
-			move_input.dot(dir) * _move_speed(),
+			Vector3(
+				contact["at"].x,
+				contact["at"].y,
+				BodyHeights.contact(&"hip", body_posture()),
+			),
+			move_input.dot(dir) * _move_speed() * _push_slow,
 		)
 		heaviest = maxf(heaviest, collider.get_mass())
 
@@ -291,6 +336,15 @@ func _apply_pushes() -> float:
 		CharacterPushConfig.slow_min,
 		1.0,
 	)
+
+
+## What the last walk slid into: `{ body, normal, at }` per contact, the normal (plan) pointing back
+## at the character and `at` the plan point. A character walked in the twin space reports what its
+## 3D body slid into (the 2D body of each twin); a character with no twin slid into nothing.
+func _slides(lead: CharacterBody3D) -> Array[Dictionary]:
+	if lead != null:
+		return (lead as CharacterTwin).contacts()
+	return []
 
 
 ## Slow down at once on contact, but recover toward full speed gradually so losing contact for a

@@ -103,7 +103,7 @@ var _watch: RefCounted
 ## Build the Locomotion child and capture the perception sub-domain and the NPC's `npc_tuning`. The
 ## controller calls this once in its _ready(); it then calls apply_config(), which hands in the
 ## side's squad (here and again each decision).
-func setup(perception: Node, nav_agent: NavigationAgent2D, npc_tuning: NpcTuning) -> void:
+func setup(perception: Node, nav_agent: NavigationAgent3D, npc_tuning: NpcTuning) -> void:
 	_perception = perception
 	tuning = npc_tuning
 	fight = Fight.new(self)
@@ -377,6 +377,7 @@ func _adopt(leaf: Dictionary) -> void:
 	errand.coverage.reset()
 	_watch.reset()
 	task.point = _loco.reachable(task.params["point"]) if task.params.has("point") else Vector2.ZERO
+	task.via = task.params.get("via", Vector2.INF)
 	errand.target_obj = null
 	_combat.throw.end()
 	grenades.throw_wait = -1.0
@@ -495,6 +496,7 @@ func wants_decision(decide_timer_elapsed: bool) -> bool:
 
 ## Carry out the running primitive this tick.
 func apply(delta: float) -> void:
+	_loco.crowd.step = delta
 	if task.primitive != &"follow":
 		gait.catching_up = false
 	_combat.tick(delta)

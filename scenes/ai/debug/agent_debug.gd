@@ -1,9 +1,9 @@
 extends "res://scenes/ai/debug/debug_overlay.gd"
 ## AI domain: an optional debug overlay that draws, in the world next to the NPC, what its brain is
 ## doing — a floating ACTION LABEL (the controller's live decision, from `debug_status()`) and its
-## current MOVEMENT PATH (the NavigationAgent2D's path, polyline + waypoints + target marker). Two
+## current MOVEMENT PATH (the NavigationAgent3D's path, polyline + waypoints + target marker). Two
 ## independent toggles (`show_actions`, `show_path`). Draw-only — it reads the sibling
-## GoalController and NavigationAgent2D through their public API, senses nothing and feeds nothing
+## GoalController and NavigationAgent3D through their public API, senses nothing and feeds nothing
 ## back (follows the "draw on its own child Node2D" convention, like vision_debug.gd).
 
 ## Point size of the label font.
@@ -14,11 +14,17 @@ const WAYPOINT_RADIUS := 2.5
 const TARGET_RADIUS := 6.0
 
 ## Whether to draw the floating action label above the NPC.
-@export var show_actions: bool = true
+@export var show_actions: bool = true:
+	set(value):
+		show_actions = value
+		_sync_processing()
 ## Whether to draw the NPC's current navigation path.
-@export var show_path: bool = true
-## The NavigationAgent2D to read the current path from (a sibling under the NPC).
-@export var agent_path: NodePath = NodePath("../NavigationAgent2D")
+@export var show_path: bool = true:
+	set(value):
+		show_path = value
+		_sync_processing()
+## The NavigationAgent3D to read the current path from (under the NPC's `NavAnchor`).
+@export var agent_path: NodePath = NodePath("../NavAnchor/NavigationAgent3D")
 ## Colour of the action label text.
 @export var label_color: Color = Color(1, 1, 1, 0.9)
 ## Colour of the movement-path line and markers.
@@ -27,12 +33,12 @@ const TARGET_RADIUS := 6.0
 @export var label_offset: float = 28.0
 
 ## The nav agent read for the movement path.
-var _agent: NavigationAgent2D
+var _agent: NavigationAgent3D
 
 
 func _ready() -> void:
 	super()
-	_agent = get_node_or_null(agent_path) as NavigationAgent2D
+	_agent = get_node_or_null(agent_path) as NavigationAgent3D
 
 
 ## Whether either toggle is on.
@@ -57,7 +63,7 @@ func card_lines() -> PackedStringArray:
 ## Draw the agent's remaining navigation path as a polyline, a dot at each waypoint, and a ring at
 ## the final target. Nothing is drawn when the path has no remaining segment (an idle/arrived NPC).
 func _draw_path() -> void:
-	var path: PackedVector2Array = _agent.get_current_navigation_path()
+	var path: PackedVector2Array = NavPlan.plan_path(_agent.get_current_navigation_path())
 	if path.size() < 2:
 		return
 	var from: int = min(_agent.get_current_navigation_path_index(), path.size() - 1)

@@ -13,8 +13,15 @@ const OBJECTS := {
 		"material": "electronics",
 		"art": "tech",
 		"art_opts": { "kind": "monitor_wall" },
+		"carries": [
+			{ "key": "keyboard", "at": Vector2(0, 7), "on_top": true },
+			{
+				"key": "cup", "at": Vector2(61, 7), "on_top": true,
+				"color": Color(0.94, 0.93, 0.9),
+			},
+			{ "key": "papers", "at": Vector2(-61, 7), "on_top": true },
+		],
 		"weight": 40,
-		"coverage": 60,
 		"penetration": 40,
 		"interactions": [
 			{ "id": "hack", "label": "Hack in" },
@@ -30,7 +37,6 @@ const OBJECTS := {
 		"art": "recliner",
 		"art_opts": { "kind": "rig" },
 		"weight": 45,
-		"coverage": 45,
 		"penetration": 30,
 		"interactions": [
 			{ "id": "lie", "label": "Jack in", "move_to": true },
@@ -46,7 +52,6 @@ const OBJECTS := {
 		"art": "tech",
 		"art_opts": { "kind": "server_rack" },
 		"weight": 120,
-		"coverage": 95,
 		"penetration": 85,
 		"interactions": [{ "id": "examine", "label": "Examine" }],
 	},

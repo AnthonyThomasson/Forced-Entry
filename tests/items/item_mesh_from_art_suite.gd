@@ -2,7 +2,7 @@ extends UnitSuite
 ## Native unit suite (pure logic) for the items' 3D meshes raised from the 2D art (`GunMesh`,
 ## `GrenadeMesh`, `ItemSolid`, `SpoonArt`; #193 phase 2b): a held gun is the silhouette of its held
 ## art, as wide and long as the art, standing up, with the flat art on its top, one mesh and one
-## material per gun and look; a lying gun is its side profile, flat; a grenade is its art turned
+## texture per gun and look; a lying gun is its side profile, flat; a grenade is its art turned
 ## about its length, its lever a strip on top. Expected sizes are the config rows' (`GunConfig`,
 ## `GrenadeConfig`), copied. How it looks is judged windowed:
 ## `items/items_projectile_mesh_windowed`.
@@ -56,8 +56,7 @@ func test_the_held_gun_wears_its_flat_art_over_the_art_footprint() -> void:
 	assert_vector(Vector2(texture.get_size())).is_equal(RIFLE)
 	assert_that(art.held_rect()).is_equal(Rect2(-RIFLE.x * 0.5, -13.0, RIFLE.x, RIFLE.y))
 	var node := MeshNodes.textured(art.held_mesh(), texture, art.held_rect())
-	var material := node.material_override as ShaderMaterial
-	assert_object(material.get_shader_parameter(&"albedo_texture")).is_same(texture)
+	assert_object(MeshNodes.shown_texture(node)).is_same(texture)
 	node.free()
 
 

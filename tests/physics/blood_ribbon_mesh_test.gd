@@ -38,7 +38,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var mirror := _mirror(t)
 	var layer := PhysicsMeshes.install(mirror)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	var decals := BloodDecals.layer(t.world)
 	var one := decals.ribbon_begin(AT, 4.0, 0.9)
 	var two := decals.ribbon_begin(AT + Vector2(0, 60), 4.0, 0.9)
@@ -82,10 +82,10 @@ func _check_ignored(t: TestContext, layer: FxLayer, decals: BloodDecals, one: Di
 	t.expect_eq(layer.ink.count_of(InkMark.Kind.PRINT), held, "and nothing else changed")
 
 
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	return mirror

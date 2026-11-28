@@ -2,7 +2,7 @@ extends GameTest
 ## R5 (ticket #61): wear and clutter are placed in the world per room, never baked into a repeating
 ## tile. In generated houses (the test's own house world plus more seeds, so several plans): each
 ## room has 0 to 3 wear clusters and 0 to 2 clutter pieces, no clutter kind twice in a room; clutter
-## is non-solid decor (no collider on PhysicsLayers.SOLID, not carved into the nav map); every wear
+## is non-solid decor (no solid twin, not carved into the nav map); every wear
 ## cluster and clutter piece sits by a wall, a corner or a piece of solid furniture of its room; the
 ## wear is drawn by a layer of its own per room; most rooms are worn and clutter shows up; and two
 ## rooms of the same type never get the same wear layout.
@@ -15,6 +15,7 @@ extends GameTest
 ##   `key` its catalogue key, `node` the placed piece.
 
 ## The test world's own house.
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const HOUSE_SEED := 2
 ## More houses, built one at a time beside it.
 const SEEDS := [3, 5, 8, 13, 21, 34, 55, 89, 144, 233]
@@ -52,7 +53,7 @@ func configure(s: TestSetup) -> void:
 ## space.
 func _solid_pieces(house: Node2D, rect: Rect2) -> Array:
 	var out: Array = []
-	for node in house.find_children("*", "RigidBody2D", true, false):
+	for node in PlanProbe.pieces_under(house):
 		if not ("solid" in node and "size" in node) or not node.solid:
 			continue
 		var at: Vector2 = node.global_position
@@ -87,16 +88,17 @@ func _to_anchor(p: Vector2, room: Rect2, pieces: Array, skip: Node = null) -> fl
 	return best
 
 
-## Whether `body` has a collision shape on PhysicsLayers.SOLID.
+## Whether `body` blocks: a wall with an outline or a solid piece (plan handles: their outlines and
+## their 3D twins are what block).
 func _collides_solid(body: Node) -> bool:
-	if (not (body is CollisionObject2D)
-			or ((body as CollisionObject2D).collision_layer & PhysicsLayers.SOLID) == 0):
+	if body.is_in_group(TwinSpace.WALLS):
+		for outlines: Variant in (body.call(&"segment_shapes") as Dictionary).values():
+			if not (outlines as Array).is_empty():
+				return true
 		return false
-	for child in body.get_children():
-		if ((child is CollisionShape2D and child.shape != null)
-				or (child is CollisionPolygon2D and not child.polygon.is_empty())):
-			return true
-	return false
+	if body.is_in_group(TwinSpace.PIECES):
+		return body.solid  # a piece is a plan handle: its 3D twin is what blocks
+	return false  # a rug, a mat: nothing else collides
 
 
 ## Checks one house; adds its rooms' wear layouts to `layouts` (type -> [{ label, layout }]) and its
@@ -222,7 +224,7 @@ func _check_room_wear(
 
 ## `room`'s clutter `placed` (`where` names it): at most MAX_CLUTTER, no kind twice, each non-solid
 ## catalogue decor placed in `house`, in the room by a wall, corner or furniture, with no collider
-## on the SOLID layer.
+## solid (no twin).
 func _check_room_clutter(
 	t: TestContext,
 	where: String,
@@ -258,7 +260,7 @@ func _check_room_clutter(
 		)
 		t.check(
 			not _collides_solid(node),
-			"%s: the placed %s has no collider on the SOLID layer" % [where, kind],
+			"%s: the placed %s is not solid" % [where, kind],
 		)
 		var p: Vector2 = node.global_position
 		t.check(rect.has_point(p), "%s: the %s at %s lies in the room" % [where, kind, p])

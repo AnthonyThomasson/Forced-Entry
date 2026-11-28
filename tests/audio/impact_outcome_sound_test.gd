@@ -5,6 +5,8 @@ extends GameTest
 ## outcome certain (a *blocked* round is impact_blocked_sound).
 
 const Probe := preload("res://tests/_audio/sound_probe.gd")
+## A round aimed this low (px) meets a chair, a lamp or a car; a level one at the muzzle flies over.
+const LOW := 10.0
 
 
 func describe() -> Dictionary:
@@ -19,7 +21,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 900, 700))
-	s.switch(&"projectile.flyover", false)
 	# shot furniture is shoved into overlaps; re-baking them logs a nav sync error
 	s.switch(&"nav.rebake", false)
 	s.set_static(SoundConfig, &"category_range", Probe.EVERYWHERE)
@@ -55,7 +56,7 @@ func _first(
 func run(t: TestContext) -> void:
 	# --- Ricochets: a long shallow shot at the north wall, and one scraping the car's west face.
 	t.puppet(&"skimmer").aim_at(Vector2(700, 6))
-	t.puppet(&"racer").aim_at(Vector2(437, 400))
+	t.puppet(&"racer").aim_at(Vector2(437, 400), LOW)
 	await t.seconds(0.5)
 	t.puppet(&"skimmer").shoot()
 	t.puppet(&"racer").shoot()

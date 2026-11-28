@@ -226,8 +226,8 @@ func passing_ahead(
 			pts,
 			avoided(
 				HouseRooms.key_at(from_pos, _rooms),
-				world.navigation_map,
-				world.direct_space_state,
+				NavWorld.map_in(world),
+				TwinSpace.space_in(world),
 			)["views"],
 			max_dist,
 	):
@@ -294,7 +294,7 @@ func walk_route(
 	entering := "",
 	held := false,
 ) -> Dictionary:
-	var key := [from, to, world.navigation_map, entering, held]
+	var key := [from, to, NavWorld.map_in(world), entering, held]
 	if _decision_depth > 0 and _walked.has(key):
 		return (_walked[key] as Dictionary).duplicate(true)
 	walk_queries += 1
@@ -312,10 +312,10 @@ func _plain_walk_route(
 	entering := "",
 	held := false,
 ) -> Dictionary:
-	var plain := NavBuilder.route(world.navigation_map, from, to)
+	var plain := NavBuilder.route(NavWorld.map_in(world), from, to)
 	var plain_len := NavBuilder.path_length(plain)
 	var out := {
-		"map": world.navigation_map,
+		"map": NavWorld.map_in(world),
 		"path": plain,
 		"len": plain_len,
 		"plain_len": plain_len,
@@ -323,11 +323,11 @@ func _plain_walk_route(
 		"pending": false,
 		"views": [],
 	}
-	if not avoid_views or not NavBuilder.ready(world.navigation_map):
+	if not avoid_views or not NavBuilder.ready(NavWorld.map_in(world)):
 		return out
 	var here := HouseRooms.key_at(from, _rooms)
 	var avoid_set := _left_from(
-		avoided(here, world.navigation_map, world.direct_space_state, entering),
+		avoided(here, NavWorld.map_in(world), TwinSpace.space_in(world), entering),
 		from,
 	)
 	var crossed := _crossed_views([from] + Array(plain), avoid_set["views"], INF, entering)
@@ -344,14 +344,14 @@ func _plain_walk_route(
 		var cap := (INF
 				if (ordered_approach or held) and i == 1
 				else door_avoid_ratio * plain_len + door_avoid_slack)
-		var way := _round(from, to, world.navigation_map, sets[i], cap)
+		var way := _round(from, to, NavWorld.map_in(world), sets[i], cap)
 		if way.has("path") and _goes_in(from, way["path"], keep_out, held):
 			# The room being entered is kept out of itself, not only by its doorways' views: a walk
 			# that starts in one of those views (dropped from the set, `_left_from`) would otherwise
 			# go through the room from there. Its floor is carved (`_with_room`) only for a way
 			# round that goes in, so the map with it carved is asked for, and kept, only while an
 			# approach needs it.
-			way = _round(from, to, world.navigation_map, _with_room(sets[i], keep_out), cap)
+			way = _round(from, to, NavWorld.map_in(world), _with_room(sets[i], keep_out), cap)
 		if bool(way.get("pending", false)):
 			out["pending"] = true
 			return out
@@ -481,7 +481,7 @@ func _entering_set(views_set: Dictionary, entering: String) -> Dictionary:
 ## avoid map for the doorway views from the room it is in exists. Asks for it, which starts its bake
 ## on the worker thread, so it is under way before a decision is. True when there is nothing to
 ## avoid (no views, no planning region, door avoidance off) and once the map answers.
-func warm(from: Vector2, map: RID, space: PhysicsDirectSpaceState2D) -> bool:
+func warm(from: Vector2, map: RID, space: PhysicsDirectSpaceState3D) -> bool:
 	if not avoid_views or not NavBuilder.ready(map):
 		return true
 	var avoid_set := avoided(HouseRooms.key_at(from, _rooms), map, space)
@@ -492,7 +492,7 @@ func warm(from: Vector2, map: RID, space: PhysicsDirectSpaceState2D) -> bool:
 
 
 ## The views a walk from point `from` keeps out of, each `{ id, into, poly }` (see `avoided`).
-func views_from(from: Vector2, map: RID, space: PhysicsDirectSpaceState2D) -> Array:
+func views_from(from: Vector2, map: RID, space: PhysicsDirectSpaceState3D) -> Array:
 	return avoided(HouseRooms.key_at(from, _rooms), map, space)["views"]
 
 
@@ -506,7 +506,7 @@ func views_from(from: Vector2, map: RID, space: PhysicsDirectSpaceState2D) -> Ar
 func avoided(
 	here_key: String,
 	map: RID,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	entering := "",
 ) -> Dictionary:
 	var asked := [Engine.get_physics_frames(), here_key, entering, pass_clear]
@@ -551,7 +551,7 @@ func door_view(
 	id: String,
 	into: String,
 	map: RID,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 ) -> PackedVector2Array:
 	var key := "%s>%s@%d" % [id, into, int(door_view_depth)]
 	if _views.has(key):
@@ -594,7 +594,7 @@ func _area(ring: PackedVector2Array) -> float:
 func _build_view(
 	opening: Dictionary,
 	rect: Rect2,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 ) -> PackedVector2Array:
 	var pos: Vector2 = opening["pos"]
 	var out := -normal_into(rect, pos)
@@ -674,7 +674,7 @@ static func _far_corners(rect: Rect2, pos: Vector2, out: Vector2) -> Array:
 ## One fan of a doorway view: from `eye`, a ray to each point of `boundary`, stopped at the first
 ## wall, between the two `jambs`.
 func _view_fan(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	eye: Vector2,
 	jambs: Array,
 	boundary: Array,

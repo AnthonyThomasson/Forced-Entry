@@ -72,7 +72,6 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	s.von_script([])
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"a", &"defender", Vector2(240, 150))
 	s.actor(&"lead", &"puppet", Vector2(700, 120), { "faction": &"household" })
 	s.actor(

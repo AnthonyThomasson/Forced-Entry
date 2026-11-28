@@ -1,14 +1,12 @@
-11. **General → every domain: shared ids, `PhysicsLayers.SOLID`, `GameClock` and the shared rules**
-    - `PhysicsLayers` (`general/physics_layers.gd`, static holder): `SOLID` is the physics layer bit (1) "walls + solid furniture" live on.
-	  Every raycast, sweep, collision mask or layer for it reads this one constant: Interaction's reach query, AI sight and line-of-fire
-	  rays (`agent_vision.gd`; the vision overlay asks the controller's `debug_sight_end`), the character's hand
-	  queries, leg sweeps and clearing check (`use.keep_clear_of`), a dropped item's glance, a thrown grenade's flight, the bullet's
-	  `collision_mask`, the blast's lines, `PhysicsConfig.wall_mask`, and a vehicle's body layer, mask, door checks and pile queries.
+11. **General → every domain: shared ids, `PhysicsLayers`, `GameClock`, `BodyHeights`, `PlanSpace`, shared rules**
+    - `PhysicsLayers` (`general/physics_layers.gd`, static holder): there is no 2D layer (every sim root is a plan handle, 29); `TWIN_WORLD` (1), `TWIN_VEHICLE` (2), `TWIN_CHARACTER` (4), `TWIN_ROOF` (8, out of `TWIN_ALL`), `TWIN_WALKOVER` (32: a body lying flat within a step over: a fallen door's leaf, a small item (`ItemBody`); walkers and vehicles do not meet it) and `TWIN_ALL` are the twin 3D space's layers (29). Masks: `TWIN_ALL` lines, `TWIN_BLOCKS` what stops a mover (no walk-over), `TWIN_SURFACES` what lands rest on (world, vehicles, walk-over).
+	  Every ray and sweep reads the twin layers (29), never a number: Interaction's reach,
+	  `use.keep_clear_of`, a vehicle's door checks, the hand and leg queries, AI sight and line of fire, a grenade's flight, the bullet.
     - `GameClock` (`general/game_clock.gd`, an autoload, `PROCESS_MODE_PAUSABLE`): counts physics frames in `_physics_process`, so it stands
 	  still while the tree is paused. `GameClock.msec() -> int` (frames × 1000 / `Engine.physics_ticks_per_second`: deterministic under
-	  `--fixed-fps`, however far a headless run outpaces the wall clock), `GameClock.seconds() -> float`, `GameClock.frame() -> int`. Every
-	  AI ttl, timer and age reads it (`docs/leadership.md` LD1), so a pause of any length expires nothing; only what measures real time
-	  stays on `Time` (the Von launcher's boot timeout and the planner's per-level `ms`, Von's latency). A per-frame key that measures
+	  `--fixed-fps`), `GameClock.seconds() -> float`, `GameClock.frame() -> int`. Every
+	  AI ttl, timer and age reads it (`docs/leadership.md` LD1), so a pause expires nothing; only what measures real time
+	  stays on `Time` (the Von launcher's boot timeout, the planner's per-level `ms`). A per-frame key that measures
 	  no age may read `Engine.get_physics_frames()`.
     - `WorldRng` (`general/world_rng.gd`, statics): a world's chance, order and frames; the AI keys on it, not on an instance id.
 	  `register(root, match_seed)` (Main's stage), `of(node) -> RandomNumberGenerator`, `enrol(node) -> int` (a character's place,
@@ -27,14 +25,30 @@
 	  and the command server's `match` verb (`verdict_of`) both decide by it.
     - `ViewLayers` (`general/view_layers.gd`, static holder): the visibility bits (`visibility_layer`) the player's view sorts the
 	  world by. `WORLD` 1 (Godot's default: the house, what has come to rest) and `MOVING` 2 (what moves: Art's mirror hides its mesh outside the cone).
-	  `set_moving(item, moving)` (written only on change; Character, Items, Projectile, Physics, Vehicles call it) and
+	  `set_moving(item, moving)` (the layer's only writer, on change only; emits an item's user signal `CHANGED`; Character, Items, Projectile, Physics, Vehicles call it) and
 	  `overlay(item)` (AI debug overlays, Navigation, the UI: hands `item` to `GroundLayer.adopt`, which lays it flat on the ground over the 3D view, 27; no z or bit).
-    - `SightRay` (`general/sight_ray.gd`, `RefCounted`): the one sight rule. `SightRay.hit(space, from, to, exclude, see_over) ->
-	  Dictionary` is the first thing on the line (`PhysicsLayers.SOLID`) too tall to see over (`intersect_ray`'s dictionary), {} when
-	  the line reaches `to`; a collider at or below `see_over` is looked over, `exclude` is left as given.
-	  `SightRay.coverage_of(collider) -> float` reads `get_surface()`: `transparent` (a glass-panel door) reads 0, looked through
-	  however tall; no `coverage` reads 100. An instance (`looks_over`, `rated`, `leave_out(rids)`, `cast(...)`) serves a caller of
-	  many rays (Vision's cone). AI perception's sight line and Vision's cone both cast through it.
+    - `SightRay` (`general/sight_ray.gd`, `RefCounted`): the one sight rule, real heights. **The eye ray**, in the twin space (29):
+	  `SightRay.hit(space3d, from: Vector3, to: Vector3, exclude := []) -> Dictionary` is the first blocker (`TWIN_WORLD`, `TWIN_VEHICLE`, never a
+	  character; a `transparent` surface and the rids in `exclude` are looked through), {} when clear.
+	  `sees(space3d, eye: Vector3, to: Vector2, heights, exclude := []) -> bool` (first clear point ends the ask), `visible_heights(...)`,
+	  `eye_point(viewer)`, `target_heights(target)` (a character's `BodyHeights.sight_points` at its posture), `exclude_of(target)`.
+	  `visible_parts(viewer, target) -> PackedFloat32Array` (heights of its points the eye sees), `visible_centre(viewer, target) -> float` (their mean, -1 for none), `aim_height(viewer, target) -> float` (that, else the torso); `parts_at` / `aim_at(viewer, eye, target, at)`: from an eye, target at `at`. **The plan cast** (the player's cone):
+	  `SightRay.plan_hit(space, from, to, exclude, see_over) -> Dictionary` (`space` the 3D one) is the first twin taller than `see_over` (the
+	  eye, px); `top_of(collider) -> float` its twin's top (0 for a `transparent` surface or a character, `INF` with no twin). An instance (`looks_over`, `rated`, `leave_out(rids)`, `cast(...)`) serves Vision's cone.
     - `SeenArea` (`general/seen_area.gd`, static holder): what the view shows live. Vision writes `set_area(polygons: Array,
 	  bounds: Rect2)` per rebuild and `clear()` on a lift; `reaches(center, radius)` (a disc)
-	  says whether any of it is shown, true while no area is set (`active()`; `version()` counts changes). Art's mirror and Projectile's casings hold back the unseen. `contains(polygon, point)` is the one even-odd point test.
+	  says whether any of it is shown, true while no area is set (`active()`; `version()` counts changes). `set_viewer(character)` (Vision, each publish) names whose eye the view is:
+	  `hides(body) -> bool` is true for a living character, not the viewer, of which no body point (`SightRay`) is clear from that eye, though the cone covers its ground (a ducked enemy
+	  behind a sofa); Art's mirror hides such a mover. Art's mirror and Projectile's casings hold back the unseen. `contains(polygon, point)` is the one even-odd point test.
+    - `BodyHeights` (`general/body_heights.gd`, static holder): a body's real proportions, the one scale between metres and the sim's px (1 3D unit = 1 px,
+	  a 1.75 m person = 74 px, so `px_per_metre() = 42.3`; `px(metres)`, `metres(px)`). Per posture (`BodyHeights.STAND`, `DUCK` (head top about 0.85 m / 36 px:
+	  hidden by a piece at least that tall), `FIRE_OVER` (the pose a ducked body rises to behind 0.9 m cover: bore 1.02 m); `postures_ids()`) heights in px above the floor: `head_top(posture)`, `eye(posture)`, `muzzle(posture)` (the bore line a bullet starts on),
+	  `shoulder(posture)`, the hit-zone bands `zones(posture) -> [[zone, from, to], ...]` (`feet`, `legs`, `torso`, `head`, touching, feet up) and
+	  `zone_at(posture, height) -> StringName` (where a hit at that height falls), `sight_points(posture) -> PackedFloat32Array` (the heights sight looks at on a body: head at the eye,
+	  chest, hips; `SightRay`). The values are `BodyHeights.postures` (metres, tunable, `set_static`); the research is
+	  `docs/research/3d-cover-heights.md`. `height_share(posture)`: head top over the standing one's (the drawn scale). A bullet reads `movement.body_posture()`'s muzzle (`weapon.rise`), the aim at a torso band and a hit's `zone_at`; sight the eye and `sight_points`; `BodyHeights.person_px` is
+	  its standing head top. Test: `tests/general/body_heights_test.gd`.
+    - `PlanSpace` (`general/plan_space.gd`, static holder): the plan-space helper. A `Vector2` in the AI, world generation, navigation and most tests means plan space, the floor
+	  plan `(x, y)` = `(x, z)` on the 3D ground; `PlanSpace.lift(plan, height := 0.0) -> Vector3` is `(x, height, y) * RenderConfig.unit`, `plan_of(point) -> Vector2` and
+	  `height_of(point) -> float` undo it; `lift_transform(xf: Transform2D, height := 0.0) -> Transform3D` lifts a body's 2D transform (a turn of `a` is a turn of `-a` about up; a local `(x, y)` is the local `(x, 0, y)`) and
+	  `plan_transform(xf3) -> Transform2D` undoes it. It is the mapping of the mirror, the camera rig and the twin space (`MeshCarrier`, `CameraRig`, `TwinSpace`, 29), written once. Test: `tests/general/plan_space_test.gd`.

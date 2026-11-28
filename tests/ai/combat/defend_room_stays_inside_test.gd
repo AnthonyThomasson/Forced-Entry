@@ -9,6 +9,17 @@ extends GameTest
 ## the kitchen. (An unordered defender may go out to it: that is the contrast, not asserted, since
 ## "may" is Von's call.)
 ##
+## Recording note (#194, a live trace of both versions): the first ask moved from
+## "holding the room, for 2s" to "on the way to its post, for 0s". The defender reaches its post
+## at 2.55 s (frame 153), where the intruder comes into sight: claim 2 (hostile belief changed).
+## The intruder shoots at frame 156 (t 2.617): claim 3 (attacked), the first that asks Von. At
+## a pool of 4 claim 2 was still building when claim 3 replaced it, so the order leaf was never
+## entered again and claim 3 asked at frame 159 with the defender holding. At a pool of 6 claim 2
+## landed at frame 155 (without asking Von) and entered the order leaf again, so `arrived` fell and
+## its time restarted; claim 3 asked at frame 158 in that state. From ask 2 the fight diverges (the
+## same fight, one decision earlier); the defender still holds the room: it takes combat decisions
+## and never leaves the kitchen in the 25 s, as both recordings assert.
+##
 ## Premises: the defender and the intruder cannot be killed (the fight lasts the whole window); the
 ## intruder is an invader puppet that fires at the defender once a second (the scripted world
 ## event); the order is given through the squad, as Main wires the leader's command menu to it.
@@ -18,8 +29,13 @@ const Order := preload("res://tests/_ai/order_probe.gd")
 const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 ## In the kitchen, clear of the island and off the hall doorway's axis.
 const D_AT := Vector2(570, 290)
-## The intruder: in the hall, just south of the kitchen–hall doorway.
-const INTRUDER_AT := Vector2(700, 435)
+## The intruder: in the hall, just south of the kitchen–hall doorway, where its line to the
+## defender's post (the kitchen's north-east corner (632, 30), seeing all three doorways with the
+## counter's low top on its line to the door: the post a ducked body hides at by the 3D line,
+## `docs/cover-and-stance.md` A4) runs through the doorway rather than into the wall beside it. The
+## post stands 22 px off the counter on the 4 px navmesh rim (the old rim stood 2 px further and
+## the counter did not hide it, so its post was the room's middle, (571, 210)).
+const INTRUDER_AT := Vector2(703, 435)
 ## How long (s) the fight is watched.
 const WATCH := 25.0
 

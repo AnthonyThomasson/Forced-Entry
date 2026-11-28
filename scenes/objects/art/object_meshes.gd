@@ -3,9 +3,9 @@ extends RefCounted
 ## Objects domain, the 3D meshes of its pieces (`domain-art/meshes.md`): which art ids
 ## have a mesh of their own and the one call that plugs them into the 3D mirror. Each id has a
 ## script beside the painters (`table_mesh.gd`) with `static func build(piece) -> Node3D`, built
-## from Art's mesh kit, in 3D units and centred on the piece's origin; an art id with none stays a
-## proxy box. Main's 3D view registers them (`register`) and tracks the floor stencils (`track`)
-## before it mirrors the match.
+## from Art's mesh kit, in 3D units and centred on the piece's origin; an art id with none has no
+## mesh. Main's 3D view registers them (`register`) and tracks the floor stencils (`track`)
+## before it carries the match.
 
 const TableMesh = preload("res://scenes/objects/art/table_mesh.gd")
 const SofaMesh = preload("res://scenes/objects/art/sofa_mesh.gd")
@@ -31,6 +31,7 @@ const SecurityMesh = preload("res://scenes/objects/art/security_mesh.gd")
 const ShopMesh = preload("res://scenes/objects/art/shop_mesh.gd")
 const NoodleMesh = preload("res://scenes/objects/art/noodle_mesh.gd")
 const StockMesh = preload("res://scenes/objects/art/stock_mesh.gd")
+const ItemMesh = preload("res://scenes/objects/art/item_mesh.gd")
 const AwningMesh = preload("res://scenes/objects/art/awning_mesh.gd")
 const StreetPropMesh = preload("res://scenes/objects/art/street_prop_mesh.gd")
 const PodiumMesh = preload("res://scenes/objects/art/podium_mesh.gd")
@@ -65,6 +66,7 @@ const BUILDERS := {
 	"shop": ShopMesh,
 	"noodle": NoodleMesh,
 	"stock": StockMesh,
+	"item": ItemMesh,
 	"awning": AwningMesh,
 	"street_prop": StreetPropMesh,
 	"podium": PodiumMesh,
@@ -75,19 +77,20 @@ const BUILDERS := {
 }
 
 
-## Add every builder to `builders` (`WorldMirror.builders`) under the finer key of its art id, and
+## Add every builder to `builders` (`MeshCarrier.builders`) under the finer key of its art id, and
 ## the building's structure (walls, doors, floors: `StructureMeshes`).
 static func register(builders: Dictionary) -> void:
 	StructureMeshes.register(builders)
 	for art: String in BUILDERS:
 		var builder := Callable(BUILDERS[art], &"build")
 		if builder.is_valid():
-			builders[MirrorProxy.furniture_key(art)] = builder
+			builders[MeshKinds.furniture_key(art)] = builder
 		else:
 			push_error("ObjectMeshes: the mesh script of '%s' has no static build(piece)" % art)
 
 
 ## Show the floor stencils (`DecalFactory.STENCIL_GROUP`: plain `StencilDecal` nodes, no physics
-## body) by `StencilMesh`: the mirror follows every one of that group under the root it mirrors.
-static func track(mirror: WorldMirror) -> void:
-	mirror.track_group(DecalFactory.STENCIL_GROUP, Callable(StencilMesh, &"build"))
+## body) by `StencilMesh`: `follower` (Art's `MeshFollower`) shows every one of that group under
+## the world it follows.
+static func track(follower: Node3D) -> void:
+	follower.track_group(DecalFactory.STENCIL_GROUP, Callable(StencilMesh, &"build"))

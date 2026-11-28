@@ -15,9 +15,12 @@ static func under(root: Node, type: String) -> Array:
 # --- Pieces and their lights ----------------------------------------------------------------------
 
 
-## The pieces (RigidBody2D objects with a `look`: their `art` and `art_opts`) under `root`.
+## The pieces (plan handles of `TwinSpace.PIECES` with a `look`: their `art` and `art_opts`) under
+## `root`.
 static func pieces(root: Node) -> Array:
-	return under(root, "RigidBody2D").filter(func(n: Node) -> bool: return "look" in n)
+	return under(root, "Node2D").filter(
+		func(n: Node) -> bool: return n.is_in_group(TwinSpace.PIECES) and "look" in n
+	)
 
 
 ## The lights `piece` (a piece from `pieces`) declares: its `get_lights()`.

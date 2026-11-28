@@ -33,11 +33,11 @@
 			],
 			"pick": "door_690_360",
 			"probabilities": {
-				"door_480_150": 0.3672,
-				"door_690_360": 0.6328
+				"door_480_150": 0.372,
+				"door_690_360": 0.628
 			},
 			"question": "Which doorway should you go through? Prefer the shortest route.",
-			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the kitchen, inside the house, holding a Pistol. You are unhurt.\nCurrent activity: SEARCH - ENTER - the doorway to the north-west (waiting, for 16s).\nDecided so far: SEARCH → ENTER."
+			"state": "You are breaking into this house. Search it and shoot everyone you find with your pistol.\nYou are in the kitchen, inside the house, holding a Pistol. You are unhurt.\nCurrent activity: SEARCH - ENTER - the doorway to the north-west (waiting, for 21s).\nDecided so far: SEARCH → ENTER."
 		}
 	],
 	"version": 1

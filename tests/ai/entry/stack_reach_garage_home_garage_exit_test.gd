@@ -24,6 +24,15 @@ const STARTS := {
 		&"beyond": "in the room beyond (the garage)",
 		&"far_end": "at the far end of the house (the living room)",
 }
+## `wrong` walks the long way round the house (west, then along its south wall past the front door
+## `door_0_0`, east). The move-up of the member behind it (about 12 s in) re-claims its slot; if
+## that lands while it is crossing the front door's view (x -94 to 94 on the wall's south side) the
+## entry guard secures that door and the member gives its claim up (E15). Where it stands when the
+## move-up comes is a matter of a few px of the walk (the 4 px nav mesh runs its lanes 1 to 2 px off
+## the old mesh's). Measured by start x (step 20): 60 to 260 pass, 280 to 320 fail (the member is
+## across the view when the move-up lands): 200 stands in the passing band, 60 px inside its last
+## passing start and 80 px from the failing ones.
+const WRONG_START := Vector2(200, -830)
 
 
 func describe() -> Dictionary:
@@ -44,7 +53,7 @@ func configure(s: TestSetup) -> void:
 	s.von_down()
 	s.switch(&"ai.hostile_on_trespass", false)
 	s.actor(&"near", &"invader", Vector2(650, -820), { "max_health": 1_000_000.0 })
-	s.actor(&"wrong", &"invader", Vector2(300, -830), { "max_health": 1_000_000.0 })
+	s.actor(&"wrong", &"invader", WRONG_START, { "max_health": 1_000_000.0 })
 	s.actor(&"beyond", &"invader", Vector2(620, -560), { "max_health": 1_000_000.0 })
 	s.actor(&"far_end", &"invader", Vector2(-70, -160), { "max_health": 1_000_000.0 })
 	s.actor(

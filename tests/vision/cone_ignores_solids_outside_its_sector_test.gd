@@ -6,6 +6,7 @@ extends GameTest
 ## cone forces one each frame. Through both the cone is the reference cone's, every frame, vertex
 ## for vertex (`tests/_vision/cone_checker.gd`).
 
+const RawTwins := preload("res://tests/_vision/raw_twins.gd")
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 const Checker := preload("res://tests/_vision/cone_checker.gd")
 ## The spec's backstop (V1): the most physics frames between two rebuilds.
@@ -40,6 +41,7 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
+	Probe.twin_bare_solids(t.world)
 	var view := Probe.view(t)
 	if not t.require(view != null, "the world has a view"):
 		return
@@ -85,11 +87,10 @@ func _creep(t: TestContext, body: Node2D, from: Vector2) -> void:
 
 
 ## A solid with a shape, standing at `at` in the world.
-func _solid_at(world: Node, at: Vector2) -> StaticBody2D:
-	var body := StaticBody2D.new()
-	body.collision_layer = PhysicsLayers.SOLID
+func _solid_at(world: Node, at: Vector2) -> RawTwins.Solid:
+	var body := RawTwins.Solid.new()
 	body.position = at
-	var shape := CollisionShape2D.new()
+	var shape := RawTwins.Shape.new()
 	var rect := RectangleShape2D.new()
 	rect.size = SOLID_SIZE
 	shape.shape = rect

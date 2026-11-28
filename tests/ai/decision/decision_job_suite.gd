@@ -115,7 +115,7 @@ func test_an_interrupt_cancels_a_job_half_built_and_starts_the_new_one() -> void
 	var kept_sections := _cadence.last_sections
 	var kept_demand := _cadence.last_demand
 	# Then a build spread over frames (a unit per hostile).
-	DecisionBudget.cost_hostile = 1
+	DecisionPrices.cost_hostile = 1
 	_perception.hostiles = 2
 	_frame += 1
 	assert_bool(_job.request(false)).is_true()
@@ -192,8 +192,8 @@ func test_a_cadence_wish_never_cancels_a_job_in_flight() -> void:
 
 
 func test_a_piece_dearer_than_the_pool_runs_alone_on_a_fresh_frame() -> void:
-	DecisionBudget.cost_hostile = 3  # more than the pool holds
-	DecisionBudget.cost_finish = 1
+	DecisionPrices.cost_hostile = 3  # more than the pool holds
+	DecisionPrices.cost_finish = 1
 	_perception.hostiles = 1
 	assert_bool(_job.request(false)).is_true()
 	_job.advance()
@@ -229,8 +229,8 @@ func test_an_answered_level_that_costs_waits_for_a_frame_with_room() -> void:
 
 
 func test_the_snapshot_stays_as_built_across_the_jobs_life() -> void:
-	DecisionBudget.cost_hostile = 1
-	DecisionBudget.cost_finish = 1
+	DecisionPrices.cost_hostile = 1
+	DecisionPrices.cost_finish = 1
 	_perception.confinement.label = "the house"
 	assert_bool(_job.request(false)).is_true()
 	_job.advance()
@@ -269,7 +269,7 @@ func test_an_order_it_cannot_carry_out_is_refused_and_replaces_the_confinement_c
 
 
 func test_a_build_is_stale_when_its_claim_time_entry_differs() -> void:
-	DecisionBudget.cost_hostile = 1
+	DecisionPrices.cost_hostile = 1
 	_perception.entry = &"root"  # what the situation calls for as the build is claimed
 	assert_bool(_job.request(false)).is_true()
 	assert_bool(_job.stale(&"root")).is_false()  # claimed: its start has not run
@@ -287,7 +287,7 @@ func test_a_build_is_stale_when_its_claim_time_entry_differs() -> void:
 
 
 func test_a_build_is_frozen_from_its_start_to_its_walk() -> void:
-	DecisionBudget.cost_hostile = 1
+	DecisionPrices.cost_hostile = 1
 	assert_bool(_job.frozen()).is_false()  # nothing in flight
 	assert_bool(_job.request(false)).is_true()
 	assert_bool(_job.frozen()).is_false()  # claimed: its start will still read what is now
@@ -303,7 +303,7 @@ func test_a_build_is_frozen_from_its_start_to_its_walk() -> void:
 
 
 func test_whether_the_last_choice_continues_is_judged_as_the_walk_begins() -> void:
-	DecisionBudget.cost_hostile = 1
+	DecisionPrices.cost_hostile = 1
 	_running = true
 	assert_bool(_job.request(false)).is_true()
 	_job.advance()
@@ -316,7 +316,7 @@ func test_whether_the_last_choice_continues_is_judged_as_the_walk_begins() -> vo
 
 
 func test_an_order_taken_during_the_build_is_not_refused_on_a_snapshot_made_without_it() -> void:
-	DecisionBudget.cost_hostile = 1
+	DecisionPrices.cost_hostile = 1
 	_perception.order_options = []
 	assert_bool(_job.request(false)).is_true()  # no order held as the build starts
 	_job.advance()
@@ -365,17 +365,18 @@ func test_an_order_overtakes_only_a_job_begun_before_it() -> void:
 
 
 func test_every_piece_kind_has_its_own_price_and_an_unknown_one_has_none() -> void:
-	DecisionBudget.cost_start = 3
-	DecisionBudget.cost_hostile = 5
-	DecisionBudget.cost_finish = 11
+	DecisionPrices.cost_start = 3
+	DecisionPrices.cost_hostile = 5
+	DecisionPrices.cost_ambush = 9
+	DecisionPrices.cost_finish = 11
 	DecisionBudget.cost_throw_block = 2
 	DecisionBudget.cost_throw_rank = 4
 	DecisionBudget.cost_throw_route = 7
 	DecisionBudget.cost_group_unit = 3
-	DecisionBudget.cost_group_finish = 0
 	var build_kinds: Dictionary = Job.SnapshotBuild.Piece
 	assert_int(_job.cost_of(build_kinds.START)).is_equal(3)
 	assert_int(_job.cost_of(build_kinds.HOSTILE)).is_equal(5)
+	assert_int(_job.cost_of(build_kinds.AMBUSH)).is_equal(9)
 	assert_int(_job.cost_of(build_kinds.FINISH)).is_equal(11)
 	assert_int(_job.cost_of(build_kinds.DONE)).is_equal(-1)  # nothing runs for it
 	assert_int(_job.cost_of(99)).is_equal(-1)  # never taken for a start

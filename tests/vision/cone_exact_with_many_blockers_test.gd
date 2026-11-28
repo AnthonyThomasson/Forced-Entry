@@ -31,6 +31,8 @@ const SIDE_MARGIN := 2.5
 const BEHIND_MARGIN := 3.0
 const MIN_BEHIND := 300
 const MIN_SEEN := 300
+## The height (px) of the column a reach count asks over: over everything.
+const COLUMN := 200.0
 
 var _t: TestContext
 var _view: PlayerView
@@ -82,7 +84,7 @@ func run(t: TestContext) -> void:
 	await t.frames(2)
 	if not t.require(await Probe.place(t, eye, EYE_AT, Vector2.RIGHT), "the eye faces east"):
 		return
-	_exclude = [eye.get_rid()]
+	_exclude = []
 	var in_reach := _shapes_in_reach()
 	t.check(
 		in_reach >= MIN_IN_REACH,
@@ -124,12 +126,15 @@ func _grid(s: TestSetup, name: String, area: Rect2, step: Vector2) -> void:
 
 ## How many solid shapes the eye's reach holds, asked with a cap far over any count.
 func _shapes_in_reach() -> int:
-	var circle := CircleShape2D.new()
-	circle.radius = Probe.REACH
-	var query := PhysicsShapeQueryParameters2D.new()
-	query.shape = circle
-	query.transform = Transform2D(0.0, EYE_AT)
-	query.collision_mask = PhysicsLayers.SOLID
+	var column := CylinderShape3D.new()
+	column.radius = Probe.REACH
+	column.height = COLUMN
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = column
+	query.transform = Transform3D(
+		Basis.IDENTITY, PlanSpace.lift(EYE_AT, Probe.SEE_OVER + COLUMN * 0.5)
+	)
+	query.collision_mask = SightRay.MASK
 	query.exclude = _exclude
 	return Probe.space(_t).intersect_shape(query, 100_000).size()
 

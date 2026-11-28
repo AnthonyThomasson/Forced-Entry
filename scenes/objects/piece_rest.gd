@@ -1,0 +1,16 @@
+class_name PieceRest
+extends RefCounted
+## Objects domain, where a piece rests (`docs/stacked-items.md`): how high it
+## was put down (`ObjectFactory.spawn_on`) and whether it lies within a step. Held by
+## `EnvironmentObject.rest`; its free body (`PieceBody`, `ItemBody`) reads and writes it.
+
+## How high (px above the floor) the piece was set down: on another piece's top. Its free body
+## starts there and settles; 0 is the floor.
+var lift := 0.0
+## Whether the piece lies no higher than a step (`DoorFallConfig.step_over`): a walker passes it and
+## it is no hole in the nav bake. Written by `ItemBody`; false for every other piece.
+var walk_over := false
+## The items set on this piece (`ObjectFactory.spawn_on`) that have no twin yet: what a later item
+## set on the same spot in the same frame rests on, the twin space not having taken them over to say
+## so.
+var stacked: Array[Node2D] = []

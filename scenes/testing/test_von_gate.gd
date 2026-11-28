@@ -35,6 +35,9 @@ var live := false
 ## Whether requires_von tests RECORD: live, each writing its recording (the host sets it for
 ## `--record-von`, and only that does).
 var record := false
+## Whether the open test was skipped for want of the server (the session sets it per test, and the
+## test's record carries it).
+var skipped := false
 ## Where the Von launcher lives: it is kept, with the server it started, as long as that node does.
 var launcher_parent: Node = null
 ## While true, each frame sleeps out the rest of 1/REALTIME_FPS of wall time (Engine.max_fps is not

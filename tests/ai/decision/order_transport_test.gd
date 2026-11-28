@@ -52,6 +52,16 @@ func run(t: TestContext) -> void:
 	})
 	await _check_first_order(t, a, b, c, c_walks)
 	await _check_held(t, a)
+	# The gunfire beside a is heard by b too: both leave their orders for a reaction (cover, the
+	# shots) and come back. Which of them is still mid-reaction when the next order lands depends on
+	# the length of the way to the cover it picked, so the orders are judged once both are back. An
+	# order landing on a recipient mid-reaction is `order_fight_goes_on` (mid-fight) and
+	# `order_retreat_goes_on` (mid-retreat); this test judges what the orders carry.
+	t.require(
+		await t.until(func(): return OrderBrain.on_order(a) and OrderBrain.on_order(b), 15.0),
+		"set-up: both recipients are back on the first order after the gunfire (acts %s, %s)"
+			% [a.current_act(), b.current_act()],
+	)
 	await _check_replaced(t, a, b, boss)
 	await _check_cancelled(t, a, b, boss)
 
@@ -106,9 +116,17 @@ func _check_replaced(t: TestContext, a: Node, b: Node, boss: Node) -> void:
 		"a newer order replaces the old one (a's running order: %s %s)"
 			% [OrderBrain.primitive(a), str(OrderBrain.params(a))],
 	)
+	# The order b holds is judged at once (the facts' `ordered` and the held order's room, whatever
+	# b's running leaf is: a reaction of its own may have it mid-walk to a cover or a lead); only
+	# that it is on the walk to the order again waits.
+	t.check(OrderBrain.ordered(b), "the other recipient still decides with `ordered`")
 	t.check(
-		OrderBrain.on_order(b) and String(OrderBrain.params(b).get("room", "")) == "kitchen",
-		"the other recipient keeps the first order (%s)" % str(OrderBrain.params(b)),
+		String(OrderBrain.held(b).get("room", "")) == "kitchen",
+		"the other recipient keeps the first order (%s)" % str(OrderBrain.held(b)),
+	)
+	t.check(
+		await t.until(func(): return OrderBrain.on_order(b), 10.0),
+		"... and walks it (act %s)" % b.current_act(),
 	)
 
 
@@ -130,6 +148,6 @@ func _check_cancelled(t: TestContext, a: Node, b: Node, boss: Node) -> void:
 	)
 	t.check(not OrderBrain.ordered(a), "and the recipient decides without `ordered`")
 	t.check(
-		OrderBrain.on_order(b),
+		await t.until(func(): return OrderBrain.on_order(b), 10.0),
 		"the cancel named only one recipient: the other is still on its order",
 	)

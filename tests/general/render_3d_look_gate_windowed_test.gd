@@ -24,6 +24,7 @@ extends GameTest
 ## `LOOK_SCENE=street LOOK_DIR=<dir> tools/run_tests.sh --windowed
 ## --id=general/render_3d_look_gate_windowed`.
 
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const CameraScript := preload("res://scenes/general/camera_controller.gd")
 const CharacterScene := preload("res://scenes/character/character_base.tscn")
@@ -198,8 +199,8 @@ func _street(t: TestContext, doors_open: bool) -> void:
 		else:
 			spot = Vector2(road.get_center().x, clampf(spot.y, road.position.y, road.end.y))
 	var along := Vector2.RIGHT if road.size.x >= road.size.y else Vector2.DOWN
-	var car := CarScene.instantiate() as RigidBody2D
-	var van := VanScene.instantiate() as RigidBody2D
+	var car := CarScene.instantiate() as Node2D
+	var van := VanScene.instantiate() as Node2D
 	car.position = spot - along * 150.0
 	van.position = spot + along * 170.0
 	car.rotation = along.angle()
@@ -245,7 +246,7 @@ func _firefight(t: TestContext) -> void:
 	right.health = 400.0
 	_aim(left, right.global_position)
 	_aim(right, left.global_position)
-	for c: CharacterBody2D in [left, right]:
+	for c: Node2D in [left, right]:
 		var slot: int = c.inventory.gun_slot()
 		if slot > 0:
 			c.inventory.select_slot(slot)
@@ -253,7 +254,7 @@ func _firefight(t: TestContext) -> void:
 	for moment: Vector2 in _moments:
 		_set_yaw(moment.y)
 		for burst in 8:
-			for c: CharacterBody2D in [left, right]:
+			for c: Node2D in [left, right]:
 				if not c.is_dead:
 					c.weapon.shoot()
 			await t.seconds(0.12)
@@ -289,7 +290,7 @@ func _characters(t: TestContext) -> void:
 		"casual", "helmeted", "tactical", "aiming",
 		"crouched", "fallen", "dropped", "walking",
 	]
-	var people: Array[CharacterBody2D] = []
+	var people: Array[Node2D] = []
 	for i in kinds.size():
 		var col := i % 4
 		var row := int(i / 4.0)
@@ -321,6 +322,9 @@ func _glass(t: TestContext) -> void:
 	door.look.material = "glass"
 	door.look.style = "panes"
 	door.look.broken = true
+	# The twin keeps whether sight looks through it for its life (`SightRay.looks_through`): a door
+	# made glass while standing gets its twin again.
+	TwinSpace.retwin(door)
 	await t.frames(10)
 	await _sweep(t, "glass", door.global_position)
 	door.take_damage(10_000.0)
@@ -509,16 +513,16 @@ func _open_room() -> Rect2:
 ## Hide the furniture in `rect` (and its clutter) so a line-up or a duel stands clear: the body
 ## itself, so 2D stops drawing it and the 3D mirror hides its mesh with it.
 func _hide_pieces_in(rect: Rect2) -> void:
-	for body: Node in _world.find_children("*", "PhysicsBody2D", true, false):
-		var node := body as Node2D
+	for node: Node2D in PlanProbe.bodies_under(_world):
+		var body: Node = node
 		if (rect.grow(20.0).has_point(node.global_position)
-				and MirrorProxy.kind_of(body) == MirrorProxy.FURNITURE):
+				and MeshKinds.kind_of(body) == MeshKinds.FURNITURE):
 			node.visible = false
 
 
 ## One character at `at`, dressed and posed by `kind`; nobody shoots it when `safe`.
-func _spawn(at: Vector2, kind: String, safe: bool) -> CharacterBody2D:
-	var c := CharacterScene.instantiate() as CharacterBody2D
+func _spawn(at: Vector2, kind: String, safe: bool) -> Node2D:
+	var c := CharacterScene.instantiate() as Node2D
 	c.global_position = at
 	_world.add_child(c)
 	c.movement.controller = null
@@ -546,12 +550,12 @@ func _spawn(at: Vector2, kind: String, safe: bool) -> CharacterBody2D:
 	return c
 
 
-func _aim(c: CharacterBody2D, point: Vector2) -> void:
+func _aim(c: Node2D, point: Vector2) -> void:
 	c.movement.aim_point = point
 
 
 ## The match's own characters moved far off, except `keep`.
 func _send_others_away(keep: Node2D) -> void:
-	for body: Node in _world.find_children("*", "CharacterBody2D", true, false):
+	for body: Node in PlanProbe.characters_under(_world):
 		if body != keep:
 			(body as Node2D).global_position = Vector2(-6000.0, -6000.0)

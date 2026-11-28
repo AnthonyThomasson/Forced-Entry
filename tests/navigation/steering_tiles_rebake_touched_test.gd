@@ -16,7 +16,7 @@ const MOST_REACHED := 4
 const MOST_MOVED := 8
 
 var _district: Node2D
-var _region: NavigationRegion2D
+var _region: NavigationRegion3D
 var _rooms: Array
 var _tiles: Array
 
@@ -42,7 +42,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)
 	_district = t.world.get("district") as Node2D
-	_region = t.world.find_children("NavRegion", "NavigationRegion2D", true, false)[0]
+	_region = t.world.find_children("NavRegion", "NavigationRegion3D", true, false)[0]
 	_rooms = WorldGen.district_rooms(_district)
 	_tiles = NavBuilder.steering_regions(_region)
 	if not t.require(_tiles.size() > 2 * MOST_MOVED, "premise: the steering map is many tiles"):
@@ -77,7 +77,7 @@ func run(t: TestContext) -> void:
 ## `NavBuilder.rebake_steering` (a re-bake replaces it).
 func _rebaked() -> int:
 	var before: Array = _tiles.map(
-		func(tile: NavigationRegion2D) -> NavigationPolygon: return _baked(tile),
+		func(tile: NavigationRegion3D) -> NavigationPolygon: return _baked(tile),
 	)
 	NavBuilder.rebake_steering(_region, _district, _rooms)
 	var changed := 0
@@ -88,5 +88,5 @@ func _rebaked() -> int:
 
 
 ## The polygon `tile` was baked to (null before its first bake).
-func _baked(tile: NavigationRegion2D) -> NavigationPolygon:
+func _baked(tile: NavigationRegion3D) -> NavigationPolygon:
 	return tile.get_meta(NavSeams.RAW_META, null)

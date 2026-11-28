@@ -27,6 +27,7 @@ const StackLayout := preload("res://scenes/ai/perception/stack/stack_layout.gd")
 const EntrySlots := preload("res://scenes/ai/perception/entry/entry_slots.gd")
 const EntryPosts := preload("res://scenes/ai/perception/entry/entry_posts.gd")
 const EntryLayouts := preload("res://scenes/ai/perception/entry/entry_layouts.gd")
+const EntryBodyMaps := preload("res://scenes/ai/perception/entry/entry_body_maps.gd")
 ## How far (px) outside the threshold the "entry point" is that a corner is judged hard or soft
 ## from.
 const ENTRY_POINT_DEPTH := 24.0
@@ -38,8 +39,6 @@ const SHORT_ROOM_CAPACITY := 2
 ## A body's radius (px): a slot against the wall stands clear of the doorway's opening by it, one on
 ## the open floor off its axis.
 const SLOT_BODY := 14.0
-## Sides of the polygon a body is carved as (`slot_reach`).
-const BODY_SEGMENTS := 10
 ## The walk's last-leg rule, held here once for the walk and for `slot_reach`'s prediction of it:
 ## a route round bodies at rest that ends short of its goal still reaches it by a last leg walked
 ## plain, at most `LAST_LEG` long (px; behaviour's locomotion crowd reads it), passing no body
@@ -49,6 +48,8 @@ const LAST_LEG := 64.0
 const PASS_CLEARANCE := 32.0
 ## The step (px) a side's wall is walked along in.
 const SLOT_STEP := 4.0
+## How far (px) off a route a body may stand and still shape a way round it (`slot_reach`).
+const BODY_CORRIDOR := 64.0
 
 ## The sight sense (sight rays over low cover): the perception hands in its own.
 var vision: RefCounted = AgentVision.new()
@@ -151,16 +152,34 @@ func watch_doors(room_key: String, exclude_id: String, is_cleared: Callable) -> 
 ## with the plain way on from there that long at most and passing none of `bodies` closer than
 ## `PASS_CLEARANCE` (a slot between two taken ones lies inside their carved margins, and a walk goes
 ## in by that last leg); 0 when it does not, -1 while that map is still being baked (asking starts
-## the bake). What an entry asks before it reads a hold as sealing its slot for good (E2). 1 when
-## there is no planning region to carve.
+## the bake). Only the bodies within `BODY_CORRIDOR` of the plain route are carved first; a way
+## round that leaves that corridor and passes a body not carved (within its margin and the agent's
+## radius of the route) has it carved too and is asked again, once. What an entry asks before it
+## reads a hold as sealing its slot for good (E2). 1 when there is no planning region to carve.
 func slot_reach(from: Vector2, to: Vector2, map: RID, bodies: Array) -> int:
 	var region := NavBuilder.planning_region(map)
 	if region == null or not NavBuilder.ready(map):
 		return 1
-	var carved := _bodies_map(region, bodies)
-	if not carved.is_valid() or not NavBuilder.ready(carved):
-		return -1
-	var path := NavBuilder.route(carved, from, to)
+	var plain := NavBuilder.route(map, from, to)
+	var near := bodies if plain.size() < 2 else _bodies_near(bodies, plain, BODY_CORRIDOR)
+	var path := plain
+	for ask in 2:
+		if near.is_empty():
+			break
+		var carved := _bodies_map(region, near)
+		if not carved.is_valid() or not NavBuilder.ready(carved):
+			return -1
+		path = NavBuilder.route(carved, from, to)
+		# The way round may leave the corridor of the plain one and meet a body it did not carve:
+		# carve those too and ask again (once: a set is a bake only when it is new).
+		var more := _bodies_near(
+			bodies.filter(func(b: Vector2) -> bool: return not near.has(b)),
+			path,
+			SLOT_BODY + NavBuilder.OBSTACLE_MARGIN + NavBuilder.AGENT_RADIUS,
+		)
+		if more.is_empty() or ask == 1:
+			break
+		near = near + more
 	if path.is_empty():
 		return 0
 	var end := path[path.size() - 1]
@@ -170,21 +189,25 @@ func slot_reach(from: Vector2, to: Vector2, map: RID, bodies: Array) -> int:
 	return 1 if _last_leg_clear(map, end, goal, bodies) else 0
 
 
-## The avoid map (`NavBuilder.avoid_map`) of planning region `region` with a body carved at each of
-## `bodies` (a `BODY_SEGMENTS`-gon of `SLOT_BODY` and `NavBuilder.OBSTACLE_MARGIN`), keyed by the
-## bodies on a `SLOT_STEP` grid (`slot_reach`).
-func _bodies_map(region: NavigationRegion2D, bodies: Array) -> RID:
-	var keys: Array = []
-	var holes: Array = []
+## The bodies of `bodies` within `reach` of the route `path`: with `BODY_CORRIDOR` of the plain
+## route, the only ones a carved way round is likely held by; with a carved body's margin and the
+## agent's radius of a carved route, the ones it would walk into.
+func _bodies_near(bodies: Array, path: PackedVector2Array, reach: float) -> Array:
+	var out: Array = []
 	for b: Vector2 in bodies:
-		keys.append("%d,%d" % [int(b.x / SLOT_STEP), int(b.y / SLOT_STEP)])
-		var hole := PackedVector2Array()
-		for i in BODY_SEGMENTS:
-			hole.append(b + Vector2.from_angle(TAU * i / BODY_SEGMENTS) * (SLOT_BODY
-					+ NavBuilder.OBSTACLE_MARGIN))
-		holes.append(hole)
-	keys.sort()
-	return NavBuilder.avoid_map(region, "bodies:" + ";".join(keys), holes)
+		for i in range(1, path.size()):
+			if (Geometry2D.get_closest_point_to_segment(b, path[i - 1], path[i]).distance_to(b)
+					<= reach):
+				out.append(b)
+				break
+	return out
+
+
+## The avoid map (`NavBuilder.avoid_map`) of planning region `region` with a body carved at each of
+## `bodies` (a polygon of `SLOT_BODY` and `NavBuilder.OBSTACLE_MARGIN`): one kept for
+## the same bodies within `EntryBodyMaps.TOLERANCE` (`slot_reach`).
+func _bodies_map(region: NavigationRegion3D, bodies: Array) -> RID:
+	return EntryBodyMaps.of(region, bodies, SLOT_BODY + NavBuilder.OBSTACLE_MARGIN)
 
 
 ## How close (px) a walk may pass a body it now stands `stands_off` px from: `PASS_CLEARANCE`, or
@@ -219,7 +242,7 @@ func _last_leg_clear(map: RID, end: Vector2, goal: Vector2, bodies: Array) -> bo
 ## near, side, hard }], room (the room's rect), depth (px the room runs in from the door to its far
 ## wall), capacity (how many may go in: 2 for a short room, else MAX_SLOTS) }; once laid on a baked
 ## map also the stack's ground (`EntrySlots.lay`: `from`, `from_room`, `from_depth`, ...).
-func geometry(id: String, into: String, map: RID, space: PhysicsDirectSpaceState2D) -> Dictionary:
+func geometry(id: String, into: String, map: RID, space: PhysicsDirectSpaceState3D) -> Dictionary:
 	var key := "%s>%s" % [id, into]
 	if layouts.cache.has(key):
 		return layouts.cache[key]
@@ -244,7 +267,7 @@ func geometry(id: String, into: String, map: RID, space: PhysicsDirectSpaceState
 ## doorways are laid in the first frames after the bake rather than in the middle of a decision.
 ## Once a pass finds them all laid it looks no more (`layouts.warm_done_in`) until the house, a
 ## tunable or the map's shared geometry changes.
-func warm_geometry(map: RID, space: PhysicsDirectSpaceState2D) -> void:
+func warm_geometry(map: RID, space: PhysicsDirectSpaceState3D) -> void:
 	var frame := Engine.get_physics_frames()
 	if frame == EntryLayouts.warmed_frame or space == null:
 		return
@@ -271,7 +294,7 @@ func _build(
 	opening: Dictionary,
 	room: Dictionary,
 	map: RID,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 ) -> Dictionary:
 	var pos: Vector2 = opening["pos"]
 	var rect: Rect2 = room["rect"]
@@ -355,7 +378,7 @@ func _pie_arc(g: Dictionary, s: int, lookouts: Array, map: RID) -> Array:
 ## The four corners of room `rect` behind the entry framed in `g`, inset `corner_inset` (at most a
 ## quarter of the room's short side) and snapped onto `map`: `[{ pos, near, side, hard }]`, `near`
 ## on the door's own wall, `hard` unseen from `ENTRY_POINT_DEPTH` outside the threshold.
-func _corners(g: Dictionary, rect: Rect2, map: RID, space: PhysicsDirectSpaceState2D) -> Array:
+func _corners(g: Dictionary, rect: Rect2, map: RID, space: PhysicsDirectSpaceState3D) -> Array:
 	var pos: Vector2 = g["pos"]
 	var out: Vector2 = g["out"]
 	var along: Vector2 = g["along"]
@@ -414,7 +437,7 @@ static func wall_length(rect: Rect2, pos: Vector2, dir: Vector2) -> float:
 ## Whether the line `from` → `to` is clear for sight (over low cover; walls and tall furniture block
 ## it), the rids `exclude` looked through.
 func _sees(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	from: Vector2,
 	to: Vector2,
 	exclude: Array = [],
@@ -438,7 +461,7 @@ func stack_side_from(
 	stack: RefCounted,
 	from: Vector2,
 	map: RID,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 ) -> int:
 	var g: Dictionary = stack.geometry
 	var team_side: int = stack.team_side(from)
@@ -457,7 +480,7 @@ func cuts_view(
 	from: Vector2,
 	to: Vector2,
 	map: RID,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 ) -> bool:
 	var view: PackedVector2Array = views.door_view(g["id"], g["into"], map, space)
 	if view.is_empty() or Geometry2D.is_point_in_polygon(from, view):

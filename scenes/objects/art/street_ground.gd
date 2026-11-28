@@ -20,12 +20,12 @@ var _roads := 0
 
 
 ## Read the road floors under `root` (the match's world): the rects come from the floors group, as
-## `WorldMirror` finds them. Call it again after floors were added.
+## `MeshCarrier` finds them. Call it again after floors were added.
 func refresh(root: Node) -> void:
 	_grid.clear()
 	_roads = 0
 	for node: Node in root.get_tree().get_nodes_in_group(&"floors"):
-		if root.is_ancestor_of(node) and _is_road(node):
+		if root.is_ancestor_of(node) and is_road(node):
 			_add(Rect2((node as Node2D).global_position, node.get("size")))
 
 
@@ -46,8 +46,8 @@ func offset_at(at: Vector2) -> float:
 
 
 ## Whether `node` is a road: a floor of art `street` that is not the sidewalk.
-func _is_road(node: Node) -> bool:
-	if not node is Node2D or MirrorProxy.art_of(node) != "street":
+static func is_road(node: Node) -> bool:
+	if not node is Node2D or MeshKinds.art_of(node) != "street":
 		return false
 	var opts: Variant = node.get("art_opts")
 	return node.get("size") is Vector2 and not (

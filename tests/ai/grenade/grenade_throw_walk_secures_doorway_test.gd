@@ -19,6 +19,7 @@ extends GameTest
 ## Premises: the puppet cannot be killed and never shoots; the invader is armed at the start of
 ## `run`, the way Main arms a spawn.
 
+const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Spot := preload("res://tests/_ai/throw_spot_probe.gd")
@@ -27,8 +28,10 @@ const CORRIDOR := Rect2(0, 300, 1000, 140)
 const STUDY := Rect2(600, 0, 320, 300)
 const STUDY_DOOR := Vector2(760, 300)
 const EXIT_DOOR := Vector2(1000, 370)
-const H_AT := Vector2(130, 370)
-const DESK_AT := Vector2(220, 370)
+## 80 px behind the desk's west edge (190): a lob comes down no steeper than the room's ceiling
+## lets it, so a hostile any closer behind the desk is out of a throw's reach.
+const H_AT := Vector2(110, 370)
+const DESK_AT := Vector2(280, 370)
 const I_AT := Vector2(870, 370)
 ## The study's doorway as the doorway-view probe frames it (`out`: away from the study, into the
 ## corridor).
@@ -54,11 +57,12 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	Hiding.von_out(s)
 	s.layout([
 		{ "key": "corridor", "type": "hallway", "rect": CORRIDOR },
 		{ "key": "study", "type": "home_office", "rect": STUDY },
 	], [{ "pos": STUDY_DOOR, "width": 80.0 }, { "pos": EXIT_DOOR, "width": 80.0 }])
-	s.object(&"desk", "desk", DESK_AT)
+	s.object(&"desk", Hiding.low_cover("desk"), DESK_AT)
 	s.von_script([
 		{ "pick": "combat" },
 		{ "pick": "grenade" },
@@ -74,6 +78,8 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var inv := t.actor(&"i")
 	Probe.arm(inv, 1, 0)
+	if not await Hiding.duck_after_seen(t, &"h", &"i"):
+		return
 	if not _set_up(t, inv):
 		return
 	var brain := t.controller(&"i", &"debug_zones")

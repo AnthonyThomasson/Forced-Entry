@@ -4,7 +4,7 @@ The BUILD half of perception: from what the NPC knows (contacts, memory, learned
 
 ## Files
 
-- `agent_snapshot.gd` — `build`, the `facts` literal (`_facts`), the per-hostile pieces (`_hostile_piece`, `_analyse_target`), assembly of `sections` and `options` (`_state_sections`, `_option_groups`: the groups every walk reads), `fill_goal`.
+- `agent_snapshot.gd` — `build`, the `facts` literal (`_facts`), the per-hostile pieces (`_hostile_piece`, `_analyse_step`), assembly of `sections` and `options` (`_state_sections`, `_option_groups`: the groups every walk reads), `fill_goal`.
 - `snapshot/snapshot_sources.gd` (`SnapshotSources`) — the perception modules it reads, filled once by the perception's `setup()`.
 - `snapshot/snapshot_vocab.gd` (`SnapshotVocab`) — the shared vocabulary and tuning: `COMPASS`, the band and wording helpers (`dist_band`, `recency`, `route_band`, `place`, `where`, ...), the house `rooms` of the decision in build, the NPC's `character` (set by `bind`). Tunables are read live off `vocab.tuning` (`NpcTuning` topics, handed in by `apply_config`).
 - `snapshot/snapshot_sections.gd` — the `*_text` functions behind the sections.
@@ -26,7 +26,7 @@ The lazy groups, facts and sections (`snapshot["demand"]`), the `grenade_ready` 
 ## Facts and sections
 
 - Facts that gate the tree: `threat_known`, `hostile_known`, `gun_loaded`, `weapon_low`, `can_reload`, `under_fire`, `engaged`, `leads`, `lead_outside` (gates INVESTIGATE's `stay`), `grenade_ready`, `stack_has_stun` (gates STUN ENTRY), `ordered` (gates ORDER, LD5), `follows` (gates FOLLOW; the controller sets it on the perception each tick from `Squad.follows`, LD19).
-- `sections_per_target[id]` re-frames exposure, flanks and allies round each hostile selected for full analysis. Full analysis is capped at `min(tuning.decision.max_analysed_targets, max_options_per_level)`: the engaged hostile reserves a slot, then the nearest others fill the rest without reordering contacts. Hostiles beyond the cap keep their cheap line facts for shared facts and the `hostiles` bind, but get no per-target groups or sections; the shared exposure / allies / flanks sections use the nearest hostile with full analysis (`ai/decision/analyses_engaged_and_nearest`). The `loadout` section speaks of the gun in bands, never round counts, naming it by `gun_noun`.
+- `sections_per_target[id]` re-frames exposure, flanks and allies round each hostile selected for full analysis. Full analysis is capped at `min(tuning.decision.max_analysed_targets, max_options_per_level)`: the engaged hostile reserves a slot, then the nearest others fill the rest; none engaged: ONE, the nearest in sight, else the nearest (`analyses_one_when_not_engaged`). Hostiles beyond the cap keep their line facts, no per-target groups or sections; the shared exposure / allies / flanks sections use the nearest hostile with full analysis (`ai/decision/analyses_engaged_and_nearest`). The `loadout` section speaks of the gun in bands, never round counts (`gun_noun`).
 - The `order` section (`order_text`, LD6): one sentence while the NPC holds an order, "" otherwise, shown after the goal at every level, so an NPC with no order reads exactly what it read before (`tests/ai/decision/unordered_state_unchanged_test.gd`, `tests/ai/order_text_suite.gd`). It carries the order's mode, " when they give the go" while a stack is held (the room in `knowledge.keep_out`, so not once the go came), the ambush doorway, and a join's sentence (LD24).
 
 ## Option groups

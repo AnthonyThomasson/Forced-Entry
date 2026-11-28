@@ -10,9 +10,8 @@ extends RefCounted
 ## `textures`: the probe keeps a `BodyMesh` under the character and updates it as the mirror does).
 ##
 ## Rounds are fired straight down a lane with `ProjectileSpawner.spawn` and the gun's own
-## `GunConfig` numbers (or the frag's fragment numbers from `GrenadeConfig`), at a pinned
-## `BallisticsFlightConfig.bullet_height`, so a round meets a body square on at a known zone. A test
-## that fires calls `pin_height(s)` in `configure`, so the height it sets in `run` is restored.
+## `GunConfig` numbers (or the frag's fragment numbers from `GrenadeConfig`), level at a given
+## height (`Shot.height`: px above the floor), so a round meets a body square on at a known zone.
 
 ## The outfit slots, in the order the setup window lists them: the String keys of `set_ids`'s ids,
 ## of `view()` and of a loadout's `outfit` (like a loadout's own keys); the garment ids
@@ -30,11 +29,11 @@ const GARMENTS := {
 }
 ## The slots that may be left empty (O1: head and vest; O8: each plate).
 const MAY_BE_EMPTY: Array[String] = ["head", "vest", "front_plate", "back_plate"]
-## Bullet heights (0..100) inside each zone (O2: height / coverage -> feet <= 0.08, legs <= 0.45,
-## torso <= 0.85, head above) of a standing body (coverage 60) and a crouched one (coverage 35). 25
-## is the legs standing and the torso crouched.
-const STAND := { &"feet": 3.0, &"legs": 25.0, &"torso": 40.0, &"head": 55.0 }
-const CROUCH := { &"feet": 2.0, &"legs": 12.0, &"torso": 25.0, &"head": 32.0 }
+## Bullet heights (px above the floor) inside each zone (O2: `BodyHeights.zones`: a standing body's
+## feet to 4.2, legs to 38.1, torso to 64.3, head to 74; a crouched one's (the duck) feet to 2.5,
+## legs to 17.8, torso to 30.5, head to 36). 20 is the legs standing and the torso crouched.
+const STAND := { &"feet": 2.0, &"legs": 20.0, &"torso": 50.0, &"head": 70.0 }
+const CROUCH := { &"feet": 1.5, &"legs": 10.0, &"torso": 24.0, &"head": 33.0 }
 ## O3: the damage each zone takes, against the torso's.
 const ZONE_DAMAGE := { &"feet": 0.6, &"legs": 0.6, &"torso": 1.0, &"head": 2.0 }
 ## A full plated kit (O10, O11: the invaders' default) and the defenders' default.
@@ -57,12 +56,6 @@ const LANE_GAP := 55.0
 
 
 # --- Wearing and reading an outfit ----------------------------------------------------------------
-
-
-## Pin the bullet height through `set_static` so the heights `fire` sets in `run` are restored after
-## the test.
-static func pin_height(s: TestSetup, height := 40.0) -> void:
-	s.set_static(BallisticsFlightConfig, &"bullet_height", height)
 
 
 ## Whether `c` has the outfit API (its `wardrobe`, with the `outfit` it wears).
@@ -139,7 +132,7 @@ static func label_of(slot: String, id: StringName) -> String:
 
 
 ## Fire one `gun` round (`&"pistol"`, `&"smg"`, `&"rifle"`, or `&"fragment"` for a frag's fragment)
-## from `from` along `dir` at bullet height `height`, with that round's real numbers, dead straight.
+## from `from` along `dir` level at `height` px, with that round's real numbers, dead straight.
 ## Returns the projectile.
 static func fire(
 	t: TestContext,
@@ -148,13 +141,13 @@ static func fire(
 	gun: StringName,
 	height: float,
 ) -> Node:
-	BallisticsFlightConfig.bullet_height = height
 	if gun == &"fragment":
 		var frag := GrenadeConfig.row(&"frag")
 		var shard := Shot.new()
 		shard.muzzle_speed = float(frag["fragment_speed"])
 		shard.penetration = float(frag["fragment_penetration"])
 		shard.max_range = float(frag["fragment_range"])
+		shard.height = height
 		var fragment := ProjectileSpawner.spawn(from, dir, t.world, shard)
 		fragment.set("damage", float(frag["fragment_damage"]))
 		return fragment
@@ -163,6 +156,7 @@ static func fire(
 	shot.item_damage = float(row["damage"])
 	shot.muzzle_speed = float(row["muzzle_speed"])
 	shot.penetration = float(row["penetration"])
+	shot.height = height
 	return ProjectileSpawner.spawn(from, dir, t.world, shot)
 
 
@@ -291,9 +285,9 @@ static func can_read_art(c: Node) -> bool:
 
 
 ## One number per visible part of the character's 3D body, in order (its index, its art's instance
-## id and its colour): the same look gives the same numbers and a changed part a new one ([] when
-## the character has no body). Art is cached by what it depicts, so the same dress paints the same
-## textures.
+## id and its colour), then one for what it holds: the same look gives the same numbers and a
+## changed part a new one ([] when the character has no body). Art is cached by what it depicts, so
+## the same dress paints the same textures.
 static func art(c: Node) -> Array:
 	var mesh := body_of(c)
 	if mesh == null:
@@ -303,37 +297,36 @@ static func art(c: Node) -> Array:
 		mesh.on_body_died(c)
 	mesh.mirror_update(c)
 	var out: Array = []
-	for i in mesh.get_child_count():
-		var part := mesh.get_child(i) as MeshInstance3D
-		if part == null or not part.visible:
+	for i in BodyMesh.CROWN + 1:
+		var part := mesh.part(i)
+		if not part.visible:
 			continue
-		var tex := part_texture(part)
-		out.append(hash([
-			i,
-			tex.get_instance_id() if tex != null else 0,
-			part.get_instance_shader_parameter(&"base_color"),
-		]))
+		var tex := part.texture
+		out.append(hash([i, tex.get_instance_id() if tex != null else 0, part.tint]))
+	if mesh.held().visible:
+		var tex := held_texture(mesh)
+		out.append(hash([BodyMesh.CROWN + 1, tex.get_instance_id() if tex != null else 0]))
 	return out
 
 
-## The art `part` wears (null: it is a plain colour).
-static func part_texture(part: MeshInstance3D) -> Texture2D:
-	var material := part.material_override as ShaderMaterial
-	if material == null:
+## The art the held item's node wears (null: it is a plain colour).
+static func held_texture(mesh: BodyMesh) -> Texture2D:
+	if mesh.held().material_override == null:
 		return null
-	return material.get_shader_parameter(&"albedo_texture") as Texture2D
+	return MeshNodes.shown_texture(mesh.held())
 
 
-## The textures the character's body wears on its visible parts.
+## The textures the character's body wears on its visible parts, and what it holds.
 static func textures(c: Node) -> Array[Texture2D]:
 	var out: Array[Texture2D] = []
 	var mesh := body_of(c)
 	if mesh == null:
 		return out
 	art(c)
-	for i in mesh.get_child_count():
-		var part := mesh.get_child(i) as MeshInstance3D
-		var tex := part_texture(part) if part != null and part.visible else null
-		if tex != null:
-			out.append(tex)
+	for i in BodyMesh.CROWN + 1:
+		var part := mesh.part(i)
+		if part.visible and part.texture != null:
+			out.append(part.texture)
+	if mesh.held().visible and held_texture(mesh) != null:
+		out.append(held_texture(mesh))
 	return out

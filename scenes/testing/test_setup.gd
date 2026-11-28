@@ -108,7 +108,10 @@ func district(district_seed: int, plan: String = "", entrance := Vector2.ZERO) -
 
 
 ## Place an object `id` at `position`. `definition` is a catalogue key (WorldGen.object_definition)
-## or a full definition dict; `opts` are ObjectFactory's (rotated, color, facing).
+## or a full definition dict; `opts` are ObjectFactory's (rotated, color, facing). With `opts.on`
+## (the id of an object declared before it) it is a small item set on that object's top, `position`
+## the offset from its origin (`ObjectFactory.spawn_on`, interface 2); an item already on that spot
+## is what it rests on.
 func object(
 	id: StringName,
 	definition: Variant,

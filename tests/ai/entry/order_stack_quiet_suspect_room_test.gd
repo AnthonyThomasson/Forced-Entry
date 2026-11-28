@@ -36,7 +36,6 @@ func configure(s: TestSetup) -> void:
 	Suspect.world(s)
 	s.von_down()
 	s.switch(&"ai.hostile_on_trespass", false)
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"lead", &"puppet", Vector2(1250, 600), { "faction": &"invader" })
 	s.squads({ "human": &"lead" })
 

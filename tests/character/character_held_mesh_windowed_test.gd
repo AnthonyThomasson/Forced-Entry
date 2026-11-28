@@ -12,6 +12,7 @@ extends GameTest
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const CameraScript := preload("res://scenes/general/camera_controller.gd")
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const SCRATCH := "user://settings_character_held_mesh_windowed_test.json"
 const SIZE := Vector2i(1152, 648)
 const SPEC := {
@@ -79,7 +80,7 @@ func run(t: TestContext) -> void:
 	camera.set_physics_process(false)
 	await t.frames(30)
 	var view: Node = main.get_node("View3D")
-	var mirror: WorldMirror = view.mirror
+	var mirror: MeshCarrier = view.carrier
 	_hide_walls(built["world"], mirror)  # full-height walls would stand between the camera and it
 	var shown := mirror.proxies_of(character)
 	if not t.require(shown.size() == 1 and shown[0] is BodyMesh, "the character has a body"):
@@ -166,16 +167,16 @@ func _shoot(
 
 
 ## Hide the proxies of every wall, so the picture shows what stands inside the rooms.
-func _hide_walls(world: Node, mirror: WorldMirror) -> void:
-	for body: Node in world.find_children("*", "PhysicsBody2D", true, false):
-		if MirrorProxy.kind_of(body) in [MirrorProxy.WALL, MirrorProxy.DOOR]:
+func _hide_walls(world: Node, mirror: MeshCarrier) -> void:
+	for body: Node in PlanProbe.bodies_under(world):
+		if MeshKinds.kind_of(body) in [MeshKinds.WALL, MeshKinds.DOOR]:
 			for proxy in mirror.proxies_of(body):
 				proxy.visible = false
 
 
 ## The first living character the match built.
-func _first_character(world: Node) -> CharacterBody2D:
-	for body: Node in world.find_children("*", "CharacterBody2D", true, false):
+func _first_character(world: Node) -> Node2D:
+	for body: Node in PlanProbe.characters_under(world):
 		if not body.get("is_dead"):
-			return body as CharacterBody2D
+			return body as Node2D
 	return null

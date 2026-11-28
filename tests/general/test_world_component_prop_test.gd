@@ -35,7 +35,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var still := t.actor(&"still")
 	await t.frames(3)
-	t.require(still.velocity.length() < 1.0, "premise: the puppet stands still")
+	t.require(still.movement.velocity.length() < 1.0, "premise: the puppet stands still")
 	t.expect_near(
 		still.anatomy.pose.gait.stride_phase(),
 		STRIDE,

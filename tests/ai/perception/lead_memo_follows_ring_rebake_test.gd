@@ -30,8 +30,8 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)
-	var region: NavigationRegion2D = t.world.find_children(
-		"NavRegion", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"NavRegion", "NavigationRegion3D", true, false,
 	)[0]
 	var map := region.get_navigation_map()
 	var ring_region := NavRing.region_of(region)
@@ -46,19 +46,19 @@ func run(t: TestContext) -> void:
 		"premise: the walk is kept while nothing moves",
 	):
 		return
-	var district := NavigationServer2D.map_get_iteration_id(map)
+	var district := NavPlan.iteration(map)
 	var ring_map := NavRing.map_of(map)
-	var ring := NavigationServer2D.map_get_iteration_id(ring_map)
-	ring_region.navigation_polygon = ring_region.navigation_polygon.duplicate()
+	var ring := NavPlan.iteration(ring_map)
+	NavPlan.assign(ring_region, NavPlan.polygon_of(ring_region).duplicate())
 	if not t.require(
 		await t.until(
-			func() -> bool: return NavigationServer2D.map_get_iteration_id(ring_map) != ring, WAIT,
+			func() -> bool: return NavPlan.iteration(ring_map) != ring, WAIT,
 		),
 		"premise: the ring map took the polygon in",
 	):
 		return
 	t.require(
-		NavigationServer2D.map_get_iteration_id(map) == district,
+		NavPlan.iteration(map) == district,
 		"premise: the district map did not move",
 	)
 	memo.open(map, 0, WINDOW_S)

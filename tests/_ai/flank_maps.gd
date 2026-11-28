@@ -86,16 +86,48 @@ const PILLAR := {
 	"size": Vector2(34, 34),
 	"color": Color(0.5, 0.5, 0.52),
 	"weight": 5000,
-	"coverage": 100,
 	"penetration": 100,
+	# A table-art piece as tall as a wall (96 px): the one real height a 2D definition with no art
+	# of its own can say, so it is cover for a standing body too.
+	"art": "table",
+	"art_opts": { "height": 96.0 },
 }
+## A long low barrier (a 30 px rail: a standing body sees and shoots over it, gaze-and-fire W2, but
+## cannot walk through it), for a test whose walk to the far side of the target must go round the
+## rail's south end, not round the target on its own: the rail stands in front of the target with
+## its south end well off the line from the NPC, so the shortest route bends south.
+const RAIL := {
+	"name": "Rail",
+	"shape": "rect",
+	"size": Vector2(24, 370),
+	"color": Color(0.5, 0.5, 0.52),
+	"weight": 5000,
+	"penetration": 100,
+	"art": "cabinet",
+	"art_opts": { "height": 30.0 },
+}
+## A long fence, the rail's cousin laid across a lane (320 x 24 px, 30 px high): a test whose
+## walkers must take the other way round a house, because the shorter one is shut.
+const FENCE := {
+	"name": "Fence",
+	"shape": "rect",
+	"size": Vector2(320, 24),
+	"color": Color(0.5, 0.5, 0.52),
+	"weight": 5000,
+	"penetration": 100,
+	"art": "cabinet",
+	"art_opts": { "height": 30.0 },
+}
+## Where the rail stands in the warehouse: 80 px west of the target (620, 330), ends at y 130, 500.
+const RAIL_POS := Vector2(540, 315)
 
 
 ## Lay out the terrace house: three rooms, four doorways and furniture in each room. `furnish` false
 ## leaves the rooms bare (a test that needs a clean line places its own pieces). `back_door`, a
 ## layout `door` (`{ name, material, style, hinge, swing_into, angle? }`), stands in the kitchen's
-## back doorway, which is then 60 px wide (hinge 24 px from its middle) instead of 90.
-static func house(s: TestSetup, furnish := true, back_door := {}) -> void:
+## back doorway, which is then 60 px wide (hinge 24 px from its middle) instead of 90; `hall_door`,
+## the same, stands in the doorway between the hall and the living room (80 px wide).
+static func house(s: TestSetup, furnish := true, back_door := {}, hall_door := {}) -> void:
 	var back := { "pos": DOOR_BACK, "width": 90.0 }
 	if not back_door.is_empty():
 		back = { "pos": DOOR_BACK, "width": 60.0, "door": back_door }
@@ -110,7 +142,11 @@ static func house(s: TestSetup, furnish := true, back_door := {}) -> void:
 		],
 		[
 			{ "pos": DOOR_LIVING_KITCHEN, "width": 90.0 },
-			{ "pos": DOOR_HALL_LIVING, "width": 80.0 },
+			(
+				{ "pos": DOOR_HALL_LIVING, "width": 80.0 }
+				if hall_door.is_empty()
+				else { "pos": DOOR_HALL_LIVING, "width": 80.0, "door": hall_door }
+			),
 			{ "pos": DOOR_HALL_KITCHEN, "width": 80.0 },
 			{ "pos": DOOR_FRONT, "width": 80.0 },
 			back,

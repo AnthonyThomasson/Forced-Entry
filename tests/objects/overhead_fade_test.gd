@@ -50,14 +50,14 @@ func run(t: TestContext) -> void:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	var fade := WallFade.new()
 	view.add_child(mirror)
 	view.add_child(fade)
 	fade.set_process(false)
 	fade.listen(mirror)
 	ObjectMeshes.register(mirror.builders)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	for facing in FACINGS:
 		for row: String in ["awning", "glyph_sign"]:
@@ -67,7 +67,7 @@ func run(t: TestContext) -> void:
 
 ## `id` fades whole while a character stands out of its way, and from every camera yaw fades when
 ## one stands in front of its wall under it (as 2D's `fade_under` did), then comes back.
-func _check_piece(t: TestContext, fade: WallFade, mirror: WorldMirror, id: StringName) -> void:
+func _check_piece(t: TestContext, fade: WallFade, mirror: MeshCarrier, id: StringName) -> void:
 	var piece := t.object(id)
 	var parts := _parts_of(mirror, piece)
 	if not t.require(not parts.is_empty(), "premise: %s is shown by a mesh" % id):
@@ -98,7 +98,7 @@ func _run_fade(fade: WallFade, foci: Array, steps: int, yaw: float) -> void:
 
 
 ## Every geometry instance under the mesh shown for `body`.
-func _parts_of(mirror: WorldMirror, body: Node) -> Array:
+func _parts_of(mirror: MeshCarrier, body: Node) -> Array:
 	var parts: Array = []
 	for mesh: Node3D in mirror.proxies_of(body):
 		if mesh is GeometryInstance3D:

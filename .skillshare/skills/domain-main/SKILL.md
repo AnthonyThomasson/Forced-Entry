@@ -5,7 +5,7 @@ description: Use when editing scenes/main.gd, match_builder.gd or match_spawner.
 
 # Main: the composition root
 
-Files (all in `scenes/`): `main.gd` + `main.tscn` (UI flow), `match_builder.gd` (`MatchBuilder`, interface 23: spec in, handle out;
+Files (all in `scenes/`): `main.gd` + `main.tscn` (UI flow), `match_builder.gd` (`MatchBuilder`, interface 23: spec in, handle out; its `stage` builds the world's `TwinSpace`, 29, registering each domain's twin hook;
 its API is in `architecture`), `match_spawner.gd` (NPC placement, used only by `MatchBuilder`), `squads_spec.gd` (`SquadsSpec`),
 `main_run.gd` (`MainRun`), `main_endless.gd` (`_endless`), `main_overlays.gd` (`_overlays`). Main and the Testing runner
 (interface 13) are the only code that knows every domain; nothing depends on Main. Main builds no match itself: the Testing
@@ -68,7 +68,7 @@ and awaits `MatchBuilder.build`. A match torn down during the build returns `{}`
 
 ## The 3D render
 
-Every match is drawn by the 3D view (`main_view3d.gd`): Main hides the `World` before it is built and builds the view that mirrors the match; there is no render mode. Details and tests: `render3d.md`. Interface 27.
+Every match is drawn by the 3D view (`main_view3d.gd`): Main hides the `World` before it is built and builds the view that draws the match's twin world; there is no render mode. Details and tests: `render3d.md`. Interface 27.
 
 ## Overlays
 
@@ -79,14 +79,14 @@ which save the choice and route it live. Seeding, the scope per mode and the rou
 
 The API is interface 23; these are the reasons behind it.
 
-- **Wait for the nav maps.** `stage` (a generated district: the nav bake covers its streets, the lights its towers) steps two physics frames (walls' colliders go live on a step), then waits until
+- **Wait for the nav maps.** `stage` (a generated district: the nav bake covers its streets, the lights its towers) steps two physics frames (the walls' twins go live on a step), then waits until
   `NavBuilder.ready` holds on the planning map and the steering map (at most `NAV_SYNC_MS`, then `push_error`), so no NPC is
   placed while a map still shows another navmesh. A world freed during the wait returns `{}`. Main's match and every test world
   keep `wait_nav` on.
 - **One house in a district.** A match generates a district (interface 1) unless the spec names a `house`: the NPCs get only the centre
   tower's `rooms` / `openings` (the handle's), so a neighbour tower counts as outside; only the nav bake and the lighting take every tower.
 - **Lights are the 3D view's.** `MatchBuilder.stage` builds no lights; Main's 3D view builds `WorldLighting3D` (interface 20,
-  `docs/lighting.md`) after the mirror, from the world's `get_lights()` and rooms.
+  `docs/lighting.md`) after the carrier, from the world's `get_lights()` and rooms.
 - **Bind before the tree.** `bind_npc` hands the controller `rooms`, `openings` and its `entry_point` before the NPC joins the
   tree, so its first tick knows them; `npc.tscn` authors the controller in group `npc_controllers` (interface 7) so that holds.
   An invader's entry point is the front entrance, a defender's none. `match_spawner.gd` never calls `MatchBuilder`: `populate`

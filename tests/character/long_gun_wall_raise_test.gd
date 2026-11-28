@@ -20,7 +20,6 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 800, 600))
 	s.switch(&"nav.rebake", false)
-	s.switch(&"projectile.flyover", false)
 	# The arena's west wall runs along x = 0, 12 px thick: its face is at x = 6. Close enough to
 	# touch the barrel.
 	s.actor(&"rifle_wall", &"puppet", Vector2(30, 100), { "start_slot": 6 })

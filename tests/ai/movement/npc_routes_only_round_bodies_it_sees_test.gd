@@ -16,6 +16,7 @@ extends GameTest
 ## invader's tactical entry.
 
 const Bump := preload("res://tests/_ai/bump_probe.gd")
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const WEST := Rect2(0, 0, 400, 600)
 const CORRIDOR := Rect2(400, 0, 100, 600)
 const NORTH_DOOR := Vector2(400, 100)
@@ -54,7 +55,7 @@ func run(t: TestContext) -> void:
 	var walker := t.actor(&"walker")
 	var mate := t.actor(&"mate")
 	var brain := t.controller(&"walker", &"current_act")
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	if not _wall_between(t, walker, mate):
 		return
 	# Lambdas capture plain values by copy, so the state the watch updates lives in one Dictionary.
@@ -67,15 +68,8 @@ func run(t: TestContext) -> void:
 
 
 func _wall_between(t: TestContext, walker: Node, mate: Node) -> bool:
-	var space := t.world.get_world_2d().direct_space_state
-	var ray := PhysicsRayQueryParameters2D.create(
-		START,
-		MATE,
-		PhysicsLayers.SOLID,
-		[walker.get_rid(), mate.get_rid()],
-	)
 	return t.require(
-		not space.intersect_ray(ray).is_empty(),
+		not PlanProbe.clear(t.world, START, MATE, [walker, mate], PlanProbe.WITH_BODIES),
 		"premise: a wall stands between the walker's start and the teammate",
 	)
 

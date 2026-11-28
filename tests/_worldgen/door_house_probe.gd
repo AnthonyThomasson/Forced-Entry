@@ -6,6 +6,7 @@ extends RefCounted
 ## and room-type tiers, so the rules are not read back from the code under test.
 
 ## Where a generated house goes, clear of the test arena.
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const FAR_AWAY := Vector2(5000, 5000)
 ## Seeds tried per floorplan.
 const SEEDS := 20
@@ -93,7 +94,7 @@ static func door_in(of_house: Node2D, opening: Dictionary) -> Variant:
 ## the house, sorted), to tell one layout from another.
 static func furnishing(of_house: Node2D) -> Array:
 	var out: Array = []
-	for node in of_house.find_children("*", "RigidBody2D", true, false):
+	for node in PlanProbe.pieces_under(of_house):
 		if not "size" in node:
 			continue
 		var at: Vector2 = node.global_position - of_house.global_position
@@ -124,7 +125,7 @@ static func mirrored(plan_key: String, of_house: Node2D) -> bool:
 ## neon tube `of_house` placed: what has to stay out of a door's swing.
 static func footprints(of_house: Node2D) -> Array:
 	var nodes: Array = []
-	for node in of_house.find_children("*", "RigidBody2D", true, false):
+	for node in PlanProbe.pieces_under(of_house):
 		if "size" in node and "solid" in node and node.solid:
 			nodes.append(node)
 	for piece: Dictionary in WorldGen.get_clutter(of_house):

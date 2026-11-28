@@ -24,8 +24,8 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)  # the first bake is applied a frame or two after the build
-	var region: NavigationRegion2D = t.world.find_children(
-		"NavRegion", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"NavRegion", "NavigationRegion3D", true, false,
 	)[0]
 	var map := region.get_navigation_map()
 	if not t.require(NavBuilder.ready(map), "premise: the map answers"):
@@ -42,6 +42,7 @@ func run(t: TestContext) -> void:
 		"the same point snaps the same while the map stands",
 	)
 	t.object(&"chair").global_position = Vector2(100, 100)
+	await t.frames(2)  # the chair's twin, which the holes are cut from, follows its body
 	NavBuilder.rebake(region, t.world.house, t.rooms)
 	t.check(
 		await t.until(func(): return NavBuilder.snap(map, SPOT).distance_to(SPOT) < 1.0, 2.0),

@@ -5,12 +5,12 @@ extends GameTest
 ##
 ## A room 600 x 160 over a hall along its south side, a doorway between them (60 px, centred at
 ## (100, 160)) and the front door at the hall's west end. The posts hidden from every slot and pie
-## step outside lie east of the doorway, 40, 70 and 100 px back from its wall; the room is shallow
-## enough that an entry's grenade comes down at two spots only (the bang's landings, G18: at least
-## 120 px from the door and 30 inside the walls), each reaching every one of them alike, and none is
-## in a funnel, so among them low cover on the line to the threshold ranks first, then the depth
-## nearest 110 px. A shoe rack (20 tall: seen over, and no shield for a crouched body from a burst)
-## stands on the line of the post 70 px back only, and a household bystander stands on that line
+## step outside lie east of the doorway, 40, 70 and 100 px back from its wall. An entry's grenades
+## are out of reach (a premise: their range is cut to 60 px, so no landing counts), so the posts are
+## not told apart by the shadow the rack casts from a landing, as the real 3D line shadows (#194
+## D10), and among them low cover on the line to the threshold ranks first, then the depth nearest
+## 110 px. A shoe rack (stood up to 44 px: a ducked body hides behind it, a standing one sees over
+## it) stands on the line of the post 70 px back only, and a household bystander stands on that line
 ## between the post and the rack. Were the bystander to take the post's cover, the post 100 px back
 ## would win on its depth.
 ##
@@ -24,7 +24,9 @@ extends GameTest
 ## Scripted Von (the order is taken without asking); nobody fights.
 
 const Order := preload("res://tests/_ai/order_probe.gd")
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
+const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const ROOM := Rect2(0, 0, 600, 160)
 const HALL := Rect2(0, 160, 600, 110)
@@ -51,6 +53,10 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	var rows: Dictionary = GrenadeConfig.grenades.duplicate(true)
+	for kind in [&"frag", &"stun"]:
+		rows[kind]["max_range"] = 60.0
+	s.set_static(GrenadeConfig, "grenades", rows)
 	s.layout(
 		[
 			{ "key": "living_room", "type": "living_room", "rect": ROOM, "floor": "oak_planks" },
@@ -58,7 +64,7 @@ func configure(s: TestSetup) -> void:
 		],
 		[{ "pos": DOOR, "width": DOOR_WIDTH }, { "pos": FRONT_DOOR, "width": 80.0 }],
 	)
-	s.object(&"rack", "shoe_rack", RACK_AT)
+	s.object(&"rack", Hiding.low_cover("shoe_rack"), RACK_AT)
 	s.von_script([])
 	s.actor(&"a", &"defender", Vector2(520, 50))
 	s.actor(&"by", &"puppet", BYSTANDER_AT, { "faction": &"household" })
@@ -89,7 +95,7 @@ func run(t: TestContext) -> void:
 	):
 		return
 	var post := Vector2(at[0], at[1])
-	var through := _first_hit(t, post, GrenadeAi.character_rids(t))
+	var through := _first_hit(t, post, t.world.get_tree().get_nodes_in_group(&"characters"))
 	t.check(
 		through == t.object(&"rack"),
 		"the post %s has the shoe rack on its line to the threshold, bodies looked through "
@@ -106,9 +112,7 @@ func run(t: TestContext) -> void:
 ## The first solid thing on the line from `post` to the threshold, the bodies of `exclude` passed
 ## through; null for none.
 func _first_hit(t: TestContext, post: Vector2, exclude: Array) -> Object:
-	var query := PhysicsRayQueryParameters2D.create(post, THRESHOLD, PhysicsLayers.SOLID)
-	query.exclude = exclude
-	return t.world.get_world_2d().direct_space_state.intersect_ray(query).get("collider")
+	return PlanProbe.first(t.world, post, THRESHOLD, exclude, PlanProbe.WITH_BODIES).get("collider")
 
 
 ## A name for what a line met.

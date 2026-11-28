@@ -17,7 +17,7 @@ const ACT_AT := 3
 const NEAR := 1
 
 var _district: Node2D
-var _region: NavigationRegion2D
+var _region: NavigationRegion3D
 var _rooms: Array
 var _tiles: Array
 ## How many tiles' polygons the steering re-bake the window made replaced (the independent count).
@@ -43,7 +43,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)
 	_district = t.world.get("district") as Node2D
-	_region = t.world.find_children("NavRegion", "NavigationRegion2D", true, false)[0]
+	_region = t.world.find_children("NavRegion", "NavigationRegion3D", true, false)[0]
 	_rooms = WorldGen.district_rooms(_district)
 	_tiles = NavBuilder.steering_regions(_region)
 	var logging := GameLog.enabled
@@ -129,12 +129,12 @@ func _planning_and_avoid(t: TestContext) -> void:
 ## Re-bake the steering map; how many tiles have a polygon other than before.
 func _rebake_steering_counting() -> int:
 	var before: Array = _tiles.map(
-		func(tile: NavigationRegion2D) -> NavigationPolygon: return tile.navigation_polygon,
+		func(tile: NavigationRegion3D) -> NavigationPolygon: return NavPlan.polygon_of(tile),
 	)
 	NavBuilder.rebake_steering(_region, _district, _rooms)
 	var changed := 0
 	for i in _tiles.size():
-		if (_tiles[i] as NavigationRegion2D).navigation_polygon != before[i]:
+		if NavPlan.polygon_of((_tiles[i] as NavigationRegion3D)) != before[i]:
 			changed += 1
 	return changed
 

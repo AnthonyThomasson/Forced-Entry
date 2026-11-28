@@ -14,5 +14,10 @@ var blocked: Array = []
 var solids: Array = []
 ## The node its furniture and clutter are spawned under.
 var furniture: Node = null
+## Every piece of furniture placed in it, `{ key, definition, node }`, in the order placed: what
+## `RoomItems` reads for the flat tops.
+var pieces: Array = []
+## The node its items (small pieces on tops, floor stacks) are spawned under.
+var items: Node = null
 ## The run's seed, which the room's own dressing RNGs are seeded from.
 var run_seed: int = 0

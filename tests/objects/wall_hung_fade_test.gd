@@ -22,7 +22,7 @@ const BEHIND := 3.0
 ## The free menu board's middle is 7.75 px north of FREE and it is 4.5 deep: the same gap behind it.
 const FREE_BEHIND := 13.0
 
-var _mirror: WorldMirror
+var _mirror: MeshCarrier
 var _fade: WallFade
 
 
@@ -50,14 +50,14 @@ func run(t: TestContext) -> void:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	_mirror = WorldMirror.new()
+	_mirror = MeshCarrier.new()
 	_fade = WallFade.new()
 	view.add_child(_mirror)
 	view.add_child(_fade)
 	_fade.set_process(false)
 	_fade.listen(_mirror)
 	ObjectMeshes.register(_mirror.builders)
-	_mirror.mirror(t.world)
+	_mirror.carry(t.world)
 	await t.frames(3)
 	var walls := Probe.walls(_mirror, t.world, 400.0)
 	if not t.require(not walls.is_empty(), "premise: the arena has a long wall"):

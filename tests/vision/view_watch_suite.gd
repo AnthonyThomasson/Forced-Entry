@@ -7,6 +7,7 @@ extends UnitSuite
 ## The reach world of `vision/cone_skip_exact` holds the cone itself to a fresh rebuild.
 
 const Watch := preload("res://scenes/vision/view_watch.gd")
+const RawTwins := preload("res://tests/_vision/raw_twins.gd")
 ## Where the bodies stand: far from the origin, so no other test's body is near.
 const ORIGIN := Vector2(60_000.0, 60_000.0)
 const EYE := ORIGIN
@@ -26,7 +27,7 @@ func _sight() -> Dictionary:
 		"fov_degrees": 110.0,
 		"view_distance": REACH,
 		"awareness_radius": 48.0,
-		"see_over_coverage": 60.0,
+		"eye_height": 69.4,
 	}
 
 
@@ -37,17 +38,19 @@ func _watch() -> Watch:
 
 
 ## A solid with a rectangle shape `SOLID_SIZE` big, `at` from `ORIGIN`.
-func _solid(at: Vector2) -> StaticBody2D:
-	var body: StaticBody2D = auto_free(StaticBody2D.new())
-	body.collision_layer = PhysicsLayers.SOLID
+func _solid(at: Vector2) -> RawTwins.Solid:
+	var body: RawTwins.Solid = auto_free(RawTwins.Solid.new())
 	body.position = ORIGIN + at
 	body.add_child(_shape(SOLID_SIZE))
 	add_child(body)
+	# no twin space here: the solid's twin is made and sorted by hand, as `TwinSpace` would
+	var twin: Node3D = auto_free(RawTwins.RawTwin.build(body))
+	body.set_meta(TwinSpace.TWIN_META, twin)
 	return body
 
 
-func _shape(size: Vector2) -> CollisionShape2D:
-	var shape := CollisionShape2D.new()
+func _shape(size: Vector2) -> RawTwins.Shape:
+	var shape := RawTwins.Shape.new()
 	var rect := RectangleShape2D.new()
 	rect.size = size
 	shape.shape = rect
@@ -108,7 +111,8 @@ func test_a_far_blocker_moving_forces_a_rebuild_only_at_the_backstop() -> void:
 func test_a_shape_stretched_by_a_negative_scale_is_within_reach() -> void:
 	var watch := _watch()
 	var far := _solid(FAR)
-	(far.get_child(0) as CollisionShape2D).scale = Vector2(1.0, -200.0)
+	(far.get_child(0) as RawTwins.Shape).scale = Vector2(1.0, -200.0)
+	far.reshape()
 	_settled(watch)
 	assert_int(_creep(watch, far)).is_equal(FRAMES)
 
@@ -117,6 +121,7 @@ func test_a_body_scaled_by_a_negative_scale_is_within_reach() -> void:
 	var watch := _watch()
 	var far := _solid(FAR)
 	far.scale = Vector2(1.0, -200.0)
+	far.reshape()
 	_settled(watch)
 	assert_int(_creep(watch, far)).is_equal(FRAMES)
 
@@ -141,8 +146,10 @@ func test_a_blocker_that_shrinks_out_of_the_sector_forces_a_rebuild() -> void:
 	var watch := _watch()
 	var wide := _solid(Vector2(0.0, 1200.0))
 	wide.scale = Vector2(1.0, 100.0)
+	wide.reshape()
 	_settled(watch)
 	wide.scale = Vector2.ONE
+	wide.reshape()
 	assert_bool(watch.stale(EYE, FACING, _sight())).is_true()
 
 
@@ -182,6 +189,21 @@ func test_a_solid_that_joins_is_due() -> void:
 	_settled(watch)
 	_solid(Vector2(300.0, 0.0))
 	assert_bool(_due(watch, EYE + Vector2(1.0, 0.0), FACING)).is_true()
+
+
+## A piece is a plan handle with no child shapes: its `reshaped` signal (a dent, a break) is what
+## tells the watch its silhouette changed with no move of its body.
+func test_a_piece_that_is_reshaped_is_due() -> void:
+	var watch := _watch()
+	var piece: Piece = auto_free(Piece.new())
+	piece.add_to_group(TwinSpace.BODIES)  # as a piece is: a plan handle the view watches
+	piece.add_to_group(TwinSpace.PIECES)
+	piece.position = ORIGIN + Vector2(300.0, 0.0)
+	add_child(piece)
+	_settled(watch)
+	assert_bool(_changed(watch)).is_false()
+	piece.reshape()
+	assert_bool(_changed(watch)).is_true()
 
 
 func test_a_job_in_flight_does_not_ask_the_pose() -> void:
@@ -231,3 +253,28 @@ func test_a_job_in_flight_is_held_to_the_pose_it_began_from() -> void:
 	var behind := _solid(Vector2(-1200.0, 0.0))
 	behind.position += Vector2(0.0, 5.0)
 	assert_bool(_changed(watch)).is_false()
+
+
+## A body gives its twin a frame after it joins: until then it has no height and blocks like a wall,
+## and the watch sorts it again when the twin comes (a low piece stops being a blocker).
+func test_a_body_whose_twin_comes_later_is_sorted_again() -> void:
+	var watch := _watch()
+	var piece := _solid(Vector2(300.0, 0.0))
+	piece.remove_meta(TwinSpace.TWIN_META)  # no twin yet
+	_settled(watch)
+	assert_int(_creep(watch, piece)).is_equal(FRAMES)  # no twin yet: a wall's worth
+	var twin: Node3D = auto_free(Node3D.new())
+	twin.add_child(TwinShapes.box(Rect2(-7.0, -30.0, 14.0, 60.0), Transform2D.IDENTITY, 0.0, 20.0))
+	piece.set_meta(TwinSpace.TWIN_META, twin)
+	_settled(watch)
+	var backstops := ceili(float(FRAMES) / VisionConfig.rebuild_every)
+	assert_int(_creep(watch, piece)).is_less_equal(backstops + 1)
+
+
+## A bare piece: a `Node2D` that says it was reshaped.
+class Piece:
+	extends Node2D
+	signal reshaped
+
+	func reshape() -> void:
+		reshaped.emit()

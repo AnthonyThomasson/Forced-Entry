@@ -23,11 +23,11 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)  # the first bake is applied a frame or two after the build
-	var region: NavigationRegion2D = t.world.find_children(
-		"*", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"*", "NavigationRegion3D", true, false,
 	)[0]
 	for attempt in 3:
-		var before := region.navigation_polygon
+		var before := NavPlan.polygon_of(region)
 		var started := Engine.get_physics_frames()
 		var landed_at := [-1]  # a lambda captures an int by value
 		NavBuilder.rebake_async(
@@ -38,7 +38,7 @@ func run(t: TestContext) -> void:
 		for i in NavBakeConfig.house_frames * 2:
 			if landed_at[0] >= 0:
 				break
-			early = early or region.navigation_polygon != before
+			early = early or NavPlan.polygon_of(region) != before
 			await t.frames(1)
 		t.check(
 			not early,
@@ -52,6 +52,6 @@ func run(t: TestContext) -> void:
 				% [attempt, NavBakeConfig.house_frames, landed_at[0] - started],
 		)
 		t.check(
-			region.navigation_polygon != before,
+			NavPlan.polygon_of(region) != before,
 			"attempt %d: the region holds the new polygon once it has landed" % attempt,
 		)

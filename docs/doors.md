@@ -13,7 +13,7 @@ door-aware.
 ## DR1. Doorway size
 
 Every floorplan's doorway is 60 px wide (about 1.1 m) inside the house and 69 px (about 1.25 m) for the front and the `exit`
-doorways: a character 28 px across has 10 px to spare each side in the 48 px clear width inside. A wall's collider reaches half its thickness (6 px) into the gap on each side, so the clear width is 48 px inside and 57 px
+doorways: a character 28 px across has 10 px to spare each side in the 48 px clear width inside. A wall's outline reaches half its thickness (6 px) into the gap on each side, so the clear width is 48 px inside and 57 px
 at the front and exits, and the navigation lane through a doorway (the clear width less the bake's erosion of
 `NavBuilder.AGENT_RADIUS` + `NavBuilder.WALL_MARGIN` = 18 px from each jamb) is 12 and 21 px. The width is the gap
 `WorldGen.get_openings` reports (`width`) and the one `WallFactory` cuts into the walls, in both mirror states of a plan.
@@ -84,15 +84,15 @@ same per seed).
 
 ## DR5. What a door blocks
 
-A standing door (shut, ajar or open) is a solid leaf in the world: a body on the solid layer that stops characters like a wall
+A standing door (shut, ajar or open) is a solid leaf in the world: a 3D body in the twin space (`DoorBody` on `PhysicsLayers.TWIN_WORLD`; the `Door` is a plan handle with no 2D shape) that stops characters like a wall
 (`tests/objects/door_blocks_test.gd`: a puppet walking into a shut door stops at it; a shut door never moves for a walker, an ajar or open
-one turns away from the body, DR10), is struck by rounds at every height (`coverage` 100)
+one turns away from the body, DR10), is struck by rounds at every height (a full-height wall of the twin space)
 and lets them through by its material's `penetration` by the usual rule (a hollow door slows a pistol round by 9%, a steel one by
 81%, which the pistol's `projectile_min_speed` does not survive: the round goes on through hollow, stops in steel; a rifle
 round goes through steel), blocks the AI's sight and casts a shadow (its 3D leaf mesh turns with the leaf).
 The glass-panel door is the exception: its surface says `transparent`, which sight reads (an NPC on one side sees a puppet on
 the other through it, not through a wooden door) and it casts no shadow; a round still meets it (penetration 5). A knocked-down
-door blocks nothing (DR11).
+door is a free body lying where it fell, blocking by its real height (DR11).
 
 It is in neither nav bake (planning, steering): paths go through a doorway as through an open archway and the walker deals with the leaf
 (`docs/adr/0010-doors-are-driven-bodies-left-out-of-the-nav-bake.md`).
@@ -142,7 +142,7 @@ or held with no door in reach the wheel zooms), `general/camera_wheel_zoom` (the
 ## DR8. A swing meets something
 
 A swinging door nudges any character in its arc (the quarter disc its leaf sweeps) out of the way, the one who opened it too:
-before the leaf turns on, the physics space is asked what stands where it will be; a character is moved straight away from the
+before the leaf turns on, the twin 3D space is asked what stands where it will be (a shape query of the leaf); a character is moved straight away from the
 leaf by what clears it, no faster than `nudge_speed` (600 px/s; at the tip of the longest leaf, a front doorway's 56 px, the swing peaks near 330 and a burst runs at 530,
 both under it). The swing stops
 short, and stays there, at a wall, at furniture (the furniture is not pushed) and at a body that cannot move further: a
@@ -218,14 +218,93 @@ leaves it where it stood), `objects/door_push_open_limit` (a leaf shoved as hard
 
 ## DR11. Knocked down
 
-At 0 HP the leaf comes off its hinges and falls flat into the room the last blow pushed it toward (a kick's shove, a round's or
-a blast's direction; the room it swings into when the blow had none): it lies on the floor beyond the doorway, `fallen_length` (100 px)
-long, its length along the way it fell, drawn face up at the lying bodies' rung. Walk-over (no collider), no cover, blocking no shot,
-sight or light (its shadow is gone), and no longer usable (`toggle`, `turn_by` and `open_fully` do nothing); the doorway is clear
-(`gap()` is its whole width, `open_amount()` 1).
+At 0 HP the leaf comes off its hinges and becomes a free `RigidBody3D` (D18, #194), a real object like a tipped
+piece of furniture (`docs/adr/0014-twin-staging-and-plan-space.md`, D13, D14): the standing leaf's 3D leader (`DoorBody`, an
+`AnimatableBody3D`) is swapped for a `DoorSlab` (a `PieceBody`, `TwinSpace.retwin`), so it falls as physics decides and lies
+where it lands, with no scripted fall. The blow gives it its impulse at the real point: a blast's `shove`
+from the burst's height (`Explosion` -> `Knockback.push`), a kick's at the lock (the leaf's middle; a foot's own resting height
+would kick the leaf's foot out from under it), a round's impulse (`Physics.impact_impulse`) at the height it struck.
+A freed upright slab on the floor has no preferred way to fall, so the hinges' tearing adds a wrench at the leaf's top across
+its face the way the blow came (`DoorFallConfig.fall_nudge` times the mass), always to the side of the blow (the room it
+swings into when the blow had no direction, or a wound with none). The slab stands a half px under the lintel and a px short
+at each end (`DoorFallConfig.head_gap`, `side_gap`) so it tips out of its frame between the jambs; its mass is the door's
+`get_mass` and `max_linear_velocity` is the 5000 px/s global Jolt cap (a blast's throw is far below it).
 
-Tests: `objects/door_knocked_down` (four kicks from the east lay a hollow door west; four rounds from the west lay one east; a puppet
-walks over one, a round and an NPC's sight pass).
+A leaf knocked down **ajar** stands on a diagonal across its doorway's wall line, where either tip would catch a jamb with
+its hinge end or its free end and leave it wedged in the frame (D18: once down the doorway is clear). It falls **with the blow**,
+away from whoever knocked it down (a blow with no direction, or a wound, takes the room it swings into): the side of the wall the
+blow goes to is the side it lies on, a kick or a round from the open side landing it on the closed side and the other way about.
+So the leaf is first **carried** out of its frame that way, by the physics and not by a jump: on release it is given
+`DoorFallConfig.carry_speed` (600 px/s) along the wall's normal, once (so a heavy piece in its way is not bulldozed), with its
+angular X and Z locked so that it slides edge-on through the 48 px gap between the jambs; each physics frame the rearmost corner of
+its shapes is read against the wall line, and when it stands wholly past the line and the wall's face (`DoorFallConfig.frame_out`,
+7 px) the leaf is let go. It is also let go on its first touch of a piece of furniture (it leans on it as on a bed: D18) and after
+`DoorFallConfig.carry_frames` (40) frames. The X/Z lock is what keeps a character standing at the leaf's side from tipping it over
+in the frame (without it a leaf at 85 degrees lies half-leaning when one does). Letting go unlocks the axes, stops
+the carry and gives the blow's throw (each shove that arrived during the carry, a blast's, is kept for then at its own height, less the part that
+would send the leaf back toward the wall), the wrench and a turn toward its fall (`DoorFallConfig.lean_spin`, an angular
+velocity: the leaf tips over, it is not set at an angle); it then falls and lies as physics decides. The fall is across the
+leaf's face (a leaf only lies flat that way: an edge-on leaf tipped in its own plane rocks back on its 48 px base), on the face
+toward the blow's side: at 85 degrees that is mostly along the wall, but past it, where nothing is in its way. A shut leaf has no
+such frame to clear and falls the way of the blow, its shove untouched.
+
+**A character under a falling leaf.** A character's 3D body is kinematic (moved every frame by its walk): a leaf can neither push
+it nor tip over it, so a leaf let go flush against one stood upright on their face (it leans on a vertical wall of the character's
+height), held awake for ever by the contact and shoving them on, 12 to 87 px over seconds, or, felled shut onto one, leaned on them
+at 20 to 60 degrees pushing them 7 px/s. So a character is not a wall to the leaf. While the leaf is carried it shoves each character
+it touches along the way out (`DoorFallConfig.bowl_accel`, px/s^2 times their mass, a step at a time) and, its speed taken by the
+character it met, is sent on again; once let go, for `bowl_frames` (90) frames or until it lies flat or at rest, it shoves each
+character it touches along its face's normal, away from it, and, as a leaf held up by one loses the turn it was given and would rock
+back upright, it is turned on toward its fall again under `commit_degrees` (10). A character the leaf falls on is bowled out of its
+way (`bowl_accel` is 2000 px/s^2: a 33 px/s knock a frame, which a character's knockback friction mostly bleeds as it is given), and the leaf lies down
+flat and clear of its doorway. That is what is tested for a character in the way (top within `step_over`, the far side of the wall line, a clear
+gap). A leaf can still end standing on something: leaning on a piece of furniture (D18), or on a character a wall or an
+anchored piece holds where they stand (a character is only bowled away when nothing is in the way). That leaf rests on them: the engine never sleeps a body that touches a character, who is moved every frame. A leaf (`DoorSlab`, which watches itself while it is awake and not flat: the twin space tells no one of a body that does not move) awake and slower than `PieceBodyConfig.rest_speed` (6 px/s) and `rest_spin` (0.2 rad/s) for
+`rest_frames` (60) frames with no shove given to it, that touches a character, is held by it (`PieceBody.hold_on_a_character`, `CharacterTwin.hold`): the character, with no walk to make, is not moved (`move_and_slide` skipped) until it walks, and the engine then sleeps the leaf by itself (nothing sets it sleeping: `docs/twins.md` T2). The twin wakes it when it leaves. It is asleep within 4 s of being knocked down
+(tested; the character's knockback has to bleed first, under a second), pushes no one after it (a character walking into it wakes it and shoves it as any piece), and
+when the character walks off, dies or is moved it falls and ends flat or leaning on what is under it (the post that held the character), never hanging asleep in the air:
+`objects/door_resting_on_a_held_character_sleeps_and_falls_when_it_leaves`. Tests:
+`objects/ajar_door_kicked_from_the_open_side_falls_away`, `ajar_door_shot_from_the_open_side_falls_away` (each with `_flipped`: the
+hinges on the other jambs), `ajar_door_kicked_from_the_closed_side_falls_away`, `ajar_door_shot_from_the_closed_side_falls_away`
+(also `_flipped`; these two closed-side tests are guards: green on the commit before the carry too) (four angles, 20 to 85 degrees,
+both swings: the leaf lies on the far side of the wall line from the blow and the doorway is clear),
+`ajar_door_falls_toward_a_character_from_open_side` / `_from_closed_side` (each with `_flipped`; a character 14 px past the wall line: the leaf does not
+rest in them, lies flat with the doorway clear, is asleep within 4 s and pushes the character no further in the 2 s after),
+`shut_door_falls_onto_a_character_from_open_side` / `_from_closed_side` (the same with the doors shut), `ajar_door_falls_toward_a_desk_from_open_side` / `_from_closed_side` (a desk 25 px past it: the leaf leans on it, at 20 degrees or more,
+or leaves the doorway clear, is not in it and the desk is not bulldozed; each with `_flipped`), `ajar_door_is_carried_not_popped_from_open_side`
+/ `_from_closed_side` (no frame moves the drawn leaf more than 12 px for its first 10 frames), `ajar_door_leans_away_from_the_blow_from_open_side` /
+`_from_closed_side` (at 20 and 85 degrees among others; each with `_flipped`), `objects/ajar_range_door_shot_down_falls_clear` (the range's ajar solid door shot down from the range with the
+rifle), `ajar_doors_knocked_down_from_the_range` / `_from_the_room` (kicks, four angles, both hinges and swings),
+`ajar_doors_blasted_down`.
+
+Geometry follows the body, in 3D: a bullet's ray, sight, cover and a grenade's flight and fragments meet it at its real,
+lying height (a leaf lying flat is 6 px thick, a leaf leaning on a wall or lying on a bed is as high as it stands), the
+door's shadow and mesh turn with it (`DoorMesh` follows the leader, `door.look` carries its art, the shattered panes, no
+separate "fallen" face). It can be shoved like a piece: `Knockback.push` / `apply_impulse` on a fallen door forward to its
+leader (`leader_of`): a blast, a round, a fragment or any `Knockback.push` slides it, and it comes to rest again
+(`Probe.settle`); a walker pushes nothing, a fist passes above a leaf 6 px thick and a kick only grazes it (a couple of px).
+
+For the plan handle (a `Node2D`, no 2D shape or layer): a leaf lying flat (its top within `DoorFallConfig.step_over`, 10 px, of the
+floor) is walk-over: its `footprint` (`DoorFootprint`, polygon data the slab writes) is `flat`, which no body walks or drives into (a vehicle drives over a
+lying door; the slab is on `PhysicsLayers.TWIN_WALKOVER`, which a walker's and a vehicle's mask leave out, so the walker keeps its pace and the leaf stays where it lay: `objects/player_walks_over_a_fallen_range_door`) but a blast asks for, so it is shoved like a piece (a second blast slides it; a walker steps over it and pushes
+nothing, a fist passes above a leaf 6 px thick and a kick only grazes it) and not a hole in the nav bake. One leaning or lying higher (fallen onto a wardrobe,
+above a bed) is an obstacle: its footprint is the slab's hull, a hole in the bake (`NavLeaves.fallen_hole`, re-baked as a
+tipped piece's is). A free piece (a shoved chair, a table: `PieceBody`) meets a flat leaf without its mask holding `TWIN_WALKOVER`: it bumps the leaf and stops at it, neither sliding over it nor ending under it (`objects/shoved_chair_meets_a_flat_door`; the pair meets by the slab's own mask, which holds `TWIN_WORLD`). Adding `TWIN_WALKOVER` to the piece's mask made it worse: a shoved chair then rode on past the leaf (it ended 180 px beyond a leaf it had shoved 70 px), so the mask stays as it was. A swinging door's leaf stops at a lying slab, flat or leaning, as at any piece (its probe is the
+leaf's whole height in the twin space). The AI reads the same slab: `gap()` is what the leaf leaves of
+the doorway within `DoorFallConfig.mouth` of the wall line (`DoorFootprint.clear_width`: all of it when the leaf lies flat or
+elsewhere, little or none when it is propped across the threshold), `open_amount()` is 1, and the AI's door state
+(`SnapshotLeadMemo.door_state`: angle, is-down and the gap) changes when the slab comes to rest elsewhere, which ends the walks
+kept to the old one. The walk never works a fallen door (`toggle`, `turn_by` and `open_fully` do nothing): it is no door but an
+obstacle, which the nav map and the body already refuse, as for a tipped piece (D14).
+
+Tests: `objects/door_blast_knocks_it_off_free` (a blast knocks a door off its hinges and it lies on the floor as a free body,
+thrown away from the blast), `objects/door_knocked_down` (a kick from the east lands the door west, rounds from the west
+land it east, an ajar door kicked from the pull side; a puppet walks over one, a round and an NPC's sight pass once it
+lies), `objects/fallen_door_stops_bullets_at_its_lying_height` (a ray passes over the leaf lying flat, a round at its height
+stops in it), `objects/fallen_door_can_be_shoved` (a shove slides it and it rests), `objects/door_falls_onto_a_wardrobe_leans` (a door kicked onto a wardrobe rests leaning: solid footprint, nav hole
+after the re-bake), `ai/movement/door_slab_across_the_threshold_blocks` (a slab propped across the threshold: `gap()`, the nav
+map and the AI agree; a defender never touches it; the AI's door state follows the slab), `objects/twin_door_swing` (the leader
+swings the 2D follower), `objects/structure_door_art` (the fallen leaf wears its art and lies as the free body does).
 
 ## DR12. Sound
 
@@ -250,7 +329,7 @@ furniture stops the leaf at once (the latch is heard to give); a blast that shat
 it also throws the door open or fells it, `burst` or `down` too: the shattering and the bang are two sounds.
 
 **No spam.** A gradual scroll (DR7) turns the door a notch at a time, each notch a swing opening it a little further; only the first
-of a movement sounds its latch. The door remembers when it last began opening (`_opened_at`); a swing opening it within
+of a movement sounds its latch. The door remembers when it last began opening (`DoorSwing.opened_at`); a swing opening it within
 `DoorConfig.latch_gap` (0.6 s) of that carries on the same movement and posts no `open`, and every opening swing renews the time, so
 a run of notches is one latch sound (the clip is 0.3 s) however long the scroll lasts. A movement ends when the door rests for the
 gap, or when a closing swing begins (a reversal): a notch after a rest, and an open, shut, open in quick succession, sound at each

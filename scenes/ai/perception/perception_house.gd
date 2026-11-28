@@ -48,10 +48,10 @@ var _learned_full := false
 ## How many sliced looks have been made: piece `i` of `interactables` is looked at on the sliced
 ## looks where `(i + _sliced_looks) % LEARN_SLICES` is 0.
 var _sliced_looks := 0
-## The intake identities already set up: rooms, openings, grenade-slot items and body heights.
+## The intake identities already set up: rooms, openings and grenade-slot items.
 var _intake := {}
 ## How often each piece of intake setup ran (fast-path test observables).
-var intake_reads := { &"house": 0, &"carried": 0, &"body": 0 }
+var intake_reads := { &"house": 0, &"carried": 0 }
 
 
 func _init(npc_perception: Node) -> void:
@@ -88,7 +88,7 @@ func room_status(self_pos: Vector2) -> Array:
 
 
 ## Before a look: capture the NPC's post on the first call, scan the interactables once, learn the
-## grenades carried and the body's heights, seed a familiar NPC's house knowledge, hand the house to
+## grenades carried, seed a familiar NPC's house knowledge, hand the house to
 ## the doorway geometry (laying the doorways ahead while `tuning.entry.enabled`) and keep
 ## `house_rooms`.
 func take_in(house_rooms: Array) -> void:
@@ -97,10 +97,6 @@ func take_in(house_rooms: Array) -> void:
 		_post_set = true
 	_ensure_interactables(house_rooms)
 	_learn_carried()
-	if not _intake.get("body", false):
-		perception.grenades.throw.learn_body()
-		_intake["body"] = true
-		intake_reads[&"body"] += 1
 	_seed_house(house_rooms)
 	if (not is_same(_intake.get("rooms"), house_rooms)
 			or not is_same(_intake.get("openings"), openings)):
@@ -111,7 +107,7 @@ func take_in(house_rooms: Array) -> void:
 	if perception.tuning.entry.enabled:
 		var world: World2D = perception._character.get_world_2d()
 		# Lay the doorways before a decision needs them.
-		perception.entry.doorways.warm_geometry(world.navigation_map, world.direct_space_state)
+		perception.entry.doorways.warm_geometry(NavWorld.map_in(world), TwinSpace.space_in(world))
 	rooms = house_rooms
 
 
@@ -151,8 +147,8 @@ func learn_by_sight(full := false) -> void:
 	_learned_full = full
 	var self_pos: Vector2 = perception._character.global_position
 	var facing: Vector2 = perception._character.facing
-	var space: PhysicsDirectSpaceState2D = perception._character.get_world_2d().direct_space_state
-	var exclude := [perception._character.get_rid()]
+	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(perception._character)
+	var exclude := SightRay.exclude_of(perception._character)
 	_look_at_rooms(self_pos, facing, space, exclude)
 	_look_at_furniture(full, self_pos, facing, space, exclude)
 
@@ -173,7 +169,7 @@ func _next_look_after(frame: int) -> int:
 func _look_at_rooms(
 	self_pos: Vector2,
 	facing: Vector2,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	exclude: Array,
 ) -> void:
 	# Read once: what is learned here is permanent and only grows.
@@ -195,7 +191,7 @@ func _look_at_furniture(
 	full: bool,
 	self_pos: Vector2,
 	facing: Vector2,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	exclude: Array,
 ) -> void:
 	var known_objects := known_object_ids()

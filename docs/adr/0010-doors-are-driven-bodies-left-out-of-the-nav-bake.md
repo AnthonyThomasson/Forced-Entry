@@ -23,6 +23,9 @@ angle), not a `RigidBody2D` on a `PinJoint2D` or a `DampedSpringJoint2D` the eng
 The leaf is the only collider of a door and is solid at every height (`coverage` 100); a knocked-down door drops
 its collider (layer 0) and lies flat as a slab.
 
+> Footnote (#194): `coverage` was the abstract 0 to 100 height scale, since removed: a door's leaf is a real 3D
+> collider and is solid at every height because its twin is as tall as the door.
+
 ## Left out of the nav bakes
 
 A baked static collider is a wall to the navigation mesh. A shut door is in the doorway it stands in, and an

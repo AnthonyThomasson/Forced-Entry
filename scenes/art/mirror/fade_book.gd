@@ -72,13 +72,13 @@ func _register(mesh: Node3D, key: int, movable: bool) -> void:
 	if wall:
 		var parts: Dictionary = mesh.call(&"segments")
 		for index: int in parts:
-			var unit := _part_unit(parts[index])
+			var unit := _part_unit(parts[index], key, index)
 			if unit != null:
 				units[index] = unit
 		mesh.connect(&"segment_replaced", _on_segment_replaced.bind(key))
 	else:
 		var hangs: bool = mesh.get(&"hangs_on_wall") == true
-		var unit := _piece_unit(mesh, movable and not hangs, hangs)
+		var unit := _piece_unit(mesh, key, movable and not hangs, hangs)
 		if unit != null:
 			units[0] = unit
 	if units.is_empty() and not wall:
@@ -94,20 +94,22 @@ func _register(mesh: Node3D, key: int, movable: bool) -> void:
 
 ## A wall's segment `part`: one unit (the segment's box; the instances it carries on its face, a
 ## wear decal, fade with it), or null when it is too low to hide anyone.
-func _part_unit(part: MeshInstance3D) -> FadeUnit:
+func _part_unit(part: MeshInstance3D, key: int, index: int) -> FadeUnit:
 	var instances: Array[GeometryInstance3D] = [part]
 	for child in part.get_children():
 		if child is GeometryInstance3D:
 			instances.append(child)
 	var unit := _filed(FadeUnit.make(part, instances, part.get_aabb(), false))
 	if unit != null:
+		unit.hold.key = key
+		unit.hold.index = index
 		unit.hang.wall = true
 	return unit
 
 
 ## A whole piece: every instance under `mesh` (and it, if it shows one) fades together; a `hangs`
 ## piece is a hung unit.
-func _piece_unit(mesh: Node3D, movable: bool, hangs := false) -> FadeUnit:
+func _piece_unit(mesh: Node3D, key: int, movable: bool, hangs := false) -> FadeUnit:
 	var instances: Array[GeometryInstance3D] = []
 	var bounds := AABB()
 	var inverse := mesh.global_transform.affine_inverse()
@@ -122,6 +124,7 @@ func _piece_unit(mesh: Node3D, movable: bool, hangs := false) -> FadeUnit:
 	if instances.is_empty():
 		return null
 	var unit := FadeUnit.make(mesh, instances, bounds, movable)
+	unit.hold.key = key
 	if hangs:
 		unit.hang.hung = true
 		count += 1
@@ -143,6 +146,7 @@ func _filed(unit: FadeUnit) -> FadeUnit:
 ## for another wall unless `rehome` is false (the caller gives them a new one).
 func _unfile(unit: FadeUnit, rehome := true) -> void:
 	count -= 1
+	unit.hold.release()
 	_grid.unfile(unit)
 	_leave_walls(unit, rehome)
 	if unit.listed:
@@ -155,7 +159,7 @@ func _unfile(unit: FadeUnit, rehome := true) -> void:
 func _on_segment_replaced(index: int, part: MeshInstance3D, key: int) -> void:
 	var units: Dictionary = _units.get(key, {})
 	var old: FadeUnit = units.get(index)
-	var unit := _part_unit(part)
+	var unit := _part_unit(part, key, index)
 	var hung: Array[FadeUnit] = []
 	if old != null:
 		hung.assign(old.hang.followers)
@@ -180,6 +184,14 @@ func _resume(unit: FadeUnit, faded: float) -> void:
 		unit.listed = true
 		_listed.append(unit)
 	unit.apply()
+
+
+## Every unit stops being held faded: the fade is going, and its meshes may stay (a view rebuilt
+## over live bodies).
+func release_all() -> void:
+	for units: Dictionary in _units.values():
+		for unit: FadeUnit in units.values():
+			unit.hold.release()
 
 
 ## The mesh of `key` leaves the tree: its units go, and what they had faded is kept for a few

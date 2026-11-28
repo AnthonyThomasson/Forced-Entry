@@ -2,6 +2,9 @@ extends GameTest
 ## The same shot as debris_rests_in_a_layer with the `physics.debris` switch off: the chair is still
 ## hit, but no debris spawns.
 
+## A round aimed this low (px) meets a chair, a lamp or a car; a level one at the muzzle flies over.
+const LOW := 10.0
+
 
 func describe() -> Dictionary:
 	return {
@@ -15,7 +18,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 700, 400))
-	s.switch(&"projectile.flyover", false)
 	s.switch(&"physics.debris", false)
 	s.actor(&"shooter", &"puppet", Vector2(120, 200), { "start_slot": 3 })
 	s.object(&"chair", "chair", Vector2(500, 200))
@@ -31,7 +33,7 @@ func _chips(t: TestContext) -> Array:
 func run(t: TestContext) -> void:
 	var shooter := t.puppet(&"shooter")
 	var chair := t.object(&"chair")
-	shooter.aim_at(chair.global_position)
+	shooter.aim_at(chair.global_position, LOW)
 	await t.seconds(0.5)
 	shooter.shoot()
 	if not t.require(

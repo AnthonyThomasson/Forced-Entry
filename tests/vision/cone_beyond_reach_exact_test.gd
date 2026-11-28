@@ -8,6 +8,7 @@ extends GameTest
 ## The view's polygon is the reference cone's, vertex for vertex, in every frame
 ## (`tests/_vision/cone_checker.gd`).
 
+const RawTwins := preload("res://tests/_vision/raw_twins.gd")
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 const Checker := preload("res://tests/_vision/cone_checker.gd")
 const EYE_AT := Vector2(500, 300)
@@ -65,11 +66,10 @@ func run(t: TestContext) -> void:
 
 ## A thin solid wall from `from` to `to`.
 func _wall(world: Node, from: Vector2, to: Vector2) -> void:
-	var body := StaticBody2D.new()
-	body.collision_layer = PhysicsLayers.SOLID
+	var body := RawTwins.Solid.new()
 	body.position = (from + to) * 0.5
 	body.rotation = (to - from).angle()
-	var shape := CollisionShape2D.new()
+	var shape := RawTwins.Shape.new()
 	var rect := RectangleShape2D.new()
 	rect.size = Vector2(from.distance_to(to), WALL_WIDTH)
 	shape.shape = rect

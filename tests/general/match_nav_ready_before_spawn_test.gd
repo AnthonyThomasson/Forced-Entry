@@ -114,30 +114,29 @@ func _watch(t: TestContext, viewport: SubViewport) -> Dictionary:
 ## A node entered the tree: when it is an NPC under `viewport` (a body with a controller that has
 ## `rooms`), note how the maps stand in `watch`'s `entries` and watch its agents' first path.
 func _on_added(watch: Dictionary, viewport: SubViewport, node: Node) -> void:
-	if not (node is CharacterBody2D and viewport.is_ancestor_of(node)):
+	if not (node.is_in_group(TwinSpace.BODIES) and viewport.is_ancestor_of(node)):
 		return
 	if TestContext.controller_of(node, &"control") == null:
 		return
 	if node.get_children().all(func(c): return not ("rooms" in c)):
 		return
 	(watch["entries"] as Array).append(_maps_now(viewport, node))
-	for child in node.get_children():
-		if child is NavigationAgent2D:
-			var agent: NavigationAgent2D = child
-			agent.path_changed.connect(func() -> void: _note_target(watch, node, agent))
+	var agent := node.get_node_or_null("NavAnchor/NavigationAgent3D") as NavigationAgent3D
+	if agent != null:
+		agent.path_changed.connect(func() -> void: _note_target(watch, node, agent))
 
 
 ## `npc`'s `agent` changed its path: the first time, note its target in `watch`'s `targets` with how
 ## far it lies from its map's navmesh on this frame.
-func _note_target(watch: Dictionary, npc: Node, agent: NavigationAgent2D) -> void:
+func _note_target(watch: Dictionary, npc: Node, agent: NavigationAgent3D) -> void:
 	if (watch["targets"] as Dictionary).has(npc.name):
 		return
-	var point := agent.target_position
+	var point := NavPlan.plan_of(agent.target_position)
 	var map := agent.get_navigation_map()
 	# A map that never synchronized shows no navmesh (and asking it is an engine error).
 	var off := INF
-	if NavigationServer2D.map_get_iteration_id(map) != 0:
-		off = NavigationServer2D.map_get_closest_point(map, point).distance_to(point)
+	if NavPlan.iteration(map) != 0:
+		off = NavPlan.closest(map, point).distance_to(point)
 	watch["targets"][npc.name] = { "point": point, "off": off }
 
 
@@ -145,10 +144,10 @@ func _note_target(watch: Dictionary, npc: Node, agent: NavigationAgent2D) -> voi
 ## planning_house, steering_house }` (`*_house`: the map's closest point to a room's centre belongs
 ## to the house's own region).
 func _maps_now(viewport: SubViewport, npc: Node) -> Dictionary:
-	var map: RID = viewport.world_2d.navigation_map
+	var map: RID = NavWorld.map_of(viewport)
 	var steering := NavBuilder.steering_map(map)
 	var region := _find_region(viewport)
-	var steering_regions: Array[NavigationRegion2D] = []
+	var steering_regions: Array[NavigationRegion3D] = []
 	if region != null:
 		steering_regions = NavBuilder.steering_regions(region)
 	var centre := Vector2.INF
@@ -174,18 +173,18 @@ func _maps_now(viewport: SubViewport, npc: Node) -> Dictionary:
 func _answers_with(map: RID, regions: Array, centre: Vector2) -> bool:
 	if centre == Vector2.INF or not map.is_valid():
 		return false
-	if NavigationServer2D.map_get_iteration_id(map) == 0:
+	if NavPlan.iteration(map) == 0:
 		return false  # asking a map that never synchronized is an engine error
-	var owner := NavigationServer2D.map_get_closest_point_owner(map, centre)
+	var owner := NavPlan.owner_at(map, centre)
 	return regions.any(
-		func(r: NavigationRegion2D) -> bool: return r != null and r.get_rid() == owner,
+		func(r: NavigationRegion3D) -> bool: return r != null and r.get_rid() == owner,
 	)
 
 
-## The first NavigationRegion2D under `node` (the planning region the bake added), else null.
-func _find_region(node: Node) -> NavigationRegion2D:
+## The first NavigationRegion3D under `node` (the planning region the bake added), else null.
+func _find_region(node: Node) -> NavigationRegion3D:
 	for child in node.get_children():
-		if child is NavigationRegion2D:
+		if child is NavigationRegion3D:
 			return child
 		var found := _find_region(child)
 		if found != null:

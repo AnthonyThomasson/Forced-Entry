@@ -4,6 +4,7 @@ extends GameTest
 ## answers go on matching the district map's. A point where the piece stood is floor again on
 ## both, and a point where it stands now is off the floor on both.
 
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const SEED := 7
 const SHOVE := Vector2(0, 130)
 ## How near (px) the ring's snap is to the district map's.
@@ -26,12 +27,14 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.district(SEED)
 	s.switch(&"nav.rebake", true)
+	# Bare: what stands on or in the shoved piece (items, D20, D21) falls where it stood.
+	s.switch(&"worldgen.items", false)
 
 
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)
-	var region: NavigationRegion2D = t.world.find_children(
-		"NavRegion", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"NavRegion", "NavigationRegion3D", true, false,
 	)[0]
 	var map := region.get_navigation_map()
 	var small := NavRing.region_of(region)
@@ -47,16 +50,16 @@ func run(t: TestContext) -> void:
 		"premise: both spots are inside the ring",
 	):
 		return
-	var held_planning := region.navigation_polygon
-	var held_ring := small.navigation_polygon
+	var held_planning := NavPlan.polygon_of(region)
+	var held_ring := NavPlan.polygon_of(small)
 	var held := _iterations(map)
 	piece.global_position = new_spot
 	t.check(
-		await t.until(func() -> bool: return region.navigation_polygon != held_planning, WAIT),
+		await t.until(func() -> bool: return NavPlan.polygon_of(region) != held_planning, WAIT),
 		"the planning region is re-baked after the shove",
 	)
 	t.check(
-		await t.until(func() -> bool: return small.navigation_polygon != held_ring, WAIT),
+		await t.until(func() -> bool: return NavPlan.polygon_of(small) != held_ring, WAIT),
 		"the ring is re-baked after the shove",
 	)
 	# Both maps take the new meshes in: each builds its iteration on a worker thread, so the wait
@@ -72,8 +75,8 @@ func run(t: TestContext) -> void:
 ## The district map's iteration id and its ring map's.
 func _iterations(map: RID) -> Array:
 	return [
-		NavigationServer2D.map_get_iteration_id(map),
-		NavigationServer2D.map_get_iteration_id(NavRing.map_of(map)),
+		NavPlan.iteration(map),
+		NavPlan.iteration(NavRing.map_of(map)),
 	]
 
 
@@ -90,7 +93,7 @@ func _check_snaps(t: TestContext, map: RID, old_spot: Vector2, new_spot: Vector2
 			NavBuilder.snap(
 				map,
 				spot,
-			).distance_to(NavigationServer2D.map_get_closest_point(map, spot))
+			).distance_to(NavPlan.closest(map, spot))
 				<= SAME,
 			"%s: the ring snaps it as the district map does" % str(spot.round()),
 		)
@@ -100,9 +103,9 @@ func _check_snaps(t: TestContext, map: RID, old_spot: Vector2, new_spot: Vector2
 	)
 
 
-## A furniture piece of the match building that carves a hole: a rigid body with a collider.
-func _solid_piece(t: TestContext) -> RigidBody2D:
-	for body in t.world.house.find_children("*", "RigidBody2D", true, false):
-		if not body.find_children("*", "CollisionShape2D", true, false).is_empty():
+## A furniture piece of the match building that carves a hole: a solid piece.
+func _solid_piece(t: TestContext) -> Node2D:
+	for body in PlanProbe.pieces_under(t.world.house):
+		if body.solid:
 			return body
 	return null

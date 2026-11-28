@@ -5,7 +5,7 @@ extends RefCounted
 ## from above reads as the 2D car does. Each is made once per kind, paint (and door) from the
 ## painters' flat paint (`PixelArt.render_flat`, `domain-art/flat-paint.md`: albedo, no light, in
 ## the painters' canonical frame, front toward +y) and held here, so a texture is never made per
-## frame and the textured material (one per texture) stays one per kind and paint.
+## frame and each skin is copied into the toon's atlas once per kind and paint.
 ##
 ## The painters draw in Art's canonical frame and the 2D draws them turned onto the vehicle's by
 ## `BODY_TURN`; the mesh is in the vehicle's frame (x forward, y right, model `x, z`), and a

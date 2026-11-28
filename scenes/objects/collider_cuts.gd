@@ -1,14 +1,15 @@
 class_name ColliderCuts
 extends RefCounted
-## Objects domain: the convex cuts of dented colliders that wait for their deferred rebuild, cut
-## side by side on worker threads. Cutting a dented silhouette into convex pieces
-## (`Deformation.cut_shape` / `cut_wall`) is the costly part of a collider rebuild, and a blast
-## dents a room's worth of furniture and wall segments at once, each queueing its rebuild deferred
-## (shapes cannot change mid-physics). When the first of those rebuilds runs, the dents are final
-## (no hit lands between deferred calls): it starts every other waiting cut on a worker thread, each
-## from a copy of its dents as they stand then, and cuts its own meanwhile; each later rebuild takes
-## its finished cut. The same pieces, swapped in at the same moment, one rebuild after another; a
-## piece hit several times in a frame is cut once, from all its dents.
+## Objects domain: the convex cuts of dented wall segments that wait for their deferred rebuild, cut
+## side by side on worker threads. Cutting a dented outline into convex pieces
+## (`Deformation.cut_wall`) is the costly part of a rebuild, and a blast dents a room's worth of
+## wall segments at once, each queueing its rebuild deferred (a twin's shapes cannot change
+## mid-physics). (A piece has no collider to cut: its dents change its mesh and its smear.) When
+## the first of those rebuilds runs, the dents are final (no hit lands between deferred calls): it
+## starts every other waiting cut on a worker thread, each from a copy of its dents as they stand
+## then, and cuts its own meanwhile; each later rebuild takes its finished cut. The same pieces,
+## swapped in at the same moment, one rebuild after another; a wall segment hit several times in a
+## frame is cut once, from all its dents.
 
 ## The cuts queued and not started, in the order queued.
 static var _waiting: Array[ColliderCuts] = []

@@ -43,14 +43,14 @@ func run(t: TestContext) -> void:
 	puppet.set_run(false)
 	puppet.walk(Vector2.RIGHT)
 	await t.seconds(0.3)
-	t.expect_near(body.get_real_velocity().length(), WALK_SPEED, 5.0, "walks at walk speed")
+	t.expect_near(TwinSpace.real_velocity_of(body).length(), WALK_SPEED, 5.0, "walks at walk speed")
 
 	# Running is faster and drains the bar.
 	puppet.set_run(true)
 	await t.seconds(0.2)
 	t.check(body.movement.is_running(), "running while holding run and moving")
 	t.expect_near(
-		body.get_real_velocity().length(),
+		TwinSpace.real_velocity_of(body).length(),
 		WALK_SPEED * CharacterPaceConfig.run_speed_mult,
 		5.0,
 		"runs at run speed",
@@ -66,7 +66,7 @@ func _check_runs_dry(t: TestContext, body: Node) -> void:
 	await t.frames(3)
 	t.expect_near(body.movement.stamina_fraction(), 0.0, 0.2, "the bar is spent")
 	t.expect_near(
-		body.get_real_velocity().length(),
+		TwinSpace.real_velocity_of(body).length(),
 		WALK_SPEED,
 		5.0,
 		"walks again once out of stamina",

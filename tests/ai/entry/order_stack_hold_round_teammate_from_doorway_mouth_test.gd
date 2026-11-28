@@ -144,7 +144,7 @@ func run(t: TestContext) -> void:
 ## (`NavBuilder.route` on the steering map, interface 9): the first start across the doorway's wall
 ## plane, else the last.
 func _route_start(t: TestContext, a: Node2D, slot: Vector2, claim: Callable) -> Vector2:
-	var steer := NavBuilder.steering_map(a.get_world_2d().navigation_map)
+	var steer := NavBuilder.steering_map(NavWorld.map_of(a))
 	var start := [Vector2.INF]
 	var carved := func() -> bool:
 		claim.call()

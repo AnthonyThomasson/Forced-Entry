@@ -11,7 +11,6 @@ const OBJECTS := {
 		"material": "metal",
 		"art": "car",
 		"weight": 800,
-		"coverage": 65,
 		"penetration": 90,
 	},
 	"workbench": {
@@ -23,13 +22,13 @@ const OBJECTS := {
 		"art": "table",
 		"art_opts": {
 			"plank_px": 4,
-			"props": [
-				{ "kind": "tools", "at": Vector2(0.38, 0.5) },
-				{ "kind": "vise", "at": Vector2(0.85, 0.45) },
-			],
+			"height": 38.0,
 		},
+		"carries": [
+			{ "key": "tools", "at": Vector2(-12.5, 0), "on_top": true },
+			{ "key": "vise", "at": Vector2(36.4, -1.9), "on_top": true },
+		],
 		"weight": 90,
-		"coverage": 45,
 		"penetration": 60,
 	},
 	"shelving": {
@@ -39,9 +38,8 @@ const OBJECTS := {
 		"color": Color(0.55, 0.55, 0.58),
 		"material": "metal",
 		"art": "shelf",
-		"art_opts": { "contents": "boxes" },
+		"art_opts": { "contents": "boxes", "loose": true },
 		"weight": 40,
-		"coverage": 80,
 		"penetration": 70,
 	},
 	"tool_chest": {
@@ -53,7 +51,6 @@ const OBJECTS := {
 		"art": "cabinet",
 		"art_opts": { "front": "drawers", "count": 2, "handle": Color(0.78, 0.8, 0.84) },
 		"weight": 60,
-		"coverage": 40,
 		"penetration": 80,
 	},
 }

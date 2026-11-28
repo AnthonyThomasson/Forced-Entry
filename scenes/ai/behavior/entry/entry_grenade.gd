@@ -8,6 +8,13 @@ extends RefCounted
 ## else: what it needs of the entry and of its other parts is handed in at the call (`entry`),
 ## so no reference cycle forms.
 
+## What a plan came to: a throw, nowhere to throw from, or not yet known.
+enum Plan {
+	PLANNED,
+	NOWHERE,
+	PLANNING,
+}
+
 ## The entry this part is one of, handed in at the call (never held: it holds the part).
 const Entry := preload("res://scenes/ai/behavior/entry.gd")
 const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
@@ -20,6 +27,9 @@ const EntryLandings := preload("res://scenes/ai/perception/entry/entry_landings.
 ## from the doorway's centre as shares of its width, toward the stack's side first).
 const BANG_STEP_OUT := 78.0
 const BANG_STEP_ALONG := [0.25, 0.0, -0.25]
+## The aims a bang's plan tries a frame (each asks the arc planner): the search goes on over the
+## next frames, the thrower waiting meanwhile, so a room nothing reaches is not one long frame.
+const BANG_PLANS_A_FRAME := 12
 ## The most seconds a stack-ready member waits for its thrower to call the bang before the stack
 ## goes in quietly, and the most the stack waits for the stun to go off once it was called.
 const BANG_CALL_CAP := 8.0
@@ -41,13 +51,13 @@ var stuns := 0
 ## The thrower's part: "go" (to the throw spot), "throw", "back" (to its slot); "" for everyone
 ## else.
 var stage := ""
-## Where the thrower throws from.
-var _bang_spot := Vector2.INF
 ## The points it walks through to get there: out from its slot first, clear of the member ahead of
-## it, then along.
+## it, then along, to where it throws from (the last).
 var _bang_route: Array = []
 ## Where the stun is thrown to, in the room.
 var _bang_target := Vector2.INF
+## How many of the plan's candidates (`_plan_bang`) were tried in the frames before.
+var _bang_tried := 0
 ## Seconds a stack-ready member has waited for the bang to be called.
 var wait := 0.0
 ## The stack's stun, or its own team's stun or frag, went off in the room: the point crosses at
@@ -78,9 +88,9 @@ func _init(entry_state: EntryState, entry_world: EntryWorld) -> void:
 ## Forget the running entry's grenade (`Entry.reset`).
 func reset() -> void:
 	stage = ""
-	_bang_spot = Vector2.INF
 	_bang_route = []
 	_bang_target = Vector2.INF
+	_bang_tried = 0
 	wait = 0.0
 	over = false
 	off = false
@@ -150,20 +160,23 @@ func _bang_held_off(entry: Entry, team: Array, ordered: bool) -> bool:
 ## view, plans the throw and calls it (`_throw_bang`), the rest wait for it. True once the phase has
 ## changed.
 func _bang_call(entry: Entry, team: Array, ordered: bool, delta: float) -> bool:
-	if team.any(func(m): return m["step"] == "bang"):
-		_enter_bang(entry)  # The thrower called it: hold, turned away, until the grenade goes off.
-		return true
+	for m in team:
+		if m["step"] == "bang":
+			# The thrower called it: hold, turned away, until the grenade goes off.
+			_enter_bang(entry)
+			return true
 	if (ordered and entry.readiness.stack_ready(entry, team)
 			and not _stack_has(team, _bang_kind(entry))):
 		# D1 / D15: the stack is in and the order's stun (or frag) is gone: it goes in quietly, and
 		# its claims say so (`bang_off`).
 		give_up_bang(entry)
 		return false
-	if (_thrower(entry) == -1
+	var thrower := _thrower(entry)
+	if (thrower == -1
 			or not entry.readiness.stack_ready(entry, team)
 			or state.hostile_in_view):
 		return false
-	if _thrower(entry) != world.self_id:
+	if thrower != world.self_id:
 		wait += delta  # Waiting for the thrower to call the bang.
 		return false
 	return _throw_bang(entry)
@@ -173,7 +186,11 @@ func _bang_call(entry: Entry, team: Array, ordered: bool, delta: float) -> bool:
 ## to throw from (no clear lob into the room) it gives the bang up: the stack goes in quietly. True
 ## once the phase has changed.
 func _throw_bang(entry: Entry) -> bool:
-	if not _plan_bang(entry):
+	var planned := _plan_bang(entry)
+	if planned == Plan.PLANNING:
+		return false
+	_bang_tried = 0
+	if planned == Plan.NOWHERE:
 		give_up_bang(entry)
 		return false
 	stage = "go"
@@ -235,7 +252,10 @@ func _go_quiet(entry: Entry) -> void:
 func vetoed(entry: Entry, team: Array) -> bool:
 	if entry.orders.mode_set(entry):
 		return not stack_bangs(entry)
-	return team.any(func(m): return m["bang_off"])
+	for m in team:
+		if m["bang_off"]:
+			return true
+	return false
 
 
 ## Whether a member of the stack is crossing or through the doorway.
@@ -252,7 +272,12 @@ func stack_has_stun(team: Array) -> bool:
 ## whose claims say so (`stuns` / `frags`).
 func _stack_has(team: Array, grenade_kind: StringName) -> bool:
 	var key := "frags" if grenade_kind == &"frag" else "stuns"
-	return _carried(grenade_kind) > 0 or team.any(func(m): return int(m[key]) > 0)
+	if _carried(grenade_kind) > 0:
+		return true
+	for m in team:
+		if int(m[key]) > 0:
+			return true
+	return false
 
 
 ## How many grenades of `grenade_kind` (`stun` / `frag`) this NPC carries.
@@ -272,23 +297,29 @@ func _bang_kind(entry: Entry) -> StringName:
 ## (`EntryLandings.grid`: the room's far side, `BANG_DEPTHS` of the way in and `BANG_ACROSS` of the
 ## way across), or, in a room deeper than a stun reaches from the spot, the farthest point along
 ## that line it reaches (`EntryLandings.aim`), where it may land (`EntryLandings.lands`: at least
-## `BANG_MIN_DEPTH` from the door). The first of them that some spot reaches with a clear lob wins,
-## the thrower's own slot before a step out in front of the door (`BANG_STEP_ALONG`). A frag (LD14,
+## `BANG_MIN_DEPTH` from the door). The first of them that some spot reaches with a clear lob wins
+## (`BANG_PLANS_A_FRAME` aims a frame), the thrower's own slot before a step out in front of the
+## door (`BANG_STEP_ALONG`). A frag (LD14,
 ## D16) aims only where its burst leaves every claimed slot of the stack, the thrower's own too, out
-## of its danger zone (`AgentPerception.grenades.in_zone`: the wall between shields it). False when
-## nowhere gives a clear lob (for a frag, a safe one).
-func _plan_bang(entry: Entry) -> bool:
+## of its danger zone (`AgentPerception.grenades.in_zone`: the wall between shields it). Not a throw
+## when nowhere gives a clear lob (for a frag, a safe one): `PLANNED`, `NOWHERE`, or `PLANNING`.
+func _plan_bang(entry: Entry) -> Plan:
 	var type := _bang_kind(entry)
 	var spots := _bang_spots()
 	var reach: float = world.perception.grenades.reach(type)
 	var slots := _slot_points(entry) if type == &"frag" else []
-	for at: Vector2 in EntryLandings.grid(state.geo):
-		for spot: Vector2 in spots:
-			var target := EntryLandings.aim(state.geo, spot, at.x, at.y, reach)
-			if _bang_target_ok(target, type, slots) and _clear_lob(spot, target, reach, type):
-				_take_bang(spot, target)
-				return true
-	return false
+	var grid := EntryLandings.grid(state.geo)
+	var total := grid.size() * spots.size()
+	var upto := mini(_bang_tried + BANG_PLANS_A_FRAME, total)
+	for i in range(_bang_tried, upto):
+		var spot: Vector2 = spots[i % spots.size()]
+		var at: Vector2 = grid[floori(float(i) / float(spots.size()))]
+		var target := EntryLandings.aim(state.geo, spot, at.x, at.y, reach)
+		if _bang_target_ok(target, type, slots) and _clear_lob(spot, target, reach, type):
+			_take_bang(spot, target)
+			return Plan.PLANNED
+	_bang_tried = upto
+	return Plan.NOWHERE if upto >= total else Plan.PLANNING
 
 
 ## The spots the bang may be thrown from, in order of preference: the thrower's own slot, then each
@@ -320,7 +351,6 @@ func _take_bang(spot: Vector2, target: Vector2) -> void:
 	var door: Vector2 = state.geo["pos"]
 	var out: Vector2 = state.geo["out"]
 	var along: Vector2 = state.geo["along"]
-	_bang_spot = spot
 	_bang_target = target
 	_bang_route = [
 		world.loco.reachable(door + out * maxf(BANG_STEP_OUT, (spot - door).dot(out))
@@ -381,7 +411,7 @@ func _bang_go(entry: Entry, delta: float) -> void:
 			and world.character.global_position.distance_to(_bang_route[0])
 					<= Entry.WAYPOINT_REACH):
 		_bang_route.pop_front()
-	if not entry.approach.arrived_at(_bang_spot, StackClaim.SLOT_REACH):
+	if not entry.approach.arrived_at(_bang_route.back(), StackClaim.SLOT_REACH):
 		world.loco.move_to(
 			_bang_route[0],
 			StackClaim.SLOT_REACH if _bang_route.size() == 1 else 0.0,

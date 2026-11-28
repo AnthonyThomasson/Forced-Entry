@@ -48,7 +48,6 @@ func configure(s: TestSetup) -> void:
 	s.von_script([])
 	s.switch(&"ai.callouts", false)
 	s.switch(&"ai.hostile_on_trespass", false)
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"i", &"invader", I_AT, { "movement:speed": 0.0, "facing": Vector2.LEFT })
 	GrenadeAi.hostile(s, &"h", H_JAMB, Maps.DOOR_BACK)
 	s.set_props(

@@ -162,6 +162,109 @@ func test_the_ledger_hears_its_own_side_within_range_and_never_its_listener() ->
 	).is_equal([2])
 
 
+func test_the_claims_and_stack_laid_stand_across_frames_until_a_claim_comes_or_goes() -> void:
+	# The ledger lays a doorway's claims and stack once, not every frame: the same list and the same
+	# stack are handed back while nothing is heard and nothing lapses, a claim heard lays them
+	# again, and `age` stays what it says (seconds since the claim was heard).
+	var mate := StackRadio.speaker(self)
+	var other := StackRadio.speaker(self)
+	var ledger := _ledger()
+	var geometry := { "into": "hall", "id": "o_1" }
+	ledger.hear(StackRadio.callout(mate, { "opening": "o_1", "slot": 1, "entry_step": "claim" }))
+	var first: Array = ledger.claims("o_1")
+	var stack: RefCounted = ledger.stack("o_1", geometry)
+	var age: float = first[0]["age"]
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	assert_bool(is_same(ledger.claims("o_1"), first)).override_failure_message(
+		"the same claims after frames with nothing heard",
+	).is_true()
+	assert_bool(is_same(ledger.stack("o_1", geometry), stack)).override_failure_message(
+		"the same stack after frames with nothing heard",
+	).is_true()
+	assert_float(first[0]["age"]).override_failure_message(
+		"the age moves on with the frames: %f then %f" % [age, first[0]["age"]],
+	).is_greater(age)
+	var relaid: RefCounted = ledger.stack("o_1", { "into": "hall", "id": "o_1" })
+	assert_bool(is_same(relaid, stack)).override_failure_message(
+		"a geometry laid again is another stack",
+	).is_false()
+	ledger.hear(StackRadio.callout(other, { "opening": "o_1", "slot": 2, "entry_step": "claim" }))
+	assert_array(ledger.claims("o_1")).override_failure_message(
+		"a claim heard is laid in",
+	).has_size(2)
+	assert_bool(is_same(ledger.stack("o_1", geometry), stack)).is_false()
+
+
+func test_a_claim_that_lapses_leaves_the_laid_claims_and_stack_laid_again() -> void:
+	# A claim past its ttl is dropped on a later frame: the list is empty and the stack is another
+	# object (what was laid went with the claim), never the one laid while it stood.
+	var mate := StackRadio.speaker(self)
+	var ledger := ClaimLedger.new()
+	ledger.setup({ "faction": &"invader", "range": 0.0, "ttl": 0.05 })
+	var geometry := { "into": "hall", "id": "o_1" }
+	ledger.hear(StackRadio.callout(mate, { "opening": "o_1", "slot": 1, "entry_step": "claim" }))
+	assert_array(ledger.claims("o_1")).has_size(1)
+	var stack: RefCounted = ledger.stack("o_1", geometry)
+	for _i in 12:
+		await get_tree().physics_frame
+	assert_array(ledger.claims("o_1")).override_failure_message(
+		"a claim past its ttl is no claim",
+	).is_empty()
+	assert_bool(is_same(ledger.stack("o_1", geometry), stack)).override_failure_message(
+		"the stack laid for the claim is not the one handed back after it lapsed",
+	).is_false()
+	assert_array(ledger.stack("o_1", geometry).team).is_empty()
+
+
+func test_a_speaker_freed_or_dead_is_dropped_the_next_frame_and_the_stack_laid_again() -> void:
+	var mate := StackRadio.speaker(self)
+	var gone: Node = auto_free(StackRadio.Speaker.new())
+	add_child(gone)
+	var ledger := _ledger()
+	var geometry := { "into": "hall", "id": "o_1" }
+	ledger.hear(StackRadio.callout(mate, { "opening": "o_1", "slot": 1, "entry_step": "claim" }))
+	ledger.hear(StackRadio.callout(gone, { "opening": "o_1", "slot": 2, "entry_step": "claim" }))
+	assert_array(ledger.claims("o_1")).has_size(2)
+	var stack: RefCounted = ledger.stack("o_1", geometry)
+	await get_tree().physics_frame
+	mate.is_dead = true
+	await get_tree().physics_frame
+	var slots: Array = ledger.claims("o_1").map(func(c): return c["slot"])
+	assert_array(slots).override_failure_message(
+		"a dead speaker's claim goes at the next frame: %s" % str(slots),
+	).is_equal([2])
+	var laid: RefCounted = ledger.stack("o_1", geometry)
+	assert_bool(is_same(laid, stack)).override_failure_message(
+		"the stack is laid again without the dead speaker's claim",
+	).is_false()
+	assert_int(laid.team.size()).is_equal(1)
+	gone.free()
+	await get_tree().physics_frame
+	assert_array(ledger.claims("o_1")).override_failure_message(
+		"a freed speaker's claim goes at the next frame",
+	).is_empty()
+	assert_bool(is_same(ledger.stack("o_1", geometry), laid)).is_false()
+	assert_int(ledger.stack("o_1", geometry).team.size()).is_equal(0)
+
+
+func test_setup_lays_the_claims_and_stack_again() -> void:
+	var mate := StackRadio.speaker(self)
+	var ledger := _ledger()
+	var geometry := { "into": "hall", "id": "o_1" }
+	ledger.hear(StackRadio.callout(mate, { "opening": "o_1", "slot": 1, "entry_step": "claim" }))
+	var claims: Array = ledger.claims("o_1")
+	var stack: RefCounted = ledger.stack("o_1", geometry)
+	ledger.setup({ "ttl": 9.0 })
+	assert_bool(is_same(ledger.claims("o_1"), claims)).override_failure_message(
+		"a setup lays the claims again",
+	).is_false()
+	assert_array(ledger.claims("o_1")).has_size(1)
+	assert_bool(is_same(ledger.stack("o_1", geometry), stack)).override_failure_message(
+		"a setup lays the stack again",
+	).is_false()
+
+
 func test_a_member_is_crossing_from_its_going_in_on() -> void:
 	# E6, D14: crossing is `going_in` or a through step; waiting in the stack or done is not.
 	for step in ["going_in", "in", "clear", "cover", "rear"]:

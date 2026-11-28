@@ -25,7 +25,11 @@ const PHASE_PERIOD := 6
 ## How far from the first play's residue the second and the third are built.
 const SECOND_OFFSET := 1
 const THIRD_OFFSET := 2
-## Frames the first fight has at least (the guard's warm-up alone is 360).
+## Frames the first fight has at least, for a guard that warms up first (its warm-up alone is 360,
+## `Perf.MATCH_WARMUP_S`). A guard whose window opens at the fight's first sign has no warm-up and
+## gives its own (`check_same_fight`'s `min_frames`): the opening's is its window, since its first
+## contact comes at seed 23 in the first second (frame 33: a 334-frame fight), where at seed 2 (7.1
+## s) the 360 held only by the wait for contact.
 const MIN_FRAMES := 360
 
 
@@ -116,11 +120,15 @@ static func had_a_shot(fight: String) -> bool:
 ## `THIRD_OFFSET` frames off the first's residue modulo `PHASE_PERIOD` (premises: the worlds are
 ## built on three different residues of every cadence), and the three fights must be the same, line
 ## for line, through the warm-up and the whole window. Also checks the guard made contact (a shot in
-## its fight).
-static func check_same_fight(t: TestContext, guard_id: String) -> void:
+## its fight). `min_frames` is the fewest frames the first fight must hold for the premise (the
+## guard's warm-up for most, its window for a guard that has none); what the three fights are
+## compared on is the whole fight whatever it is.
+static func check_same_fight(
+	t: TestContext, guard_id: String, min_frames := MIN_FRAMES,
+) -> void:
 	var first: Dictionary = await play(t, guard_id)
 	if not t.require(
-			first["fight"].count("\n") >= MIN_FRAMES,
+			first["fight"].count("\n") >= min_frames,
 			"premise: the guard wrote its fight (%d frames: %s %s)"
 				% [first["fight"].count("\n"), first["status"], first["reason"]],
 	):

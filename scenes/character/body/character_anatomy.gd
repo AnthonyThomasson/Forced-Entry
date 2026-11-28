@@ -16,7 +16,7 @@ const CharacterKick = preload("res://scenes/character/body/character_kick.gd")
 const BodySweep = preload("res://scenes/character/body/body_sweep.gd")
 
 ## The character the body is.
-var character: CharacterBody2D
+var character: Node2D
 ## The body's living motion (head, shoulders, hips and hands chasing `facing`); read by the hands,
 ## rig and visuals.
 var pose: CharacterPose = CharacterPose.new()
@@ -48,7 +48,7 @@ var _bled_out := false
 
 
 ## The body of `host`.
-func _init(host: CharacterBody2D) -> void:
+func _init(host: Node2D) -> void:
 	character = host
 	sweep = BodySweep.new(host)
 	legs.sweep = sweep
@@ -119,16 +119,19 @@ func leg_kick_amount(i: int) -> float:
 ## footsteps; once dead, the ragdoll falls instead, and once it has settled it bleeds out.
 func step(delta: float) -> void:
 	if character.is_dead:
-		ragdoll.step(delta, character.get_world_2d().direct_space_state, character.global_position)
+		ragdoll.step(delta, TwinSpace.space_of(character), character.global_position)
 		# A body moves until its ragdoll sleeps, and again from the frame a blast wakes it.
 		ViewLayers.set_moving(character, not ragdoll.is_settled())
 		if ragdoll.is_settled() and not _bled_out:
 			_bled_out = true
-			Physics.bleed_out(character.get_parent(), character, [character.get_rid()])
+			var twin := TwinSpace.twin_for(character) as CollisionObject3D
+			Physics.bleed_out(
+				character.get_parent(), character, [twin.get_rid()] if twin != null else []
+			)
 		return
 	kick.update(character, delta)
 	# Before the children's _physics_process, so the hands build on this frame's pose.
-	pose.update(delta, _pose_drive(character.get_real_velocity(), character.stun.level()))
+	pose.update(delta, _pose_drive(TwinSpace.real_velocity_of(character), character.stun.level()))
 	_refresh_sweep()
 	legs.update(character, delta)
 	footsteps.update(character)

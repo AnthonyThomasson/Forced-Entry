@@ -30,7 +30,7 @@ static var _rings: Dictionary = {}
 ## from the walls and the furniture that reach the building and its outdoor ring, freed with the
 ## region. Nothing when the region covers no explicit footprint or `focus` has no area.
 static func add(
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	house: Node2D,
 	focus: Array,
 	agent_radius: float,
@@ -46,12 +46,12 @@ static func add(
 		region.remove_meta(META)  # no ring: a re-bake must not look for its region
 		return
 	var map := NavSource.new_map()
-	var ring := NavigationRegion2D.new()
+	var ring := NavigationRegion3D.new()
 	ring.name = NAME
-	ring.navigation_polygon = NavSource.bake(baked, house.position)
+	NavPlan.assign(ring, NavSource.bake(baked, house.position))
 	ring.set_navigation_map(map)
 	region.add_child(ring)
-	var planning_map := region.get_world_2d().navigation_map
+	var planning_map := NavWorld.map_of(region)
 	_rings[planning_map] = { "map": map, "covered": covered(rect) }
 	ring.tree_exited.connect(_on_exited.bind(planning_map, map), CONNECT_ONE_SHOT)
 	NavReady.await_region(map, ring, (focus[0]["rect"] as Rect2).get_center())
@@ -62,13 +62,13 @@ static func _on_exited(planning_map: RID, map: RID) -> void:
 	if _rings.get(planning_map, {}).get("map", RID()) == map:
 		_rings.erase(planning_map)
 	NavSnaps.forget(map)
-	NavigationServer2D.free_rid(map)
+	NavigationServer3D.free_rid(map)
 
 
 ## The ring region of `region` (the planning region `NavBuilder.build` returned): null for a lone
 ## house, which plans on its one map.
-static func region_of(region: NavigationRegion2D) -> NavigationRegion2D:
-	return region.get_node_or_null(NAME) as NavigationRegion2D
+static func region_of(region: NavigationRegion3D) -> NavigationRegion3D:
+	return region.get_node_or_null(NAME) as NavigationRegion3D
 
 
 ## The ring map that goes with the world's navigation map `planning_map`: invalid when the world
@@ -100,7 +100,7 @@ static func keeps(map: RID, path: PackedVector2Array, to: Vector2) -> bool:
 		return false
 	return (
 		path[-1].distance_to(to) <= NavBuilder.SNAP_REACHED
-		or NavigationServer2D.map_get_closest_point(map, to).distance_to(to)
+		or NavPlan.closest(map, to).distance_to(to)
 			> NavBuilder.SNAP_REACHED
 	)
 
@@ -122,9 +122,28 @@ static func covered(rect: Rect2) -> Rect2:
 ## walls and the furniture footprints of the district that reach it. `walls` is a parse of the
 ## district (`NavTiles.walls_after`'s shape) when the caller has one this frame, else the towers
 ## that reach the ring are parsed (`NavTiles.walls_reaching`). `furniture` is
-## `NavBuilder.furniture_holes`. {} when the region has no ring.
+## `NavBuilder.furniture_holes`. {} when the region has no ring. The job is `urgent`
+## (`NavBake.start`).
 static func job(
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
+	site: NavSite,
+	furniture: Array,
+	walls: Dictionary,
+) -> Dictionary:
+	var reach := reach_of(region, site, furniture, walls)
+	if reach.is_empty():
+		return {}
+	var baked := NavSource.job(reach["site"], reach["holes"], [], reach["walls"])
+	baked["urgent"] = true
+	return baked
+
+
+## What the ring's job is made of, gathered (the cheap part of `job`, on the main thread): `{ site,
+## walls, holes }`, the ring's own site, the walls that reach it and the footprints of the
+## furniture that does, `holes` still to be fused (`job` fuses them in the call; `NavGather` has a
+## worker fuse them: `finish`). {} when the region has no ring.
+static func reach_of(
+	region: NavigationRegion3D,
 	site: NavSite,
 	furniture: Array,
 	walls: Dictionary,
@@ -138,6 +157,21 @@ static func job(
 		walls["obstruction"] if not walls.is_empty()
 		else NavTiles.walls_reaching(region, ring, reaches)
 	)
-	var reached := NavSource.walls(NavTiles.bin(outlines, reaches, Vector2.ZERO)[0])
-	var holes: Array = NavTiles.bin(furniture, reaches, ring.house.position)[0]
-	return NavSource.job(ring, holes, [], reached)
+	return {
+		"site": ring,
+		"walls": NavSource.walls(NavTiles.bin(outlines, reaches, Vector2.ZERO)[0]),
+		"holes": NavTiles.bin(furniture, reaches, ring.house.position)[0],
+	}
+
+
+## The ring's job (as `job` makes it) from `reach` (`reach_of`) and its holes fused and prepared
+## (`NavFuse.prepared`). {} when `reach` is.
+static func finish(reach: Dictionary, prepared: Array) -> Dictionary:
+	if reach.is_empty():
+		return {}
+	var baked := NavSource.base(reach["site"], reach["walls"])
+	if baked.is_empty():
+		return {}
+	NavSource.add_prepared(baked["source"], prepared)
+	baked["urgent"] = true
+	return baked

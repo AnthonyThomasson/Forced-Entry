@@ -4,7 +4,8 @@ class_name PhysicsDeformConfig
 ## dent is drawn is `PhysicsDeformLookConfig`. A `class_name` holder of `static var`s, read as
 ## `PhysicsDeformConfig.<name>`; there is no instance and no autoload.
 
-## Rebuild the struck object's / wall segment's collider to follow the deformed shape.
+## Rebuild the struck piece's silhouette (its smear footprint and mesh) and wall segment's twin to
+## follow the deformed shape.
 static var update_collider: bool = true
 ## Max impacts remembered per object / per wall segment (oldest dropped past this).
 static var max_impacts: int = 24

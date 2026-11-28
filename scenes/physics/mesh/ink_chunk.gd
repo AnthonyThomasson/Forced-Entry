@@ -30,6 +30,11 @@ func rebuild() -> void:
 	var up := PackedVector3Array()
 	up.resize(points.size())
 	up.fill(Vector3.UP)
+	var first := 0
+	for mark in marks:
+		for i in mark.normals.size():
+			up[first + i] = mark.normals[i]
+		first += mark.verts.size()
 	var surface := []
 	surface.resize(Mesh.ARRAY_MAX)
 	surface[Mesh.ARRAY_VERTEX] = points

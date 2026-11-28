@@ -59,7 +59,6 @@ func configure(s: TestSetup) -> void:
 		_doorway(Vector2(400, 700), "steel", "riveted", "steel"),
 		_doorway(BLAST_DOOR, "solid", "panelled", "blasted"),
 	])
-	s.switch(&"projectile.flyover", false)
 	var straight: Dictionary = GunConfig.guns.duplicate(true)
 	for gun: StringName in straight:
 		straight[gun]["spread_deg"] = 0.0
@@ -146,5 +145,5 @@ func _expect_hp(t: TestContext, id: StringName, full: float, factors: Dictionary
 
 ## The pixels the door painter draws the leaf in, as the door's look is now.
 func _leaf_art(door: Node2D) -> PackedByteArray:
-	var art := ObjectArt.flat("door", door.leaf_size(), door.look.color, door.look.art_opts(false))
+	var art := ObjectArt.flat("door", door.leaf_size(), door.look.color, door.look.art_opts())
 	return art.get_image().get_data()

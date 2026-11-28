@@ -10,9 +10,8 @@ const OBJECTS := {
 		"color": Color(0.8, 0.7, 0.6),
 		"material": "stone",
 		"art": "counter",
-		"art_opts": { "props": [{ "kind": "cutting_board", "at": Vector2(0.32, 0.55) }] },
+		"carries": [{ "key": "cutting_board", "at": Vector2(-16.9, 4), "on_top": true }],
 		"weight": 80,
-		"coverage": 55,
 		"penetration": 70,
 		"interactions": [
 			{ "id": "prep", "label": "Prep food" },
@@ -28,7 +27,6 @@ const OBJECTS := {
 		"art": "appliance",
 		"art_opts": { "panel": "burners" },
 		"weight": 60,
-		"coverage": 50,
 		"penetration": 80,
 		"interactions": [
 			{ "id": "cook", "label": "Cook" },
@@ -44,7 +42,6 @@ const OBJECTS := {
 		"art": "appliance",
 		"art_opts": { "panel": "fridge" },
 		"weight": 90,
-		"coverage": 90,
 		"penetration": 85,
 		"interactions": [
 			{ "id": "open", "label": "Open fridge" },
@@ -59,7 +56,6 @@ const OBJECTS := {
 		"material": "wood",
 		"art": "table",
 		"weight": 30,
-		"coverage": 45,
 		"penetration": 50,
 		"interactions": [
 			{ "id": "sit_at", "label": "Sit at table", "move_to": true },
@@ -74,7 +70,6 @@ const OBJECTS := {
 		"material": "wood",
 		"art": "table",
 		"weight": 20,
-		"coverage": 45,
 		"penetration": 50,
 		"interactions": [
 			{ "id": "sit_on", "label": "Sit on it", "move_to": true },
@@ -91,10 +86,9 @@ const OBJECTS := {
 		"art_opts": {
 			"backsplash": false,
 			"overhang": true,
-			"props": [{ "kind": "fruit_bowl", "at": Vector2(0.5, 0.4) }],
 		},
+		"carries": [{ "key": "fruit_bowl", "at": Vector2(0, -4.9), "on_top": true }],
 		"weight": 140,
-		"coverage": 55,
 		"penetration": 70,
 		"interactions": [
 			{ "id": "prep", "label": "Prep food" },
@@ -110,7 +104,6 @@ const OBJECTS := {
 		"art": "appliance",
 		"art_opts": { "panel": "microwave" },
 		"weight": 14,
-		"coverage": 45,
 		"penetration": 60,
 		"interactions": [
 			{ "id": "use", "label": "Heat food" },

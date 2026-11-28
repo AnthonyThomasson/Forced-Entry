@@ -55,9 +55,12 @@ func _mirrored(t: TestContext) -> void:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
+	var marked := func(_body: Node2D) -> Node3D: return MeshInstance3D.new()
+	mirror.builders[MeshKinds.CHARACTER] = marked
+	mirror.builders[MeshKinds.FURNITURE] = marked
 	view.add_child(mirror)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	var mover := mirror.proxies_of(t.actor(&"mover"))
 	var table := mirror.proxies_of(t.object(&"table"))

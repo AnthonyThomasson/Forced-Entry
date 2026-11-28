@@ -21,7 +21,6 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 900, 600))
 	s.von_script([{ "pick": "combat" }, { "pick": "engage" }])
 	s.switch(&"ai.callouts", false)
-	s.switch(&"projectile.flyover", false)
 	s.actor(
 		&"defender",
 		&"defender",

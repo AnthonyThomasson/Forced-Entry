@@ -26,14 +26,15 @@ func run(t: TestContext) -> void:
 	var parent := Node2D.new()
 	t.world.add_child(parent)
 	# Left tile [0, 100] x [0, 100]: one square. Right tile [100, 200] x [0, 100]: its left edge has
-	# a notch between y 40 and 60, and a vertex at y 80.4 shares a cell with the left's own at 80.
+	# a notch between y 40 and 60, and a vertex at y 81 shares a 4 px cell with the left's own at
+	# 80.
 	var left := _tile(parent, Rect2(0, 0, 100, 100), [
 		[Vector2(0, 0), Vector2(100, 0), Vector2(100, 80), Vector2(100, 100), Vector2(0, 100)],
 	])
 	var right := _tile(parent, Rect2(100, 0, 100, 100), [
 		[Vector2(100, 0), Vector2(200, 0), Vector2(150, 50), Vector2(100, 40)],
 		[
-			Vector2(100, 60), Vector2(100, 80.4), Vector2(100, 100),
+			Vector2(100, 60), Vector2(100, 81), Vector2(100, 100),
 			Vector2(200, 100), Vector2(150, 50),
 		],
 		[Vector2(200, 0), Vector2(200, 100), Vector2(150, 50)],
@@ -44,14 +45,14 @@ func run(t: TestContext) -> void:
 		"the border is welded: %s" % [Seams.unwelded([left, right])],
 	)
 	var edges := Seams.seam_edges(left, Seams.pairs([left, right])[0])
-	t.expect_eq(edges.size(), 4, "the left tile's border edge is cut at 40 and 60, not at 80.4")
+	t.expect_eq(edges.size(), 4, "the left tile's border edge is cut at 40 and 60, not at 81")
 	t.expect_eq(
-		right.navigation_polygon,
+		NavPlan.polygon_of(right),
 		right.get_meta(NavSeams.RAW_META),
 		"the right tile needs no cut",
 	)
 	t.check(
-		left.navigation_polygon != left.get_meta(NavSeams.RAW_META),
+		NavPlan.polygon_of(left) != left.get_meta(NavSeams.RAW_META),
 		"the left tile holds a split copy",
 	)
 	var raw: NavigationPolygon = left.get_meta(NavSeams.RAW_META)
@@ -61,10 +62,10 @@ func run(t: TestContext) -> void:
 		right,
 		_poly([[Vector2(100, 0), Vector2(200, 0), Vector2(200, 100), Vector2(100, 100)]]),
 	)
-	right.navigation_polygon = right.get_meta(NavSeams.RAW_META)
+	NavPlan.assign(right, right.get_meta(NavSeams.RAW_META))
 	NavSeams.weld([right])
 	t.expect_eq(
-		left.navigation_polygon,
+		NavPlan.polygon_of(left),
 		left.get_meta(NavSeams.RAW_META),
 		"the left tile is whole again",
 	)
@@ -72,19 +73,20 @@ func run(t: TestContext) -> void:
 
 
 ## A tile region over `rect` holding `rings` (polygons of points), welded as a baked tile is.
-func _tile(parent: Node2D, rect: Rect2, rings: Array) -> NavigationRegion2D:
-	var tile := NavigationRegion2D.new()
+func _tile(parent: Node2D, rect: Rect2, rings: Array) -> NavigationRegion3D:
+	var tile := NavigationRegion3D.new()
 	tile.set_meta(NavTiles.RECT_META, rect)
 	parent.add_child(tile)
 	var poly := _poly(rings)
 	NavSeams.take(tile, poly)
-	tile.navigation_polygon = poly
+	NavPlan.assign(tile, poly)
 	return tile
 
 
 ## A navigation polygon of `rings`, each a list of points.
 func _poly(rings: Array) -> NavigationPolygon:
 	var poly := NavigationPolygon.new()
+	poly.cell_size = NavSource.CELL_SIZE
 	var points := PackedVector2Array()
 	for ring: Array in rings:
 		var indices := PackedInt32Array()

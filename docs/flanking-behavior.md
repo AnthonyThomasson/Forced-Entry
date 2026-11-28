@@ -29,8 +29,16 @@ Tests: `flank_sides_target_facing_npc`, `flank_sides_target_facing_away`.
 
 **B2. Never walk a flank route past a hostile.** A route that passes within `route_clearance` of the target
 or another known hostile is dropped as `crosses`. Walking away from someone close by is not passing them.
-Why: the NPC would walk into their fire. Tests: `flank_rear_route_crosses_target`,
-`flank_route_passes_second_hostile`.
+The route checked is the route walked. Where the shortest route runs through the target (in a bare room the NPC,
+the target and the point behind it lie on one line) it is replaced by the shortest route through a waypoint
+(`via`) beside the target, 1.15 to 2.2 times `route_clearance` off it, that passes no known hostile (and, if there
+is one, crosses no ally's line of fire, B3). The flank goal carries that waypoint: the NPC walks to it, then on to
+the point, so it passes the target no nearer than the checked route does (the walker's body cuts the corner at the
+waypoint by about 6 px; the test allows 12). A walk that needs no bend goes the plain way. So a rear flank is
+still offered in an open room with the target facing the NPC; it is dropped when no such route exists (the living
+room's furniture and walls, a guard in the way). A second hostile is never bent round: a route that passes it is
+dropped as it stands. Why: the NPC would walk into their fire.
+Tests: `flank_rear_route_crosses_target`, `flank_route_passes_second_hostile`, `flank_rear_bends_round_target`.
 
 **B3. Do not flank across a friend's line of fire.** A side whose point lies in an ally's line of fire to
 the target, or whose route crosses that line, is not offered. Only allies the NPC can see count: it
@@ -56,13 +64,15 @@ engages or advances.
 Why: anchored flanks cannot be turned; the doorway is the fatal funnel, so no one lingers in it.
 Tests: `flank_corridor_dead_end`, `flank_side_behind_wall`, `flank_rear_route_crosses_target`.
 
-**B6. The flank spot is a firing position.** It has a clear shot at the target, and cover beside it is
-reported ("cover close by (the pillar)"). A point with the line blocked, such as outside a wall or behind a
-shelf, is still weighed (and worded "line blocked from there") but is not offered as a flank.
+**B6. The flank spot is a firing position.** It has a clear shot at the target (the real 3D line of fire from a standing muzzle,
+`docs/gaze-and-fire.md` W2: over a table, not through a sofa's back), and cover beside it is reported ("cover close by (the pillar)"): a piece
+whose real top hides a ducked head, `AgentCover.is_cover`, so a sofa, a counter or a wardrobe is cover and a coffee table or a dining table is
+not. A point with the line blocked, such as outside a wall or behind a
+tall shelf, is still weighed (and worded "line blocked from there") but is not offered as a flank.
 Why: a flank that cannot shoot only ends the NPC somewhere pointless; F.E.A.R.'s flanks were cover-to-cover
 moves to spots with a line on the player.
 Tests: `flank_spot_cover_and_clear_shot`, `flank_spot_line_blocked`, `flank_side_behind_wall`,
-`flank_corridor_dead_end`.
+`flank_corridor_dead_end`, `cover_needs_real_height`, `spots_by_real_height`.
 
 **B7. Do not step into the side the target is walking toward.** A side the target's smoothed velocity heads
 toward reads "they are moving toward that side" and is not offered. The risk of being flanked back is

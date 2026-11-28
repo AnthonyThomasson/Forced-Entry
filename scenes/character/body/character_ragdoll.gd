@@ -38,13 +38,16 @@ var _rng: RandomNumberGenerator
 
 ## Build the body standing as the rig holds `character`, moving at `momentum` (px/s) and knocked
 ## over along `blow` (the killing hit's direction; zero for none).
-func _init(character: CharacterBody2D, momentum: Vector2, blow: Vector2) -> void:
+func _init(character: Node2D, momentum: Vector2, blow: Vector2) -> void:
 	var r: float = character.radius
 	var f2 := Vector2.from_angle(character.anatomy.pose.torso_angle)
 	var fwd := Vector3(f2.x, f2.y, 0.0)
 	_add_points(Rig.new(character), r)
 	_add_bones()
-	body.exclude.append(character.get_rid())
+	var twin := TwinSpace.twin_for(character) as CollisionObject3D
+	if twin != null:
+		body.exclude.append(twin.get_rid())
+	body.height_scale = Rig.squeeze(r)
 	_frame = body.add_frame(PELVIS, CHEST, SHOULDER[1], fwd)
 	_add_limits()
 	_rng = WorldRng.of(character)
@@ -156,7 +159,7 @@ func _launch(
 
 
 ## Advance the fall (see Ragdoll.step).
-func step(delta: float, space: PhysicsDirectSpaceState2D, origin: Vector2) -> void:
+func step(delta: float, space: PhysicsDirectSpaceState3D, origin: Vector2) -> void:
 	body.step(delta, space, origin)
 
 

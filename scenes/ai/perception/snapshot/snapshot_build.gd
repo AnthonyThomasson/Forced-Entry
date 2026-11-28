@@ -1,9 +1,16 @@
 extends RefCounted
 ## AI PERCEPTION sub-domain — one decision snapshot being built in pieces. `AgentSnapshot` (the
 ## author) begins it (`begin_build`) and `step()` runs the next piece: START (gather the knowledge
-## the build reads, set the decision up and work out the context), one HOSTILE piece per hostile
-## given full analysis (with the cheap `line` entries of the listed hostiles ahead of it), then
-## FINISH (the shared facts, the option groups, the demand set-up and the sections). Piece by piece
+## the build reads, set the decision up and work out the context), then per hostile given full
+## analysis a run of pieces (HOSTILE: its line of fire and the rings of fire spots, with the cheap
+## `line` entries of the listed hostiles ahead of it; SPOTS: its fire spots and ambush spot; one
+## FLANKS piece for each side of it a flank is tried on; REST: its advance positions, option groups
+## and sections), then
+## AMBUSH (only for an ambush order whose doorway's posts are not ranked yet: the ranking, a chunk
+## of its candidates a piece, so it is not one frame's heavy lump), then RETREAT (only with a threat
+## to fall back from: the retreat spots, the heaviest of the finish's option groups), then FINISH
+## (the shared facts,
+## the option groups, the demand set-up and the sections). Piece by piece
 ## it does exactly the work, in the order, that one `AgentSnapshot.build()` call does; `result()` is
 ## the dictionary `build()` returns. `next_piece()` says which kind runs next, for a caller that
 ## prices the pieces.
@@ -13,12 +20,19 @@ extends RefCounted
 ## outside it has changed but the author's per-decision scratch, which the next build's START
 ## resets.
 
-## The kinds of piece, in the order they run. DONE once the result is ready.
+## The kinds of piece, in the order they run but for AMBUSH, which runs between the hostiles' and
+## RETREAT, FINISH, and the hostile's own SPOTS, FLANKS and REST after its first, HOSTILE (listed
+## last: the numbers the decision job's fakes give the others stay). DONE once the result is ready.
 enum Piece {
 	START,
 	HOSTILE,
 	FINISH,
 	DONE,
+	AMBUSH,
+	SPOTS,
+	FLANKS,
+	REST,
+	RETREAT,
 }
 
 ## The author whose logic steps this build (an `AgentSnapshot`).
@@ -37,13 +51,16 @@ var frozen := {}
 var knowledge := {}
 ## The decision's context every group reads.
 var ctx := {}
-## What the hostile pieces fill in: `per_target`, `per_sections`, `analyses`, `targets`; the
-## FINISH piece adds what the whole decision shares.
+## What the hostile pieces fill in: `per_target`, `per_sections`, `analyses`, `targets`, and
+## `half`, the analysis of the hostile at `cursor` while it is under way and `next` the kind of its
+## next piece (`AgentSnapshot._analyse_step`); the FINISH piece adds what the whole decision shares.
 var parts := {}
 ## The ids of the hostiles given full analysis (a piece runs for each, until `parts.targets` holds
 ## them all), and where in the contacts' order the next piece goes on.
 var analysed: Array = []
 var cursor := 0
+## The ambush ranking in hand (`SnapshotOrders.ambush_work`), {} when there is none.
+var ambush_work := {}
 ## The kind of piece that runs next.
 var piece := Piece.START
 var _result := {}
@@ -51,6 +68,8 @@ var _result := {}
 
 ## The kind of piece `step()` runs next (`Piece.DONE` once the build is complete).
 func next_piece() -> int:
+	if piece == Piece.HOSTILE:
+		return parts.get("half", {}).get("next", Piece.HOSTILE)
 	return piece
 
 

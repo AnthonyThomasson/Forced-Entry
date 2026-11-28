@@ -38,7 +38,9 @@
 	 `sidewalk`; none registers a `SoundSurface`, interface 16, so footsteps out there stay `outdoor`); `WorldGen.get_streetlights(house)`
 	 — `{ pos, node }` per lamp along the front sidewalk (`node`: a solid, anchored post carved into the nav map, its arm and head an
 	 overhang; spacing `WorldGenStreetConfig.streetlight_every`; a lamp within `streetlight_door_clear` of a front or exit doorway, or
-	 in the strip straight out of one, is dropped).
+	 in the strip straight out of one, is dropped). The small items (`docs/stacked-items.md` SI9): `RoomItems.placed_in(house)` — `{ room,
+	 key, node, on }` per item (`on` the piece it rests on, null for a floor stack's bottom), read from the `items` metadata; off with
+	 `WorldGenItemConfig.enabled` (the test switch `worldgen.items`). `RoomItems.carry(base, definition, parent, room) -> Array` (SI13, SI14): sets the items a piece's `carries` rows name on it (`PieceCarries`: a shelf's books, a stack's crates, a desk's monitor; the one schema: `domain-objects` (`carries.md`)), `{ room, key, node, on, carried }` each; Testing calls it on a bare piece.
    - Read-only catalogue lookups (Testing places single pieces with them): `WorldGen.object_definition(key)` (for
 	 `ObjectFactory.spawn`), `WorldGen.floor_definition(key)` (for `FloorFactory.spawn`), `WorldGen.door_definition(material, style)` (for `DoorFactory.spawn`),
 	 `WorldGen.wall_style()` (the house wall `style` for `WallFactory.spawn`).

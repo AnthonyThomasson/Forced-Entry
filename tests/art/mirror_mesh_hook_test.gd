@@ -1,9 +1,8 @@
 extends GameTest
-## The mirror's mesh hook (#193, interface 27): a domain that has its own mesh for a body kind
-## registers a builder with `WorldMirror.builders` (kind -> `Callable(body) -> Node3D`) and the
-## mirror shows that mesh in place of the kind's proxies, following the body's whole transform; a
-## builder that returns null keeps the proxy, and a kind with no builder is untouched. This is what
-## phase 2's meshes plug into.
+## The mesh hook (#193, interface 27): a domain that has its own mesh for a body kind registers a
+## builder with `MeshCarrier.builders` (kind -> `Callable(body) -> Node3D`) and the carrier shows
+## that mesh on the body's twin, standing where the body does; a builder that returns null, and a
+## kind with no builder, leave the body shown by nothing (there is no stand-in box).
 
 const AT := Vector2(260, 180)
 const OTHER := Vector2(520, 300)
@@ -11,9 +10,9 @@ const OTHER := Vector2(520, 300)
 
 func describe() -> Dictionary:
 	return {
-		"name": "A domain's own mesh replaces a body kind's proxy through the mirror's hook",
+		"name": "A domain's own mesh is carried on a body's twin through the carrier's hook",
 		"description": "A builder for the furniture kind gives each armchair a mesh of its own "
-			+ "that follows the body; null keeps the proxy; other kinds keep theirs.",
+			+ "that stands on the body; null shows nothing; other kinds show nothing.",
 		"tags": ["mirror", "3d", "render"],
 		"timeout": 8.0,
 	}
@@ -32,9 +31,9 @@ func run(t: TestContext) -> void:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	var seen: Array = []
-	mirror.builders[MirrorProxy.FURNITURE] = func(body: Node2D) -> Node3D:
+	mirror.builders[MeshKinds.FURNITURE] = func(body: Node2D) -> Node3D:
 		seen.append(body)
 		if body.name == t.object(&"other").name:
 			return null
@@ -43,7 +42,7 @@ func run(t: TestContext) -> void:
 		own.mesh = SphereMesh.new()
 		return own
 	view.add_child(mirror)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	var chair := t.object(&"chair")
 	var proxies := mirror.proxies_of(chair)
@@ -55,12 +54,6 @@ func run(t: TestContext) -> void:
 	else:
 		t.check(false, "the armchair is shown by the builder's own mesh")
 	var other := mirror.proxies_of(t.object(&"other"))
-	t.check(
-		other.size() == 1 and other[0].name != "OwnMesh",
-		"a builder that returns null leaves the proxy",
-	)
+	t.check(other.is_empty(), "a builder that returns null shows the body by nothing")
 	var character := mirror.proxies_of(t.actor(&"a"))
-	t.check(
-		character.size() == 1 and (character[0] as MeshInstance3D).mesh is CapsuleMesh,
-		"a kind with no builder keeps its proxy",
-	)
+	t.check(character.is_empty(), "a kind with no builder shows the body by nothing")

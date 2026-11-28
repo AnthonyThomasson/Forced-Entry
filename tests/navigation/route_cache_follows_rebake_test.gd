@@ -10,6 +10,11 @@ const ROUTES_SCRIPT := "res://scenes/navigation/nav_routes.gd"
 ## on the server's worker thread in real time, and a headless run's frames are far shorter than
 ## that.
 const WAIT := 12.0
+## The divider: a free piece of furniture (a footprint moved by hand sends its twin there).
+const DIVIDER := {
+	"name": "Divider", "shape": "rect", "size": Vector2(80, 200), "color": Color(0.5, 0.4, 0.3),
+	"weight": 40,
+}
 
 
 func describe() -> Dictionary:
@@ -45,9 +50,10 @@ func _plain_map(t: TestContext, routes: GDScript) -> void:
 	t.expect_eq(NavBuilder.route(map, from, to), expected, "the repeated plain route is identical")
 	t.expect_eq(_queries(routes), before, "the repeated plain route does not ask the server again")
 
-	var region := fixture["region"] as NavigationRegion2D
+	var region := fixture["region"] as NavigationRegion3D
 	var house := fixture["house"] as Node2D
 	(fixture["obstacle"] as Node2D).position = Vector2(400, 100)
+	await t.frames(2)  # its twin follows
 	var held := _iterations(map)
 	NavBuilder.rebake(region, house, fixture["rooms"])
 	if not await _moved_on(t, map, held, [0], "the plain re-bake"):
@@ -70,13 +76,13 @@ func _ring_fallback(t: TestContext, routes: GDScript) -> void:
 	var from := Vector2(400, 300)
 	var to := Vector2(400, 500)
 	if not t.require(
-		not NavRing.keeps(ring, NavigationServer2D.map_get_path(ring, from, to, true), to),
+		not NavRing.keeps(ring, NavPlan.path(ring, from, to), to),
 		"premise: the divider makes the local route fall back to the district",
 	):
 		return
-	var region := fixture["region"] as NavigationRegion2D
-	fixture["old_district"] = region.navigation_polygon
-	fixture["old_ring"] = NavRing.region_of(region).navigation_polygon
+	var region := fixture["region"] as NavigationRegion3D
+	fixture["old_district"] = NavPlan.polygon_of(region)
+	fixture["old_ring"] = NavPlan.polygon_of(NavRing.region_of(region))
 	var expected := _plain_route(map, from, to)
 	t.expect_eq(NavBuilder.route(map, from, to), expected, "the fallback's final route is cached")
 	var before := _queries(routes)
@@ -84,6 +90,7 @@ func _ring_fallback(t: TestContext, routes: GDScript) -> void:
 	t.expect_eq(_queries(routes), before, "the repeated fallback asks neither map again")
 
 	(fixture["obstacle"] as Node2D).position = Vector2(400, 550)
+	await t.frames(2)
 	var held := _iterations(map)
 	NavBuilder.rebake(region, fixture["house"], fixture["rooms"])
 	if not await _moved_on(t, map, held, [0, 1], "the fallback's re-bake"):
@@ -104,12 +111,12 @@ func _put_back_each(
 ) -> void:
 	var map: RID = fixture["map"]
 	var held := _iterations(map)
-	(fixture["region"] as NavigationRegion2D).navigation_polygon = fixture["old_district"]
+	NavPlan.assign((fixture["region"] as NavigationRegion3D), fixture["old_district"])
 	if not await _moved_on(t, map, held, [0], "the district-only iteration"):
 		return
 	_fresh(t, routes, map, ends, "a district-only iteration")
 	held = _iterations(map)
-	NavRing.region_of(fixture["region"]).navigation_polygon = fixture["old_ring"]
+	NavPlan.assign(NavRing.region_of(fixture["region"]), fixture["old_ring"])
 	if not await _moved_on(t, map, held, [1], "the ring-only iteration"):
 		return
 	_fresh(t, routes, map, ends, "a ring-only iteration")
@@ -120,8 +127,8 @@ func _put_back_each(
 func _iterations(map: RID) -> Array:
 	var ring := NavRing.map_of(map)
 	return [
-		NavigationServer2D.map_get_iteration_id(map),
-		NavigationServer2D.map_get_iteration_id(ring) if ring.is_valid() else -1,
+		NavPlan.iteration(map),
+		NavPlan.iteration(ring) if ring.is_valid() else -1,
 	]
 
 
@@ -171,15 +178,15 @@ func _fixture(
 	viewport.add_child(root)
 	var house := Node2D.new()
 	root.add_child(house)
-	var obstacle := RigidBody2D.new()
-	obstacle.freeze = true
-	obstacle.position = obstacle_at
-	var collider := CollisionShape2D.new()
-	var shape := RectangleShape2D.new()
-	shape.size = obstacle_size
-	collider.shape = shape
-	obstacle.add_child(collider)
-	house.add_child(obstacle)
+	# the holes are cut from the twins: a piece of the game, and a twin space to hold its twin
+	var twins := TwinSpace.new()
+	ObjectTwins.register(twins)
+	root.add_child(twins)
+	twins.watch(root)
+	var divider := DIVIDER.duplicate()
+	divider["size"] = obstacle_size
+	var obstacle := ObjectFactory.spawn(divider, obstacle_at, house) as Node2D
+	await t.frames(2)  # a twin joins the frame after its body
 	var rooms: Array = [{
 		"key": "room", "type": "room", "rect": Rect2(200, 200, 400, 400),
 	}]
@@ -200,9 +207,9 @@ func _fixture(
 ## The route algorithm before exact memoization: ring first, district when the ring cannot keep it.
 func _plain_route(map: RID, from: Vector2, to: Vector2) -> PackedVector2Array:
 	var asked := NavRing.map_for(map, [from, to])
-	var path := NavigationServer2D.map_get_path(asked, from, to, true)
+	var path := NavPlan.path(asked, from, to)
 	if asked != map and not NavRing.keeps(asked, path, to):
-		path = NavigationServer2D.map_get_path(map, from, to, true)
+		path = NavPlan.path(map, from, to)
 	return path if path.size() >= 2 else PackedVector2Array([from, to])
 
 

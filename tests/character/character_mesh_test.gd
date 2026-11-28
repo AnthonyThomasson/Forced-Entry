@@ -7,10 +7,11 @@ extends GameTest
 ## 2D body faces, a crouch lowers the hips by `CharacterPostureConfig`'s crouch height, the legs
 ## stride when the character walks and rest when it stands, the outfit's vest, plates and the
 ## style's colours reach the parts and a changed outfit re-dresses the body in place, a body seated
-## (its shapes disabled) is hidden, a dead one stays shown (`character_ragdoll_mesh_test.gd`), and
+## (its riding) is hidden, a dead one stays shown (`character_ragdoll_mesh_test.gd`), and
 ## Main's 3D view registers the builder. What the body looks like is judged in a window,
 ## `character_mesh_windowed_test.gd`.
 
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const Style := preload("res://scenes/character/body/character_style.gd")
 const BodyPainter := preload("res://scenes/character/body/art/body_painter.gd")
@@ -69,7 +70,7 @@ func run(t: TestContext) -> void:
 	await t.seconds(1.2)
 	var mirror := _mirror(t)
 	CharacterMeshes.register(mirror.builders)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	var east := _body_of(t, mirror, &"east")
 	var south := _body_of(t, mirror, &"south")
@@ -93,7 +94,7 @@ func run(t: TestContext) -> void:
 
 
 ## The body the mirror shows the actor `id` by (a `BodyMesh`), or null: it ends the test.
-func _body_of(t: TestContext, mirror: WorldMirror, id: StringName) -> BodyMesh:
+func _body_of(t: TestContext, mirror: MeshCarrier, id: StringName) -> BodyMesh:
 	var shown := mirror.proxies_of(t.actor(id))
 	if not t.require(
 		shown.size() == 1 and shown[0] is BodyMesh,
@@ -115,13 +116,12 @@ func _check_shape(t: TestContext, east: BodyMesh, south: BodyMesh) -> void:
 		"it is about the body's width across (%.1f px)" % box.size.x,
 	)
 	t.check(
-		east.get_child(BodyMesh.HEAD).mesh == south.get_child(BodyMesh.HEAD).mesh,
+		east.part(BodyMesh.HEAD).mesh == south.part(BodyMesh.HEAD).mesh,
 		"two bodies share one head solid",
 	)
 	t.check(
-		(east.get_child(BodyMesh.NECK) as MeshInstance3D).material_override
-			== ToonMaterial.shared(),
-		"a part with no art of its own (the neck) is drawn in the one shared toon material",
+		east.part(BodyMesh.NECK).texture == null,
+		"a part with no art of its own (the neck) is drawn in its plain colour",
 	)
 	for index in [BodyMesh.HEAD, BodyMesh.TORSO, BodyMesh.UPPER, BodyMesh.THIGH, BodyMesh.FOOT]:
 		t.check(
@@ -137,32 +137,32 @@ func _check_shape(t: TestContext, east: BodyMesh, south: BodyMesh) -> void:
 func _check_proportions(t: TestContext, east: BodyMesh, south: BodyMesh) -> void:
 	t.expect_near(
 		_bounds(east).end.y,
-		MirrorConfig.wall_height * 0.75,
+		ObjectStructureMeshConfig.wall_height * 0.75,
 		4.0,
 		"a standing body is about three quarters of a wall tall",
 	)
-	var trunk := east.get_child(BodyMesh.TORSO) as Node3D
+	var trunk := east.part(BodyMesh.TORSO)
 	t.check(
 		trunk.transform.basis.get_scale().x < t.actor(&"east").radius,
 		"the trunk is narrower than the 28 px collider (half width under the body's radius)",
 	)
-	var neck := east.get_child(BodyMesh.NECK) as MeshInstance3D
-	var head := east.get_child(BodyMesh.HEAD) as Node3D
+	var neck := east.part(BodyMesh.NECK)
+	var head := east.part(BodyMesh.HEAD)
 	t.check(
 		neck.visible and neck.position.y < head.position.y and neck.position.y > 0.0,
 		"a neck runs from the shoulders up to the head",
 	)
 	var shapes := {}
 	for index in [BodyMesh.UPPER, BodyMesh.FORE, BodyMesh.THIGH, BodyMesh.SHIN, BodyMesh.NECK]:
-		shapes[(east.get_child(index) as MeshInstance3D).mesh] = true
+		shapes[east.part(index).mesh] = true
 	t.expect_eq(
 		shapes.size(),
 		5,
 		"the arm's, the leg's and the neck's segments are shaped each their own",
 	)
 	t.check(
-		(south.get_child(BodyMesh.THIGH) as MeshInstance3D).mesh
-			== (east.get_child(BodyMesh.THIGH) as MeshInstance3D).mesh,
+		south.part(BodyMesh.THIGH).mesh
+			== east.part(BodyMesh.THIGH).mesh,
 		"two bodies share one thigh solid",
 	)
 	var drawn: float = 2.0 * CharacterArtConfig.head_size * t.actor(&"east").radius
@@ -185,26 +185,26 @@ func _check_facing(t: TestContext, east: BodyMesh, south: BodyMesh) -> void:
 		toward_south.dot(Vector2.DOWN) > 0.9,
 		"a character facing south has its nose south, 3D z (%s)" % toward_south,
 	)
-	var hand := _flat(east.get_child(BodyMesh.HAND) as Node3D)
-	var chest := _flat(east.get_child(BodyMesh.TORSO) as Node3D)
+	var hand := _flat(east.part(BodyMesh.HAND))
+	var chest := _flat(east.part(BodyMesh.TORSO))
 	t.check(
 		(hand - chest).dot(Vector2.RIGHT) > 4.0,
 		"the arms reach out ahead of the trunk (%s)" % (hand - chest),
 	)
 
 
-## A crouch lowers the hips by the posture's crouch height and the head with them.
+## A crouch lowers the hips to the duck's height (`BodyHeights`) and the head with them.
 func _check_crouch(t: TestContext, east: BodyMesh, crouch: BodyMesh) -> void:
-	var want: float = CharacterPostureConfig.postures[&"crouch"]["height"]
-	var stood := (east.get_child(BodyMesh.THIGH) as Node3D).position.y
-	var bent := (crouch.get_child(BodyMesh.THIGH) as Node3D).position.y
+	var want := BodyHeights.height_share(BodyHeights.DUCK)
+	var stood := east.part(BodyMesh.THIGH).position.y
+	var bent := crouch.part(BodyMesh.THIGH).position.y
 	t.expect_near(bent / stood, want, 0.03, "a crouch lowers the hips to its posture height")
 	t.check(
 		_bounds(crouch).end.y < _bounds(east).end.y * 0.9,
 		"and the head with them (%.1f of %.1f px)" % [_bounds(crouch).end.y, _bounds(east).end.y],
 	)
-	var head := _flat(crouch.get_child(BodyMesh.HEAD) as Node3D)
-	var pelvis := _flat(crouch.get_child(BodyMesh.TORSO) as Node3D)
+	var head := _flat(crouch.part(BodyMesh.HEAD))
+	var pelvis := _flat(crouch.part(BodyMesh.TORSO))
 	t.check(
 		(head - pelvis).dot(Vector2.RIGHT) > 2.0,
 		"a crouched body leans toward where it faces (%s)" % (head - pelvis),
@@ -212,7 +212,7 @@ func _check_crouch(t: TestContext, east: BodyMesh, crouch: BodyMesh) -> void:
 
 
 ## The legs stride when the character walks and are still when it stands.
-func _check_gait(t: TestContext, mirror: WorldMirror) -> void:
+func _check_gait(t: TestContext, mirror: MeshCarrier) -> void:
 	var walker := _body_of(t, mirror, &"walker")
 	var east := _body_of(t, mirror, &"east")
 	if walker == null or east == null:
@@ -233,8 +233,8 @@ func _sample_feet(t: TestContext, body: BodyMesh) -> float:
 	var origin := (body.get_parent() as Node3D)
 	for i in 30:
 		await t.frames(1)
-		var foot := body.get_child(BodyMesh.FOOT) as Node3D
-		var x := foot.global_position.x - origin.global_position.x
+		var foot := body.part(BodyMesh.FOOT)
+		var x := (body.global_transform * foot.position).x - origin.global_position.x
 		low = minf(low, x)
 		high = maxf(high, x)
 	return high - low
@@ -242,7 +242,7 @@ func _sample_feet(t: TestContext, body: BodyMesh) -> float:
 
 ## The style's colours reach the parts, an outfit's vest and plates show (and are not there
 ## undressed), and a changed outfit re-dresses the same body in place.
-func _check_dress(t: TestContext, mirror: WorldMirror) -> void:
+func _check_dress(t: TestContext, mirror: MeshCarrier) -> void:
 	var body := _body_of(t, mirror, &"dressed")
 	if body == null:
 		return
@@ -258,8 +258,8 @@ func _check_dress(t: TestContext, mirror: WorldMirror) -> void:
 	await _check_outfit(t, mirror, body, dress)
 
 
-## Every part is a figure for the pixel post (outlined by its silhouette only, no crease on its
-## facets: the outline job), vest, pack and head-wear included; a wall's mesh is not.
+## Every mesh of the body is a figure for the pixel post (outlined by its silhouette only, no crease
+## on its facets: the outline job), vest, pack and head-wear included; a wall's mesh is not.
 func _check_figure(t: TestContext, body: BodyMesh) -> void:
 	var unmarked := 0
 	for part: Node in body.get_children():
@@ -315,7 +315,7 @@ func _check_colours(t: TestContext, body: BodyMesh, dress: BodyDress) -> void:
 ## colours, on the same body.
 func _check_outfit(
 	t: TestContext,
-	mirror: WorldMirror,
+	mirror: MeshCarrier,
 	body: BodyMesh,
 	dress: BodyDress,
 ) -> void:
@@ -360,11 +360,11 @@ func _check_outfit(
 ## a
 ## part is overwritten only when the head's breath has drifted past `BodyMesh.MOVED`, so over a
 ## full breath period (3.8 s) fewer than one frame in ten writes.
-func _check_idle(t: TestContext, mirror: WorldMirror) -> void:
+func _check_idle(t: TestContext, mirror: MeshCarrier) -> void:
 	var body := _body_of(t, mirror, &"east")
 	if body == null:
 		return
-	var trunk := body.get_child(BodyMesh.TORSO) as Node3D
+	var trunk := body.part(BodyMesh.TORSO)
 	var mark := Transform3D(Basis(), Vector3(999.0, 0.0, 0.0))
 	var frames := ceili(CharacterPoseHeadConfig.breath_period * 60.0) + 30
 	var writes := 0
@@ -384,15 +384,15 @@ func _check_idle(t: TestContext, mirror: WorldMirror) -> void:
 
 ## A part that is not shown is not placed, and is placed when a look shows it: a walker's hidden
 ## vest keeps its mark while its fists move, and the vest is on the trunk once an outfit shows it.
-func _check_hidden_parts(t: TestContext, mirror: WorldMirror) -> void:
+func _check_hidden_parts(t: TestContext, mirror: MeshCarrier) -> void:
 	var body := _body_of(t, mirror, &"walker")
 	if body == null:
 		return
 	var wardrobe: CharacterWardrobe = t.actor(&"walker").wardrobe
 	wardrobe.outfit.set_ids({})
 	await t.frames(3)
-	var vest := body.get_child(BodyMesh.VEST) as Node3D
-	var hand := body.get_child(BodyMesh.HAND) as Node3D
+	var vest := body.part(BodyMesh.VEST)
+	var hand := body.part(BodyMesh.HAND)
 	var mark := Transform3D(Basis(), Vector3(999.0, 0.0, 0.0))
 	vest.transform = mark
 	var hand_before := hand.transform
@@ -408,7 +408,7 @@ func _check_hidden_parts(t: TestContext, mirror: WorldMirror) -> void:
 
 ## A look change swaps a cap for a helmet (a bigger covering), hides the hair under headwear, shows
 ## and hides a boot's shaft and a pack, on the same body.
-func _check_looks(t: TestContext, mirror: WorldMirror) -> void:
+func _check_looks(t: TestContext, mirror: MeshCarrier) -> void:
 	var body := _body_of(t, mirror, &"looks")
 	if body == null:
 		return
@@ -419,8 +419,8 @@ func _check_looks(t: TestContext, mirror: WorldMirror) -> void:
 	wardrobe.set_style(&"merc", _seed_with(&"hair_style", "short"))
 	wear.call({ "feet": &"shoes" })
 	await t.frames(4)
-	var headwear := body.get_child(BodyMesh.HEADWEAR) as Node3D
-	var hair := body.get_child(BodyMesh.HAIR) as Node3D
+	var headwear := body.part(BodyMesh.HEADWEAR)
+	var hair := body.part(BodyMesh.HAIR)
 	t.check(hair.visible and not headwear.visible, "a bare head shows its hair")
 	t.check(not _shown(body, BodyMesh.BOOT), "shoes have no boot shaft")
 	wear.call({ "head": &"hat", "feet": &"boots" })
@@ -459,7 +459,7 @@ func _seed_with(key: StringName, value: Variant) -> int:
 
 ## A body far from the player: an outfit change still reaches the mesh (the mesh refreshes its own
 ## dress).
-func _check_culled(t: TestContext, mirror: WorldMirror) -> void:
+func _check_culled(t: TestContext, mirror: MeshCarrier) -> void:
 	var body := _body_of(t, mirror, &"culled")
 	if body == null:
 		return
@@ -472,16 +472,16 @@ func _check_culled(t: TestContext, mirror: WorldMirror) -> void:
 	t.check(_shown(body, BodyMesh.VEST), "an outfit change re-dresses a body away from the player")
 
 
-## A body seated (its collision shapes disabled) is hidden and back when they are enabled; a dead
+## A body seated (its collision riding) is hidden and back when they are enabled; a dead
 ## one stays shown.
-func _check_hidden(t: TestContext, mirror: WorldMirror, east: BodyMesh) -> void:
-	var shape := _shape_of(t.actor(&"east"))
-	shape.set_deferred(&"disabled", true)
+func _check_hidden(t: TestContext, mirror: MeshCarrier, east: BodyMesh) -> void:
+	var rider: Node2D = t.actor(&"east")
+	rider.use.set_ride_pose(rider.global_position, Vector2.RIGHT, 0.0)
 	await t.frames(3)
-	t.check(not east.visible, "a character whose shapes are disabled (seated) has no body shown")
-	shape.set_deferred(&"disabled", false)
+	t.check(not east.visible, "a character riding a vehicle has no body shown")
+	rider.use.end_ride()
 	await t.frames(3)
-	t.check(east.visible, "and it is back when they are enabled")
+	t.check(east.visible, "and it is back when the ride is over")
 	var dying := _body_of(t, mirror, &"dying")
 	if dying == null:
 		return
@@ -496,7 +496,7 @@ func _check_scale(t: TestContext) -> void:
 	RenderConfig.unit = 0.5
 	var mirror := _mirror(t)
 	CharacterMeshes.register(mirror.builders)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	var body := _body_of(t, mirror, &"east")
 	if body != null:
@@ -525,11 +525,11 @@ func _check_main(t: TestContext) -> void:
 	var view := main.get_node_or_null("View3D")
 	if t.require(view != null, "Main built the 3D view"):
 		t.check(
-			view.mirror.builders.has(MirrorProxy.CHARACTER),
+			view.carrier.builders.has(MeshKinds.CHARACTER),
 			"Main's view registers the character's builder",
 		)
-		var character: Node = built["world"].find_children("*", "CharacterBody2D", true, false)[0]
-		var shown: Array = view.mirror.proxies_of(character)
+		var character: Node = PlanProbe.characters_under(built["world"])[0]
+		var shown: Array = view.carrier.proxies_of(character)
 		t.check(
 			shown.size() == 1 and shown[0] is BodyMesh,
 			"a match's character is shown by the body",
@@ -539,64 +539,52 @@ func _check_main(t: TestContext) -> void:
 
 ## The box (px at the scale `unit`, in the body's frame) of every part of `body` that shows.
 func _bounds(body: BodyMesh, unit := RenderConfig.unit) -> AABB:
-	var box := AABB()
-	var first := true
-	for part: Node in body.get_children():
-		var node := part as MeshInstance3D
-		if node == null or not node.visible:
-			continue
-		var inside := body.global_transform.affine_inverse() * node.global_transform
-		var scale := 1.0 / unit
-		var local := (inside * node.mesh.get_aabb())
-		local = AABB(local.position * scale, local.size * scale)
-		box = local if first else box.merge(local)
-		first = false
-	return box
+	var drawn: Array[AABB] = []
+	for index in BodyMesh.CROWN + 1:
+		var part := body.part(index)
+		if part.visible:
+			drawn.append(part.transform * part.mesh.get_aabb())
+	# and the held item's node and the drop shadow, each its own mesh
+	for node: MeshInstance3D in [body.held(), body.get_node("DropShadow")]:
+		if node.visible and node.mesh != null:
+			drawn.append(node.transform * node.mesh.get_aabb())
+	var box := drawn[0]
+	for local: AABB in drawn:
+		box = box.merge(local)
+	return AABB(box.position / unit, box.size / unit)
 
 
 ## Where the nose stands out of the head, as a flat direction (3D x, z).
 func _nose_direction(body: BodyMesh) -> Vector2:
-	var head := body.get_child(BodyMesh.HEAD) as Node3D
-	var nose := body.get_child(BodyMesh.FACE) as Node3D
+	var head := body.part(BodyMesh.HEAD)
+	var nose := body.part(BodyMesh.FACE)
 	return (_flat(nose) - _flat(head)).normalized()
 
 
 ## `node`'s place on the ground (3D x, z), in the body's frame.
-func _flat(node: Node3D) -> Vector2:
+func _flat(node: MeshPart) -> Vector2:
 	return Vector2(node.position.x, node.position.z) / RenderConfig.unit
 
 
 ## The colour part `index` of `body` is tinted.
 func _tint(body: BodyMesh, index: int) -> Color:
-	var part := body.get_child(index) as MeshInstance3D
-	return part.get_instance_shader_parameter(&"base_color")
+	return body.part(index).tint
 
 
-## The texture part `index` of `body` wears (null for the shared toon material).
+## The texture part `index` of `body` wears (null for a plain part).
 func _art(body: BodyMesh, index: int) -> Texture2D:
-	var material := (body.get_child(index) as MeshInstance3D).material_override
-	if material is ShaderMaterial:
-		return (material as ShaderMaterial).get_shader_parameter(&"albedo_texture")
-	return null
+	return body.part(index).texture
 
 
 ## Whether part `index` of `body` shows.
 func _shown(body: BodyMesh, index: int) -> bool:
-	return (body.get_child(index) as Node3D).visible
+	return body.part(index).visible
 
 
-## The first collision shape of `body`.
-func _shape_of(body: Node) -> CollisionShape2D:
-	for child in body.get_children():
-		if child is CollisionShape2D:
-			return child
-	return null
-
-
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	return mirror

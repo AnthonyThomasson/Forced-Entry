@@ -28,8 +28,8 @@ func geometry(opening_id: String, into: String) -> Dictionary:
 	return doorways.geometry(
 		opening_id,
 		into,
-		perception._character.get_world_2d().navigation_map,
-		perception._character.get_world_2d().direct_space_state,
+		NavWorld.map_of(perception._character),
+		TwinSpace.space_of(perception._character),
 	)
 
 
@@ -63,7 +63,7 @@ func slot_reach(to: Vector2, bodies: Array) -> int:
 	return doorways.slot_reach(
 		perception._character.global_position,
 		to,
-		perception._character.get_world_2d().navigation_map,
+		NavWorld.map_of(perception._character),
 		bodies,
 	)
 
@@ -104,8 +104,8 @@ func stack_side(door_stack: RefCounted) -> int:
 	return doorways.stack_side_from(
 		door_stack,
 		perception._character.global_position,
-		world.navigation_map,
-		world.direct_space_state,
+		NavWorld.map_in(world),
+		TwinSpace.space_in(world),
 	)
 
 

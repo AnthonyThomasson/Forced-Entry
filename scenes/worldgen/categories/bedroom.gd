@@ -11,7 +11,6 @@ const OBJECTS := {
 		"material": "fabric",
 		"art": "bed",
 		"weight": 50,
-		"coverage": 35,
 		"penetration": 30,
 		"interactions": [
 			{ "id": "lie", "label": "Lie down", "move_to": true },
@@ -28,7 +27,6 @@ const OBJECTS := {
 		"art": "cabinet",
 		"art_opts": { "front": "doors", "count": 2, "crown": true },
 		"weight": 60,
-		"coverage": 95,
 		"penetration": 55,
 		"interactions": [
 			{ "id": "hide", "label": "Hide inside", "move_to": true },
@@ -45,13 +43,15 @@ const OBJECTS := {
 		"art_opts": {
 			"front": "drawers",
 			"count": 3,
-			"props": [
-				{ "kind": "vase", "at": Vector2(0.15, 0.45) },
-				{ "kind": "book", "at": Vector2(0.72, 0.5) },
-			],
 		},
+		"carries": [
+			{ "key": "vase", "at": Vector2(-25.9, -4.4), "on_top": true },
+			{
+				"key": "book", "at": Vector2(16.3, -3), "on_top": true,
+				"size": Vector2(12, 9), "color": Color(0.3, 0.3, 0.22),
+			},
+		],
 		"weight": 35,
-		"coverage": 45,
 		"penetration": 55,
 		"interactions": [
 			{ "id": "open", "label": "Open drawer" },

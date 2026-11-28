@@ -7,12 +7,16 @@ extends GameTest
 ## shows the grenade it sees and the escape spot it runs to. The overlay is on throughout, so a draw
 ## error fails the test.
 
+const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Flank := preload("res://tests/_ai/flank_probe.gd")
 const Registry := preload("res://scenes/ui/overlays/overlay_registry.gd")
 const NPC_AT := Vector2(100, 250)
 const HOSTILE_AT := Vector2(520, 250)
+
+## The defender's own speed, put back when the frag is thrown.
+var _defender_speed := 0.0
 
 
 func describe() -> Dictionary:
@@ -27,8 +31,10 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	Hiding.von_out(s)
 	s.arena(Rect2(0, 0, 900, 500))
-	s.object(&"desk", "desk", Vector2(330, 250))
+	s.object(&"desk", Hiding.low_cover("desk"), Vector2(410, 250))
+	s.object(&"cover_d", Hiding.low_cover("desk"), Vector2(520, 322))
 	Flank.rules(
 		s,
 		[
@@ -46,11 +52,19 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
+	var n := t.actor(&"n")
+	Probe.arm(n, 0, 1)
+	# The defender stands where it is until the frag is thrown, and then looks at it fly: a decision
+	# of its own, landing whenever the pool serves it, may have it investigating the gunfire,
+	# walking and facing away from the landing it is to see and run from.
+	_defender_speed = t.actor(&"d").movement.speed
+	t.actor(&"d").movement.speed = 0.0
+	if not await Hiding.duck_after_seen(t, [&"h", &"d"], &"n"):
+		return
 	t.check(
 		Registry.ENTRIES.any(func(e): return e["flag"] == "show_grenades"),
 		"the overlay table has a show_grenades row",
 	)
-	var n := t.actor(&"n")
 	var d := t.actor(&"d")
 	t.check(
 		n.get_children().any(func(c): return "show_grenades" in c and c.show_grenades),
@@ -60,7 +74,6 @@ func run(t: TestContext) -> void:
 		d.get_children().any(func(c): return "show_grenades" in c and c.show_grenades),
 		"so does the defender",
 	)
-	Probe.arm(n, 0, 1)
 	if not t.require(
 			Probe.count(n, Probe.FRAG) == 1,
 			"the invader carries a frag grenade (Character.inventory.item_count(8) = %d)"
@@ -114,7 +127,15 @@ func _check_planned_throw(t: TestContext, n: Node, nb: Node) -> bool:
 func _check_live_grenade(t: TestContext, nb: Node) -> bool:
 	if not t.require(await t.until(func(): return t.happened(&"throw"), 6.0), "the invader throws"):
 		return false
-	await t.frames(10)
+	t.actor(&"d").movement.speed = _defender_speed
+	# Toward the throw, whatever its decision had it facing: "having seen it" below holds by this
+	# set facing (the defender looks at the grenade), not by what its decision chose.
+	# Held for the frames of two beats (`beat.md`): off its beat the NPC senses nothing and its body
+	# turns to the aim it holds, so a facing set once can fall on a frame it does not look.
+	for i in 4:
+		t.actor(&"d").facing = Vector2.LEFT
+		await t.frames(1)
+	await t.frames(6)
 	var own: Array = GrenadeAi.grenades(nb).get("known", [])
 	if t.check(not own.is_empty(), "the thrower knows the live grenade"):
 		t.check(own[0]["kind"] == &"frag" and own[0]["source"] == &"own", "a frag of its own")
@@ -150,6 +171,13 @@ func _check_escape(t: TestContext, db: Node) -> bool:
 			not seen.is_empty() and seen[0]["source"] in [&"seen", &"heard"],
 			"having seen or heard the grenade itself",
 		)
+		# The spot first planned is for where the grenade is in the air; the one judged is the plan
+		# once it lies (G16's replan, a moment after the rest).
+		await t.until(
+			func(): return t.happened(&"grenade", func(e): return e.get("stage") == &"rest"),
+			2.0,
+		)
+		await t.seconds(0.4)
 		if not Probe.booms(t).is_empty():
 			return false
 		var escape: Vector2 = GrenadeAi.grenades(db)["escape"]

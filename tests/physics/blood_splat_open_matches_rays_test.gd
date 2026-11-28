@@ -5,6 +5,7 @@ extends GameTest
 ## consume the same random draws; the skip counter proves the open-space path was exercised.
 
 const BloodSplat = preload("res://scenes/physics/blood/blood_splat.gd")
+const RawTwins := preload("res://tests/_vision/raw_twins.gd")
 const SPLATS := 160
 const SEED := 192_014
 ## Where the edge cases put the splat: far from the arena walls and the furniture.
@@ -29,6 +30,7 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
+	RawTwins.register(t.world)
 	await t.frames(2)
 	var differing: Array[int] = []
 	var built := 0
@@ -75,9 +77,8 @@ func _bound_edge(t: TestContext, radius: float) -> void:
 	t.check(bound >= farthest, "radius %.0f: the clear radius covers the farthest ray" % radius)
 	t.check(bound <= farthest * 1.25 + 2.0, "radius %.0f: and is not wastefully wide" % radius)
 	for outside in [true, false]:
-		var wall := StaticBody2D.new()
-		wall.collision_layer = PhysicsConfig.wall_mask
-		var shape := CollisionShape2D.new()
+		var wall := RawTwins.Solid.new()
+		var shape := RawTwins.Shape.new()
 		shape.shape = RectangleShape2D.new()
 		shape.shape.size = Vector2(20, 300)
 		wall.add_child(shape)
@@ -157,14 +158,16 @@ class RayDispatchSplat extends "res://scenes/physics/blood/blood_splat.gd":
 		var local := _at(p)
 		if local.length_squared() < 0.0001:
 			return 1.0
-		var ray := PhysicsRayQueryParameters2D.create(
-			global_position, global_position + local, PhysicsConfig.wall_mask,
+		var ray := PhysicsRayQueryParameters3D.create(
+			PlanSpace.lift(global_position, 1.0),
+			PlanSpace.lift(global_position + local, 1.0),
+			PhysicsLayers.TWIN_WORLD | PhysicsLayers.TWIN_VEHICLE,
 		)
 		ray.exclude = _exclude
 		var hit := _space.intersect_ray(ray)
 		if hit.is_empty():
 			return 1.0
-		return (hit.position as Vector2).distance_to(global_position) / local.length()
+		return PlanSpace.plan_of(hit["position"]).distance_to(global_position) / local.length()
 
 
 ## The reference build: never take the broadphase, so every feature keeps its exact clipping ray.

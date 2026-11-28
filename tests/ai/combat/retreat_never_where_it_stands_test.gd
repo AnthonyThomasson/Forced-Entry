@@ -36,7 +36,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.von_script([{ "pick": "combat" }, { "pick": "retreat" }, { "pick": "fall_ally_ally" }])
-	s.switch(&"projectile.flyover", false)
 	# Unkillable: the premise is the retreat, not the fight.
 	s.actor(&"inv", &"invader", START, { "max_health": 1_000_000.0, "facing": Vector2.RIGHT })
 	s.actor(&"ally", &"puppet", ALLY, { "faction": &"invader", "max_health": 1_000_000.0 })
@@ -68,10 +67,16 @@ func run(t: TestContext) -> void:
 	var seen: int = start
 	var wrong := {}
 	var end := t.time + WINDOW
+	var landing := false
 	while t.time < end:
-		var n: int = brain.debug_state()["decisions"]
-		if n != seen:
-			seen = n
+		var state: Dictionary = brain.debug_state()
+		if int(state["decisions"]) != seen:
+			seen = int(state["decisions"])
+			landing = true
+		# A decision is claimed as it begins and lands over the frames its build takes: the zones
+		# it made are read once it is no longer pending.
+		if landing and not state["decision"]["pending"]:
+			landing = false
 			_check_retreats(t, brain, inv, wrong)
 		await t.frames(1)
 	for w in wrong:

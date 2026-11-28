@@ -23,7 +23,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	await t.seconds(0.2)
 	# A region of its own, never put on a map: freeing it leaves the world's navigation alone.
-	var region := NavigationRegion2D.new()
+	var region := NavigationRegion3D.new()
 	var landed := [false]  # a lambda captures a bool by value
 	NavBuilder.rebake_async(region, t.world.house, t.rooms, 14.0, func() -> void: landed[0] = true)
 	t.check(not landed[0], "the bake is still in flight when it returns")

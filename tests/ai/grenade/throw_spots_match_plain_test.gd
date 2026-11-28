@@ -28,11 +28,10 @@ func run(t: TestContext) -> void:
 	await t.frames(2)
 	var tactics := AgentTactics.new()
 	tactics.vision = AgentVision.new()
-	tactics.cover_min = 40.0
 	tactics.throws.spot_walk = 250.0
 	var ctx := {
-		"space": npc.get_world_2d().direct_space_state,
-		"map": npc.get_world_2d().navigation_map,
+		"space": TwinSpace.space_of(npc),
+		"map": NavWorld.map_of(npc),
 		"self_pos": npc.global_position,
 		"hostiles": [],
 	}
@@ -58,14 +57,22 @@ func run(t: TestContext) -> void:
 	)
 
 
-## The first cheap-test-passing point produced by two raw candidates, or INF when there is none.
+## The first cheap-test-passing point produced by two raw candidates, that no earlier point stands
+## within `Plain.SPACING` of (one that did would be skipped before its first lob:
+## `ThrowSpots._candidate`), or INF when there is none.
 func _repeated_point(tactics: RefCounted, ctx: Dictionary, aim: ThrowAim) -> Vector2:
 	var seen := {}
+	var earlier: Array = []
 	for r: Vector2 in tactics.throws.raw(ctx["self_pos"], aim):
 		var p: Vector2 = tactics.throws.on_navmesh(tactics, ctx, r, aim)
 		if p == Vector2.INF:
 			continue
 		if seen.has(p):
-			return p
+			var near := func(q: Vector2) -> bool:
+				return q != p and q.distance_to(p) < Plain.SPACING
+			if not earlier.any(near):
+				return p
+			continue
 		seen[p] = true
+		earlier.append(p)
 	return Vector2.INF

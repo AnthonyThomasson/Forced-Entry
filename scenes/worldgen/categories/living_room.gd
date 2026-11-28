@@ -12,7 +12,6 @@ const OBJECTS := {
 		"art": "appliance",
 		"art_opts": { "panel": "tv" },
 		"weight": 12,
-		"coverage": 40,
 		"penetration": 35,
 		"interactions": [
 			{ "id": "watch", "label": "Watch TV" },
@@ -27,7 +26,6 @@ const OBJECTS := {
 		"material": "fabric",
 		"art": "sofa",
 		"weight": 45,
-		"coverage": 45,
 		"penetration": 30,
 		"interactions": [
 			{ "id": "sit", "label": "Sit", "move_to": true },
@@ -41,9 +39,8 @@ const OBJECTS := {
 		"color": Color(0.55, 0.35, 0.2),
 		"material": "wood",
 		"art": "table",
-		"art_opts": { "inset": true },
+		"art_opts": { "inset": true, "height": 18.0 },
 		"weight": 12,
-		"coverage": 30,
 		"penetration": 45,
 		"interactions": [
 			{ "id": "sit_on", "label": "Sit on it", "move_to": true },
@@ -60,7 +57,6 @@ const OBJECTS := {
 		"art_opts": { "pattern": "medallion" },
 		"weight": 5,
 		"solid": false,
-		"coverage": 0,
 		"penetration": 5,
 	},
 }

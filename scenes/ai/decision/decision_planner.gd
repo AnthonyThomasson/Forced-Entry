@@ -149,10 +149,33 @@ func has_piece() -> bool:
 
 ## Run the waiting piece: one level, from following the pick or entering the first node to the
 ## next question for Von, a lone option taken, or the leaf.
+##
+## A driven walk's level that reads a group of the demand not built yet (a hostile's throws, the
+## planner's heaviest work) does not build it: it stalls. The level is put back as it was, to run
+## again, and `stalled` says the group, which the decision job builds a priced step at a time
+## (`SnapshotDemand.steps_of`) before it steps again. An undriven walk builds the group whole.
 func step() -> void:
 	var piece := _resume
 	_resume = Callable()
+	if not driven:
+		piece.call()
+		return
+	var held := _walk.checkpoint()
+	var held_entry := _entry
+	_walk.armed = true
+	_walk.need = {}
 	piece.call()
+	_walk.armed = false
+	if not _walk.need.is_empty():
+		_walk.restore(held)
+		_entry = held_entry
+		_resume = piece
+
+
+## The group (`{ name, id }`) the last level stalled on, `{}` when it did not: built, the level
+## runs again on the next `step`.
+func stalled() -> Dictionary:
+	return _walk.need
 
 
 ## Read-only: the walk in flight (or the last finished one) as structured data — per level, the
@@ -211,6 +234,8 @@ func _step() -> void:
 		# Nothing worth binding: offer the node's unbound children (e.g. RETREAT).
 		_walk.bind_level = false
 		_walk.offered = _offers(_walk.node)
+	if not _walk.need.is_empty():
+		return  # a group it reads is not built: the level is put back and runs again (`step`)
 	if _walk.offered.is_empty():
 		if _walk.node == _entry and _entry != &"root":
 			_entry = &"root"
@@ -232,6 +257,8 @@ func _step() -> void:
 		_walk.node,
 	)
 	var state := _state_text(node, _walk.bind_level)
+	if not _walk.need.is_empty():
+		return
 	_walk.levels.append({
 		"node": String(_walk.node),
 		"question": question,
@@ -495,11 +522,15 @@ func _group(group_name: StringName) -> Dictionary:
 		var per: Dictionary = options.get("per_target", {}).get(target_id, {})
 		if per.has(String(group_name)):
 			return per[String(group_name)]
+		if _stalls_on(demand, String(group_name), target_id):
+			return {}
 		var own = demand.target_group(String(group_name), target_id) if demand != null else null
 		if own != null:
 			return own
 	if options.has(String(group_name)):
 		return options[String(group_name)]
+	if _stalls_on(demand, String(group_name), -1):
+		return {}
 	return demand.group(String(group_name)) if demand != null else {}
 
 
@@ -565,13 +596,36 @@ func _section(section_name: String) -> String:
 		var per: Dictionary = _walk.snap.get("sections_per_target", {}).get(target_id, {})
 		if per.has(section_name):
 			return per[section_name]
+		if _stall_for(
+			demand,
+			demand.missing_section(section_name, target_id) if demand != null else {},
+		):
+			return ""
 		var own = demand.target_section(section_name, target_id) if demand != null else null
 		if own != null:
 			return own
 	var sections: Dictionary = _walk.snap.get("sections", {})
 	if sections.has(section_name):
 		return sections[section_name]
+	if _stall_for(demand, demand.missing_section(section_name, -1) if demand != null else {}):
+		return ""
 	return demand.section(section_name) if demand != null else ""
+
+
+## Whether the read of group `group_name` (hostile `id`, -1: the global one) stalls the level: a
+## driven walk's level, and a group the demand has not built (`SnapshotDemand.missing_group`).
+func _stalls_on(demand: Variant, group_name: String, id: int) -> bool:
+	return _stall_for(demand, demand.missing_group(group_name, id) if demand != null else {})
+
+
+## Whether a read that needs `missing` (a `{ name, id }`, `{}`: nothing) stalls the level, noting
+## the first group it needs.
+func _stall_for(demand: Variant, missing: Dictionary) -> bool:
+	if demand == null or not _walk.armed or missing.is_empty():
+		return false
+	if _walk.need.is_empty():
+		_walk.need = missing
+	return true
 
 
 ## Mark the offered option that continues the last adopted plan, so Von can keep a plan rather than

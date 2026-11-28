@@ -20,7 +20,7 @@ var _last_cos := [1.0, 1.0]
 
 
 ## Check both feet of `character` and report any footfall to `footprints`.
-func update(character: CharacterBody2D) -> void:
+func update(character: Node2D) -> void:
 	var pose = character.anatomy.pose
 	var phase: float = pose.gait.stride_phase()
 	for i in 2:
@@ -32,7 +32,7 @@ func update(character: CharacterBody2D) -> void:
 
 
 ## Solve the rig for a foot that has just landed and hand its sole's geometry to `footprints`.
-func _report(character: CharacterBody2D, foot: int) -> void:
+func _report(character: Node2D, foot: int) -> void:
 	var rig: CharacterRig = character.anatomy.rig()
 	var r: float = character.radius
 	var ankle := rig.point(CharacterRig.ANKLE[foot])
@@ -45,7 +45,7 @@ func _report(character: CharacterBody2D, foot: int) -> void:
 	fall.at = character.global_position + Vector2(ankle.x, ankle.y) + dir * fall.length * 0.25
 	# Left foot (0) has its arch toward +y of the toe frame, right foot toward -y.
 	fall.inner = 1.0 if foot == 0 else -1.0
-	fall.speed = character.get_real_velocity().length()
+	fall.speed = TwinSpace.real_velocity_of(character).length()
 	footprints.step(foot, fall)
 	# The footfall itself, for whoever listens (the Audio domain picks the sound from the floor it
 	# lands on; the AI hears whose it is and how it was walked: running carries far, a crouched step

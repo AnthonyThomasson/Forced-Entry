@@ -160,7 +160,7 @@ func _apply_senses(npc_tuning: NpcTuning) -> void:
 	sight.vision.view_distance = npc_tuning.senses.view_distance
 	sight.vision.fov_degrees = npc_tuning.senses.fov_degrees
 	sight.vision.awareness_radius = npc_tuning.senses.awareness_radius
-	sight.vision.see_over_coverage = npc_tuning.senses.see_over_coverage
+	sight.vision.viewer = _character
 	contacts.hostility.on_sight = npc_tuning.hostility.on_sight
 	contacts.hostility.trespass = npc_tuning.hostility.on_trespass
 	contacts.hostility.retaliate = npc_tuning.hostility.on_attack
@@ -170,7 +170,6 @@ func _apply_senses(npc_tuning: NpcTuning) -> void:
 
 ## Set the combat geometry's tunables from `npc_tuning`.
 func _apply_tactics(npc_tuning: NpcTuning) -> void:
-	_tactics.cover_min = npc_tuning.tactics.cover_min
 	_tactics.flank_distance = npc_tuning.tactics.flank_distance
 	_tactics.flank_arc = npc_tuning.tactics.flank_arc
 	_tactics.flank_ally_radius = npc_tuning.tactics.flank_ally_radius
@@ -208,7 +207,6 @@ func bind(character: Node) -> void:
 	entry.ledger.setup({ "faction": character.faction, "listener": character })
 	grenades.throw.bind(character)
 	grenades.live.bind(character)
-	entry.doorways.posts.crouch = character.movement.posture_coverage(&"crouch")
 	entry.doorways.posts.body = character
 	_snapshot.bind(character)
 
@@ -336,8 +334,8 @@ func observe(rooms: Array) -> void:
 	house.take_in(rooms)
 	confinement.rooms = rooms
 	var self_pos: Vector2 = _character.global_position
-	var space: PhysicsDirectSpaceState2D = _character.get_world_2d().direct_space_state
-	var exclude := [_character.get_rid()]
+	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(_character)
+	var exclude := SightRay.exclude_of(_character)
 	sight.see(rooms)
 
 	# The room the NPC stands in counts as searched (superseded while it stays there).
@@ -449,26 +447,48 @@ func fill_goal(goal: String) -> String:
 # --- Combat geometry for the behaviour -------------------------------------------------------
 
 
+## Whether the NPC can fire at `target` (a plain world `point` when null) from here: a clear 3D line
+## from its muzzle, at the posture it fires in (ducked: the pose its shot would rise to), to where
+## it aims at the target, `AgentVision.fire_line_clear`. Any living body in the line holds the shot
+## (an ally, a bystander, the human player) but a known hostile, which a round may hit. The
+## behaviour gates FIRING on this.
+func has_fire_line_to(target: Node2D, point: Vector2) -> bool:
+	return sight.vision.fire_line_clear(_character, target, point, _is_known_hostile)
+
+
+## Whether a round may hit `body`: a character this NPC knows as hostile.
+func _is_known_hostile(body: Node) -> bool:
+	return contacts.hostility.is_hostile(body.get_instance_id(), _memory)
+
+
 ## Whether the NPC has a clear line (no wall or solid furniture between) to a world `point` — the
 ## engaged contact's last-known position. The behaviour gates FIRING on this: once a contact is
 ## known, the NPC shoots when it has a clear line to where it knows they are, independent of its
 ## view cone. Both the NPC and `target` (the contact's body) are excluded, so the target doesn't
 ## block itself.
 func has_line_to(target: Node2D, point: Vector2) -> bool:
-	var space: PhysicsDirectSpaceState2D = _character.get_world_2d().direct_space_state
-	var exclude := [_character.get_rid()]
+	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(_character)
+	var exclude := SightRay.exclude_shared(_character)  # Read, never edited, unless a target adds.
 	if target != null and is_instance_valid(target):
-		exclude.append(target.get_rid())
+		exclude = SightRay.exclude_of(_character)
+		exclude.append_array(SightRay.exclude_of(target))
 	return not _tactics.blocked(space, _character.global_position, point, exclude)
 
 
 ## Candidate standing points on a ring around the NPC, classified for peek-and-cover against the
 ## engaged contact's KNOWN position `tgt_pos`: `fire` points have a clear line to it; `cover` points
-## are shielded from it by a high-coverage solid. Both nearest-first (see agent_tactics.gd); the
+## are shielded from it by a piece whose real top hides a ducked head from it
+## (`AgentVision.hiding_piece`). Both nearest-first (see agent_tactics.gd); the
 ## ring has `combat_ring_count` points.
 func combat_spots(target: Node2D, tgt_pos: Vector2, radius: float) -> Dictionary:
-	var exclude := [_character.get_rid()]
+	var exclude := SightRay.exclude_of(_character)
 	if target != null and is_instance_valid(target):
-		exclude.append(target.get_rid())
-	var space: PhysicsDirectSpaceState2D = _character.get_world_2d().direct_space_state
-	return _tactics.combat_spots(space, _character.global_position, tgt_pos, exclude, radius)
+		exclude.append_array(SightRay.exclude_of(target))
+	var space: PhysicsDirectSpaceState3D = TwinSpace.space_of(_character)
+	return _tactics.combat_spots(
+		space,
+		_character.global_position,
+		{ "pos": tgt_pos, "node": target },
+		exclude,
+		radius,
+	)

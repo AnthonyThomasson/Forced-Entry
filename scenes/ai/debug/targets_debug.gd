@@ -12,7 +12,10 @@ const OBJECT := Color(1.0, 0.85, 0.3)
 const WATCH := Color(0.8, 0.5, 1.0)
 
 ## Whether to draw the targets overlay.
-@export var show_targets: bool = false
+@export var show_targets: bool = false:
+	set(value):
+		show_targets = value
+		_sync_processing()
 
 
 ## Whether this overlay's toggle is on.

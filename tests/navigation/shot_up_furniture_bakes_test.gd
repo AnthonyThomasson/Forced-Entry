@@ -1,10 +1,11 @@
 extends GameTest
 ## A shot-up piece of furniture has a many-sided hull, and snapped to the 1 px grid it is a run of
 ## steps and notches a pixel deep. Baked as it is, the engine logs "polygon convex partition failed"
-## and produces NO navmesh (every path in the house gone until the next re-bake).
-## `NavSource.simplified` drops the vertices that sit on the line between their neighbours; the
-## outlines below are real ones (a kitchen island shot up in a firefight) that the raw bake could
-## not make a mesh of.
+## and produced NO navmesh from the engine's 2D baker (every path in the house gone until the next
+## re-bake); the grid baker every bake runs through now (`NavSource.bake_polygon`) is checked on
+## the same outlines. `NavSource.simplified` drops the vertices that sit on the line between their
+## neighbours; the outlines below are real ones (a kitchen island shot up in a firefight) that the
+## raw bake could not make a mesh of.
 
 const ARENA := Rect2(0, 0, 1000, 700)
 const OUTLINES := [
@@ -47,7 +48,7 @@ func _bake(outline: PackedVector2Array) -> int:
 		Vector2(ARENA.position.x, ARENA.end.y),
 	]))
 	source.add_obstruction_outline(outline)
-	NavigationServer2D.bake_from_source_geometry_data(nav_poly, source)
+	NavSource.bake_polygon(nav_poly, source, Vector2.ZERO)  # the baker every bake runs through
 	return nav_poly.get_polygon_count()
 
 

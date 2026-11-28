@@ -5,22 +5,25 @@ extends GameTest
 ## primitive walks there and throws from it, and the self-safety tag (`no_safe_spot`) is judged with
 ## the thrower at the throw spot. Scripted Von (COMBAT > GRENADE when offered, else ENGAGE ...), two
 ## closed rooms with a wall between, the same scene in each: an invader 640 px from a household
-## puppet hidden from its line of fire by a coffee table (which a lob clears), in neither room in
-## range from where it stands (550 px, the throw range).
+## puppet that ducked behind a low piece (which a lob clears), out of its line of fire, in neither
+## room in range from where it stands (550 px, the throw range).
 ##
 ## North: the invader carries a stun. GRENADE is offered through a throw spot (the controller's
 ## `debug_zones()`, category `grenade`, `from`) within range of the hostile's spot, with a clear
 ## lob, reached by a short walk; the invader walks there and throws from it, and the stun goes off
 ## on the hostile. South: the invader carries a frag whose row is retuned (a premise: blast radius
 ## 480 px, so its danger zone, 600 px, reaches past the throw range, and a 0.5 s fuse) so that every
-## spot within throw range of the hostile is inside the zone with nowhere to get clear in time,
-## while where the invader stands (640 px) is outside it. Judged from the throw spot the option is
-## tagged `no_safe_spot` and GRENADE is not offered; judged from where it stands it would be
-## offered.
+## spot within throw range of the hostile is inside the zone, while where the invader stands
+## (640 px) is outside it. The self-safety tag is judged from the throw spot by the real 3D line
+## (#194 D10): the table that hides the hostile from the invader lies on the line from the burst to
+## the throw spot behind it, so the spot is shielded, the option is not tagged `no_safe_spot`
+## (cover that hides a hostile from a bullet shadows the thrower from a burst on the floor), and
+## GRENADE is offered.
 ##
 ## Premises: the hostiles are household puppets that cannot be killed and never shoot; each invader
 ## is armed at the start of `run`, the way Main arms a spawn; the frag row is retuned (above).
 
+const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Spot := preload("res://tests/_ai/throw_spot_probe.gd")
@@ -36,14 +39,15 @@ func describe() -> Dictionary:
 		"name": "A hostile out of throw range is grenaded from a throw spot",
 		"description": "An invader 640 px from a hidden hostile is offered GRENADE through a throw "
 			+ "spot a short walk away, within range and with a clear lob, walks there and throws; "
-			+ "with a frag whose zone reaches past the throw range the option is tagged "
-			+ "no_safe_spot (judged from the throw spot) and not offered.",
+			+ "with a frag whose zone reaches past the throw range the throw spot, behind the "
+			+ "table that hides the hostile, is shielded by it: not tagged no_safe_spot, offered.",
 		"tags": ["ai", "grenade", "combat", "throw_spot", "scripted"],
 		"timeout": 40.0,
 	}
 
 
 func configure(s: TestSetup) -> void:
+	Hiding.von_out(s)
 	# Premise (south): a frag whose danger zone (blast radius + the 120 px evade margin) reaches
 	# past the throw range, with a short fuse.
 	var rows: Dictionary = GrenadeConfig.grenades.duplicate(true)
@@ -54,8 +58,8 @@ func configure(s: TestSetup) -> void:
 		{ "key": "north", "type": "living_room", "rect": Rect2(0, 0, 1000, 300) },
 		{ "key": "south", "type": "kitchen", "rect": Rect2(0, 300, 1000, 300) },
 	], [{ "pos": Vector2(980, 0), "width": 60.0 }, { "pos": Vector2(980, 600), "width": 60.0 }])
-	s.object(&"table_n", "coffee_table", Vector2(600, 150))
-	s.object(&"table_s", "coffee_table", Vector2(600, 450))
+	s.object(&"table_n", Hiding.low_cover("coffee_table"), Vector2(630, 150))
+	s.object(&"table_s", Hiding.low_cover("coffee_table"), Vector2(630, 450))
 	Flank.rules(
 		s,
 		[
@@ -79,6 +83,8 @@ func run(t: TestContext) -> void:
 	var so := t.actor(&"s")
 	Probe.arm(n, 1, 0)
 	Probe.arm(so, 0, 1)
+	if not await Hiding.duck_after_seen(t, [&"nh", &"sh"], [&"n", &"s"]):
+		return
 	if not t.require(
 			Probe.count(n, Probe.STUN) == 1 and Probe.count(so, Probe.FRAG) == 1,
 			"the north invader carries a stun and the south one a frag",
@@ -218,16 +224,17 @@ func _check_south(t: TestContext, walks: Dictionary, zones: Dictionary) -> void:
 			not s_near.is_empty(),
 			"a throw spot was weighed against the south hostile too (zones %s)" % str(zones[&"s"]),
 	):
+		var from := Spot.from_of(s_near[0])
 		t.check(
-			Spot.from_of(s_near[0]).distance_to(S_H) <= Spot.THROW_RANGE,
+			from.distance_to(S_H) <= Spot.THROW_RANGE,
 			"within throw range, so inside the frag's zone",
 		)
 		t.check(
-			s_near[0]["tags"].get("no_safe_spot", false),
-			"and, judged from the throw spot, it is tagged no_safe_spot (tags %s)"
-				% str(s_near[0]["tags"]),
+			not s_near[0]["tags"].get("no_safe_spot", false),
+			"and, judged from the throw spot, it is not tagged no_safe_spot: the table that hides "
+				+ "the hostile shields it (tags %s)" % str(s_near[0]["tags"]),
 		)
 	t.check(
-		not south[0]["combat"].has("grenade"),
-		"so GRENADE is not offered to the south invader (offered %s)" % str(south[0]["combat"]),
+		south[0]["combat"].has("grenade"),
+		"so GRENADE is offered to the south invader (offered %s)" % str(south[0]["combat"]),
 	)

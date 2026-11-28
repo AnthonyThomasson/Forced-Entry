@@ -166,10 +166,10 @@ func _state(npc: Variant) -> String:
 	if not is_instance_valid(npc):
 		return "gone"
 	var brain := TestContext.controller_of(npc, &"current_act")
-	var agent: NavigationAgent2D = npc.get_node_or_null("NavigationAgent2D")
+	var agent: NavigationAgent3D = npc.get_node_or_null("NavAnchor/NavigationAgent3D")
 	return "%s %s %s %.1f" % [
 		_point(npc.global_position),
-		_point(agent.target_position) if agent != null else "-",
+		_point(NavPlan.plan_of(agent.target_position)) if agent != null else "-",
 		act_text(brain.current_act(), _index_of) if brain != null else "-",
 		npc.get("health"),
 	]

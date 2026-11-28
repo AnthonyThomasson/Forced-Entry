@@ -18,6 +18,9 @@ signal went_dry
 
 ## Side (px) of a chunk, as the 2D layers'.
 const CHUNK := 128.0
+## A mark on a wall stops this many px over the floor (a splat cut off at the floor, not through
+## it).
+const FLOOR := 0.3
 
 ## How many times a chunk's mesh was built (a test reads it: a dry floor builds none).
 var rebuilds := 0
@@ -83,21 +86,24 @@ func marks(kind: InkMark.Kind) -> Array[InkMark]:
 
 
 ## A splat `BloodSplat` just built: its merged outlines (`shapes`, in its own frame) and its
-## wet highlight (`highlight_polygon`) lie on the floor as long as the node does.
+## wet highlight (`highlight_polygon`) lie where it landed as long as the node does: on the floor,
+## or on the surface it says (`BloodSplat.surface`: a piece's top at its height, a wall's face at
+## the height it was struck).
 func splat_made(splat: Node2D) -> void:
 	var mark := _new(InkMark.Kind.SPLAT, splat.global_position)
 	mark.node_id = splat.get_instance_id()
 	mark.dry_time = BloodSplatConfig.dry_time
 	var to_world := splat.global_transform
 	var ground := _world.ground_at(splat.global_position)
+	var surface: Dictionary = splat.surface
 	for poly: PackedVector2Array in splat.shapes:
-		_fan(mark, to_world * poly, lift_of(PhysicsInkConfig.splat_layer) + ground)
+		_lay(mark, to_world * poly, PhysicsInkConfig.splat_layer, surface, ground)
 	mark.body = mark.verts.size()
 	var fleck: PackedVector2Array = splat.highlight_polygon
 	if not fleck.is_empty():
 		mark.fleck = splat.highlight_color
-		_fan(mark, to_world * fleck,
-			lift_of(PhysicsInkConfig.splat_layer + PhysicsInkConfig.over_layer) + ground)
+		var over := PhysicsInkConfig.splat_layer + PhysicsInkConfig.over_layer
+		_lay(mark, to_world * fleck, over, surface, ground)
 	if mark.body == 0:
 		return
 	_splats[mark.node_id] = mark
@@ -370,6 +376,80 @@ func _opaque(color: Color) -> Color:
 			gap = absf(step - color.a)
 			level = step
 	return PhysicsInkConfig.ground_tone.lerp(Color(color.r, color.g, color.b), level)
+
+
+## The triangles of `poly` (world px, a simple polygon) on decal layer `layer` of where it lies:
+## over the `ground` (`surface` empty), on a piece's top, or on a wall's face.
+func _lay(
+	mark: InkMark, poly: PackedVector2Array, layer: float, surface: Dictionary, ground: float
+) -> void:
+	if surface.is_empty():
+		_fan(mark, poly, lift_of(layer) + ground)
+	elif surface["kind"] == BloodLanding.Kind.TOP:
+		_fan(mark, poly, float(surface["height"]) + lift_of(layer))
+	else:
+		_wall_fan(mark, poly, surface, lift_of(layer))
+
+
+## The triangles of `poly` (world px, as it would lie on the floor at the splat's place) stood on
+## a wall's face: its x runs along the wall, its y down it, from the height the blood struck at, cut
+## off at the floor and at the wall's top; `lift` px off the face.
+func _wall_fan(mark: InkMark, poly: PackedVector2Array, surface: Dictionary, lift: float) -> void:
+	var at: Vector2 = surface["at"]
+	var height: float = surface["height"]
+	var local := PackedVector2Array()
+	for point in poly:
+		local.append(point - at)
+	var top := minf(PhysicsInkConfig.wall_top, float(surface.get("top", INF)))
+	var band := _rect_polygon(Rect2(-1.0e4, height - top, 2.0e4, top - FLOOR))
+	for part in Geometry2D.intersect_polygons(local, band):
+		var corners := Geometry2D.triangulate_polygon(part)
+		for i in range(0, corners.size(), 3):
+			var points: Array[Vector3] = []
+			for k in 3:
+				points.append(_on_wall(surface, part[corners[i + k]], lift))
+			_stand(mark, points, _facing(surface))
+
+
+## The 3D point of local point `p` of a splat stood on a wall's face (`surface`), `lift` px off it:
+## along the wall by its x, down it by its y from the height struck.
+func _on_wall(surface: Dictionary, p: Vector2, lift: float) -> Vector3:
+	var normal := _facing(surface)
+	var along := Vector3(-normal.z, 0.0, normal.x)
+	var base := PlanSpace.lift(surface["at"], float(surface["height"]) - p.y)
+	return base + (along * p.x + normal * lift) * RenderConfig.unit
+
+
+## The way the wall's face looks (a unit 3D vector, flat).
+func _facing(surface: Dictionary) -> Vector3:
+	var normal: Vector2 = surface["normal"]
+	return Vector3(normal.x, 0.0, normal.y)
+
+
+## The corners of `rect`, going round.
+func _rect_polygon(rect: Rect2) -> PackedVector2Array:
+	return PackedVector2Array(
+		[
+			rect.position,
+			Vector2(rect.end.x, rect.position.y),
+			rect.end,
+			Vector2(rect.position.x, rect.end.y),
+		]
+	)
+
+
+## One triangle of three 3D points, wound to face `normal`, which its vertices take.
+func _stand(mark: InkMark, points: Array[Vector3], normal: Vector3) -> void:
+	var a := points[0]
+	var b := points[1]
+	var c := points[2]
+	if (c - a).cross(b - a).dot(normal) < 0.0:
+		var swap := b
+		b = c
+		c = swap
+	for corner in [a, b, c]:
+		mark.verts.append(corner)
+		mark.normals.append(normal)
 
 
 ## The triangles of `poly` (world px, a simple polygon) at `lift` px, facing up.

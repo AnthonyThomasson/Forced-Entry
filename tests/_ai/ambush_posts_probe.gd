@@ -26,9 +26,8 @@ static func posts_of(t: TestContext) -> Dictionary:
 	var script := load(ENTRY_SCRIPT) as GDScript
 	var entry: RefCounted = script.new()
 	entry.set_house(t.world.openings, t.rooms)
-	entry.posts.crouch = float(CharacterPostureConfig.postures[&"crouch"]["coverage"])
-	var map: RID = t.world.get_world_2d().navigation_map
-	var space := t.world.get_world_2d().direct_space_state
+	var map: RID = NavWorld.map_of(t.world)
+	var space := TwinSpace.space_of(t.world)
 	var ways: Array = []
 	for o: Dictionary in t.world.openings:
 		for k in o.get("rooms", []):

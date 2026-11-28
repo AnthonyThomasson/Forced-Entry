@@ -32,7 +32,7 @@ func run(t: TestContext) -> void:
 	var house := WorldGen.generate(5, "", Vector2.ZERO, world)
 	var rooms := WorldGen.get_rooms(house)
 	NavBuilder.build(house, rooms, world)
-	var planning := world.get_world_2d().navigation_map
+	var planning := NavWorld.map_of(world)
 	var steering := NavBuilder.steering_map(planning)
 	t.check(steering.is_valid(), "the steering map is named in the frame the navmesh is built")
 	t.check(steering != planning, "and it is not the world's own map")

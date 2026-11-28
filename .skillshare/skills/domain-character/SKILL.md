@@ -5,7 +5,7 @@ description: Use when editing scenes/character/ (character.gd, player_controller
 
 # Character domain
 
-Owns the player character, built so other character types can exist. It reads intent from a pluggable controller child (interface 7) and is the one pushable that is not a `RigidBody2D`: it integrates knockback into its own walk.
+Owns the player character, built so other character types can exist. It reads intent from a pluggable controller child (interface 7) and is the one pushable that is not led by a free 3D body: it integrates knockback into its own walk.
 
 **Side files** (read the one your task touches):
 - Posture, running and stamina, walking into furniture, the stun's effect on the walk → `movement.md`.
@@ -13,6 +13,8 @@ Owns the player character, built so other character types can exist. It reads in
 - Style, outfit, hit zones, armour in `take_hit`, weight → `wardrobe.md`.
 - The body (skeleton, pose, rig, hands, punch, kick, legs, ragdoll fall, all pixel art) → `body.md`.
 - Space on a door, a house door in reach, the scroll that turns it, a door in the way → `doors.md`.
+
+**The twin.** `character_twin.gd` (`CharacterTwin`, a `CharacterBody3D`, interface 29) is the character's 3D body in General's twin space, **the truth of where it stands (D13)**; the `Node2D` plan handle is its footprint, written from it. `movement.walk` moves it (`TwinSpace.walker_of`), a stand-up or a rise it would grow into a solid is refused (`movement.has_room_for`), read a body's pace with `TwinSpace.real_velocity_of`, never `get_real_velocity()`. Its height is the head top of `movement.body_posture()` (`BodyHeights`); the whole of it is `movement.md`. `movement.aim_height` / `weapon.aim_height()` say what a shot is aimed at (px up; `AIM_LEVEL`, `AIM_AUTO` = the torso of the body at the aim: interface 7), `character._hit_zone(height)` is `BodyHeights.zone_at` of `movement.body_posture()`.
 
 ## Components
 
@@ -25,15 +27,17 @@ The three verbs (control, animate, draw) live in separate files wired through th
 | `movement` | `character_movement.gd` | the controller's intent, posture, running and stamina, knockback, the push slow |
 | `use` | `character_use.gd` | what occupies the body: an interaction, a vehicle ride, its doors (`use.doors`: `doors.md`), the collision exceptions both leave |
 | `inventory` | `character_inventory.gd` | items carried, the held slot |
-| `weapon` | `character_weapon.gd` | using the held item: firing, melee, the raise, recoil, muzzle and aim, each hand's stance |
+| `weapon` | `character_weapon.gd` | using the held item: firing, melee, the raise, recoil, muzzle and aim, each hand's stance; `weapon.rise` (`character_rise.gd`): a ducked gun's rise over its cover to fire |
 | `ammo` | `character_ammo.gd` | magazines carried, the reload |
 | `stun` | `character_stun.gd` | a grenade's flash and bang on the body |
 | `anatomy` | `body/character_anatomy.gd` | the animate parts (pose, rig, hands, legs, kick, footsteps, ragdoll, dents, wound, shadow): `body.md` |
 | `wardrobe` | `character_wardrobe.gd` | a `Node` child (`Wardrobe` of `character_base.tscn`, found in `_enter_tree` before any child's `_ready`): style, look seed, rank and the `Outfit` worn; it steps nothing |
 
+**`NavAnchor`** (`ai/npc.tscn`): a `Node3D` child of an NPC, no collider, never mirrored (nothing of the twin space or the render follows it), owned by the AI's `Locomotion` (`loco_agent.gd`), which keeps it at (x, 0, y) of the character's plan position every physics frame it is asked; it is the parent a `NavigationAgent3D` needs for its position (interface 9). The character itself holds no nav.
+
 Also here: `character_footsteps.gd`, `character_push.gd` (the shared `shove`), `player_controller.gd`.
 
-**Tuning:** one `class_name` static holder per topic (`grep -r "class_name Character.*Config" scenes/character`). In `character/`: `CharacterPostureConfig`, `CharacterPaceConfig`, `CharacterPushConfig`, `CharacterDoorConfig` (the reach for a door), `CharacterStunConfig`, `CharacterHitConfig`, `CharacterShadowConfig`, `CharacterArtConfig`, `CharacterStyleConfig`, `CharacterBodyConfig`, `CharacterStanceConfig`, `CharacterRagdollFallConfig`, `CharacterVisionConfig` (what the character sees by: `fov_degrees` 110, `view_distance` 2520, `awareness_radius` 48, `see_over_coverage` 60, the NPCs' default sight; the body's `sight()` hands them out as a dictionary, which the Vision domain reads duck-typed to draw a view of any one character, interface 25). The body's own are in `body/` (`body.md`).
+**Tuning:** one `class_name` static holder per topic (`grep -r "class_name Character.*Config" scenes/character`). In `character/`: `CharacterPostureConfig`, `CharacterPaceConfig`, `CharacterPushConfig`, `CharacterDoorConfig` (the reach for a door), `CharacterStunConfig`, `CharacterHitConfig`, `CharacterShadowConfig`, `CharacterArtConfig`, `CharacterStyleConfig`, `CharacterBodyConfig`, `CharacterStanceConfig`, `CharacterRagdollFallConfig`, `CharacterVisionConfig` (what the character sees by: `fov_degrees` 110, `view_distance` 2520, `awareness_radius` 48, the NPCs' default sight; the body's `sight()` hands them out as a dictionary, with `eye_height`, the px height of its eye in its posture (`BodyHeights`), which the Vision domain reads duck-typed to draw a view of any one character, interface 25). The body's own are in `body/` (`body.md`).
 
 ## Ordering
 
@@ -41,7 +45,7 @@ A parent's `_physics_process` runs before its children's, so the hands see the c
 
 ## Runtime shapes
 
-`character.gd` builds its body `CircleShape2D` in `_ready()` and `body_strike.gd` builds each strike's query circle. The editor's "no shape" warning on `Player/CollisionShape2D` is expected. The body runs in `MOTION_MODE_FLOATING` (top-down): in grounded mode a body it walks "down" into would be ridden as a platform and lend the character its launch velocity.
+The character is a plain `Node2D` plan handle with no shape; its 3D twin (`CharacterTwin`) is built in code and runs in `MOTION_MODE_FLOATING` (top-down): in grounded mode a body it walks "down" into would be ridden as a platform and lend the character its launch velocity.
 
 ## Death
 
@@ -61,7 +65,7 @@ A living character has no 2D occluder any more: the 3D render draws its shadow (
 
 ## Walking into furniture
 
-`movement.walk`'s `_apply_pushes()` shoves each pushable the body slid into through `CharacterPush.shove(piece, dir, impulse, at_world, speed)`, shared with the leg press (`body.md`). The impulse lands at the **contact point**, so a piece pushed near an end turns about a point near the far end. The shove is capped so the contact point is carried at no more than `speed × CharacterPushConfig.carry_factor` along the push, using the piece's effective mass at that point, so a turning end is never flung ahead of the walker. Another character (no `linear_velocity`) takes the shove uncapped. The slow-down (`slow_per_weight`, floor `slow_min`) applies at once and eases back at `slow_release`/s, so a lost-contact frame does not snap speed. Tests: `tests/character/walk_into_furniture_speed_test.gd`, `walk_into_sofa_turns_test.gd`.
+`movement.walk`'s `_apply_pushes()` shoves each pushable the body slid into through `CharacterPush.shove(piece, dir, impulse, contact, speed)` (`contact`: the world point and, in z, its height), shared with the leg press (`body.md`). The impulse lands at the **contact point**, so a piece pushed near an end turns about a point near the far end. The shove is capped so the contact point is carried at no more than `speed × CharacterPushConfig.carry_factor` along the push, using the piece's effective mass at that point, so a turning end is never flung ahead of the walker. Another character (no `linear_velocity`) takes the shove uncapped. The slow-down (`slow_per_weight`, floor `slow_min`) applies at once and eases back at `slow_release`/s, so a lost-contact frame does not snap speed. Tests: `tests/character/walk_into_furniture_speed_test.gd`, `walk_into_sofa_turns_test.gd`.
 
 ## Riding a vehicle (interface 19, `docs/vehicles.md`)
 
@@ -69,7 +73,7 @@ A living character has no 2D occluder any more: the 3D render draws its shadow (
 
 The Vehicles domain poses the body with `use.set_ride_pose(at, toward, fold, step)`: the first pose cancels a reload and disables the collision shape (`set_deferred`); each pose sets position, `facing`, aim and the drawn height (`movement.fold`) and drops the cached rig. While riding, `inventory.current_item()` returns null (the item put away: nothing fires or draws in the hands) and `use.hold_frame` replaces the rest of the frame: no movement, knockback or push, stamina refilling, `anatomy.pose.update` with the ride's step as the motion and no stun look. `use.end_ride()` re-enables the shape.
 
-**Clearing a body just left** (interfaces 8, 19). `use.keep_clear_of(body)` keeps the collision exception with an object an interaction's `move_to` put the character on, or a vehicle it rode, until the character's circle (+`CLEAR_MARGIN`, on `PhysicsLayers.SOLID`) no longer overlaps it, checked once a physics frame (`use.restore_cleared()`); a freed body is forgotten. Going straight back calls `use.stop_clearing(body)`, so the exception stays.
+**Clearing a body just left** (interfaces 8, 19). `use.keep_clear_of(body)` keeps the collision exception with an object an interaction's `move_to` put the character on, or a vehicle it rode, until the character's circle (+`CLEAR_MARGIN`, a 3D query) no longer overlaps it, checked once a physics frame (`use.restore_cleared()`); a freed body is forgotten. Going straight back calls `use.stop_clearing(body)`, so the exception stays.
 
 ## Scenes and groups
 
@@ -77,4 +81,4 @@ The Vehicles domain poses the body with `use.set_ride_pose(at, toward, fold, ste
 
 Every character joins the group `characters` in `_ready` (interface 7): how the AI's perception, `Explosion` and a vehicle find characters in the world. `faction` is exported (`&"player"` by default; the NPC presets set `&"household"` / `&"invader"`) and read by AI perception to tell allies from potential hostiles.
 
-**Interfaces:** 3 (hittable), 4 (Physics), 5 (pushable), 6 (Items ↔ Character), 7 (Character ↔ Controller), 8 (Interaction), 10 (EventBus), 11 (`PhysicsLayers.SOLID`, `ViewLayers`, `SeenArea`), 12 (Art; the 3D body mesh, `body-mesh.md`, and the 2D art it wears, `body-textures.md`), 27 (the 3D mirror), 15 (`GameLog`), 18 (`stun.view()`, read off `Sound.focus`), 19 (Vehicle), 24 (the door contract, `use.doors`), 20 (`is_dead` / `radius` read by the lighting), 25 (`sight()`, `facing`, `died` read by the Vision domain).
+**Interfaces:** 3 (hittable), 4 (Physics), 5 (pushable), 6 (Items ↔ Character), 7 (Character ↔ Controller), 8 (Interaction), 10 (EventBus), 11 (`PhysicsLayers`, `ViewLayers`, `SeenArea`), 12 (Art; the 3D body mesh, `body-mesh.md`, and the 2D art it wears, `body-textures.md`), 27 (the 3D mirror), 15 (`GameLog`), 18 (`stun.view()`, read off `Sound.focus`), 19 (Vehicle), 24 (the door contract, `use.doors`), 20 (`is_dead` / `radius` read by the lighting), 25 (`sight()`, `facing`, `died` read by the Vision domain).

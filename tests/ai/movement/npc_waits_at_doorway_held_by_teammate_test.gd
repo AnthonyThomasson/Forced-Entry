@@ -56,7 +56,7 @@ func run(t: TestContext) -> void:
 	var walker := t.actor(&"walker")
 	var mate := t.actor(&"mate")
 	var brain := t.controller(&"walker", &"current_act")
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	# Lambdas capture plain values by copy, so the state the watch updates lives in one Dictionary.
 	var st := {
 		"sealed": false, "still": 0.0, "stopped_at": INF, "target": Vector2.INF, "walks": 0,

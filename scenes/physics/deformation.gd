@@ -345,32 +345,12 @@ static func convex_pieces(polygon: PackedVector2Array) -> Array:
 	return out
 
 
-## `[shape_polygon(shape, size, impacts), its convex_pieces]`, worked out afresh: pure (no cache
-## read or written, no resource made, its circle's unit ring made afresh), so it may run on a worker
-## thread with its own copy of `impacts`. Objects cuts a dented piece's silhouette this way as it is
-## struck.
-static func cut_shape(shape: String, size: Vector2, impacts: Array) -> Array:
-	var poly := (_shape_polygon(shape, size, impacts, false)
-			if not impacts.is_empty()
-			else _ring(shape, size, false))
-	return [poly, convex_pieces(poly)]
-
-
-## `[wall_polygon(a, b, thickness, impacts), its convex_pieces]`, worked out afresh and pure, as
-## `cut_shape`.
+## `[wall_polygon(a, b, thickness, impacts), its convex_pieces]`, worked out afresh: pure (no cache
+## read or written, no resource made), so it may run on a worker thread with its own copy of
+## `impacts`. Objects cuts a dented wall segment's outline this way as it is struck.
 static func cut_wall(a: Vector2, b: Vector2, thickness: float, impacts: Array) -> Array:
 	var poly := _wall_polygon(a, b, thickness, impacts)
 	return [poly, convex_pieces(poly)]
-
-
-## A ConvexPolygonShape2D for each of `pieces` (`convex_pieces`), in order.
-static func shapes_of(pieces: Array) -> Array:
-	var shapes: Array = []
-	for points: PackedVector2Array in pieces:
-		var shape := ConvexPolygonShape2D.new()
-		shape.points = points
-		shapes.append(shape)
-	return shapes
 
 
 ## Convex pieces of `polygon` as vertex-index loops (Hertel-Mehlhorn): start from its

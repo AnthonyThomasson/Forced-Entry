@@ -1,14 +1,14 @@
 extends RefCounted
 ## Top-down pixel-art TABLE painter (Objects domain, private). A planked wooden top — planks
 ## along the long side with dark seams, staggered butt joints, a slight tone per plank, grain and
-## the odd knot — inside a light-aware bevelled rim with rounded corners, optionally dressed with
-## props. Options (`art_opts`, defaulting to ObjectArtTableConfig.table_*): `plank_px`, `rim_px`,
-## `corner_radius`, `inset` (a recessed centre panel), `gaps` (open slats, as on a bench), `props`
-## and `neon` (a desk's: its screens and a neon strip set round its edge, glowing). Run down like a
+## the odd knot — inside a light-aware bevelled rim with rounded corners. A table paints nothing
+## loose on it (a desk's monitor, mug and papers are items: `docs/stacked-items.md`). Options
+## (`art_opts`, defaulting to ObjectArtTableConfig.table_*): `plank_px`, `rim_px`,
+## `corner_radius`, `inset` (a recessed centre panel), `gaps` (open slats, as on a bench)
+## and `neon` (a neon strip set round its edge, glowing). Run down like a
 ## chair (scratches, cup rings, burns). A table is symmetric, so its facing only turns the plank
 ## direction with the footprint.
 
-const Props = preload("res://scenes/objects/art/props.gd")
 const ChairPainter = preload("res://scenes/objects/art/chair_painter.gd")
 const Decay = preload("res://scenes/objects/art/decay.gd")
 ## Tabletop height, for cast shadows.
@@ -35,12 +35,6 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 				Rect2i(0, a, c.w, 1) if c.w >= c.h else Rect2i(a, 0, 1, c.h),
 				0,
 			), PixelCanvas.CLEAR, 0)
-	Props.draw_all(
-		c,
-		opts.get("props", []),
-		Rect2i(0, 0, c.w, c.h).grow(-3),
-		Decay.screen_color(opts),
-	)
 	c.cast_shadows()
 	ChairPainter.worn_wood(c)
 	var neon := Decay.neon(opts)

@@ -64,10 +64,9 @@ func run(t: TestContext) -> void:
 	geometry.vision = AgentVision.new()
 	geometry.bind(npc)
 	geometry.learn_carried()
-	geometry.learn_body()
 	var search := {
-		"space": npc.get_world_2d().direct_space_state,
-		"map": npc.get_world_2d().navigation_map,
+		"space": TwinSpace.space_of(npc),
+		"map": NavWorld.map_of(npc),
 		"exclude": GrenadeAi.character_rids(t),
 	}
 	var spotted := 0

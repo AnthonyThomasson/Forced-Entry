@@ -551,12 +551,12 @@ static func _apply_in_scope(npc: Node, flags: Dictionary, scope: String) -> void
 ## stands elsewhere. Then the nav map (`NavBuilder.build`), its holes overlay and its re-baker, and
 ## the dusk lighting seeded by `seed`. `world` is also registered as the match's world (`WorldRng`,
 ## 11: its random stream seeded by `seed`, its characters' spawn order). With `wait_nav` the world
-## is stepped two physics frames (the walls' colliders go live on a step), then until
+## is stepped two physics frames (the walls' twins go live on a step), then until
 ## `NavBuilder.ready` holds on the planning map and on the steering map, so an NPC placed afterwards
 ## never plans or walks on a map still showing another navmesh (at most `NAV_SYNC_MS` of real time;
 ## an error past it). A coroutine: await it. Returns the handle
-## `{ world, house, rooms, openings, nav_debug }` (and the `district` root when the world is a
-## district), or `{}` when
+## `{ world, house, rooms, openings, nav_debug, twins }` (`twins` the world's `TwinSpace`; and the
+## `district` root when the world is a district), or `{}` when
 ## `world` was freed during the wait (the match torn down).
 static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 	match_spec = spec(match_spec)
@@ -566,8 +566,14 @@ static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 	var root: Node2D = site["root"]
 	var house_rooms := WorldGen.get_rooms(house)
 	var site_rooms: Array = site["site_rooms"]
-	var bounds: Rect2 = site["bounds"]
-	var nav_region := NavBuilder.build(root, site_rooms, world, NavBuilder.AGENT_RADIUS, bounds)
+	var twins := _twin_space(world)  # before the nav bake: it reads the twins, not the 2D colliders
+	var nav_region := NavBuilder.build(
+		root,
+		site_rooms,
+		world,
+		NavBuilder.AGENT_RADIUS,
+		site["bounds"],
+	)
 	if root != house and nav_region != null:
 		# A district plans in the building the match is fought in, on a small map of its own.
 		NavBuilder.plan_ring(nav_region, root, house_rooms)
@@ -580,15 +586,10 @@ static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 		OVERLAY_REGISTRY.NAV_HOLES,
 		bool((match_spec["overlays"] as Dictionary).get(OVERLAY_REGISTRY.NAV_HOLES, false)),
 	)
-	# The re-baker keeps the navmesh in step with shoved furniture and refreshes the overlay.
-	var nav_updater: Node = NAV_UPDATER.new()
-	nav_updater.name = "NavUpdater"
-	world.add_child(nav_updater)
-	nav_updater.setup(nav_region, root, site_rooms, nav_debug)
-	if bool(match_spec["wait_nav"]):
-		await _wait_nav(world)
-		if not is_instance_valid(world):
-			return {}
+	var nav_updater := _rebaker(world, nav_region, root, site_rooms, nav_debug)
+	await _settle(match_spec, world, nav_updater)
+	if not is_instance_valid(world):
+		return {}
 	var handle := {
 		"world": world,
 		"house": house,
@@ -596,10 +597,54 @@ static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 		"site_rooms": site_rooms,
 		"openings": WorldGen.get_openings(house),
 		"nav_debug": nav_debug,
+		"twins": twins,
 	}
 	if root != house:
 		handle["district"] = root
 	return handle
+
+
+## The re-baker that keeps `world`'s navmesh in step with shoved furniture and refreshes the
+## `nav_debug` overlay, set up over `nav_region` and not yet ticking (`_settle` starts it).
+static func _rebaker(
+	world: Node2D,
+	nav_region: NavigationRegion3D,
+	root: Node2D,
+	site_rooms: Array,
+	nav_debug: Node2D,
+) -> Node:
+	var nav_updater: Node = NAV_UPDATER.new()
+	nav_updater.name = "NavUpdater"
+	world.add_child(nav_updater)
+	nav_updater.setup(nav_region, root, site_rooms, nav_debug)
+	return nav_updater
+
+
+## With `wait_nav`, wait until `world`'s navigation maps answer (`_wait_nav`); then start its
+## re-baker's ticks. That is the frame the match's bodies are placed on, a continuation of a physics
+## step's signal whatever point of a frame the stage began at, so the ticks fall the same against
+## the fight in every run (`NavUpdater.start`). Without `wait_nav` they start at once, in the phase
+## the stage began in.
+static func _settle(match_spec: Dictionary, world: Node2D, nav_updater: Node) -> void:
+	if bool(match_spec["wait_nav"]):
+		await _wait_nav(world)
+	if is_instance_valid(world):
+		nav_updater.start()
+
+
+## The twin space of `world` (`TwinSpace`, interface 29): a 3D twin of every solid body under it,
+## built by each domain's own hook (Objects' walls, doors, floors and furniture, Vehicles', the
+## characters'), kept in step with the 2D bodies, and watching for the ones that join (the vehicles
+## and characters a test or a match places later). Built here, so a match and a test world both
+## have one, headless too.
+static func _twin_space(world: Node2D) -> TwinSpace:
+	var twins := TwinSpace.new()
+	ObjectTwins.register(twins)
+	VehicleTwins.register(twins)
+	CharacterTwin.register(twins)
+	world.add_child(twins)
+	twins.watch(world)
+	return twins
 
 
 ## What `stage` builds the world on, under `world`: the spec's `house` moved under `world` when it
@@ -646,7 +691,7 @@ static func _wait_nav(world: Node2D) -> void:
 		await world.get_tree().physics_frame
 	var deadline := Time.get_ticks_msec() + NAV_SYNC_MS
 	while is_instance_valid(world) and world.is_inside_tree():
-		var map: RID = world.get_world_2d().navigation_map
+		var map: RID = NavWorld.map_of(world)
 		var steering := NavBuilder.steering_map(map)
 		if NavBuilder.ready(map) and (not steering.is_valid() or NavBuilder.ready(steering)):
 			return

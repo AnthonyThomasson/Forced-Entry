@@ -24,7 +24,6 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 800, 600))
-	s.switch(&"projectile.flyover", false)  # a character is partial cover; make every shot land
 	# Dead straight, so each round meets its target squarely and the damage is the gun's alone.
 	var straight: Dictionary = GunConfig.guns.duplicate(true)
 	for gun: StringName in straight:

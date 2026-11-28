@@ -40,6 +40,9 @@ func configure(s: TestSetup) -> void:
 	# Registered so the harness puts the pool and the prices back after the test sets them whole.
 	for name: String in Fakes.PRICES:
 		s.set_static(DecisionBudget, name, Fakes.prices()[name])
+	for name: String in Fakes.PIECE_PRICES:
+		s.set_static(DecisionPrices, name, Fakes.prices()[name])
+	s.set_static(Fakes.ThrowSpots, "block_size", Fakes.ThrowSpots.block_size)
 	# No cadence decision between the two forced ones: the one under test is the one read.
 	var quiet := {
 		"tuning:decision:max_commit_time": 600.0,

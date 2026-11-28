@@ -38,7 +38,7 @@ var _sight := {
 	"fov_degrees": Probe.FOV,
 	"view_distance": Probe.REACH,
 	"awareness_radius": Probe.BUBBLE,
-	"see_over_coverage": Probe.SEE_OVER,
+	"eye_height": Probe.SEE_OVER,
 }
 var _t: TestContext
 var _compared := 0
@@ -123,7 +123,6 @@ func _counting_cone() -> Cone:
 	var cone := Cone.new()
 	var shapes := CountingShapes.new()
 	var ray := CountingRay.new()
-	ray.rated = shapes.rated()
 	cone.set("_shapes", shapes)
 	cone.set("_ray", ray)
 	return cone
@@ -170,7 +169,7 @@ func _compare_all(at: Vector2, facing: Vector2) -> void:
 ## Step `cone`'s job from `at` to its end by `size` units (0: the default slice).
 func _run_sliced(
 	cone: Cone,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	at: Vector2,
 	facing: Vector2,
 	size: int,
@@ -189,6 +188,7 @@ func _check_counts(cone: Cone, what: String, at: Vector2) -> void:
 	var want := (
 		ray.casts * VisionSliceConfig.cost_cast
 		+ shapes.asked * VisionSliceConfig.cost_shape
+		+ shapes.folds * VisionSliceConfig.cost_hits
 		+ shapes.probes * VisionSliceConfig.cost_probe
 	)
 	if cone.work_units() != want:
@@ -250,8 +250,9 @@ class CountingShapes:
 
 	var asked := 0
 	var probes := 0
+	var folds := 0
 
-	func _shapes_in_reach(space: PhysicsDirectSpaceState2D) -> Array[Dictionary]:
+	func _shapes_in_reach(space: PhysicsDirectSpaceState3D) -> Array[Dictionary]:
 		var hits := super(space)
 		var cap := FIRST_RESULTS
 		asked += 1
@@ -260,7 +261,13 @@ class CountingShapes:
 			asked += 1
 		return hits
 
-	func far_exit(space: PhysicsDirectSpaceState2D, hit: Dictionary, dir: Vector2) -> float:
+	func fold_corners(
+		hits: Array[Dictionary], start: int, stop: int, seen: Dictionary
+	) -> void:
+		folds += 1
+		super(hits, start, stop, seen)
+
+	func far_exit(space: PhysicsDirectSpaceState3D, hit: Dictionary, dir: Vector2) -> float:
 		probes += 1
 		return super(space, hit, dir)
 
@@ -271,6 +278,6 @@ class CountingRay:
 
 	var casts := 0
 
-	func cast(space: PhysicsDirectSpaceState2D, from: Vector2, to: Vector2) -> Dictionary:
+	func cast(space: PhysicsDirectSpaceState3D, from: Vector2, to: Vector2) -> Dictionary:
 		casts += 1
 		return super(space, from, to)

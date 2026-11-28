@@ -40,7 +40,6 @@ func configure(s: TestSetup) -> void:
 	s.von_script([])
 	s.switch(&"ai.callouts", false)
 	s.switch(&"ai.hostile_on_trespass", false)
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"npc", &"puppet", Maps.HALL_MIDDLE)
 	s.actor(&"i", &"invader", I_AT, { "movement:speed": 0.0, "facing": Vector2.LEFT })
 	GrenadeAi.hostile(s, &"h", H_JAMB, Maps.DOOR_BACK)
@@ -119,8 +118,8 @@ func _exposure(t: TestContext) -> void:
 	var tactics := _tactics()
 	var npc := t.actor(&"npc")
 	var world := {
-		"space": npc.get_world_2d().direct_space_state, "ex": [npc.get_rid()],
-		"map": npc.get_world_2d().navigation_map,
+		"space": TwinSpace.space_of(npc), "ex": SightRay.exclude_of(npc),
+		"map": NavWorld.map_of(npc),
 	}
 	var spots: Array = [
 		Maps.HALL_MIDDLE, Maps.LIVING_CENTRE, Maps.KITCHEN_CENTRE, Maps.DOOR_HALL_LIVING,
@@ -136,9 +135,7 @@ func _exposure(t: TestContext) -> void:
 				tally["full"] += plain["rays"]
 				tally["exposed"] += 1 if plain["exposed"] else 0
 				var before: int = tactics.vision.rays
-				var got: bool = tactics._route_exposed(
-					world["space"], path, threat, world["ex"], front
-				)
+				var got: bool = tactics._route_exposed(world, path, threat, front)
 				if got != plain["exposed"]:
 					tally["wrong"].append([threat, to, front])
 				var cast: int = tactics.vision.rays - before
@@ -177,7 +174,7 @@ func _plain_exposed(
 		if not is_nan(front) and absf(angle_difference(front, (sample - threat).angle())) > half:
 			continue
 		rays += 1
-		if not tactics.blocked(world["space"], threat, sample, world["ex"]):
+		if tactics.vision.fire_stop_from(world["space"], threat, sample).is_empty():
 			seen += 1
 	return { "exposed": seen * 2 > SAMPLES, "rays": rays }
 
@@ -186,7 +183,6 @@ func _plain_exposed(
 func _tactics() -> RefCounted:
 	var tactics := AgentTactics.new()
 	tactics.vision = CountingVision.new()
-	tactics.cover_min = 40.0
 	tactics.flank_distance = 120.0
 	tactics.flank_arc = 30.0
 	tactics.flank_ally_radius = 80.0

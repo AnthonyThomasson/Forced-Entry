@@ -38,8 +38,9 @@ const WALL_CLEAR := 8.0
 ## Furnish `site`'s room (its `type`'s recipe) within `interior`, clear of its doorway boxes, under
 ## its furniture node, drawing from `rng` (rects in the house's space). Returns the palette picked
 ## for the room (its `wood` / `fabric` tones and `floor` key), or {} if the type has no recipe. The
-## footprint of every solid piece it spawns is appended to `site.solids` (from the catalogue's
-## sizes).
+## footprint of every solid piece it spawns, and of every place that carries items (a crate stack,
+## a pallet: no solid piece, but its stock stands there), is appended to `site.solids` (from the
+## catalogue's sizes).
 static func furnish(site: RoomSite, interior: Rect2, rng: RandomNumberGenerator) -> Dictionary:
 	var room_type: String = site.room["type"]
 	var recipe := ArrangementDefinitions.get_recipe(room_type)
@@ -65,8 +66,7 @@ static func furnish(site: RoomSite, interior: Rect2, rng: RandomNumberGenerator)
 			placement["arrangement"],
 			placement["spot"],
 			palette,
-			site.furniture,
-			site.solids,
+			site,
 		)
 	return palette
 
@@ -409,13 +409,12 @@ static func _fits(rect: Rect2, interior: Rect2, occupied: Array) -> bool:
 
 
 ## Map each item from the arrangement's top-wall frame into the chosen spot and spawn it; a solid
-## one's footprint goes on `solids`.
+## one's footprint goes on `solids` and every one on `pieces` (`{ key, definition, node }`).
 static func _spawn_items(
 	arrangement: Dictionary,
 	spot: Dictionary,
 	palette: Dictionary,
-	parent: Node,
-	solids: Array,
+	site: RoomSite,
 ) -> void:
 	var fp: Vector2 = arrangement["footprint"]
 	var rect: Rect2 = spot["rect"]
@@ -437,12 +436,15 @@ static func _spawn_items(
 			"rotated": item.get("rotated", false) != sideways, "name": key,
 			"facing": _map_dir(item.get("facing", Vector2.DOWN), orient, mirror),
 		}
-		var material: String = definition.get("material", "")
-		if palette.has(material):
-			opts["color"] = palette[material]
-		ObjectFactory.spawn(definition, rect.position + mapped, parent, opts)
-		if definition.get("solid", true):
-			solids.append(_footprint(definition, rect.position + mapped, opts["rotated"]))
+		if palette.has(definition.get("material", "")):
+			opts["color"] = palette[definition["material"]]
+		site.pieces.append({
+			"key": key,
+			"definition": definition,
+			"node": ObjectFactory.spawn(definition, rect.position + mapped, site.furniture, opts),
+		})
+		if definition.get("solid", true) or PieceCarries.carries(definition):
+			site.solids.append(_footprint(definition, rect.position + mapped, opts["rotated"]))
 
 
 ## Map a point `local` from an arrangement's top-wall frame (footprint `fp`) onto the chosen wall:

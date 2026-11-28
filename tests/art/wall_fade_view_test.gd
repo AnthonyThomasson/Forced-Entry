@@ -64,7 +64,7 @@ func run(t: TestContext) -> void:
 	_view_is_wired(t, camera)
 	_spectating_names_the_combatants(t, camera)
 	_fade.source = _stand_in
-	var walls := Probe.walls(_view.mirror, _world, APART)
+	var walls := Probe.walls(_view.carrier, _world, APART)
 	if not t.require(walls.size() >= 2, "the match has two walls far apart to stand behind"):
 		return
 	var yaw: float = _view.rig.yaw
@@ -140,12 +140,12 @@ func _fades_around_each(t: TestContext, walls: Array, markers: Array) -> void:
 func _a_door_fades(t: TestContext, back: Vector2) -> void:
 	var door: Node2D = null
 	for node: Node in _world.get_tree().get_nodes_in_group(&"doors"):
-		if _world.is_ancestor_of(node) and _view.mirror.proxies_of(node).size() == 1:
+		if _world.is_ancestor_of(node) and _view.carrier.proxies_of(node).size() == 1:
 			door = node as Node2D
 			break
 	if not t.require(door != null, "the match has a door shown by a mesh"):
 		return
-	var mesh: Node3D = _view.mirror.proxies_of(door)[0]
+	var mesh: Node3D = _view.carrier.proxies_of(door)[0]
 	var parts := mesh.find_children("*", "GeometryInstance3D", true, false)
 	if not t.require(not parts.is_empty(), "the door's mesh has instances"):
 		return

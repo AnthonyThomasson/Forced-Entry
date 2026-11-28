@@ -36,9 +36,9 @@ func bursts_near(at: Vector2, reach: float) -> Array[Dictionary]:
 	return near
 
 
-func chip_flew(chip: Node2D, height: float) -> void:
+func chip_flew(chip: Node2D) -> void:
 	if is_instance_valid(_previous):
-		_previous.chip_flew(chip, height)
+		_previous.chip_flew(chip)
 
 
 func chip_landed(chip: Node2D) -> void:

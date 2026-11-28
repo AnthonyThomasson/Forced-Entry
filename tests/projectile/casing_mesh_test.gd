@@ -1,22 +1,24 @@
 extends GameTest
-## A spent casing is a tiny mesh on the 3D floor (#193 phase 2, Projectile): tossed out it arcs off
-## the floor on its 2D node's path, lying it rests on the floor where its node came to rest, turned
-## as it is; the batch they share is bounded and shows exactly the casings the 2D world keeps (the
-## `Despawner`'s cap), a place freed is taken again, and nothing runs once they all lie. Asserted at
-## the seams: the layer `ProjectileMeshes.install` adds (`casing_count`, `casing_frame`, the casing
-## batch) and the 2D casings it follows. The numbers are pinned here. The look is judged in a
-## window, `items_projectile_mesh_windowed_test.gd`.
+## A spent casing is a tiny mesh on the 3D floor (#193 phase 2, Projectile): tossed out it falls
+## from the port's height on its 2D node's path (#194: the node flies in the twin 3D
+## space, real gravity, no fixed arc), lying it rests on the floor where its node came to rest,
+## turned as it is; the batch they share is bounded and shows exactly the casings the 2D world keeps
+## (the `Despawner`'s cap), a place freed is taken again, and nothing runs once they all lie.
+## Asserted at the seams: the layer `ProjectileMeshes.install` adds (`casing_count`, `casing_frame`,
+## the casing batch) and the 2D casings it follows. The numbers are pinned here. The look is judged
+## in a window, `items_projectile_mesh_windowed_test.gd`.
 
 const SCRATCH := "user://settings_casing_mesh_test.json"
 ## A casing's size (the 2D art's): 4.5 px long and 2 px across.
 const LENGTH := 4.5
 const ACROSS := 2.0
-## The batch's size (the `Despawner`'s cap when the layer is made), and how high a tossed casing
-## flies (px, pinned).
+## The batch's size (the `Despawner`'s cap when the layer is made), and the height a casing is let
+## go from (px).
 const CAPACITY := 20
-const ARC := 6.0
-## How far (px) the batch may lag its node in the toss: the tween moves the node after the layer
-## runs, so the part is a frame behind it, a frame being at most 2 px at the toss's fastest.
+const PORT := 50.0
+## How far (px) the batch may lag its node in the toss: the node's flight steps in the physics
+## frame and the layer in the render's, so the part is a frame behind it, a frame being at most
+## 2 px at the toss's fastest.
 const SLACK := 2.0
 ## The `Despawner`'s cap for this test (the 2D world keeps at most this many casings).
 const KEPT := 30
@@ -41,7 +43,6 @@ func configure(s: TestSetup) -> void:
 	s.set_static(Settings, &"setup", {})
 	s.set_static(Settings, &"overlays", {})
 	s.set_static(Settings, &"debug", false)
-	s.set_static(ProjectileMeshConfig, &"casing_arc", ARC)
 	s.von_script([])
 
 
@@ -51,7 +52,7 @@ func run(t: TestContext) -> void:
 	Despawner.max_scene_objects = CAPACITY
 	var mirror := _mirror(t)
 	var layer := ProjectileMeshes.install(mirror, t.world)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	t.check(layer.casing_count() == 0, "no casing, none shown")
 	await _check_one_casing(t, layer)
 	Despawner.max_scene_objects = KEPT  # raised after the layer was made: the batch is now short
@@ -76,7 +77,7 @@ func _check_sized_by_the_despawner(t: TestContext) -> void:
 ## One casing: a tiny box; it arcs off the floor on its node's path, then lies at its node's place
 ## and turn.
 func _check_one_casing(t: TestContext, layer: ShotLayer) -> void:
-	var casing := CasingSpawner.spawn(Vector2(300, 300), Vector2.RIGHT, t.world)
+	var casing := CasingSpawner.spawn(Vector2(300, 300), Vector2.RIGHT, t.world, PORT)
 	await t.frames(1)
 	t.expect_eq(layer.casing_count(), 1, "a spent casing is one part of the casing batch")
 	var size := layer.casing_batch().multimesh.mesh.get_aabb().size
@@ -84,12 +85,15 @@ func _check_one_casing(t: TestContext, layer: ShotLayer) -> void:
 	t.expect_near(size.z, ACROSS, 0.01, "and as wide")
 	var highest := 0.0
 	var worst := 0.0
-	for _i in 60:
+	for _i in 160:
 		var flying := layer.casing_frame(0)
 		highest = maxf(highest, flying.origin.y)
 		worst = maxf(worst, _off(flying, casing))
 		await t.frames(1)
-	t.check(highest > ARC * 0.5 and highest <= ARC + 0.01, "tossed, it arcs (%.1f px)" % highest)
+	t.check(
+		highest > PORT * 0.5 and highest <= PORT + 8.0,
+		"let go at its height (%.1f px)" % highest,
+	)
 	t.check(worst < SLACK, "along its node's toss (off by up to %.1f px)" % worst)
 	var frame := layer.casing_frame(0)
 	t.expect_near(frame.origin.y, 0.0, 0.01, "lying, it is on the floor")
@@ -108,11 +112,11 @@ func _check_one_casing(t: TestContext, layer: ShotLayer) -> void:
 func _check_sustained_fire(t: TestContext, layer: ShotLayer) -> void:
 	var made := 0
 	for _i in 150:
-		CasingSpawner.spawn(Vector2(200 + made % 40, 300), Vector2.UP, t.world)
+		CasingSpawner.spawn(Vector2(200 + made % 40, 300), Vector2.UP, t.world, 30.0)
 		made += 1
 		await t.frames(1)
 		t.check(layer.casing_count() <= CAPACITY, "the batch is never over its size")
-	await t.frames(30)
+	await t.frames(160)
 	t.expect_eq(_kept(t), KEPT, "the world keeps what the Despawner allows")
 	t.expect_eq(layer.casing_count(), CAPACITY, "the batch shows what it holds of them")
 	t.expect_eq(layer.casing_capacity(), CAPACITY, "and its size is unchanged")
@@ -141,10 +145,10 @@ func _kept(t: TestContext) -> int:
 	).size()
 
 
-func _mirror(t: TestContext) -> WorldMirror:
+func _mirror(t: TestContext) -> MeshCarrier:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	return mirror

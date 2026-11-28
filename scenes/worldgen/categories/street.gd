@@ -20,7 +20,6 @@ const OBJECTS := {
 		"art_opts": { "kind": "vending" },
 		"anchored": true,
 		"weight": 220,
-		"coverage": 70,
 		"penetration": 75,
 	},
 	"street_bench": {
@@ -33,7 +32,6 @@ const OBJECTS := {
 		"art_opts": { "kind": "bench" },
 		"anchored": true,
 		"weight": 120,
-		"coverage": 30,
 		"penetration": 60,
 	},
 	"street_bin": {
@@ -45,7 +43,6 @@ const OBJECTS := {
 		"art": "street_prop",
 		"art_opts": { "kind": "bin" },
 		"weight": 22,
-		"coverage": 40,
 		"penetration": 60,
 	},
 	"drain_grate": {
@@ -58,7 +55,6 @@ const OBJECTS := {
 		"art_opts": { "kind": "grate" },
 		"solid": false,
 		"weight": 1,
-		"coverage": 0,
 		"penetration": 0,
 	},
 	"litter": {
@@ -71,7 +67,6 @@ const OBJECTS := {
 		"art_opts": { "kind": "litter" },
 		"solid": false,
 		"weight": 1,
-		"coverage": 0,
 		"penetration": 0,
 	},
 	"podium": {
@@ -83,7 +78,6 @@ const OBJECTS := {
 		"art": "podium",
 		"anchored": true,
 		"weight": 400,
-		"coverage": 60,
 		"penetration": 90,
 	},
 	"rebar": {
@@ -96,7 +90,6 @@ const OBJECTS := {
 		"art_opts": { "kind": "rebar" },
 		"solid": false,
 		"weight": 1,
-		"coverage": 0,
 		"penetration": 0,
 	},
 	"rubble": {
@@ -109,7 +102,6 @@ const OBJECTS := {
 		"art_opts": { "kind": "rubble" },
 		"solid": false,
 		"weight": 1,
-		"coverage": 0,
 		"penetration": 0,
 	},
 	"scaffold": {
@@ -122,7 +114,6 @@ const OBJECTS := {
 		"art_opts": { "kind": "scaffold" },
 		"solid": false,
 		"weight": 1,
-		"coverage": 0,
 		"penetration": 0,
 	},
 	"cement_bags": {
@@ -135,7 +126,6 @@ const OBJECTS := {
 		"art_opts": { "kind": "cement" },
 		"solid": false,
 		"weight": 1,
-		"coverage": 0,
 		"penetration": 0,
 	},
 	"wall_stain": {
@@ -148,7 +138,6 @@ const OBJECTS := {
 		"art_opts": { "kind": "stain" },
 		"solid": false,
 		"weight": 1,
-		"coverage": 0,
 		"penetration": 0,
 	},
 }

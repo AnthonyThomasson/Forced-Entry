@@ -7,6 +7,7 @@ extends GameTest
 ## `demand:grenade_ready`), once: reading it again builds nothing and counts nothing.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
+const Grenades := preload("res://tests/_ai/grenade_probe.gd")
 const NPC := Vector2(150, 250)
 const HOSTILE := Vector2(400, 100)
 ## The measured frame the builds are read in, and the one that reads them again.
@@ -46,6 +47,14 @@ func run(t: TestContext) -> void:
 		)
 	)
 	if not t.require(await t.until(seen, 3.0), "set-up: the defender sees the hostile"):
+		return
+	# The fact is counted when its search is built, and an NPC that carries no grenade builds none
+	# (it can make no throw: `SnapshotDemand.throw_search`): arm it with one frag.
+	Grenades.arm(t.actor(&"d"), 0, 1)
+	if not t.require(
+		Grenades.count(t.actor(&"d"), Grenades.FRAG) == 1,
+		"set-up: the defender holds one frag after arming",
+	):
 		return
 	var id: int = t.actor(&"h").get_instance_id()
 	var perception: Node = brain.get("_perception")

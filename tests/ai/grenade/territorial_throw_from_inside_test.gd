@@ -13,12 +13,13 @@ extends GameTest
 ## is an invader *puppet* that cannot be killed and never shoots; the defender is armed with one
 ## frag here because the test world keeps the default inventory, the way Main arms a spawn.
 
+const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const HOUSE := Rect2(0, 0, 600, 500)
 const DOOR := Vector2(300, 500)
 const DEFENDER_AT := Vector2(300, 440)
-const DESK_AT := Vector2(300, 800)
+const DESK_AT := Vector2(300, 750)
 const HOSTILE_AT := Vector2(300, 860)
 
 
@@ -34,11 +35,12 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	Hiding.von_out(s)
 	s.layout(
 		[{ "key": "hall", "type": "living_room", "rect": HOUSE }],
 		[{ "pos": DOOR, "width": 60.0 }],
 	)
-	s.object(&"desk", "desk", DESK_AT)
+	s.object(&"desk", Hiding.low_cover("desk"), DESK_AT)
 	s.von_script([{ "pick": "combat" }, { "pick": "grenade" }])
 	s.switch(&"ai.hostile_on_sight", true)
 	s.actor(&"d", &"defender", DEFENDER_AT, { "facing": Vector2.DOWN })
@@ -48,6 +50,8 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var d := t.actor(&"d")
 	Probe.arm(d, 0, 1)
+	if not await Hiding.duck_after_seen(t, &"h", &"d"):
+		return
 	if not t.require(
 			Probe.count(d, Probe.FRAG) == 1,
 			"the defender carries a frag (item_count(8) = %d)" % Probe.count(d, Probe.FRAG),

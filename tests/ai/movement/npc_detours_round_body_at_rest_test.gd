@@ -50,7 +50,7 @@ func run(t: TestContext) -> void:
 	var mate := t.actor(&"mate")
 	var brain := t.controller(&"walker", &"current_act")
 	var arrived := func(): return EAST.grow(-30).has_point(walker.global_position)
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	# the farthest south the walker went on the west side (an Array: a lambda captures a float by
 	# value)
 	var deepest := [0.0]

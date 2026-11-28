@@ -1,50 +1,21 @@
-class_name ThrownGrenade extends Node2D
-## A grenade let go into the world (Items domain): it flies a lob on a pseudo-height to the aim
-## point, strikes walls and furniture taller than the arc is high there (the same `coverage` scale
-## as everything else) and the characters in its way, bounces off them with energy loss, skids to a
-## stop and goes off when its fuse runs out. Docs: `docs/grenades.md` G3, G6 and G10. A world
-## `Node2D` like `DroppedItem`; nobody picks it up or throws it back. While it lives it is in the
-## group `live_grenades` (`kind`, `fuse_left()`, `throw_stats()`, `thrower`) for perception to
-## query.
-##
-## The lob is planned once at the throw (`_plan`): its flight time and gravity are solved so the
-## grenade comes to REST at the aim point (the touchdown, a bounce or two and the skid are simulated
-## with the very integrator the node then runs), except that a throw is capped at the row's
-## `max_range` of first touchdown, and rolls on a little past it. The plan is then flown over the
-## floor it crosses (`_fit`): a grenade touches down short of the aim and skids the rest of the way,
-## so a piece standing between the touchdown and the aim (a sofa in front of where it is aimed)
-## would stop the skid and kick it back toward the thrower; the thrower then lobs it farther, over
-## the piece, to touch down past it. On the fuse's end it calls the Projectile System's
-## `Explosion.frag` / `Explosion.stun` with its `GrenadeConfig` row.
+class_name ThrownGrenade
+extends Node2D
+## A grenade let go into the world (Items domain): it flies a real 3D flight in the twin space
+## (`TwinSpace`, `SmallFlight`): thrown on the arc the shared planner chose (`GrenadeArc`, the
+## lowest that clears what is in the way), it strikes what it meets (a wall, a lintel, furniture, a
+## vehicle, a body), bounces off it and off the floor with the row's `restitution`, rolls and skids,
+## can come to rest on top of a piece, and goes off when its fuse runs out. Docs: `docs/grenades.md`
+## G3, G6 and G10. A world `Node2D` like `DroppedItem`; nobody picks it up or throws it back. While
+## it lives it is in the group `live_grenades` (`kind`, `fuse_left()`, `throw_stats()`, `thrower`)
+## for perception to query. On the fuse's end it calls the Projectile System's `Explosion.frag` /
+## `Explosion.stun` with its `GrenadeConfig` row.
 
 ## It moved, turned or changed height (once per physics frame until it lies still): the 3D mesh
 ## that shows it (`LyingItemMesh`) follows it.
 signal shifted
 
-## Physics layers it strikes (walls + solid furniture + the living).
-const SOLID_MASK := PhysicsLayers.SOLID
-## What a collider with no surface of its own counts as: it always stops a grenade.
-const UNKNOWN_COVERAGE := 100.0
-## It is at rest once it rolls slower than this (px/s).
-const REST_SPEED := 4.0
 ## A wall strike slower than this (px/s) is a nudge, not a clatter.
 const MIN_CLATTER_SPEED := 30.0
-## Steps of the planner's search, and the longest it simulates (physics frames).
-const PLAN_STEPS := 22
-const PLAN_FRAMES := 600
-## A lob flown over the floor that comes to rest within this many px of the aim is kept; one that
-## does not (something on the floor stopped it) is lobbed farther, its first touchdown `FIT_STEP` px
-## further out at a time, up to `max_range`.
-const FIT_NEAR := 24.0
-const FIT_STEP := 12.0
-## Physics step the plan is simulated at (the game's).
-const PLAN_DELTA := 1.0 / 60.0
-## How far (px) a grenade flies before its thrower's own body can stop it: it leaves the throwing
-## hand beside the body, and its first few px pass within a body's width of it (a pixel either way
-## decides whether it grazes the thrower), so the thrower is passed until it is clear.
-const THROWER_CLEAR := 40.0
-## No bodies passed (once the grenade is clear of its thrower).
-const NOBODY: Array[RID] = []
 
 ## Which grenade this is (a `GrenadeConfig` id) and who threw it (may be gone by the time it goes
 ## off).
@@ -55,10 +26,8 @@ var thrower: Node
 var item: Item
 ## The `GrenadeConfig` row it was thrown with.
 var _row := {}
-## Its height and speed.
-var _motion := Motion.new()
-## Across the floor.
-var _direction := Vector2.RIGHT
+## Its flight: where it is, how high, how fast.
+var _flight: SmallFlight
 ## Seconds left until it goes off (counted from the release).
 var _fuse := 0.0
 ## Which way the art points (rad).
@@ -67,10 +36,8 @@ var _angle := 0.0
 var _spin := 0.0
 ## It has come to rest (the `rest` event was posted).
 var _resting := false
-## Reused sweep (a circle of `GrenadeConfig.radius`).
-var _query: PhysicsShapeQueryParameters2D
-## The thrower's body, passed for the first `THROWER_CLEAR` px of flight.
-var _thrower_rid: Array[RID] = []
+## The thrower's body, passed for the first `GrenadeArc.THROWER_CLEAR` px of flight.
+var _passed: Array[RID] = []
 ## How far (px) it has flown across the floor.
 var _flown := 0.0
 
@@ -78,7 +45,6 @@ var _flown := 0.0
 func _ready() -> void:
 	add_to_group(&"live_grenades")
 	ViewLayers.set_moving(self, true)
-	_query = _sweep_query(GrenadeConfig.radius)
 
 
 func _physics_process(delta: float) -> void:
@@ -87,28 +53,44 @@ func _physics_process(delta: float) -> void:
 		_detonate()
 		return
 	if _resting:
-		return
-	var landed := _motion.step(delta)
-	_slide(_direction * _motion.speed * delta)
-	if _motion.rolling:
+		# the piece it lies on may have been pushed or blasted away: it falls from where it is
+		if not _flight.unsupported(TwinSpace.space_of(self)):
+			return
+		_flight.release()
+		_resting = false
+		ViewLayers.set_moving(self, true)
+	var before := _flight.at
+	var pace := _flight.speed()
+	var event := _flight.step(
+		TwinSpace.space_of(self),
+		delta,
+		_passed if _flown < GrenadeArc.THROWER_CLEAR else GrenadeArc.NOBODY,
+	)
+	_flown += before.distance_to(_flight.at)
+	global_position = _flight.at
+	if _flight.rolling:
 		_spin = move_toward(_spin, 0.0, GrenadeConfig.spin_friction * delta)
 	_angle += _spin * delta
-	if landed:
-		_post(&"bounce")
-	if _motion.rolling and _motion.speed <= REST_SPEED:
-		_resting = true
-		ViewLayers.set_moving(self, false)
-		_spin = 0.0
-		_post(&"rest")
+	match event:
+		SmallFlight.LANDED:
+			_post(&"bounce")
+		SmallFlight.STRUCK:
+			_spin *= -0.5
+			if pace > MIN_CLATTER_SPEED:
+				_post(&"bounce")
+		SmallFlight.RESTED:
+			_resting = true
+			ViewLayers.set_moving(self, false)
+			_spin = 0.0
+			_post(&"rest")
 	shifted.emit()
 
 
-## Let a grenade go as `throw` says (of its `kind`, from `from` toward `to`, thrown by `thrower`,
-## drawn in the weapon style `style` of the item it was thrown from, `ItemArt.style`) into `parent`
-## (the world root).
+## Let a grenade go as `throw` says (of its `kind`, from `from` at `release` px up toward `to`,
+## thrown by `thrower`, drawn in the weapon style `style` of the item it was thrown from,
+## `ItemArt.style`) into `parent` (the world root): planned (`GrenadeArc.plan`, flown over the floor
+## to rest and kept where it rests at the aim) and launched.
 static func spawn(throw: GrenadeThrow, parent: Node) -> ThrownGrenade:
-	var from := throw.from
-	var to := throw.to
 	var row := GrenadeConfig.row(throw.kind)
 	var node := ThrownGrenade.new()
 	node.name = "Thrown%s" % throw.kind.capitalize()
@@ -118,149 +100,32 @@ static func spawn(throw: GrenadeThrow, parent: Node) -> ThrownGrenade:
 	node.item.art.style = throw.style
 	node._row = row.duplicate()
 	node._fuse = float(row.get("fuse", 3.0))
-	node._direction = (to - from).normalized() if from.distance_to(to) > 0.5 else Vector2.RIGHT
-	if throw.thrower is CollisionObject2D:
-		node._thrower_rid = [(throw.thrower as CollisionObject2D).get_rid()]
+	node._passed = GrenadeArc.passed_by(throw.thrower)
 	var course := GrenadeCourse.new()
-	course.from = from
-	course.to = to
-	course.direction = node._direction
-	course.space = parent.get_viewport().find_world_2d().direct_space_state
-	course.query = _sweep_query(GrenadeConfig.radius)
-	course.passed = node._thrower_rid
-	var lob := _fit(row, _plan(row, from.distance_to(to)), course)
-	node._motion = _motion_for(row, lob)
-	node._angle = node._direction.angle()
+	course.from = throw.from
+	course.release = throw.release
+	course.to = throw.to
+	course.row = row
+	course.space = TwinSpace.space_of(parent)
+	course.passed = node._passed
+	course.apex = throw.apex
+	course.verify = true
+	var launch := GrenadeArc.plan(course)
+	node._flight = GrenadeArc.flight_for(row, PhysicsLayers.TWIN_ALL, course.roof)
+	node._flight.place(throw.from, throw.release)
+	node._flight.velocity = launch.direction * launch.speed
+	node._flight.rise = launch.rise
+	node._angle = launch.direction.angle()
 	node._spin = randf_range(8.0, 14.0) * (1.0 if randf() < 0.5 else -1.0)
 	parent.add_child(node)
-	node.global_position = from
+	node.global_position = throw.from
 	return node
 
 
-## The lob that brings a grenade of `row` to rest `distance` px away:
-## `{ time, rise, gravity, speed, reach }` (the flight time, the launch's vertical speed, the
-## gravity it is flown under, the speed across the floor and how far it first touches down). A throw
-## aimed past what `max_range` allows first touches down at `max_range` and rolls on from there.
-static func _plan(row: Dictionary, distance: float) -> Dictionary:
-	var cap := float(row.get("max_range", 550.0))
-	var reach := cap
-	if _simulate(row, cap).y > distance:
-		var low := 0.0
-		var high := cap
-		for _i in PLAN_STEPS:
-			var mid := (low + high) * 0.5
-			if _simulate(row, mid).y > distance:
-				high = mid
-			else:
-				low = mid
-		reach = low
-	return _flight(row, reach)
-
-
-## The flight that touches down `reach` px away: the arc starts at the release height, peaks at
-## `arc_height` and is back at the floor after `time`, which the speed across the floor sets (never
-## under `min_flight_time`).
-static func _flight(row: Dictionary, reach: float) -> Dictionary:
-	var start := float(row.get("release_height", 50.0))
-	var climb := maxf(float(row.get("arc_height", 80.0)) - start, 1.0)
-	var time := maxf(reach / float(row.get("throw_speed", 500.0)), GrenadeConfig.min_flight_time)
-	var rise := 2.0 * climb * (1.0 + sqrt(1.0 + start / climb)) / time
-	return {
-		"time": time,
-		"rise": rise,
-		"gravity": rise * rise / (2.0 * climb),
-		"speed": reach / time,
-		"reach": reach,
-	}
-
-
-## The lob to throw along `course` (from its `from` toward its `to`), given `lob`, the one planned
-## in free air: kept when, flown over the floor in the course's `space` (the walls, furniture and
-## bodies the node itself strikes, `_sweep`, the thrower's body in its `passed` passed as the node
-## passes it), it comes to rest within `FIT_NEAR` of the aim; else the longer lob, up to
-## `max_range`, that comes to rest nearest it (a piece the skid would have run into is flown over).
-static func _fit(row: Dictionary, lob: Dictionary, course: GrenadeCourse) -> Dictionary:
-	var to := course.to
-	var best := lob
-	var best_off := _rest_in(row, lob, course).distance_to(to)
-	var reach := float(lob["reach"]) + FIT_STEP
-	var cap := float(row.get("max_range", 550.0))
-	while best_off > FIT_NEAR and reach <= cap:
-		var longer := _flight(row, reach)
-		var off := _rest_in(row, longer, course).distance_to(to)
-		if off < best_off:
-			best = longer
-			best_off = off
-		reach += FIT_STEP
-	return best
-
-
-## Where a grenade of `row` thrown on `lob` along `course` comes to rest over the floor in its
-## `space`: the node's own motion (`Motion.step`, `_sweep`, the thrower's body in its `passed`
-## passed for the first `THROWER_CLEAR` px), stepped at the game's physics rate.
-static func _rest_in(row: Dictionary, lob: Dictionary, course: GrenadeCourse) -> Vector2:
-	var motion := _motion_for(row, lob)
-	var query := course.query
-	var at := course.from
-	var dir := course.direction
-	var flown := 0.0
-	for _frame in PLAN_FRAMES:
-		motion.step(PLAN_DELTA)
-		var step := motion.speed * PLAN_DELTA
-		query.exclude = course.passed if flown < THROWER_CLEAR else NOBODY
-		var moved := _sweep(course.space, query, at, dir * step, motion.height)
-		flown += step
-		at = moved["at"]
-		if moved["struck"]:
-			dir = dir.bounce(moved["normal"]).normalized()
-			motion.speed *= motion.restitution
-		if motion.rolling and motion.speed <= REST_SPEED:
-			break
-	return at
-
-
-## A `Motion` for a grenade of `row` thrown on `lob`.
-static func _motion_for(row: Dictionary, lob: Dictionary) -> Motion:
-	var motion := Motion.new()
-	motion.height = float(row.get("release_height", 50.0))
-	motion.rise = lob["rise"]
-	motion.speed = lob["speed"]
-	motion.gravity = lob["gravity"]
-	motion.restitution = float(row.get("restitution", 0.35))
-	motion.friction = float(row.get("friction", 520.0))
-	motion.min_hop = GrenadeConfig.min_hop_speed
-	return motion
-
-
-## How far (px) from the hand the flight that first touches down `reach` px out comes to rest
-## through the bounces and the skid, in free air: `(first touchdown, rest)`.
-static func _simulate(row: Dictionary, reach: float) -> Vector2:
-	var motion := _motion_for(row, _flight(row, reach))
-	var travelled := 0.0
-	var touched := -1.0
-	for _frame in PLAN_FRAMES:
-		var bounced := motion.step(PLAN_DELTA)
-		travelled += motion.speed * PLAN_DELTA
-		if touched < 0.0 and (bounced or motion.rolling):
-			touched = travelled
-		if motion.rolling and motion.speed <= REST_SPEED:
-			break
-	return Vector2(touched, travelled)
-
-
-## The sweep a grenade of `size` px radius is moved with: a circle on the layers it strikes.
-static func _sweep_query(size: float) -> PhysicsShapeQueryParameters2D:
-	var circle := CircleShape2D.new()
-	circle.radius = size
-	var query := PhysicsShapeQueryParameters2D.new()
-	query.shape = circle
-	query.collision_mask = SOLID_MASK
-	return query
-
-
-## How high it is off the floor (px): the lob's arc, then 0 where it lies.
+## How high it is off the floor (px): the underside's height over the floor, or over the piece it
+## lies on (0 on the floor).
 func altitude() -> float:
-	return _motion.height
+	return _flight.altitude()
 
 
 ## Which way its art points (rad), as it is drawn.
@@ -286,124 +151,12 @@ func _post(stage: StringName) -> void:
 	EventBus.post(&"grenade", { "position": global_position, "kind": kind, "stage": stage })
 
 
-## Move across the floor by `motion`, striking walls, solid furniture taller than it is high and the
-## living in the way: it stops at the thing, bounces off with the row's `restitution` and goes on
-## the other way.
-func _slide(motion: Vector2) -> void:
-	if motion.length_squared() < 0.000001:
-		return
-	_query.exclude = _thrower_rid if _flown < THROWER_CLEAR else NOBODY
-	var moved := _sweep(
-		get_world_2d().direct_space_state, _query, global_position, motion, _motion.height
-	)
-	_flown += motion.length()
-	global_position = moved["at"]
-	if not moved["struck"]:
-		return
-	_direction = _direction.bounce(moved["normal"]).normalized()
-	if _motion.speed > MIN_CLATTER_SPEED:
-		_post(&"bounce")
-	_motion.speed *= _motion.restitution
-	_spin *= -0.5
-
-
-## One step of `motion` across the floor from `at`, `height` px up, swept with `query`:
-## `{ at, normal, struck }`, where it ends, the normal of what it struck and whether it struck
-## something (it stops at the thing and bounces off it, the other way: the caller turns its heading
-## by the normal); the bodies in the query's `exclude` (the thrower, just after the release) do not
-## stop it. Shared by the node and the plan (`_rest_in`), so the plan flies the node's own course.
-static func _sweep(space: PhysicsDirectSpaceState2D, query: PhysicsShapeQueryParameters2D,
-		at: Vector2, motion: Vector2, height: float) -> Dictionary:
-	if motion.length_squared() < 0.000001:
-		return { "at": at, "normal": Vector2.ZERO, "struck": false }
-	var struck := _first_strike(space, query, at, motion, height)
-	if struck.is_empty():
-		return { "at": at + motion, "normal": Vector2.ZERO, "struck": false }
-	var normal: Vector2 = struck["normal"]
-	return {
-		"at": at + motion * float(struck["safe"]) + normal * 0.5,
-		"normal": normal,
-		"struck": true,
-	}
-
-
-## What first stops a sweep of `motion` from `at`, `height` px up, as `{ safe, normal }` (how far
-## along it is clear, and the surface's normal), or {} when nothing does. A piece whose `coverage`
-## is below the grenade's height is flown over: it is skipped; so are the bodies in the query's
-## `exclude` (the ones passed), which it leaves holding what it skipped.
-static func _first_strike(space: PhysicsDirectSpaceState2D, query: PhysicsShapeQueryParameters2D,
-		at: Vector2, motion: Vector2, height: float) -> Dictionary:
-	var skipped: Array[RID] = query.exclude  # The getter hands back a copy.
-	for _attempt in 6:
-		query.exclude = skipped
-		query.transform = Transform2D(0.0, at)
-		query.motion = motion
-		var res := space.cast_motion(query)
-		if res[0] >= 1.0:
-			return {}
-		query.transform = Transform2D(0.0, at + motion * res[1])
-		query.motion = Vector2.ZERO
-		var info := space.get_rest_info(query)
-		if info.is_empty():
-			return { "safe": res[0], "normal": -motion.normalized() }
-		if _coverage_of(info["collider_id"]) <= height:
-			skipped.append(info["rid"])
-			continue
-		return { "safe": res[0], "normal": info["normal"] }
-	return {}
-
-
-## The height of what object `id` is (its surface's `coverage`; a collider with none always stops a
-## grenade).
-static func _coverage_of(id: int) -> float:
-	var collider: Object = instance_from_id(id)
-	if collider != null and collider.has_method("get_surface"):
-		return float(collider.get_surface().get("coverage", UNKNOWN_COVERAGE))
-	return UNKNOWN_COVERAGE
-
-
 ## The fuse is out: the burst (Projectile System) and this node is done.
 func _detonate() -> void:
 	remove_from_group(&"live_grenades")
 	var source: Node = thrower if is_instance_valid(thrower) else null
 	var world := get_parent()
 	match kind:
-		&"frag": Explosion.frag(global_position, world, source, _row)
-		&"stun": Explosion.stun(global_position, world, source, _row)
+		&"frag": Explosion.frag(global_position, world, source, _row, altitude())
+		&"stun": Explosion.stun(global_position, world, source, _row, altitude())
 	queue_free()
-
-
-## The height, rise and speed of a grenade over time, stepped by one integrator for the node and for
-## the plan, so the plan's prediction is the node's own motion. `height` above the floor, `rise`
-## vertical speed (up), `speed` across it.
-class Motion:
-	var height := 0.0
-	var rise := 0.0
-	var speed := 0.0
-	var gravity := 600.0
-	var restitution := 0.35
-	var friction := 520.0
-	var min_hop := 40.0
-	## Down for good and skidding.
-	var rolling := false
-
-	## Advance by `delta`; true when it came down and bounced. A bounce keeps `restitution` of the
-	## fall and of the speed; a landing too soft for one (slower than `min_hop`, or one whose
-	## rebound the next frame's gravity would cancel) starts the roll, which the floor slows by
-	## `friction`.
-	func step(delta: float) -> bool:
-		if rolling:
-			speed = move_toward(speed, 0.0, friction * delta)
-			return false
-		rise -= gravity * delta
-		height += rise * delta
-		if height > 0.0:
-			return false
-		height = 0.0
-		if rise < -min_hop and -rise * restitution > gravity * delta:
-			rise = -rise * restitution
-			speed *= restitution
-			return true
-		rise = 0.0
-		rolling = true
-		return false

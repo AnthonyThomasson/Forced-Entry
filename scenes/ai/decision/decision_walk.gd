@@ -22,3 +22,33 @@ var bind_level := false
 var levels: Array = []
 ## When the in-flight question was sent.
 var asked_ms := 0
+## Whether a read of a group not built stalls the level (a driven walk's piece) rather than builds
+## it, and the `{ name, id }` of the group the level stalled on (`DecisionPlanner.stalled`).
+var armed := false
+var need := {}
+
+
+## What a level changes, kept for the level to run again from the start (a stalled one).
+func checkpoint() -> Dictionary:
+	return {
+		"node": node,
+		"binding": binding.duplicate(),
+		"confine": confine,
+		"steps": steps.duplicate(),
+		"offered": offered.duplicate(),
+		"bind_level": bind_level,
+		"levels": levels.duplicate(),
+		"asked_ms": asked_ms,
+	}
+
+
+## Put back what `checkpoint` kept.
+func restore(held: Dictionary) -> void:
+	node = held["node"]
+	binding = held["binding"]
+	confine = held["confine"]
+	steps = held["steps"]
+	offered = held["offered"]
+	bind_level = held["bind_level"]
+	levels = held["levels"]
+	asked_ms = held["asked_ms"]

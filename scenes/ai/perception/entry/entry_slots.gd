@@ -98,7 +98,7 @@ func lay(
 	g: Dictionary,
 	opening: Dictionary,
 	map: RID,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 ) -> void:
 	var from := _other_room(opening, str(g["into"]))
 	var c := _stack_context(entry, g, from, map, space)
@@ -138,7 +138,7 @@ func _stack_context(
 	g: Dictionary,
 	from: String,
 	map: RID,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 ) -> Dictionary:
 	return {
 		"id": g["id"], "pos": g["pos"], "out": g["out"], "along": g["along"],

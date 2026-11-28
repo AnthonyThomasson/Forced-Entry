@@ -15,8 +15,31 @@ const REACH_SHARES := [0.95, 0.8]
 const DIRECTIONS := 16
 const ROUTES := ThrowScan.ROUTES
 
+## Raw candidates a block step of a priced search works through at most, and the work (`work()`, a
+## count in quarters of a raw candidate, not a time) at which it ends the block earlier (80: 20 of
+## `GrenadeArc.work` at four each, or 80 raw candidates): a stretch of candidates that fail the
+## cheap tests is one step, a stretch that asks the planner many (each that passes the cheap tests
+## asks it) is a few, so a unit the decision budget prices
+## (`DecisionBudget.cost_throw_block`) is about the same work whichever it is.
+static var block_size: int = 48
+static var block_work: int = 80
+## Raw candidates run through the cheap tests so far (a count; `work()` adds each as one
+## quarter-unit).
+static var tested: int = 0
+
 ## Longest walk (px of route) to a throw spot (the perception's `apply_config` sets it).
 var spot_walk: float
+
+
+## What the throw search has worked so far, in the unit the budget prices by
+## (`DecisionBudget.work_unit`): a quarter-unit each raw candidate through the cheap tests (a snap,
+## a room test) and four per `GrenadeArc.work` (one per sweep or level cast, which costs about as
+## much as four candidates, measured). A count, never a time: the same on every machine. Both are
+## totals the process keeps running, so only a difference of two reads means anything, and in whole
+## quarter-units it is exact. Never divide a running total down: a block would end where the total's
+## residue says, and the same match would cut its blocks elsewhere from one play to the next.
+static func work() -> int:
+	return GrenadeArc.work * 4 + tested
 
 
 ## How a throw spot ranks (lower first): hidden from the burst spot, then covered against it, then
@@ -41,31 +64,43 @@ func throw_spot(
 	tactics: RefCounted, ctx: Dictionary, aim: ThrowAim, ex: Array, points: Array
 ) -> Dictionary:
 	var ranked: Array = _ranked(tactics, ctx, aim, ex, points)
-	var walkable := _walkable(tactics, ctx, ranked.slice(0, ROUTES), aim.route)
+	return pick(_walkable(tactics, ctx, ranked.slice(0, ROUTES), aim.route))
+
+
+## The throw spot chosen from the `walkable` ones (`walk_one`'s answers for the first `ROUTES`
+## ranked): one that needs no detour first, then by `rank`, then the shortest walk; {} with none.
+static func pick(walkable: Array) -> Dictionary:
 	if walkable.is_empty():
 		return {}
-	walkable.sort_custom(func(a, b):
+	var best: Array = walkable.duplicate()
+	best.sort_custom(func(a, b):
 		if a["detour"] != b["detour"]:
 			return not a["detour"]
 		if rank(a) != rank(b):
 			return rank(a) < rank(b)
 		return a["route_len"] < b["route_len"])
-	return walkable[0]
+	return best[0]
 
 
 ## One step of a throw-spot existence search (`ThrowScan` holds its state): whether `throw_spot`
 ## would find a spot, without choosing it. A step is a block of at most `block` raw candidates
-## through the cheap tests, the rank pass (when more than `ROUTES` passed), or one route; the
-## first `ROUTES` by rank are routed, and the search stops at the first the walk reaches.
+## through the cheap tests, but ending the block once it has done `block_work` of `work()` (a count,
+## never a time) since it began, the rank pass (when more than `ROUTES`
+## passed), or one route; the first `ROUTES` by rank are routed, and the search stops at the first
+## the walk reaches.
 func scan_step(tactics: RefCounted, scan: ThrowScan, block: int) -> void:
 	match scan.kind:
 		ThrowScan.Kind.BLOCK:
 			if not scan.raw_made:
 				scan.raw = raw(scan.ctx["self_pos"], scan.aim)
 				scan.raw_made = true
-			var end := mini(scan.cursor + maxi(1, block), scan.raw.size())
-			for r: Vector2 in scan.raw.slice(scan.cursor, end):
-				_candidate(tactics, scan, r)
+			var end := scan.cursor
+			var limit := mini(scan.cursor + maxi(1, block), scan.raw.size())
+			var started := work()
+			var cap := block_work if block < ThrowScan.WHOLE else ThrowScan.WHOLE
+			while end < limit and (end == scan.cursor or work() - started < cap):
+				_candidate(tactics, scan, scan.raw[end])
+				end += 1
 			scan.cursor = end
 			if end >= scan.raw.size():
 				scan.blocks_done()
@@ -131,6 +166,7 @@ func on_navmesh(tactics: RefCounted, ctx: Dictionary, r: Vector2, aim: ThrowAim)
 ## already tried, not within 12 px of a point already found, and the lob; qualifying, it joins
 ## `scan.points`.
 func _candidate(tactics: RefCounted, scan: ThrowScan, r: Vector2) -> void:
+	tested += 1
 	var p := on_navmesh(tactics, scan.ctx, r, scan.aim)
 	if p == Vector2.INF or scan.tried.has(p):
 		return
@@ -139,6 +175,22 @@ func _candidate(tactics: RefCounted, scan: ThrowScan, r: Vector2) -> void:
 			or not scan.aim.lob.call(p)):
 		return
 	scan.points.append(p)
+
+
+## `spots` annotated (`{ point, hidden, cover }`) and sorted by `rank`, then the straight
+## distance from the NPC: the rank pass, a step of the snapshot's way to a throw spot.
+func ranked_spots(
+	tactics: RefCounted, ctx: Dictionary, aim: ThrowAim, ex: Array, spots: Array
+) -> Array:
+	return _ranked(tactics, ctx, aim, ex, spots)
+
+
+## The ranked candidate `c` with the walk to it (`walk_leg`: `route_len`, `detour`), or {} when the
+## walk does not reach it, passes a known hostile or is longer than `spot_walk`: one route of the
+## snapshot's way to a throw spot.
+func walk_one(tactics: RefCounted, ctx: Dictionary, c: Dictionary, route: Callable) -> Dictionary:
+	var leg: Dictionary = tactics.walk_leg(ctx, c["point"], route, spot_walk)
+	return {} if leg.is_empty() else c.merged(leg)
 
 
 ## `spots` annotated (`{ point, hidden, cover }`) and sorted by `rank`, then the straight
@@ -172,7 +224,7 @@ func _walkable(
 ) -> Array:
 	var walkable: Array = []
 	for c: Dictionary in ranked:
-		var leg: Dictionary = tactics.walk_leg(ctx, c["point"], route, spot_walk)
-		if not leg.is_empty():
-			walkable.append(c.merged(leg))
+		var walk := walk_one(tactics, ctx, c, route)
+		if not walk.is_empty():
+			walkable.append(walk)
 	return walkable

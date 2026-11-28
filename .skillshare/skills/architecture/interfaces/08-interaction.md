@@ -6,7 +6,7 @@
      `move_to` / `requires_item`), advertised via the optional `interactions` object field. The character never learns what an
      interaction *means*.
    - **What the component touches on its host:** `global_position` (a `move_to` action snaps the body onto the object and back),
-     `facing` (the reach query sits ahead of the body, on `PhysicsLayers.SOLID`, interface 11, excluding the body's own `get_rid()`),
+     `facing` (the reach query sits ahead of the body, a cylinder in the twin 3D space on `PhysicsLayers.TWIN_WORLD`, interfaces 11 and 29),
      `movement.aim_point` (Space picks the reachable object, door or vehicle door nearest the cursor), `inventory.has_item(id)` (`requires_item`),
      and Godot's `add_collision_exception_with` for the object a `move_to` puts it on.
    - **Leaving an object:** the component hands it to `use.keep_clear_of(body)`, which keeps the collision exception until the character's

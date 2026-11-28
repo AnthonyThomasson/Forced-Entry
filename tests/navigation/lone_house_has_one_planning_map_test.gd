@@ -20,8 +20,8 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)
-	var region: NavigationRegion2D = t.world.find_children(
-		"NavRegion", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"NavRegion", "NavigationRegion3D", true, false,
 	)[0]
 	var map := region.get_navigation_map()
 	if not t.require(NavBuilder.ready(map), "premise: the map answers"):
@@ -33,6 +33,6 @@ func run(t: TestContext) -> void:
 	t.check(NavRing.map_for(map, [a, b]) == map, "a query is weighed on the world map")
 	t.expect_eq(
 		NavBuilder.route(map, a, b),
-		NavigationServer2D.map_get_path(map, a, b, true),
+		NavPlan.path(map, a, b),
 		"a route is the world map's",
 	)

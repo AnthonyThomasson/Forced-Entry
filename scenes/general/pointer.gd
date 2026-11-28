@@ -19,6 +19,13 @@ class_name Pointer
 ## event keeps the position it carries. The injected point is one static, released by
 ## `TestWorld.restore`, so no test leaks it into the next.
 
+## How far (px) the cursor's line reaches each way from its ground point, how many solid twins it
+## looks through (the player's own body and what the wall fade holds faded are looked through for
+## free), and how many rays it casts at most in all.
+const AIM_REACH := 4000.0
+const AIM_WALK := 8
+const AIM_RAYS := 32
+
 ## The injected screen point; meaningful only while `_injected` is set.
 static var _injected_point := Vector2.ZERO
 ## Whether a screen point stands in for the mouse (`inject` sets it, `release` clears it).
@@ -120,6 +127,57 @@ static func screen_mouse(node: Node) -> Vector2:
 ## The world point under the pointer (`world_of` the `screen_mouse`): the player's aim.
 static func world_mouse(node: Node) -> Vector2:
 	return world_of(node, screen_mouse(node))
+
+
+## What the cursor's line of sight meets in the 3D render (`is_3d`), for the player's aim.
+## The line is the camera's own, through the ground point under the mouse (an orthographic view's
+## rays are parallel), cast into the twin space (`TwinSpace`, interface 29). It answers a dictionary
+## of `kind`, `plan` (the 2D point) and `height` (px above the floor). Kind `&"body"`: the line
+## meets a character's twin first (hovering a head is the head). Kind `&"cover"`: the first piece,
+## wall, door or vehicle the line meets, with a character behind it or not (D8a): the point on it.
+## Empty for neither (bare floor, or not in the 3D render): the player then shoots level at the
+## muzzle's height toward the floor point. `ignore` (the player's own body) is looked through, and
+## so is what the wall fade holds faded (`FadedTwins`): the twin stays solid while its mesh is
+## dithered, and the cursor over floor seen through a faded wall is over that floor.
+static func aim_hit(node: Node, ignore: Node = null) -> Dictionary:
+	var space := TwinSpace.space_of(node) if is_3d(node) else null
+	if space == null:
+		return {}
+	var look := -(_camera as Camera3D).global_transform.basis.z
+	var through := PlanSpace.lift(world_mouse(node))
+	var query := PhysicsRayQueryParameters3D.create(
+		through - look * AIM_REACH, through + look * AIM_REACH, PhysicsLayers.TWIN_ALL
+	)
+	query.hit_from_inside = false
+	var cover := {}
+	var skip: Array[RID] = []
+	var solid := 0
+	for _i in AIM_RAYS:
+		var hit := space.intersect_ray(query)
+		if hit.is_empty():
+			break
+		skip.append(hit.rid)
+		query.exclude = skip
+		var body := TwinSpace.owner_of(hit.collider)
+		if body == null or body == ignore:
+			continue
+		if not body.is_in_group(TwinSpace.BODIES):
+			break  # the floor: nothing was between the cursor and the ground
+		var aimed := {
+			"plan": PlanSpace.plan_of(hit.position), "height": PlanSpace.height_of(hit.position),
+		}
+		if FadedTwins.holds(body.get_instance_id(), aimed["plan"]):
+			continue  # the wall fade shows it see-through: the cursor is over what is behind it
+		solid += 1
+		if (hit.collider as CollisionObject3D).collision_layer & PhysicsLayers.TWIN_CHARACTER != 0:
+			aimed["kind"] = &"body"
+			return aimed if cover.is_empty() else cover
+		if cover.is_empty():
+			cover = aimed
+			cover["kind"] = &"cover"
+		if solid >= AIM_WALK:
+			break
+	return cover
 
 
 ## The part of the world `node`'s viewport shows, as a rect of world points (its visible rect

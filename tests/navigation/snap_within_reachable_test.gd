@@ -35,7 +35,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)
-	var map: RID = t.world.get_world_2d().navigation_map
+	var map: RID = NavWorld.map_of(t.world)
 	var from := NavBuilder.snap(map, THRESHOLD)
 	var pocket_on_map := NavBuilder.snap(map, POCKET).distance_to(POCKET) < 2.0
 	var into_pocket := NavBuilder.route(map, from, POCKET)

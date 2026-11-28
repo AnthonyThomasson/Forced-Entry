@@ -6,12 +6,6 @@ convention of `docs/grenades.md` and `docs/tactical-entry.md`. The tests are in 
 `tests/ui/` (`tools/run_tests.sh outfit`: every one is tagged `outfit`) and reach the game through `tests/_outfit/outfit_probe.gd`, which
 also fires real gun and fragment rounds down shooting lanes, each with a witness standing behind the target to show whether a round came out.
 
-**Verification (14 October 2026, on the finished branch).** `tools/lint.sh` and the headless load check: clean. The 14 outfit tests (the 13
-tagged `outfit` and `ai/entry/entry_guard_fires_from_outside`, whose bullet height is pinned to the torso) with `--repeat=10 --jobs=auto`:
-140 runs, 140 passed (load average 4.4 before, 5.5 after). The whole suite with `--summary --jobs=auto`: 298 passed, 0 failed, 24 skipped
-(the Von tests), 0 `gap`. `--domain=perf` alone: 9 of 9 passed (load average 4.4 before and after); `perf/hit_overload_stress`
-with `--repeat=5`: 12.28 to 12.68 ms average a frame, against 12.14 to 12.70 ms on `main` measured the same way (load average 4.1).
-
 ## Behaviours
 
 Round power is the gun's `GunConfig` `penetration`: pistol **1.0**, SMG **0.8**, rifle **2.2**, a frag's fragment **0.4**. A round's damage
@@ -29,11 +23,13 @@ Tests: `items/loadout_outfit`, `character/hit_zone_by_bullet_height` (nobody dre
 
 ### Where a round strikes
 
-**O2. Hit zones.** A bullet's height (0..100, `docs/cover-and-stance.md` H1) over the body's posture coverage picks the zone, feet up:
-**feet** up to 0.08, **legs** up to 0.45, **torso** up to 0.85, **head** above. The same fractions standing (coverage 60: feet up to 4.8, legs to
-27, torso to 51, head 51 to 60) and crouched (coverage 35: feet to 2.8, legs to 15.75, torso to 29.75, head above). So the same height can
-be a standing body's legs and a crouched one's torso. (`CharacterHitConfig.zones`, `Character._hit_zone(height)`.)
-Test: `character/hit_zone_by_bullet_height`.
+**O2. Hit zones.** Where a round meets a body, the height of the hit point above the floor (`HitInfo.height`, real px:
+`docs/cover-and-stance.md` H1) in the bands of the body's posture picks the zone, feet up (`BodyHeights.zones`, metres 1 px = 1/42.3 of
+them): a standing body's **feet** up to 4.2 px (0.10 m), **legs** to 38.1 (0.90 m, the crotch), **torso** to 64.3 (1.52 m, the neck's
+base), **head** above to 74; a ducked body's (the duck, head top 36) feet to 2.5, legs to 17.8, torso to 30.5, head above. So the same
+height can be a standing body's legs and a ducked one's torso, and a round aimed over cover at a head is a head shot.
+(`BodyHeights.zone_at`, `Character._hit_zone(height)`.)
+Test: `character/hit_zone_by_bullet_height`, `projectile/head_aimed_over_cover`.
 
 **O3. Zone damage.** A round's damage is scaled by its zone: head **x2**, torso **x1**, legs and feet **x0.6**
 (`CharacterHitConfig.zone_damage`). A pistol round deals 50 to a head, 25 to a torso and 15 to a leg. Melee (a punch or a kick, through
@@ -93,6 +89,7 @@ armour on the side facing the burst: **0.35** for the soft panels, **0.5** for t
 are unchanged.
 Tests: `projectile/frag_blast_cut_by_vest` (a bare and a helmeted body take the blast's full damage, a vested one under 0.85 of it),
 `projectile/soft_vest_stops_pistol_smg_not_rifle` (the fragment).
+`projectile/frag_fragments_stopped_by_vest` (a ring of bare standing bodies and a ring in vests round frags: the vests block fragments and take less damage).
 
 ### Weight
 
@@ -209,7 +206,7 @@ a soft panel).
   `look(style)`, `view`), `LoadoutConfig` (`outfit_options`, `outfit_of`, `random_outfit`, `default_outfit`, the outfit in `normalize` / `apply` /
   `random`, and the style `apply` passes on), `Item.art.style` (stamped by `ItemRegistry.inventory_for`).
 - **Character**: `wardrobe.outfit` (`set_ids`, `view()`), `get_surface_at`, `_hit_zone`, `_hit_side`, and `take_hit`'s zone, armour, wear and
-  blast steps; the weight in `movement`'s `_speed_in` and the run's stamina; the zone numbers in `CharacterHitConfig` and the weight's in `CharacterPaceConfig`. The style (`character_wardrobe.gd`): `style`,
+  blast steps; the weight in `movement`'s `_speed_in` and the run's stamina; the zone damage and side angles in `CharacterHitConfig` (the zone bands are `BodyHeights.zones`) and the weight's numbers in `CharacterPaceConfig`. The style (`character_wardrobe.gd`): `style`,
   `look_seed`, `rank`, `set_style`, `CharacterStyleConfig.styles`. The look (`character/body/`: `body_dress.gd`, `character_style.gd` which
   resolves the style's look, and the painters, `vest_painter.gd` among them, whose flat renders the 3D body wears) is built from `wardrobe.outfit.look(style)`.
 - **Projectile**: `_surface_for` asks `get_surface_at`, the armour step in `_resolve`, `HitInfo.height` filled; `Explosion`'s blast hits carry

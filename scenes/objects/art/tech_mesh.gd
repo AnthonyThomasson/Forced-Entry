@@ -3,10 +3,10 @@ extends RefCounted
 ## `table_mesh.gd`, `domain-art/meshes.md`): at the piece's own footprint and `tech_painter.gd`'s
 ## proportions, by `kind`. `monitor_wall` is a desk along the wall with a backboard, a row of
 ## screens standing on it (the outer two angled in, their faces glowing, every third one dimmer),
-## a keyboard, a mug and papers on the ledge in front; `server_rack` is a tall steel cabinet with
-## vent slots up its front and a row of LEDs along the top, most lit. The screens and the LEDs are
-## glow nodes of the piece's rig, in its neon or the cheap screens' green (and the rack's red and
-## green): no real light, which the Lighting domain gives.
+## a bare ledge in front (its keyboard, mug and papers are items); `server_rack` is a tall steel
+## cabinet with vent slots up its front and a row of LEDs along the top, most lit. The screens and
+## the LEDs are glow nodes of the piece's rig, in its neon or the cheap screens' green (and the
+## rack's red and green): no real light, which the Lighting domain gives.
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
 const OPTIONS := ["kind", "neon", "height"]
@@ -90,6 +90,18 @@ static func screens(spec: FurnitureSpec) -> Array[Dictionary]:
 	return out
 
 
+## The strip of the footprint the screens stand over (px, from the back-left corner), the angled
+## outer ones' turn counted: from the rail to the front of the lowest of them.
+static func screen_band(spec: FurnitureSpec) -> Rect2:
+	var front := 0.0
+	for row in screens(spec):
+		var rect: Rect2 = row["rect"]
+		var yaw := absf(float(row["turn"]))
+		var reach := (rect.size.x * sin(yaw) + rect.size.y * cos(yaw)) * 0.5
+		front = maxf(front, rect.get_center().y + reach)
+	return Rect2(0.0, 4.0, spec.size.x, front - 4.0)
+
+
 ## The solids of the piece, built once per cache key.
 static func _mesh(spec: FurnitureSpec) -> Mesh:
 	var kit := spec.kit()
@@ -122,7 +134,7 @@ static func _wall(spec: FurnitureSpec, kit: MeshKit) -> void:
 	_ledge(spec, kit, first.size.y)
 
 
-## The ledge in front of the screens (`depth` px deep ones) and the keyboard, mug and papers on it.
+## The ledge in front of the screens (`depth` px deep ones), bare.
 static func _ledge(spec: FurnitureSpec, kit: MeshKit, depth: float) -> void:
 	var desk := ObjectMeshTechConfig.desk_height
 	var w := spec.size.x
@@ -130,13 +142,6 @@ static func _ledge(spec: FurnitureSpec, kit: MeshKit, depth: float) -> void:
 	var wood := ObjectArtTechConfig.tech_ledge_color
 	var top := spec.area(ledge.position.x, ledge.position.y, ledge.size.x, ledge.size.y)
 	kit.box(MeshKit.volume(top, 0.0, desk), MeshKit.tone(wood, &"dark"), wood)
-	var mid := ledge.position.y + floorf(ledge.size.y / 2.0)
-	var props: Dictionary = ObjectArtDecorConfig.prop_colors
-	var keys := spec.area(w / 2.0 - 8.0, mid - 3.0, 16, 6)
-	kit.box(MeshKit.volume(keys, desk, 1.2), props["plastic_dark"])
-	var mug := Vector2(w - 14.0, mid) - spec.half()
-	kit.cylinder(Vector3(mug.x, desk, mug.y), 2.5, 4.0, props["ceramic"])
-	kit.box(MeshKit.volume(spec.area(10, mid - 5.0, 8, 10), desk, 0.6), props["paper"])
 
 
 ## `rect` of a screen centred on its own origin (what `_posed` placed it by).

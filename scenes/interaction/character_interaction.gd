@@ -13,8 +13,13 @@ extends Node2D
 ## action) and reads `is_busy()` / `active_label()`; it never learns what an interaction means, so
 ## this system can be iterated on its own.
 
-## Physics layer the reach query tests (General's `PhysicsLayers.SOLID` — walls + solid furniture).
-const QUERY_MASK := PhysicsLayers.SOLID
+## The twin layer the reach query tests (General's `PhysicsLayers.TWIN_WORLD`: walls, furniture,
+## doors).
+const QUERY_MASK := PhysicsLayers.TWIN_WORLD
+## How high (px) above the floor the reach's cylinder starts: clear of a floor slab's top.
+const REACH_FROM := 1.0
+## How many results a page of the reach query holds (`TwinSpace.intersecting` pages it).
+const REACH_HITS := 64
 
 ## How far from the body center (px) an object may be and still be reachable.
 @export var reach: float = 46.0
@@ -28,7 +33,7 @@ var _active_object: Node = null
 ## Where the character stood when the interaction began; it returns here on exit.
 var _return_position := Vector2.ZERO
 
-## Character (CharacterBody2D) — position, aim, inventory.
+## Character (Node2D plan handle) — position, aim, inventory.
 @onready var _character := get_parent()
 
 
@@ -103,26 +108,48 @@ func begin_random(entry: Dictionary) -> void:
 
 
 ## Every object within reach that advertises at least one valid action, as `[{ object, specs }]`
-## (specs already item-gated). Shared by `nearest_in_reach` and the AI-facing queries.
+## (specs already item-gated), nearest the centre of the reach first. Shared by `nearest_in_reach`
+## and the AI-facing queries. The reach is a cylinder of `reach` px round the point ahead of the
+## body, from the floor to a standing head, asked of the twin space (interface 29): what stands
+## in it is what its 3D bodies fill, a tipped piece by where it lies.
 func _query_reachable() -> Array:
+	var space := TwinSpace.space_of(self)
+	if space == null:
+		return []
 	var center: Vector2 = _character.global_position + _character.facing * front_offset
-	var shape := CircleShape2D.new()
-	shape.radius = reach
-	var params := PhysicsShapeQueryParameters2D.new()
+	var shape := CylinderShape3D.new()
+	shape.radius = reach * RenderConfig.unit
+	shape.height = BodyHeights.head_top(BodyHeights.STAND) - REACH_FROM
+	var params := PhysicsShapeQueryParameters3D.new()
 	params.shape = shape
 	params.collision_mask = QUERY_MASK
-	params.exclude = [_character.get_rid()]
-	params.transform = Transform2D(0.0, center)
-
+	params.transform = Transform3D(Basis(), PlanSpace.lift(center, REACH_FROM + shape.height * 0.5))
+	var seen := {}
+	var found: Array[Node2D] = []
+	for result: Dictionary in TwinSpace.intersecting(space, params, REACH_HITS):
+		var obj := TwinSpace.owner_of(result["collider"])
+		if obj != null and not seen.has(obj) and obj.has_method("get_interactions"):
+			seen[obj] = true
+			found.append(obj)
+	found.sort_custom(func(a: Node2D, b: Node2D) -> bool: return _nearer(a, b, center))
 	var out: Array = []
-	for result in get_world_2d().direct_space_state.intersect_shape(params, 32):
-		var obj: Node = result.collider
-		if obj == null or not obj.has_method("get_interactions"):
-			continue
+	for obj in found:
 		var valid := _valid_specs(obj.get_interactions())
 		if not valid.is_empty():
 			out.append({ "object": obj, "specs": valid })
 	return out
+
+
+## Whether `a` stands nearer `center` than `b`; at one distance the one further up, then further
+## left, so the order never follows the engine's.
+func _nearer(a: Node2D, b: Node2D, center: Vector2) -> bool:
+	var da := a.global_position.distance_squared_to(center)
+	var db := b.global_position.distance_squared_to(center)
+	if not is_equal_approx(da, db):
+		return da < db
+	if not is_equal_approx(a.global_position.y, b.global_position.y):
+		return a.global_position.y < b.global_position.y
+	return a.global_position.x < b.global_position.x
 
 
 ## Keep only the actions whose item gate passes (no `requires_item`, or the character has it).
@@ -145,7 +172,7 @@ func _begin(spec: Dictionary, object: Node) -> void:
 	if spec.get("move_to", false):
 		# Re-entering the object just left keeps its existing exception.
 		if not _character.use.stop_clearing(object):
-			_character.add_collision_exception_with(object)
+			TwinSpace.share_space(_character, object, true)
 		_character.global_position = object.global_position
 
 
@@ -168,32 +195,44 @@ func _teardown() -> void:
 	_active_object = null
 
 
-## How far (px) `point` is from the nearest point of `object`'s colliders (0 inside one); its
-## centre's distance when it has none of a shape this knows (a rectangle, a circle, a convex
+## How far (px) `point` is from the nearest point of `object`'s 3D body, on the plan (0 under a
+## shape); its centre's distance when it has none of a shape this knows (a box, a cylinder, a convex
 ## polygon).
 func _gap_to(object: Node2D, point: Vector2) -> float:
+	var twin := TwinSpace.twin_for(object)
 	var best := INF
-	for child in object.get_children():
-		if child is CollisionShape2D and not child.disabled:
-			var local: Vector2 = child.global_transform.affine_inverse() * point
-			best = minf(best, _shape_gap(child.shape, local))
+	if twin != null:
+		for child in twin.find_children("*", "CollisionShape3D", true, false):
+			var holder := child as CollisionShape3D
+			if not holder.disabled and holder.shape != null:
+				best = minf(best, _shape_gap(holder, point))
 	return best if best < INF else object.global_position.distance_to(point)
 
 
-## `point`'s distance from `shape`, both in the shape's own frame.
-func _shape_gap(shape: Shape2D, point: Vector2) -> float:
-	if shape is RectangleShape2D:
-		var past: Vector2 = point.abs() - shape.size * 0.5
-		return Vector2(maxf(past.x, 0.0), maxf(past.y, 0.0)).length()
-	if shape is CircleShape2D:
-		return maxf(point.length() - shape.radius, 0.0)
-	if shape is ConvexPolygonShape2D:
-		var hull := Geometry2D.convex_hull(shape.points)
-		if Geometry2D.is_point_in_polygon(point, hull):
-			return 0.0
-		var best := INF
-		for i in hull.size() - 1:
-			var near := Geometry2D.get_closest_point_to_segment(point, hull[i], hull[i + 1])
-			best = minf(best, near.distance_to(point))
-		return best
-	return INF
+## `point`'s plan distance from the footprint of one shape of a twin.
+func _shape_gap(holder: CollisionShape3D, point: Vector2) -> float:
+	var shape := holder.shape
+	var at := holder.global_transform
+	if shape is CylinderShape3D:
+		var centre := PlanSpace.plan_of(at.origin)
+		return maxf(centre.distance_to(point) - (shape as CylinderShape3D).radius, 0.0)
+	var corners := PackedVector2Array()
+	if shape is BoxShape3D:
+		var half := (shape as BoxShape3D).size * 0.5
+		for x in [-1.0, 1.0]:
+			for y in [-1.0, 1.0]:
+				for z in [-1.0, 1.0]:
+					corners.append(PlanSpace.plan_of(at * (half * Vector3(x, y, z))))
+	elif shape is ConvexPolygonShape3D:
+		for corner in (shape as ConvexPolygonShape3D).points:
+			corners.append(PlanSpace.plan_of(at * corner))
+	if corners.is_empty():
+		return INF
+	var hull := Geometry2D.convex_hull(corners)
+	if Geometry2D.is_point_in_polygon(point, hull):
+		return 0.0
+	var best := INF
+	for i in hull.size() - 1:
+		var near := Geometry2D.get_closest_point_to_segment(point, hull[i], hull[i + 1])
+		best = minf(best, near.distance_to(point))
+	return best

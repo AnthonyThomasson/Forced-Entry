@@ -169,7 +169,7 @@ static func world_of(
 	rooms: Array,
 	openings: Array,
 	map: RID,
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	house: Node2D,
 ) -> Dictionary:
 	return {

@@ -15,6 +15,7 @@ extends GameTest
 ## order.
 
 const Probe := preload("res://tests/_vision/vision_probe.gd")
+const Held := preload("res://tests/_vision/held_pieces.gd")
 const Cone := preload("res://scenes/vision/view_cone.gd")
 const Reference := preload("res://tests/_vision/reference_view_cone.gd")
 ## The houses: floorplan and seed.
@@ -62,10 +63,10 @@ const MOVING_STEPS := 24
 const MOVING_STEP := Vector2(9.0, -6.0)
 const SHOVE_AT := Vector2(450, 350)
 const SHOVE_EYES := [Vector2(150, 250), Vector2(620, 420)]
-## A character in the way: it blocks sight standing (coverage 60) and not crouched (35) for an eye
-## that looks over only what is lower than `Probe.LOOK_OVER_LOW`, so its posture changes the polygon
-## with no move of its own.
+## A kitchen counter in the way: a standing eye (69 px) looks over it (38 px) and a ducked one (32
+## px) does not, so the viewer's posture changes the polygon with no move of the world.
 const STANDER_AT := Vector2(400, 250)
+const DUCKED_EYE := 32.2
 const STANDER_EYES := [Vector2(150, 250), Vector2(150, 200), Vector2(250, 300)]
 ## At least this many rebuilds must be compared, or the test proves nothing.
 const MIN_HOUSE_PAIRS := 800
@@ -76,7 +77,7 @@ var _sight := {
 	"fov_degrees": Probe.FOV,
 	"view_distance": Probe.REACH,
 	"awareness_radius": Probe.BUBBLE,
-	"see_over_coverage": Probe.SEE_OVER,
+	"eye_height": Probe.SEE_OVER,
 }
 var _t: TestContext
 var _pairs := 0
@@ -164,7 +165,7 @@ func _compare_moving_pieces(t: TestContext) -> void:
 	setup.object(&"shoved", "wardrobe", SHOVE_AT, { "rotated": true })
 	setup.object(&"walk_cover", _anchored("wardrobe"), Vector2(600, 250), { "rotated": true })
 	setup.object(&"table", "coffee_table", Probe.TABLE_AT)
-	setup.actor(&"stander", &"puppet", STANDER_AT)
+	setup.object(&"counter", "kitchen_counter", STANDER_AT)
 	var world: Node2D = await Probe.build_world(t, setup)
 	var cone := Cone.new()
 	var plain := Reference.new()
@@ -172,7 +173,7 @@ func _compare_moving_pieces(t: TestContext) -> void:
 	var shoved: Node2D = world.objects[&"shoved"]
 	# The game leaves the viewer's own body out of every ray: a piece left out here, as a viewer's
 	# would be, by both cones (the table through the swing, the door through the shove).
-	_exclude = [(world.objects[&"table"] as CollisionObject2D).get_rid()]
+	_exclude = SightRay.exclude_of(world.objects[&"table"])
 	var shapes: Array[PackedVector2Array] = []
 	for step in SWING_STEPS + 1:
 		var turn := float(step) / float(SWING_STEPS) * PI * 0.5
@@ -194,7 +195,7 @@ func _compare_moving_pieces(t: TestContext) -> void:
 	await _compare_shove(t, [door, shoved], cone, plain)
 	await _compare_walk(t, world, cone, plain)
 	await _compare_moving_body(t, world, cone, plain)
-	await _compare_postures(t, world, cone, plain)
+	_compare_postures(t, world, cone, plain)
 	await Probe.drop_world(t, world)
 
 
@@ -240,7 +241,7 @@ func _compare_dents(t: TestContext) -> void:
 func _compare_shove(t: TestContext, pieces: Array, cone: Cone, plain: Reference) -> void:
 	var door: Node2D = pieces[0]
 	var shoved: Node2D = pieces[1]
-	_exclude = [(door as CollisionObject2D).get_rid()]
+	_exclude = SightRay.exclude_of(door)
 	for step in SHOVE_STEPS:
 		shoved.global_position = SHOVE_AT + SHOVE_STEP * float(step + 1)
 		await t.frames(2)
@@ -256,7 +257,7 @@ func _compare_shove(t: TestContext, pieces: Array, cone: Cone, plain: Reference)
 ## The walls and the pieces of `world` that are struck.
 func _dent_targets(world: Node2D) -> Array[Node2D]:
 	var targets: Array[Node2D] = []
-	for node in world.find_children("*", "StaticBody2D", true, false):
+	for node in NavTwins.walls_under(world):
 		if node.has_method("wall_segments"):
 			targets.append(node)
 	targets.append(world.objects[&"wardrobe"])
@@ -300,10 +301,7 @@ func _settle(t: TestContext, targets: Array[Node2D]) -> bool:
 ## Whether none of the `targets` that move (the pieces; walls are static) is still moving.
 func _at_rest(targets: Array[Node2D]) -> bool:
 	for target in targets:
-		var body := target as RigidBody2D
-		if body != null and not body.sleeping and (
-			body.linear_velocity.length() > REST_SPEED or absf(body.angular_velocity) > REST_SPIN
-		):
+		if Held.moves_faster(target, REST_SPEED, REST_SPIN):
 			return false
 	return true
 
@@ -352,7 +350,6 @@ func _compare_walk(t: TestContext, world: Node2D, cone: Cone, plain: Reference) 
 	var cover: Node2D = world.objects[&"walk_cover"]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = Probe.HIT_SEED + 91
-	var shapes_before := Probe.collision_shapes([cover])
 	var polygons_before := _savings_count(cone, &"polygon_reuses")
 	var hits_before := _savings_count(cone, &"memo_hits")
 	var validated_twice := 0
@@ -371,10 +368,6 @@ func _compare_walk(t: TestContext, world: Node2D, cone: Cone, plain: Reference) 
 		if _savings_count(cone, &"validations") - validations != _memoed(cone):
 			validated_twice += 1
 		drawn.append(cone.cone.duplicate())
-	t.check(
-		Probe.collision_shapes([cover]) > shapes_before,
-		"premise: the walking sequence re-cut the blocker into more collision shapes",
-	)
 	t.check(_swing_changed(drawn), "premise: the walking, turning viewer's cone changes")
 	t.check(
 		_savings_count(cone, &"polygon_reuses") > polygons_before,
@@ -432,27 +425,19 @@ func _memoed(cone: Cone) -> int:
 	return shapes.memoed()
 
 
-## A character stands, crouches and stands again in the way of eyes that look over only what is
-## lower than a standing body: its coverage changes with no move of its own.
-func _compare_postures(t: TestContext, world: Node2D, cone: Cone, plain: Reference) -> void:
-	var stander: Node2D = world.actors[&"stander"]
-	var low := _sight.duplicate()
-	low["see_over_coverage"] = Probe.LOOK_OVER_LOW
+## The viewer stands, ducks and stands again behind a counter: what its eye looks over changes with
+## no move of the world, and each cone equals the reference's.
+func _compare_postures(t: TestContext, _world: Node2D, cone: Cone, plain: Reference) -> void:
 	var seen: Array[PackedVector2Array] = []
-	for posture in [&"stand", &"crouch", &"stand", &"crouch"]:
-		# A change of posture waits out its cooldown: ask until the body holds it.
-		if not t.require(
-			await t.until(func(): return stander.movement.set_posture(posture), 2.0),
-			"the character takes the posture %s" % posture,
-		):
-			return
-		await t.frames(2)
+	for eye in [Probe.SEE_OVER, DUCKED_EYE, Probe.SEE_OVER, DUCKED_EYE]:
+		var sight := _sight.duplicate()
+		sight["eye_height"] = eye
 		for at: Vector2 in STANDER_EYES:
-			_compare(cone, plain, at, Vector2.RIGHT, low)
+			_compare(cone, plain, at, Vector2.RIGHT, sight)
 		seen.append(cone.cone.duplicate())
 	t.check(
 		seen[0] != seen[1] and seen[1] != seen[2],
-		"premise: the character's posture changes what the last eye sees",
+		"premise: the eye's posture changes what the last eye sees",
 	)
 
 

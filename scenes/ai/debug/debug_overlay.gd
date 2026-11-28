@@ -4,9 +4,11 @@ extends Node2D
 ## entry team). Each subclass declares its own `@export var show_<x>` toggle(s) (found by property
 ## name, the names in the UI's OverlayRegistry), overrides `_on()` to report them and `_paint()` to
 ## draw, and reads only the sibling GoalController's public getters and exports (the agent overlay
-## also the NavigationAgent2D's path) — it senses nothing and feeds nothing back. The base finds the
+## also the NavigationAgent3D's path) — it senses nothing and feeds nothing back. The base finds the
 ## controller and character, runs PROCESS_MODE_ALWAYS so it keeps drawing while the tree is paused,
-## redraws every frame only while `_on()` is true and paints only while the NPC is alive.
+## redraws every frame only while `_on()` is true and paints only while the NPC is alive. Off, it
+## does not process at all (a match holds hundreds of overlays): every `show_<x>` setter calls
+## `_sync_processing()`.
 ##
 ## Its words can leave the world: `text_in_world` (on by default) off, the overlays that say
 ## their status in words (agent, brain, search, entry) draw none, leaving the words to the
@@ -38,6 +40,7 @@ func _ready() -> void:
 	_controller = get_node_or_null(controller_path)
 	_character = get_parent() as Node2D
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_sync_processing()
 
 
 func _process(_delta: float) -> void:
@@ -72,6 +75,12 @@ func note_text(text: String) -> void:
 ## Whether this overlay's toggle is on. Subclasses return their `show_<x>` flag.
 func _on() -> bool:
 	return false
+
+
+## Process (and so redraw each frame) only while the overlay is on: called when it is ready and by
+## every toggle's setter. An overlay with work to do while off overrides it.
+func _sync_processing() -> void:
+	set_process(_on())
 
 
 ## Draw the overlay. Called only while the toggle is on and the NPC is alive; subclasses override.

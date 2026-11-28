@@ -41,7 +41,7 @@ func run(t: TestContext) -> void:
 	var run_frames := 0
 	for i in 60:
 		await t.frames(1)
-		top = maxf(top, (inv.get_real_velocity() as Vector2).length())
+		top = maxf(top, (TwinSpace.real_velocity_of(inv) as Vector2).length())
 		if inv.movement.is_running():
 			run_frames += 1
 	t.trace("retreat_top_speed", top)

@@ -64,7 +64,7 @@ func run(t: TestContext) -> void:
 		return
 	if not await _start(t):
 		return
-	var walls := Probe.walls(_main.get_node("View3D").mirror, _world, APART, _inside_house)
+	var walls := Probe.walls(_main.get_node("View3D").carrier, _world, APART, _inside_house)
 	if not t.require(walls.size() >= 3, "the house has three walls to stand behind"):
 		return
 	var yaw := _rig.yaw
@@ -144,9 +144,16 @@ func _shoot(t: TestContext, shot_name: String) -> Image:
 func _spectate(t: TestContext, walls: Array) -> void:
 	var back := Probe.back_of(_rig.yaw)
 	var characters: Array[Node2D] = []
-	var all := _world.get_tree().get_nodes_in_group(&"characters")
+	# The match is played while the camera is set up, and its fight kills now and then (which one
+	# depends on what stands in the way: the items of #194 moved it): a dead character is no fade
+	# focus, so the three are living ones (not the player).
+	var living := _world.get_tree().get_nodes_in_group(&"characters").filter(
+		func(node: Node) -> bool: return node != _player and not bool(node.get("is_dead"))
+	)
+	if not t.require(living.size() >= 3, "premise: three characters live (%d)" % living.size()):
+		return
 	for i in 3:
-		var who := all[i + 1] as Node2D
+		var who := living[i] as Node2D
 		who.process_mode = Node.PROCESS_MODE_DISABLED
 		who.global_position = Probe.behind(walls[i], back, STANDOFF)
 		characters.append(who)

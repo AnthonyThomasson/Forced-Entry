@@ -1,0 +1,407 @@
+class_name SmallFlight
+extends RefCounted
+## General domain: the 3D flight of a small thing let go into the world (a thrown grenade, a dropped
+## weapon, a spent casing, a chip knocked off a piece), flown in the twin 3D space (`TwinSpace`,
+## interface 29): under gravity, swept each physics frame with a sphere through the real walls,
+## furniture, doors, vehicles and bodies, bounced off what it strikes, rolled and skidded on a floor
+## or on top of a piece, until it lies still. One stepper for the node (`ThrownGrenade`,
+## `DroppedItem`, `Casing`, a `Debris` chip) and for the planner (`GrenadeArc`), so what the planner
+## predicts is the node's own flight.
+##
+## **Heights** are px above the floor (`PlanSpace`, `BodyHeights`), of the sphere's CENTRE
+## (`height`), and `at` is its plan point (the 2D `(x, y)` = 3D `(x, z)`). The floor is a plane the
+## sphere rests on (`GROUND_GAP` px over the room's slab, which stands 0.1 px up): a floor is no
+## collider of the twin space a flight sweeps (a sphere rolling over slabs would catch their seams).
+## A ceiling (`ceiling`, px: where a roof is over the flight; none in the open) keeps a flight's top
+## under it. A roof is also a body of the twin space over a room's floor (`Floor.roofed`, the layer
+## `TWIN_ROOF`), which the default `mask` strikes like a wall, for a flight that is not given the
+## ceiling; a dropped item's mask leaves it out (it falls from a hand's height).
+##
+## **Contact.** A strike that comes in faster than `min_hop` and rebounds more than the next frame's
+## gravity takes back bounces: the velocity is reflected and scaled by the surface's restitution
+## (`floor_restitution` off one that faces up, `wall_restitution` off any other); a slower one
+## settles: what drives it into the surface is cancelled, and on an upward-facing one it rolls, the
+## floor slowing it by `friction`, until it is slower than `REST_SPEED`.
+
+## What a step did: nothing notable, a bounce off an upward-facing surface (floor or a piece's top),
+## a bounce off a wall or anything else, or it came to rest.
+const NONE := 0
+const LANDED := 1
+const STRUCK := 2
+const RESTED := 3
+## It is at rest once it rolls slower than this (px/s).
+const REST_SPEED := 4.0
+## How far (px) the sphere's underside floats over the plane it rests on: over the room slab's
+## 0.1 px, so a flight never touches a floor collider.
+const GROUND_GAP := 0.5
+## How far (px) below a resting sphere a surface still holds it up (`unsupported`).
+const SUPPORT_PROBE := 1.5
+## A surface whose normal's `y` is over this faces up: a flight rolls on it.
+const FACES_UP := 0.7
+## How far (px) past its own radius a thing let go at a surface is started off it, so its sphere
+## does not begin inside what it was knocked from (a cast ignores what its sphere already touches).
+const CLEAR_GAP := 0.6
+## The shortest flight (s) `speed_for` plans for: a thing let go at the floor does not skate off at
+## an unbounded speed.
+const MIN_FLIGHT := 0.08
+## Contacts resolved in one step (a corner may take two: floor then wall).
+const CONTACTS := 3
+## No bodies passed.
+const NOBODY: Array[RID] = []
+## The most frames `step` looks ahead for a clear corridor (`_look_ahead`): while one holds, a frame
+## moves by arithmetic with no sweep of the space; a thing over open floor casts once in this many.
+const HORIZON := 8
+## Frames `step` waits after a look-ahead found something near, before it looks again (a flight that
+## rolls on a piece's top, a chip in a corner, would otherwise look every frame and cast twice).
+const LOOK_COOLDOWN := 6
+## Extra px of the look-ahead sphere's radius over the path's sag, for the chord's rounding.
+const LOOK_MARGIN := 0.3
+
+## Where it is (plan point), and its height (centre, px above the floor).
+var at := Vector2.ZERO
+var height := 0.0
+## Its velocity across the floor (px/s) and its vertical speed (up, px/s).
+var velocity := Vector2.ZERO
+var rise := 0.0
+## The sphere's radius (px) and gravity (px/s²), the ceiling (px, the highest its centre plus radius
+## goes; `INF`: none) and what it strikes (`PhysicsLayers`, 3D).
+var radius := 3.0
+var gravity := 680.0
+var ceiling := INF
+var mask := PhysicsLayers.TWIN_ALL | PhysicsLayers.TWIN_ROOF
+## The share of its velocity a bounce keeps, off a surface facing up and off any other; the speed
+## (px/s) under which a strike settles and does not bounce; the floor's skid deceleration (px/s²).
+var floor_restitution := 0.35
+var wall_restitution := 0.35
+var min_hop := 40.0
+var friction := 520.0
+## It lies still: `step` does nothing.
+var resting := false
+## It is on a surface facing up and rolling (`step` slows it by `friction`).
+var rolling := false
+## The sweep: its query (a sphere), the wider sphere the look-ahead sweeps, the frames left in which
+## the space was found clear along the flight, and the frames to wait before looking again.
+var _probe := Probe.new()
+
+
+func _init(sphere_radius: float = 3.0) -> void:
+	radius = sphere_radius
+	_probe.own.radius = sphere_radius * RenderConfig.unit
+	_probe.query.shape = _probe.own
+	_probe.query.collision_mask = mask
+
+
+## The lowest the sphere's centre goes: the plane it rests on.
+func floor_height() -> float:
+	return radius + GROUND_GAP
+
+
+## How high (px) its underside is over the floor: 0 where it lies on it, the piece's top on one.
+func altitude() -> float:
+	return maxf(height - floor_height(), 0.0)
+
+
+## The speed across the floor (px/s) that lands a thing let go `drop` px over where it will lie,
+## hopped up at `up` px/s, `distance` px away over level ground (the flight's own time: up and down
+## under `pull`, a gravity).
+static func speed_for(distance: float, up: float, drop: float, pull: float) -> float:
+	var fall := (up + sqrt(up * up + 2.0 * pull * maxf(drop, 0.0))) / pull
+	return distance / maxf(fall, MIN_FLIGHT)
+
+
+## The speed across the floor (px/s).
+func speed() -> float:
+	return velocity.length()
+
+
+## The 3D point of its centre.
+func point() -> Vector3:
+	return PlanSpace.lift(at, height)
+
+
+## Put it at plan point `plan`, its centre `centre` px up (a corridor looked over before is gone).
+func place(plan: Vector2, centre: float) -> void:
+	at = plan
+	height = maxf(centre, floor_height())
+	_probe.frames = 0
+
+
+## Advance one physics frame of `delta` s in `space`, skipping the bodies in `passed`; returns what
+## it did (`NONE`, `LANDED`, `STRUCK`, `RESTED`). With no `space` only the floor and the ceiling are
+## there.
+func step(space: PhysicsDirectSpaceState3D, delta: float, passed: Array[RID] = NOBODY) -> int:
+	if resting:
+		return NONE
+	_probe.query.exclude = passed
+	_probe.query.collision_mask = mask
+	if _probe.frames > 0 and _coast(space, delta):
+		return NONE
+	var event := NONE
+	if _probe.look and _probe.frames <= 0 and space != null:
+		_look_ahead(space, delta)
+	rise -= gravity * delta
+	var left := Vector3(velocity.x, rise, velocity.y) * delta
+	rolling = false
+	for _pass in CONTACTS:
+		if left.length_squared() < 0.0000001:
+			break
+		var hit := _sweep(space, left)
+		if hit.is_empty():
+			at += Vector2(left.x, left.z)
+			height += left.y
+			break
+		at += Vector2(left.x, left.z) * float(hit["safe"])
+		height += left.y * float(hit["safe"])
+		var normal: Vector3 = hit["normal"]
+		var taken := _contact(normal, delta)
+		event = maxi(event, taken)
+		left = _remaining(left, float(hit["safe"]), normal, taken)
+	_probe.frames = 0 if event != NONE else maxi(_probe.frames - 1, 0)
+	_probe.cooldown = maxi(_probe.cooldown - 1, 0)
+	if rolling:
+		velocity = velocity.move_toward(Vector2.ZERO, friction * delta)
+		if velocity.length() <= REST_SPEED:
+			velocity = Vector2.ZERO
+			resting = true
+			event = RESTED
+	return event
+
+
+## One frame of a clear corridor (`_probe.frames` left): the flight's whole step when it meets
+## neither plane nor stands still, by plain arithmetic (the sweep would find nothing in it), and
+## nothing has moved into the frame's stretch of path since the corridor was looked over (a
+## character, a vehicle or a door leaf moves: one query of a sphere that takes the stretch). False
+## ends the corridor and leaves the frame to the full `step`, which then does what it always does.
+func _coast(space: PhysicsDirectSpaceState3D, delta: float) -> bool:
+	var up := rise - gravity * delta
+	var dy := up * delta
+	var dx := velocity * delta
+	var level := height + dy
+	var length := sqrt(dx.length_squared() + dy * dy)
+	if length * length < 0.0000001:
+		return false
+	if (level < radius + GROUND_GAP and dy < 0.0) or (level > ceiling - radius and dy > 0.0):
+		return false
+	if space != null and _met_on_the_way(space, dx, dy, length):
+		_probe.frames = 0
+		return false
+	rise = up
+	rolling = false
+	at += dx
+	height = level
+	_probe.frames -= 1
+	_probe.cooldown = maxi(_probe.cooldown - 1, 0)
+	return true
+
+
+## Whether a body of the twin space is now within reach of the stretch of path `dx`, `dy` (`length`
+## long) from where the sphere is: a sphere about the stretch's middle that takes all of it.
+func _met_on_the_way(
+	space: PhysicsDirectSpaceState3D,
+	dx: Vector2,
+	dy: float,
+	length: float,
+) -> bool:
+	_probe.guard.radius = (radius + length * 0.5) * RenderConfig.unit
+	_probe.query.shape = _probe.guard
+	_probe.query.transform = Transform3D(Basis(), PlanSpace.lift(at + dx * 0.5, height + dy * 0.5))
+	_probe.query.motion = Vector3.ZERO
+	var found := not space.intersect_shape(_probe.query, 1).is_empty()
+	_probe.query.shape = _probe.own
+	return found
+
+
+## Whether it lies on a piece that is no longer under it: at rest over the floor with nothing within
+## `SUPPORT_PROBE` px below it (the piece was pushed or blasted away).
+func unsupported(space: PhysicsDirectSpaceState3D) -> bool:
+	if not resting or space == null or height <= floor_height() + 0.01:
+		return false
+	_probe.query.exclude = NOBODY
+	_probe.query.collision_mask = mask
+	return _cast(space, Vector3(0.0, -SUPPORT_PROBE, 0.0)).is_empty()
+
+
+## Lay it down where it is: it drops straight onto what is under it, the floor or a piece's top, and
+## rests (a thing that has flown too long to be left in the air).
+func settle(space: PhysicsDirectSpaceState3D) -> void:
+	_probe.frames = 0
+	velocity = Vector2.ZERO
+	var fall := maxf(height - floor_height(), 0.0)
+	var safe := 1.0
+	if space != null and fall > 0.0:
+		_probe.query.exclude = NOBODY
+		_probe.query.collision_mask = mask
+		var found := _cast(space, Vector3(0.0, -fall, 0.0))
+		if not found.is_empty():
+			safe = float(found["safe"])
+	height -= fall * safe
+	rise = 0.0
+	rolling = false
+	resting = true
+
+
+## Take it off its rest: it falls from where it is.
+func release() -> void:
+	_probe.frames = 0
+	resting = false
+	rolling = false
+	velocity = Vector2.ZERO
+	rise = 0.0
+
+
+## Move it level toward plan point `target` as far as it is clear: it stops where a body of the twin
+## space first meets the sphere (a wall, a piece), without bouncing; nothing else changes.
+func advance_to(space: PhysicsDirectSpaceState3D, target: Vector2) -> void:
+	_probe.frames = 0
+	_probe.query.exclude = NOBODY
+	_probe.query.collision_mask = mask
+	var across := target - at
+	var motion := Vector3(across.x, 0.0, across.y)
+	var found := _cast(space, motion) if space != null else {}
+	var safe := float(found["safe"]) if not found.is_empty() else 1.0
+	at += across * safe
+
+
+## Whether the sphere, where it is, already overlaps a body of the twin space (a thing let go inside
+## a wall: a cast ignores what its sphere starts in, so it would fly on through).
+func embedded(space: PhysicsDirectSpaceState3D) -> bool:
+	if space == null:
+		return false
+	_probe.query.exclude = NOBODY
+	_probe.query.collision_mask = mask
+	_probe.query.transform = Transform3D(Basis(), point())
+	_probe.query.motion = Vector3.ZERO
+	return not space.get_rest_info(_probe.query).is_empty()
+
+
+## Look the next frames' path over for a body of the twin space: one cast of a sphere wide enough to
+## take the parabola's sag along the straight chord of the flight up to its landing on the floor
+## plane (`HORIZON` frames at most), or of a roll along it (a cast ignores what its sphere starts
+## in, so the wide sphere must start clear of every body first). When nothing is met, the next
+## frames (`_probe.frames`) move with no cast; a bounce, a rest or a hit by `release` and the like
+## ends it.
+func _look_ahead(space: PhysicsDirectSpaceState3D, delta: float) -> void:
+	if _probe.cooldown > 0 or resting:
+		return
+	var low := floor_height()
+	var up := rise
+	var level := height
+	var frames := 0
+	for _k in HORIZON:
+		up -= gravity * delta
+		level += up * delta
+		if level < low or level > ceiling - radius:
+			break
+		frames += 1
+	var on_floor := height <= low + 0.01 and rolling
+	if on_floor:
+		frames = HORIZON
+		level = height
+	if frames < 3:
+		return
+	var span := float(frames) * delta
+	var sag := 0.0 if on_floor else 0.125 * gravity * span * span
+	_probe.wide.radius = (radius + sag + LOOK_MARGIN) * RenderConfig.unit
+	_probe.query.shape = _probe.wide
+	_probe.query.transform = Transform3D(Basis(), point())
+	var motion := Vector3(velocity.x * span, level - height, velocity.y * span)
+	_probe.query.motion = Vector3.ZERO
+	var near := not space.intersect_shape(_probe.query, 1).is_empty()
+	_probe.query.motion = motion * RenderConfig.unit
+	var cast: Array = []
+	if not near:
+		cast = space.cast_motion(_probe.query)
+	_probe.query.shape = _probe.own
+	if not near and (cast.is_empty() or cast[0] >= 1.0):
+		_probe.frames = frames
+	else:
+		_probe.cooldown = LOOK_COOLDOWN
+
+
+## What stops a sweep of `motion` (3D, px) from where it is first, as `{ safe, normal }` (the share
+## of it that is clear, and the surface's normal, a unit 3D vector): the floor and the ceiling
+## planes, and the twin space's bodies; {} when nothing does.
+func _sweep(space: PhysicsDirectSpaceState3D, motion: Vector3) -> Dictionary:
+	var best := {}
+	var safe := 1.0
+	var lowest := floor_height()
+	if height + motion.y < lowest and motion.y < 0.0:
+		safe = clampf((height - lowest) / -motion.y, 0.0, 1.0)
+		best = { "safe": safe, "normal": Vector3.UP }
+	var highest := ceiling - radius
+	if height + motion.y > highest and motion.y > 0.0:
+		var share := clampf((highest - height) / motion.y, 0.0, 1.0)
+		if share < safe:
+			safe = share
+			best = { "safe": share, "normal": Vector3.DOWN }
+	if space == null:
+		return best
+	var found := {} if _probe.frames > 0 else _cast(space, motion * safe)
+	if not found.is_empty():
+		var share := safe * float(found["safe"])
+		best = { "safe": share, "normal": found["normal"] }
+	return best
+
+
+## What the twin space's bodies stop the sphere's sweep of `motion` at: `{ safe, normal }` or {}.
+func _cast(space: PhysicsDirectSpaceState3D, motion: Vector3) -> Dictionary:
+	_probe.query.transform = Transform3D(Basis(), point())
+	_probe.query.motion = motion * RenderConfig.unit
+	var res := space.cast_motion(_probe.query)
+	if res.is_empty() or res[0] >= 1.0:
+		return {}
+	_probe.query.transform = Transform3D(Basis(), point() + motion * RenderConfig.unit * res[1])
+	_probe.query.motion = Vector3.ZERO
+	var info := space.get_rest_info(_probe.query)
+	var normal: Vector3 = info["normal"] if not info.is_empty() else -motion.normalized()
+	return { "safe": res[0], "normal": normal }
+
+
+## Settle the velocity against a surface of `normal` struck: a bounce when it comes in hard, else
+## the part of the velocity into it cancelled (a roll on a surface that faces up). Returns what it
+## was.
+func _contact(normal: Vector3, delta: float) -> int:
+	var v := Vector3(velocity.x, rise, velocity.y)
+	var into := v.dot(normal)
+	var faces_up := normal.y > FACES_UP
+	if into >= 0.0:
+		return NONE
+	var keep := floor_restitution if faces_up else wall_restitution
+	if -into > min_hop and -into * keep > gravity * delta:
+		v = (v - 2.0 * into * normal) * keep
+		velocity = Vector2(v.x, v.z)
+		rise = v.y
+		return LANDED if faces_up else STRUCK
+	v -= into * normal
+	velocity = Vector2(v.x, v.z)
+	rise = v.y
+	if faces_up:
+		rolling = true
+		rise = 0.0
+	return NONE
+
+
+## What is left of the frame's `motion` after a strike `safe` of the way along it, against a surface
+## of `normal`: nothing after a bounce, else what slides along the surface.
+func _remaining(motion: Vector3, safe: float, normal: Vector3, taken: int) -> Vector3:
+	if taken == LANDED or taken == STRUCK:
+		return Vector3.ZERO
+	var rest := motion * (1.0 - safe)
+	return rest - rest.dot(normal) * normal if rest.dot(normal) < 0.0 else rest
+
+
+## What `step` sweeps with: the sphere query, the same sphere kept to put back, the wider one of
+## `_look_ahead`, the frames of corridor left and those to wait before looking again.
+class Probe extends RefCounted:
+	## The sweep's query, with the sphere of the thing's own size.
+	var query := PhysicsShapeQueryParameters3D.new()
+	## That sphere, to put back after a look-ahead, and the wider one the look-ahead sweeps.
+	var own := SphereShape3D.new()
+	var wide := SphereShape3D.new()
+	## The sphere that takes a frame's stretch of path, to see whether anything moved into it.
+	var guard := SphereShape3D.new()
+	## Frames left that move with no cast, and frames to wait before looking ahead again.
+	var frames := 0
+	var cooldown := 0
+	## Whether it looks ahead at all (a test turns it off to fly the plain sweep).
+	var look := true

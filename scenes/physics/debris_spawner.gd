@@ -88,30 +88,25 @@ const STYLES := {
 }
 
 
-## Spray a burst of material-styled chips at world point `position`, thrown roughly along
-## `direction`, added under `parent` (placed by global position, so `parent` may be offset
-## from the world origin). `base_color` / `material` come from the struck object's surface
-## and drive each chip's tint, count, shape and throw.
+## Spray a burst of material-styled chips at world point `position`, `height` px up (the hit's;
+## negative: on the floor), thrown roughly along `direction`, added under `parent` (placed by global
+## position, so `parent` may be offset from the world origin). The struck object's `surface`
+## (`get_surface()`: its `color` and `material`) drives each chip's tint, count, shape and throw.
 static func spawn(
-	position: Vector2,
-	direction: Vector2,
-	parent: Node,
-	base_color: Color,
-	material: String,
+	position: Vector2, direction: Vector2, parent: Node, surface: Dictionary, height := -1.0
 ) -> void:
-	var style: Dictionary = STYLES.get(material, STYLES["default"])
+	var style: Dictionary = STYLES.get(surface.get("material", ""), STYLES["default"])
 	var spray := direction.normalized() if direction.length() > 0.001 else Vector2.UP
 	var count: Vector2i = style["count"]
 	var size_range: Vector2 = style["size"]
 	var dist_range: Vector2 = style["distance"]
-	var spread: float = style["spread"]
 	var rng := WorldRng.of(parent)
 
 	for _i in rng.randi_range(count.x, count.y):
 		var chip := Node2D.new()
 		chip.name = "Debris"
 		chip.script = Debris
-		chip.color = _tint(rng, base_color, style["tint"])
+		chip.color = _tint(rng, surface.get("color", Color(0.6, 0.6, 0.6)), style["tint"])
 		var side := rng.randf_range(size_range.x, size_range.y)
 		chip.chip_size = Vector2(side, side * float(style["aspect"]))
 		chip.chip_shape = style["shape"]
@@ -125,8 +120,9 @@ static func spawn(
 		chip.global_position = position
 		Despawner.track(chip)
 
-		var eject := spray.rotated(rng.randf_range(-spread, spread)) * rng.randf_range(0.5, 1.0)
-		chip.start(eject)
+		var fan: float = style["spread"]
+		var eject := spray.rotated(rng.randf_range(-fan, fan)) * rng.randf_range(0.5, 1.0)
+		chip.start(eject, height)
 		PhysicsFxHook.chip_flew(chip)
 
 

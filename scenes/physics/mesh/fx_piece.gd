@@ -17,9 +17,8 @@ var size := Vector2.ONE
 ## Its age and its whole life (s).
 var age := 0.0
 var life := 1.0
-## Where it leaves from: its height (px), the 2D node it follows (an instance id) or its
-## velocity (px/s, a bit's) and how fast it rises (px/s).
-var start_height := 0.0
+## Where it leaves from: the 2D node it follows (an instance id) or its velocity (px/s, a bit's)
+## and how fast it rises (px/s).
 var node_id := 0
 var velocity := Vector2.ZERO
 var rise := 0.0

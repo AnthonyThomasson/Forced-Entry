@@ -6,9 +6,11 @@ extends GameTest
 ## - an invader with a frag and a pistol, a hostile hidden behind a desk 420 px off (outside the
 ##   blast's reach: nothing to take cover from);
 ## - an invader with a frag, a hostile hidden behind a couch 200 px off (inside a frag's zone) and
-##   the couch at its elbow: it must crouch behind it from the throw to the bang, take no blast, and
-##   then be on its pistol.
+##   the couch at its elbow: it must be behind it, shielded from the throw to the bang (the cover
+##   that hides the hostile from its eye casts a shadow from a burst on the floor over a standing
+##   body too: it need not crouch), take no blast, and then be on its pistol.
 
+const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Flank := preload("res://tests/_ai/flank_probe.gd")
@@ -31,12 +33,13 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	Hiding.von_out(s)
 	s.layout([
 		{ "key": "north", "type": "living_room", "rect": Rect2(0, 0, 900, 300) },
 		{ "key": "south", "type": "kitchen", "rect": Rect2(0, 300, 900, 300) },
 	], [{ "pos": Vector2(880, 0), "width": 60.0 }, { "pos": Vector2(880, 600), "width": 60.0 }])
-	s.object(&"desk", "desk", Vector2(330, 150))
-	s.object(&"couch", "sofa", Vector2(600, 450))
+	s.object(&"desk", Hiding.low_cover("desk"), Vector2(390, 150))
+	s.object(&"couch", Hiding.low_cover("sofa"), Vector2(600, 450))
 	Flank.rules(
 		s,
 		[
@@ -58,6 +61,10 @@ func run(t: TestContext) -> void:
 	var near := t.actor(&"near")
 	Probe.arm(far, 0, 1)
 	Probe.arm(near, 0, 1)
+	if not await Hiding.duck_after_seen(
+			t, [&"far_h", &"near_h"], [&"far", &"near"]
+	):
+		return
 	if not t.require(
 			Probe.count(far, Probe.FRAG) == 1
 				and Probe.count(near, Probe.FRAG) == 1
@@ -70,10 +77,10 @@ func run(t: TestContext) -> void:
 		return
 	if not await _both_threw(t, far, near):
 		return
-	var posture := await _posture_until_booms(t, near)
+	await _until_booms(t)
 	if not t.require(Probe.booms(t, &"frag").size() >= 2, "both frags went off"):
 		return
-	_check_booms(t, far, near, posture)
+	_check_booms(t, far, near)
 	await _check_back_on_pistol(t, far, near)
 
 
@@ -117,17 +124,14 @@ func _both_threw(t: TestContext, far: Node, near: Node) -> bool:
 	return true
 
 
-# The near invader's posture each frame from its throw to the bang (or 8 s).
-func _posture_until_booms(t: TestContext, near: Node) -> Array:
-	var posture := []
+# Until both frags have gone off (or 8 s).
+func _until_booms(t: TestContext) -> void:
 	var end := t.time + 8.0
 	while Probe.booms(t, &"frag").size() < 2 and t.time < end:
-		posture.append({ "t": t.time, "posture": near.movement.posture() })
 		await t.frames(1)
-	return posture
 
 
-func _check_booms(t: TestContext, far: Node, near: Node, posture: Array) -> void:
+func _check_booms(t: TestContext, far: Node, near: Node) -> void:
 	var booms := Probe.booms(t, &"frag")
 	var near_boom: Dictionary = (booms[0]
 			if (booms[0]["data"]["position"] as Vector2).distance_to(NEAR_H)
@@ -140,19 +144,10 @@ func _check_booms(t: TestContext, far: Node, near: Node, posture: Array) -> void
 		"each onto its hostile's spot",
 	)
 
-	# The one inside the zone crouched behind its cover from the throw to the bang and was not
-	# touched.
-	var last: Array = posture.filter(func(s): return (
-		float(s["t"]) >= float(near_boom["time"]) - 1.0
-			and float(s["t"]) <= float(near_boom["time"])
-	))
-	t.check(
-		not last.is_empty() and last.all(func(s): return s["posture"] == &"crouch"),
-		"the invader 200 px from its hostile was crouched for the last second before the bang",
-	)
+	# The one inside the zone was behind its cover at the bang and was not touched.
 	t.check(
 		GrenadeAi.shielded(t, near_boom["data"]["position"], near),
-		"behind the couch, which shields a crouched body from the blast",
+		"the invader 200 px from its hostile is shielded by the couch from the blast",
 	)
 	t.check(
 		Probe.blast_hits(t, near).is_empty() and near.health >= near.max_health - 0.01,

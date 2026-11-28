@@ -31,7 +31,7 @@ func run(t: TestContext) -> void:
 	await t.frames(2)
 	_compare(t, house, "as the house stands")
 	var wall: Node = null
-	for node in house.find_children("*", "StaticBody2D", true, false):
+	for node in NavTwins.walls_under(house):
 		if node.has_method("wall_segments"):
 			wall = node
 			break
@@ -61,7 +61,7 @@ func _compare(t: TestContext, house: Node2D, when: String) -> void:
 		site,
 		furniture,
 		[],
-		NavSource.walls_of(house, RADIUS),
+		NavSource.walls_of(house),
 	)
 	var a: NavigationMeshSourceGeometryData2D = own["source"]
 	var b: NavigationMeshSourceGeometryData2D = shared["source"]

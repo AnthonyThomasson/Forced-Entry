@@ -1,18 +1,18 @@
 class_name NavBuilder
 extends RefCounted
 ## Navigation domain (leaf): turns a generated house, or a whole district, into walkable navigation
-## maps for the global NavigationServer2D. A bake is the walkable footprint (the rooms grown by
-## `BOUNDS_PAD`, or a district's explicit `bounds`) minus the STATIC wall colliders, so doorways
-## stay open, minus a hole per solid furniture footprint, so paths route around furniture and
-## through another doorway when the near one is blocked. Any NavigationAgent2D pathfinds against
+## maps for the global NavigationServer3D. A bake is the walkable footprint (the rooms grown by
+## `BOUNDS_PAD`, or a district's explicit `bounds`) minus the walls' twin footprints, so doorways
+## stay open, minus a hole per solid furniture twin, so paths route around furniture and
+## through another doorway when the near one is blocked. Any NavigationAgent3D pathfinds against
 ## the map. The maps: the PLANNING map (furniture only, what the AI plans and measures
 ## with: routes, flank and entry geometry, snapping a point to open floor), a STEERING map of its
 ## own that is also carved by every living character at rest (`character_holes`; what a
-## NavigationAgent2D walks, since carving characters into the planning map would bend every route
+## NavigationAgent3D walks, since carving characters into the planning map would bend every route
 ## weighed against a hostile), and, for a district, 512 px steering tiles (`NavTiles`) and a small
 ## planning ring of the match building (`NavRing`). Imports nothing from other domains: it reads a
-## plain `rooms` array and a Node, and recognises furniture (RigidBody2D) and characters
-## (CharacterBody2D) by engine type alone.
+## plain `rooms` array and a Node, and recognises furniture (the group `TwinSpace.PIECES`) and
+## characters (the group `characters`) by group alone.
 
 ## Extra clearance (px) baked around walls, on top of the agent radius, so paths don't hug walls.
 const WALL_MARGIN := 4.0
@@ -54,21 +54,23 @@ static var _steering_regions: Dictionary = {}
 ## `planning_region`.
 static var _planning_regions: Dictionary = {}
 ## The avoid maps made for each world navigation map (planning map RID -> key -> entry), see
-## `avoid_map`. An entry is `{ map: RID, region: NavigationRegion2D, version: int, baking: bool,
+## `avoid_map`. An entry is `{ map: RID, region: NavigationRegion3D, version: int, baking: bool,
 ## asked_frame: int }`.
 static var _avoid_maps: Dictionary = {}
 ## An avoid map nobody has asked for in this many `GameClock` frames (20 s at 60 a second, counted
 ## in frames so a run frees the same maps on the same frame whatever the machine's speed) is freed
 ## by the next ask for another set (`avoid_map`).
 static var avoid_idle_frames: int = 1200
-## How many avoid maps have been made (their first bake started) and how many re-baked after the
-## planning bake changed, since the process began (a perf probe's read).
+## How many avoid maps have been made (their first bake asked) and how many re-bakes asked after
+## the planning bake changed, since the process began (a perf probe's read). Asks, not bakes
+## started: one still waiting its turn or dropped counts, and a dropped re-bake counts again at its
+## next ask.
 static var avoid_starts := 0
 static var avoid_rebakes := 0
 
 
-## Build and add a NavigationRegion2D under `parent`, covering `rooms` (each `{ key, type, rect }`
-## with a world-space `rect`, from WorldGen.get_rooms) minus `house`'s wall colliders.
+## Build and add a NavigationRegion3D under `parent`, covering `rooms` (each `{ key, type, rect }`
+## with a world-space `rect`, from WorldGen.get_rooms) minus `house`'s walls (their twins).
 ## `agent_radius` is the pathing clearance (character body radius). Returns the region, or null if
 ## there are no rooms. `bounds` (world space; empty = from the rooms) is the walkable footprint when
 ## it is more than the rooms and a ring of `BOUNDS_PAD` round them: a district's streets out to its
@@ -83,20 +85,26 @@ static func build(
 	parent: Node,
 	agent_radius: float = AGENT_RADIUS,
 	bounds := Rect2(),
-) -> NavigationRegion2D:
+) -> NavigationRegion3D:
 	var job := NavSource.job(
 		NavSite.new(house, rooms, agent_radius, bounds),
 		furniture_holes(house),
 	)
 	if job.is_empty():
 		return null
+	var planning := NavWorld.map_of(parent)
+	if not planning.is_valid():
+		push_error("NavBuilder.build: %s is not in the tree, so it has no navigation map" % parent)
+		return null
+	NavSource.tune_map(planning)
 	var nav_poly := NavSource.bake(job, house.position)
-	var region := NavigationRegion2D.new()
+	var region := NavigationRegion3D.new()
 	region.name = "NavRegion"
-	region.position = house.position
-	region.navigation_polygon = nav_poly
+	region.position = NavPlan.lift(house.position)
+	NavPlan.assign(region, nav_poly)
 	region.set_meta(BOUNDS_META, bounds)
 	NavSource.remember(region, job)
+	region.set_navigation_map(planning)  # before it enters the tree, or it takes the viewport's
 	parent.add_child(region)
 	if region.is_inside_tree():
 		var planning_map := region.get_navigation_map()
@@ -109,7 +117,7 @@ static func build(
 		)
 		_add_steering_region(region, NavSite.new(house, rooms, agent_radius, bounds), nav_poly)
 		var probe: Vector2 = (rooms[0]["rect"] as Rect2).get_center()
-		NavReady.await_region(region.get_world_2d().navigation_map, region, probe)
+		NavReady.await_region(NavWorld.map_of(region), region, probe)
 		for steering in steering_regions(region):
 			var at: Vector2 = NavTiles.probe_of(steering, probe)
 			if at != Vector2.INF:
@@ -122,7 +130,7 @@ static func build(
 ## the outdoor ring round them, which `snap`, `snap_within` and `route` answer from when every point
 ## they weigh lies in it (`NavRing`). A lone house has none and plans on its one map.
 static func plan_ring(
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	house: Node2D,
 	focus: Array,
 	agent_radius: float = AGENT_RADIUS,
@@ -134,7 +142,7 @@ static func plan_ring(
 ## made from: the footprint `build` was given, so a district's re-bake covers its streets as its
 ## first bake did.
 static func site_of(
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	house: Node2D,
 	rooms: Array,
 	agent_radius: float = AGENT_RADIUS,
@@ -144,11 +152,11 @@ static func site_of(
 
 ## Re-bake `region`'s navigation polygon in place, re-carving the furniture holes at each piece's
 ## CURRENT position so paths route around furniture that has been shoved off its original spot. The
-## region keeps its world offset; reassigning `navigation_polygon` re-registers the mesh with the
-## NavigationServer2D. A test-facing seam that measures its own footprints; the game re-bakes
-## through `nav_updater.gd`, which drives `NavRebake`.
+## region keeps its world offset; reassigning the region's polygon (`NavPlan.assign`) re-registers
+## the mesh with the NavigationServer3D. A test-facing seam that measures its own footprints; the
+## game re-bakes through `nav_updater.gd`, which drives `NavRebake`.
 static func rebake(
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	house: Node2D,
 	rooms: Array,
 	agent_radius: float = AGENT_RADIUS,
@@ -158,11 +166,11 @@ static func rebake(
 	var job := NavSource.job(site, furniture)
 	if job.is_empty():
 		return
-	region.navigation_polygon = NavSource.bake(job, house.position)
+	NavPlan.assign(region, NavSource.bake(job, house.position))
 	NavSource.remember(region, job)
 	var ring := NavRing.job(region, site, furniture, {})
 	if not ring.is_empty():
-		NavRing.region_of(region).navigation_polygon = NavSource.bake(ring, house.position)
+		NavPlan.assign(NavRing.region_of(region), NavSource.bake(ring, house.position))
 
 
 ## Re-bake the steering region under `region` (the planning one `build` returned) with the furniture
@@ -170,7 +178,7 @@ static func rebake(
 ## its own footprints; `nav_updater.gd` drives `NavRebake.steering`. Does nothing when the region
 ## has no steering child.
 static func rebake_steering(
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	house: Node2D,
 	rooms: Array,
 	agent_radius: float = AGENT_RADIUS,
@@ -185,22 +193,22 @@ static func rebake_steering(
 
 ## The steering region of `region` (the planning region `build` returned): the same house with the
 ## living characters carved out too, on its own navigation map. Null if it has none.
-static func steering_region(region: NavigationRegion2D) -> NavigationRegion2D:
-	return region.get_node_or_null(STEERING_NAME) as NavigationRegion2D
+static func steering_region(region: NavigationRegion3D) -> NavigationRegion3D:
+	return region.get_node_or_null(STEERING_NAME) as NavigationRegion3D
 
 
 ## Every steering region of `region`: the one `steering_region` names, or a district's tiles
 ## (`NavTiles`), each baked from what reaches it. Empty with none.
-static func steering_regions(region: NavigationRegion2D) -> Array[NavigationRegion2D]:
-	var out: Array[NavigationRegion2D] = []
+static func steering_regions(region: NavigationRegion3D) -> Array[NavigationRegion3D]:
+	var out: Array[NavigationRegion3D] = []
 	for child in region.get_children():
-		if child is NavigationRegion2D and String(child.name).begins_with(STEERING_NAME):
+		if child is NavigationRegion3D and String(child.name).begins_with(STEERING_NAME):
 			out.append(child)
 	return out
 
 
 ## The steering map that goes with the world's navigation map `planning_map`, the one a
-## NavigationAgent2D should walk (`agent.set_navigation_map`): paths on it route around the
+## NavigationAgent3D should walk (`agent.set_navigation_map`): paths on it route around the
 ## characters at rest. Invalid (keep the planning map) when no steering region is on it, so an agent
 ## in a world that never baked one walks the plain map. Named from the moment `build` has added the
 ## steering region, before the map has synchronized (whether it answers yet is `ready`, which
@@ -215,11 +223,11 @@ static func steering_map(planning_map: RID) -> RID:
 ## map (created on first use, freed with its last region). With no character yet standing, its
 ## polygon is the planning one.
 static func _add_steering_region(
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	site: NavSite,
 	planning_poly: NavigationPolygon,
 ) -> void:
-	var map := _steering_map_for(region.get_world_2d().navigation_map)
+	var map := _steering_map_for(NavWorld.map_of(region))
 	if site.bounds.has_area():
 		_add_steering_tiles(region, map, site)
 		return
@@ -232,8 +240,8 @@ static func _add_steering_region(
 
 ## The steering regions of a district: a tile over each part of its footprint (`NavTiles`), baked
 ## from the furniture and the characters at rest as they stand.
-static func _add_steering_tiles(region: NavigationRegion2D, map: RID, site: NavSite) -> void:
-	var footprint := NavTiles.whole_pixels(site.footprint())
+static func _add_steering_tiles(region: NavigationRegion3D, map: RID, site: NavSite) -> void:
+	var footprint := NavTiles.on_cells(site.footprint(), site.house.position)
 	for rect in NavTiles.grid(footprint):
 		var tile := _add_steering(
 			region,
@@ -253,17 +261,17 @@ static func _add_steering_tiles(region: NavigationRegion2D, map: RID, site: NavS
 ## A steering region named `region_name` over `nav_poly`, a child of the planning `region` and on
 ## the steering `map`; counted, so the map is freed with its last one.
 static func _add_steering(
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	map: RID,
 	region_name: String,
 	nav_poly: NavigationPolygon,
-) -> NavigationRegion2D:
-	var steering := NavigationRegion2D.new()
+) -> NavigationRegion3D:
+	var steering := NavigationRegion3D.new()
 	steering.name = region_name
-	steering.navigation_polygon = nav_poly
+	NavPlan.assign(steering, nav_poly)
 	steering.set_navigation_map(map)
 	region.add_child(steering)
-	var planning_map := region.get_world_2d().navigation_map
+	var planning_map := NavWorld.map_of(region)
 	_steering_regions[planning_map] = int(_steering_regions.get(planning_map, 0)) + 1
 	steering.tree_exited.connect(_on_steering_region_exited.bind(planning_map))
 	return steering
@@ -279,7 +287,7 @@ static func _on_steering_region_exited(planning_map: RID) -> void:
 	_steering_regions.erase(planning_map)
 	if _steering_maps.has(planning_map):
 		NavRoutes.forget(_steering_maps[planning_map])
-		NavigationServer2D.free_rid(_steering_maps[planning_map])
+		NavigationServer3D.free_rid(_steering_maps[planning_map])
 		_steering_maps.erase(planning_map)
 
 
@@ -292,7 +300,7 @@ static func _on_steering_region_exited(planning_map: RID) -> void:
 static func _steering_map_for(planning_map: RID) -> RID:
 	if _steering_maps.has(planning_map):
 		return _steering_maps[planning_map]
-	var map := NavSource.new_map(false)
+	var map := NavSource.new_map()
 	_steering_maps[planning_map] = map
 	return map
 
@@ -300,13 +308,13 @@ static func _steering_map_for(planning_map: RID) -> RID:
 ## `rebake` with the bake itself on a worker thread, so a frame never pays for it: the source
 ## geometry is gathered on the main thread now (the walls are read from the scene tree, the
 ## furniture from its live positions), the bake runs in the background, and the polygon is assigned
-## to `region` on the game frame `NavBakeConfig.district_frames` after the call (`NavBake`), when
-## `done` is called. A region freed meanwhile is left alone. `done` is called even when there is
-## nothing to bake. The planning region only: the
+## to `region` on the game frame `NavBakeConfig.district_frames` after the bake starts (`NavBake`:
+## at this call unless it waits its turn), when `done` is called. A region freed meanwhile is left
+## alone. `done` is called even when there is nothing to bake. The planning region only: the
 ## steering one is re-baked by `rebake_steering`. A test-facing seam that measures its own
 ## footprints; `nav_updater.gd` drives `NavRebake.planning`. Returns the bakes started (`NavBake`:
 ## the planning region's, then the ring's), to read each one's `was_late`.
-static func rebake_async(region: NavigationRegion2D, house: Node2D, rooms: Array,
+static func rebake_async(region: NavigationRegion3D, house: Node2D, rooms: Array,
 		agent_radius: float = AGENT_RADIUS, done: Callable = Callable()) -> Array[NavBake]:
 	return NavRebake.planning(
 		region,
@@ -317,13 +325,12 @@ static func rebake_async(region: NavigationRegion2D, house: Node2D, rooms: Array
 
 
 ## Bake a NavigationPolygon for `site` (its house over its rooms at its agent radius): the house
-## bounds minus the static wall colliders (doorways stay open) minus each solid furniture footprint
+## bounds minus the walls' twin footprints (doorways stay open) minus each solid furniture footprint
 ## (carved as a hole) and minus each of `characters` (footprints from `character_holes`; none = the
 ## planning bake). Returns null if there are no rooms. In the house's LOCAL frame — the region
 ## offsets it into world space. `build` bakes its steering region's first polygon with it. It
 ## gathers through `NavSource.job`, as the planning and steering bakes do, so all carve furniture
-## holes identically, and bakes through `NavSource.bake`, which welds the result to the 1 px grid:
-## every hole that meets a wall, a character's and a piece of furniture's, needs it.
+## holes identically, and bakes through `NavSource.bake` (the grid baker, interface 9).
 static func _bake_polygon(site: NavSite, characters: Array = []) -> NavigationPolygon:
 	var job := NavSource.job(site, furniture_holes(site.house), characters)
 	if job.is_empty():
@@ -333,34 +340,32 @@ static func _bake_polygon(site: NavSite, characters: Array = []) -> NavigationPo
 
 ## The furniture footprint holes a bake of `house` carves, each a closed WORLD-space polygon — the
 ## same solid-furniture selection and grown footprints `NavSource.add_holes` feeds the baker, so a
-## debug overlay drawing these shows exactly what was carved out. Re-measured from each collider's
-## live `global_transform` on every call, so it reflects where the furniture stands NOW — the
-## re-bakes `nav_updater.gd` drives rely on that to re-carve holes as pieces are shoved around in
-## play. A damaged piece has its primitive collider rebuilt into several deformed
-## ConvexPolygonShape2D pieces, so EACH of a body's collision shapes contributes to its footprint —
-## otherwise a dented piece's hole would vanish. A body's footprint is the convex hull of those
-## shapes: a dent's notches are far smaller than the agent, and baked in they leave sub-pixel
-## navmesh edges the NavigationServer cannot merge ("navigation map synchronization error"). Every
-## RigidBody2D with a collider is carved: shoved furniture, and an anchored piece (frozen static: a
-## streetlight's post), which never moves; walk-over decor is frozen too but has no collider, so it
-## leaves no hole. A door's leaf standing clear of its doorway is carved too, where it stands now
-## (`NavLeaves.hole`): out of the doorway, in the room it swings into, it is as solid as a piece of
-## furniture there.
+## debug overlay drawing these shows exactly what was carved out. Re-measured from each piece's
+## twin pose on every call, so it reflects where the furniture stands NOW — the re-bakes
+## `nav_updater.gd` drives rely on that to re-carve holes as pieces are shoved around in play. A
+## body's footprint is the convex hull of its twin's shape footprints, grown by the margin
+## (`NavHoles`): a dent does not change a twin, and its notches would be far smaller than the agent
+## (baked in, they leave sub-pixel navmesh edges the NavigationServer cannot merge). Every
+## piece with a twin is carved: shoved furniture, and an anchored piece (a streetlight's
+## post), which never moves; walk-over decor has no twin, so it leaves no hole. A door's leaf
+## standing clear of its doorway is carved too, where it stands now (`NavLeaves.hole`): out of the
+## doorway, in the room it swings into, it is as solid as a piece of furniture there.
 static func furniture_holes(house: Node2D) -> Array:
 	return NavHoles.furniture(house)
 
 
 ## The footprint holes of the living characters AT REST under `root` (the node the nav region lives
 ## under, which is also the house's parent), each a closed WORLD-space polygon, like
-## `furniture_holes`. A character is a CharacterBody2D with a collision layer (death clears the
-## layer: a corpse is walked over) that moves slower than `REST_SPEED`. Only the ones at rest: a
+## `furniture_holes`. A character is a plan handle in the group `characters` that is alive (a corpse
+## is
+## walked over) that moves slower than `REST_SPEED`. Only the ones at rest: a
 ## hole sits where a body stands in the way until it moves, and one that walks leaves none, because
 ## every character is inside its own hole and a walker's would seal or split the passage around
 ## itself (the hall, a doorway) and lead its own path the long way round. A character that stands
 ## still is carved, and so is one pushing against a wall or another body without getting anywhere;
 ## when it sets off its hole goes at the next re-bake. Every body at rest is carved, seen or not:
 ## which of them a walk accounts for is up to the walker (the AI's `Locomotion` goes round by this
-## map only for a body it knows of). Re-measured on every call from the live collider transform, so
+## map only for a body it knows of). Re-measured on every call from the character's twin pose, so
 ## the steering re-bakes `nav_updater.gd` drives follow the characters as they stop, set off, appear
 ## and die.
 static func character_holes(root: Node) -> Array:
@@ -368,10 +373,11 @@ static func character_holes(root: Node) -> Array:
 	if root == null:
 		return out
 	for node in root.get_children():
-		var body := node as CharacterBody2D
+		var body := node as Node2D
 		if (body == null
-				or body.collision_layer == 0
-				or body.get_real_velocity().length() >= REST_SPEED):
+				or not body.is_in_group(&"characters")
+				or body.get(&"is_dead")
+				or TwinSpace.real_velocity_of(body).length() >= REST_SPEED):
 			continue
 		var hull := NavHoles.hull_of(body)
 		if not hull.is_empty():
@@ -384,8 +390,8 @@ static func character_holes(root: Node) -> Array:
 
 ## The planning region `build` put on world map `planning_map`, or null when none stands there (or
 ## it has left the tree).
-static func planning_region(planning_map: RID) -> NavigationRegion2D:
-	var region := _planning_regions.get(planning_map) as NavigationRegion2D
+static func planning_region(planning_map: RID) -> NavigationRegion3D:
+	var region := _planning_regions.get(planning_map) as NavigationRegion3D
 	if region == null or not is_instance_valid(region) or not region.is_inside_tree():
 		return null
 	return region
@@ -400,8 +406,16 @@ static func planning_region(planning_map: RID) -> NavigationRegion2D:
 ## re-baked (the old mesh answers meanwhile) when the planning bake has been redone since. One
 ## nobody has asked for in `avoid_idle_frames` (1200 `GameClock` frames, 20 s) is freed by the next
 ## ask for another key on the same planning map, and every one is freed with its region (its world).
-## Invalid when the region has no bake to start from.
-static func avoid_map(region: NavigationRegion2D, key: String, holes: Array) -> RID:
+## Invalid when the region has no bake to start from. A bake past `NavBakeConfig.at_once` in flight
+## waits its turn (`NavBake`) and takes the planning bake as it is when it starts. With `repeats`
+## (the asker asks again every beat for as long as it wants the map), a waiting bake nobody has
+## asked for in `NavBakeConfig.held_ask_frames` when its turn comes is dropped: the next ask bakes.
+static func avoid_map(
+	region: NavigationRegion3D,
+	key: String,
+	holes: Array,
+	repeats := false,
+) -> RID:
 	if region == null or not region.has_meta(SOURCE_META):
 		return RID()
 	var planning_map := region.get_navigation_map()
@@ -419,11 +433,12 @@ static func avoid_map(region: NavigationRegion2D, key: String, holes: Array) -> 
 		var kept: Dictionary = entries[key]
 		kept["asked_frame"] = now
 		if not bool(kept["baking"]) and int(kept["version"]) != int(stored["version"]):
-			avoid_rebakes += 1
-			_bake_avoid(region, kept, holes)
+			if int(kept["version"]) >= 0:  # not a first bake that was dropped
+				avoid_rebakes += 1
+			_bake_avoid(region, kept, holes, repeats)
 		return kept["map"]
 	var map := NavSource.new_map()
-	var avoid_region := NavigationRegion2D.new()
+	var avoid_region := NavigationRegion3D.new()
 	avoid_region.name = AVOID_NAME
 	avoid_region.set_navigation_map(map)
 	var entry := {
@@ -435,10 +450,10 @@ static func avoid_map(region: NavigationRegion2D, key: String, holes: Array) -> 
 	}
 	entries[key] = entry
 	region.add_child(avoid_region)
-	NavReady.await_region(map, avoid_region, region.global_position)
+	NavReady.await_region(map, avoid_region, NavPlan.plan_of(region.global_position))
 	avoid_region.tree_exited.connect(_on_avoid_region_exited.bind(planning_map, key, map))
 	avoid_starts += 1
-	_bake_avoid(region, entry, holes)
+	_bake_avoid(region, entry, holes, repeats)
 	return map
 
 
@@ -451,25 +466,43 @@ static func _on_avoid_region_exited(planning_map: RID, key: String, map: RID) ->
 	if entries.is_empty():
 		_avoid_maps.erase(planning_map)
 	NavRoutes.forget(map)
-	NavigationServer2D.free_rid(map)
+	NavigationServer3D.free_rid(map)
 
 
-## Bake `entry`'s avoid region on a worker thread: the planning source geometry kept by
-## `NavSource.remember`, with `holes` (world space) added as obstructions, fused and snapped like
-## the furniture's. The polygon is assigned on the fixed frame the bake lands on (`NavBake`).
-static func _bake_avoid(region: NavigationRegion2D, entry: Dictionary, holes: Array) -> void:
-	var stored: Dictionary = region.get_meta(SOURCE_META)
-	var origin := region.global_position
-	var source := NavigationMeshSourceGeometryData2D.new()
-	source.set_traversable_outlines(stored["traversable"])
-	source.set_obstruction_outlines(stored["obstructions"])
-	NavSource.add_holes(source, origin, holes)
-	var nav_poly := NavSource.new_polygon(float(stored["agent_radius"]))
+## Bake `entry`'s avoid region on a worker thread (`NavBake`): the planning source geometry kept by
+## `NavSource.remember` as it is when the thread starts, with `holes` (world space) added as
+## obstructions, fused and snapped like the furniture's. The polygon is assigned on the fixed frame
+## the bake lands on.
+static func _bake_avoid(
+	region: NavigationRegion3D,
+	entry: Dictionary,
+	holes: Array,
+	repeats: bool,
+) -> void:
+	var origin := NavPlan.plan_of(region.global_position)
+	var carved := holes.duplicate()
+	var planning: WeakRef = weakref(region)
+	var job := {
+		"gather": func() -> Dictionary:
+			var stored: Dictionary = (planning.get_ref() as Node).get_meta(SOURCE_META)
+			var source := NavigationMeshSourceGeometryData2D.new()
+			source.set_traversable_outlines(stored["traversable"])
+			source.set_obstruction_outlines(stored["obstructions"])
+			NavSource.add_holes(source, origin, carved)
+			entry["version"] = int(stored["version"])
+			return {
+				"poly": NavSource.new_polygon(float(stored["agent_radius"])),
+				"source": source,
+			},
+	}
+	if repeats:
+		job["wanted"] = func() -> bool:
+			return GameClock.frame() - int(entry["asked_frame"]) <= NavBakeConfig.held_ask_frames
+		job["dropped"] = func() -> void: entry["baking"] = false
 	entry["baking"] = true
-	entry["version"] = int(stored["version"])
 	NavBake.start(
-		entry["region"] as NavigationRegion2D,
-		{ "poly": nav_poly, "source": source },
+		entry["region"] as NavigationRegion3D,
+		job,
 		origin,
 		func() -> void: entry["baking"] = false,
 		NavBake.frames_for(region, true),
@@ -518,10 +551,7 @@ static func snap_within(map: RID, p: Vector2, rect: Rect2, from: Vector2) -> Vec
 	for toward in [rect.get_center(), from]:
 		var steps := maxi(1, ceili(p.distance_to(toward) / SNAP_WITHIN_STEP))
 		for i in steps + 1:
-			var q := NavigationServer2D.map_get_closest_point(
-				asked,
-				p.lerp(toward, float(i) / steps),
-			)
+			var q := NavPlan.closest(asked, p.lerp(toward, float(i) / steps))
 			if rect.has_point(q) and route(map, from, q)[-1].distance_to(q) <= SNAP_REACHED:
 				return q
 	return snap(map, from)

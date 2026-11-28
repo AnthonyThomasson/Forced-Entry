@@ -55,10 +55,10 @@ func run(t: TestContext) -> void:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	ObjectMeshes.register(mirror.builders)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	var sofa := _rig(t, mirror, &"sofa")
 	var other := _rig(t, mirror, &"sofa_b")
@@ -82,7 +82,7 @@ func run(t: TestContext) -> void:
 
 
 ## A table wears its painter's art too (it once was a plain slab: no rig, no art).
-func _check_table(t: TestContext, mirror: WorldMirror) -> void:
+func _check_table(t: TestContext, mirror: MeshCarrier) -> void:
 	var rig := _rig(t, mirror, &"table")
 	if not t.require(rig != null, "the table has a rig"):
 		return
@@ -91,14 +91,13 @@ func _check_table(t: TestContext, mirror: WorldMirror) -> void:
 		"table", piece.get("size"), piece.get("color"),
 		piece.look.art_opts.merged({ "material": piece.object_material }, true),
 	)
-	var material := rig.body.material_override as ShaderMaterial
 	t.check(
-		material != null and material.get_shader_parameter(&"albedo_texture") == flat,
+		MeshNodes.shown_texture(rig.body) == flat,
 		"the table's top wears the table's flat render",
 	)
 
 
-func _rig(t: TestContext, mirror: WorldMirror, id: StringName) -> FurnitureRig:
+func _rig(t: TestContext, mirror: MeshCarrier, id: StringName) -> FurnitureRig:
 	var shown := mirror.proxies_of(t.object(id))
 	return shown[0] as FurnitureRig if shown.size() == 1 and shown[0] is FurnitureRig else null
 
@@ -116,7 +115,7 @@ func _check_dressed(t: TestContext, rig: FurnitureRig, piece: Node) -> void:
 		piece.look.art_opts.merged({ "material": piece.object_material }, true),
 	)
 	t.check(
-		material.get_shader_parameter(&"albedo_texture") == flat,
+		MeshNodes.shown_texture(rig.body) == flat,
 		"the body wears the sofa's flat render",
 	)
 	t.check(
@@ -129,8 +128,7 @@ func _check_dressed(t: TestContext, rig: FurnitureRig, piece: Node) -> void:
 ## A sofa facing left wears the canonical art turned a quarter: its front row is the left column.
 func _check_turned(t: TestContext, rig: FurnitureRig, piece: Node) -> void:
 	var size: Vector2 = piece.get("size")
-	var material := rig.body.material_override as ShaderMaterial
-	var worn: Image = (material.get_shader_parameter(&"albedo_texture") as Texture2D).get_image()
+	var worn := MeshNodes.shown_texture(rig.body).get_image()
 	t.check(
 		worn.get_size() == Vector2i(size),
 		"the turned art is the footprint's size: %s" % worn.get_size(),
@@ -153,7 +151,7 @@ func _check_turned(t: TestContext, rig: FurnitureRig, piece: Node) -> void:
 
 ## The sofa facing up (two turns) and right (three) wears the canonical art turned that way: the
 ## front row of the art (its bottom) lies along the top edge facing up, the right edge facing right.
-func _check_turns(t: TestContext, mirror: WorldMirror) -> void:
+func _check_turns(t: TestContext, mirror: MeshCarrier) -> void:
 	for id: StringName in [&"sofa_up", &"sofa_right"]:
 		var rig := _rig(t, mirror, id)
 		if t.require(rig != null, "%s has a rig" % id):
@@ -163,8 +161,7 @@ func _check_turns(t: TestContext, mirror: WorldMirror) -> void:
 ## `piece`'s art lies with its front row along the edge its facing names.
 func _check_turned_edge(t: TestContext, id: StringName, rig: FurnitureRig, piece: Node) -> void:
 	var spec := FurnitureSpec.of(piece)
-	var material := rig.body.material_override as ShaderMaterial
-	var texture: Texture2D = material.get_shader_parameter(&"albedo_texture")
+	var texture := MeshNodes.shown_texture(rig.body)
 	var worn := texture.get_image()
 	var canon := ObjectArt.flat(
 		"sofa", spec.size, piece.get("color"),
@@ -184,7 +181,7 @@ func _check_turned_edge(t: TestContext, id: StringName, rig: FurnitureRig, piece
 
 
 ## The bed's blanket wears the same art over the same footprint.
-func _check_blanket(t: TestContext, mirror: WorldMirror) -> void:
+func _check_blanket(t: TestContext, mirror: MeshCarrier) -> void:
 	var rig := _rig(t, mirror, &"bed")
 	if not t.require(rig is FurnitureBedRig, "the bed has its rig"):
 		return
@@ -198,7 +195,7 @@ func _check_blanket(t: TestContext, mirror: WorldMirror) -> void:
 
 
 ## An overhang piece's canvas covers its footprint and its overhang.
-func _check_overhang(t: TestContext, mirror: WorldMirror, id: StringName) -> void:
+func _check_overhang(t: TestContext, mirror: MeshCarrier, id: StringName) -> void:
 	var rig := _rig(t, mirror, id)
 	if not t.require(rig != null, "%s has a rig" % id):
 		return
@@ -213,8 +210,7 @@ func _check_overhang(t: TestContext, mirror: WorldMirror, id: StringName) -> voi
 			and rect.grow(0.01).encloses(turn * Rect2(-spec.size * 0.5, spec.size)),
 		"%s: the art covers the footprint and the overhang (%s)" % [id, rect],
 	)
-	var material := rig.body.material_override as ShaderMaterial
-	var worn: Texture2D = material.get_shader_parameter(&"albedo_texture")
+	var worn := MeshNodes.shown_texture(rig.body)
 	t.check(
 		worn.get_size() == rect.size,
 		"%s: the canvas is the rect, a texel a pixel (%s for %s)" % [

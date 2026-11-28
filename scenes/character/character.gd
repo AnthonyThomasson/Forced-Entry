@@ -1,4 +1,4 @@
-extends CharacterBody2D
+extends Node2D
 ## Character domain: a generic top-down character. It owns the body's health, its aim-based
 ## "facing" and the hit and push contracts, and holds a typed component per topic (`movement`,
 ## `inventory`, `weapon`, `ammo`, `stun`, `use`, `anatomy`, `wardrobe`). It reads its intent from
@@ -59,6 +59,8 @@ var wardrobe: CharacterWardrobe
 
 
 func _enter_tree() -> void:
+	# a plan handle the twin space twins (and the game finds bodies by)
+	add_to_group(TwinSpace.BODIES)
 	wardrobe = $Wardrobe as CharacterWardrobe
 	# Its place in its world's spawn order and its gait phase off the world's stream (`WorldRng`,
 	# interface 11).
@@ -71,13 +73,6 @@ func _ready() -> void:
 	add_to_group(&"characters")
 	# The living move: drawn only inside the player's view cone (interface 11, `ViewLayers`).
 	ViewLayers.set_moving(self, true)
-	# Top-down: no floor/ceiling, so a moving body it touches is never ridden as a platform.
-	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
-	# Build the body's collision circle to match `radius`.
-	var circle := CircleShape2D.new()
-	circle.radius = radius
-	($CollisionShape2D as CollisionShape2D).shape = circle
-
 	health = max_health
 
 	movement.controller = _find_controller()
@@ -190,14 +185,15 @@ func report_shot(body: Node, damage: float) -> void:
 
 
 ## What this character sees by, for a view made for it: `fov_degrees`, `view_distance`,
-## `awareness_radius` and `see_over_coverage` (`CharacterVisionConfig`), the numbers the NPCs see by
-## too. Read duck-typed by the Vision domain.
+## `awareness_radius` (`CharacterVisionConfig`), the numbers the NPCs see by too, and `eye_height`,
+## the height (px) of its eye in the posture it is in (`BodyHeights`): a piece taller than that
+## breaks the line of sight, a lower one is looked over. Read duck-typed by the Vision domain.
 func sight() -> Dictionary:
 	return {
 		"fov_degrees": CharacterVisionConfig.fov_degrees,
 		"view_distance": CharacterVisionConfig.view_distance,
 		"awareness_radius": CharacterVisionConfig.awareness_radius,
-		"see_over_coverage": CharacterVisionConfig.see_over_coverage,
+		"eye_height": BodyHeights.eye(movement.body_posture()),
 	}
 
 
@@ -213,23 +209,21 @@ func take_stun(blind: float, deaf: float) -> void:
 # --- Hittable contract (struck by projectiles: flesh surface + deformation) -------------
 
 
-## The character's ballistic surface: partial cover (the body's height, so a lower posture is struck
-## by fewer shots and hides behind lower cover), low penetration, flesh material and a base color
-## for debris styling. Read by the Projectile System.
+## The character's ballistic surface: low penetration, flesh material and a base color for debris
+## styling. Read by the Projectile System (what the body covers is its twin's real height).
 func get_surface() -> Dictionary:
 	return {
-		"coverage": CharacterPostureConfig.postures[movement.posture()]["coverage"],
 		"penetration": CharacterHitConfig.flesh_penetration,
 		"material": CharacterHitConfig.flesh_material,
 		"color": CharacterHitConfig.flesh_color,
 	}
 
 
-## The surface a round flying at `height` (0..100) along `direction` meets (the Projectile System
-## asks before it resolves): the body's own (`get_surface()`) where nothing protects it, else the
-## armour over that zone and side (`Outfit.layer`): its `penetration`, `material` and `color`, plus
-## `stop_power` (a round below it is stopped) and `inner_material` (the flesh a round that gets
-## through strikes). A `height` below 0 is the plain surface.
+## The surface a round flying at `height` (px above the floor) along `direction` meets (the
+## Projectile System asks before it resolves): the body's own (`get_surface()`) where nothing
+## protects it, else the armour over that zone and side (`Outfit.layer`): its `penetration`,
+## `material` and `color`, plus `stop_power` (a round below it is stopped) and `inner_material` (the
+## flesh a round that gets through strikes). A `height` below 0 is the plain surface.
 func get_surface_at(height: float, direction: Vector2) -> Dictionary:
 	var surface := get_surface()
 	if height < 0.0:
@@ -248,17 +242,14 @@ func get_surface_at(height: float, direction: Vector2) -> Dictionary:
 	return surface
 
 
-## The hit zone (`&"feet"`, `&"legs"`, `&"torso"`, `&"head"`) a round at `height` (0..100) strikes:
-## its height over the posture's coverage against `CharacterHitConfig.zones`. `&""` for no height
-## (below 0: a blast, the whole body).
+## The hit zone (`&"feet"`, `&"legs"`, `&"torso"`, `&"head"`) a round at `height` (px above the
+## floor) strikes: where that height falls in the bands of the posture's body
+## (`BodyHeights.zone_at`: the same height is a standing body's legs and a ducked one's torso).
+## `&""` for no height (below 0: a blast, the whole body).
 func _hit_zone(height: float) -> StringName:
 	if height < 0.0:
 		return &""
-	var share := height / maxf(movement.posture_coverage(movement.posture()), 0.001)
-	for row: Array in CharacterHitConfig.zones:
-		if share <= float(row[1]):
-			return row[0]
-	return &"head"
+	return BodyHeights.zone_at(movement.body_posture(), height)
 
 
 ## The side (`&"front"`, `&"flank"`, `&"back"`) a blow travelling along `direction` strikes: the
@@ -338,10 +329,9 @@ func _die(direction: Vector2) -> void:
 	ammo.cancel()
 	# The body stops bleeding, is drawn beneath the living and casts no shadow.
 	anatomy.die()
-	# A corpse is just a body on the floor: clear its collision layer so the living (and bullets,
-	# punches, sight lines and the dropped item, all on layer 1) pass right over it instead of being
-	# blocked.
-	collision_layer = 0
+	# A corpse is just a body on the floor: its twin leaves the character layer (`is_dead`, read by
+	# `CharacterTwin.twin_update`) so the living (and bullets, punches, sight lines and the dropped
+	# item) pass right over it instead of being blocked.
 	use.end_interaction()
 	use.abandon()  # Killed boarding or getting out: the ride ends where the body is.
 	var momentum := movement.momentum()
@@ -351,7 +341,7 @@ func _die(direction: Vector2) -> void:
 	stun.clear()  # A dead body sees and hears nothing more to fade.
 	anatomy.fall(momentum, direction)
 	inventory.drop_held(momentum)
-	velocity = Vector2.ZERO
+	movement.velocity = Vector2.ZERO
 	EventBus.post(&"death", { "character": self, "position": global_position })
 	died.emit()
 

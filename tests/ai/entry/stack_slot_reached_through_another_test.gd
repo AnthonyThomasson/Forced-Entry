@@ -86,7 +86,7 @@ func run(t: TestContext) -> void:
 ## (an avoid map carved with the body's footprint, `NavBuilder.avoid_map`); a failed check says
 ## why not.
 func _pocket_behind_slot_three(t: TestContext, f: Dictionary) -> bool:
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	var spots := _spots(t, f, map)
 	if spots.is_empty():
 		return false
@@ -108,7 +108,7 @@ func _spots(t: TestContext, f: Dictionary, map: RID) -> Dictionary:
 	var entry := Slots.entry_geometry(t.world.openings, t.rooms)
 	if not t.require(entry != null, "set-up: the AI's entry geometry is there"):
 		return {}
-	var space := t.world.get_world_2d().direct_space_state
+	var space := TwinSpace.space_of(t.world)
 	var g: Dictionary = entry.geometry(f["id"], f["room_key"], map, space)
 	var slots: Array = Slots.layout(g, STACK, 1)["slots"]
 	if not t.require(

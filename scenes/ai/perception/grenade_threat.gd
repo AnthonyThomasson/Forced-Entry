@@ -9,5 +9,13 @@ var kind: StringName = &""
 var radius: float = 0.0
 ## Where it bursts (where it lies, or will come down).
 var burst: Vector2 = Vector2.ZERO
+## How high (px) its centre is over the floor there: a grenade on the floor's, one at rest on a
+## desk or a shelf its top's more (`Explosion.BURST_CENTRE` plus `ThrownGrenade.altitude()`).
+var burst_height: float = Explosion.BURST_CENTRE
 ## The seconds left before it goes off.
 var fuse_left: float = 0.0
+
+
+## The burst point in the twin space: `burst` lifted to `burst_height`.
+func point() -> Vector3:
+	return PlanSpace.lift(burst, burst_height)

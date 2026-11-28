@@ -12,6 +12,9 @@ var _fire_press_on_ui := false
 var _held_door: Node2D = null
 ## The wheel turned that door during this hold, so the release does not toggle it.
 var _use_scrolled := false
+## A click came while the body was rising to fire and waits for the rise to end (taken once), so a
+## click on a semi-automatic gun is not lost to the rise.
+var _click_pending := false
 
 
 ## While Space is held on a door, the wheel and a trackpad's scroll turn that door by steps instead
@@ -28,10 +31,10 @@ func _input(event: InputEvent) -> void:
 
 ## Called by the character at the top of its _physics_process, so the intent we write is
 ## used the same frame.
-func control(character: CharacterBody2D, _delta: float) -> void:
+func control(character: Node2D, _delta: float) -> void:
 	character.movement.move_input = _move_keys(character)
 	character.movement.run_input = Keybinds.is_run_pressed()
-	character.movement.aim_point = Pointer.world_mouse(character)
+	_aim(character)
 
 	var selected := Keybinds.get_selected_item()
 	if selected > 0:
@@ -50,11 +53,24 @@ func control(character: CharacterBody2D, _delta: float) -> void:
 	_interact(character)
 
 
+## The cursor's aim: where its line meets a character's body, at that height; else, over
+## cover that hides a body, that point on the cover; else the floor point under it, the shot flying
+## level at the muzzle's height.
+func _aim(character: Node2D) -> void:
+	var meets := Pointer.aim_hit(character, character)
+	if meets.is_empty():
+		character.movement.aim_point = Pointer.world_mouse(character)
+		character.movement.aim_height = CharacterMovement.AIM_LEVEL
+	else:
+		character.movement.aim_point = meets["plan"]
+		character.movement.aim_height = meets["height"]
+
+
 ## The movement keys as a direction in the world. The keys are relative to the screen (W is up the
 ## screen at any camera yaw, `Pointer.world_direction`); with no camera rig bound the screen is the
 ## world, so they are as pressed. Seated in a vehicle they stay raw: they are the vehicle's throttle
 ## and steer, never turned by the camera (`docs/vehicles.md`).
-func _move_keys(character: CharacterBody2D) -> Vector2:
+func _move_keys(character: Node2D) -> Vector2:
 	var keys := Keybinds.get_move_vector()
 	if character.use.is_in_vehicle():
 		return keys
@@ -65,7 +81,7 @@ func _move_keys(character: CharacterBody2D) -> Vector2:
 ## getting out of a vehicle at the press. A door does not: its tap toggles it at the release, so
 ## that a hold can scroll it instead (DR7), and a hold that scrolled leaves it where the scroll put
 ## it.
-func _interact(character: CharacterBody2D) -> void:
+func _interact(character: Node2D) -> void:
 	if Keybinds.is_interact_just_pressed():
 		_held_door = null
 		_use_scrolled = false
@@ -83,13 +99,23 @@ func _interact(character: CharacterBody2D) -> void:
 ## Pull the trigger: once per click, and for as long as the button is held with an automatic gun
 ## (the gun paces itself). A click on a HUD control (the overlay bar, a panel) belongs to the UI,
 ## not the gun. Input polling ignores GUI mouse filters, so ask the viewport what the pointer is
-## over. A press that began on the UI stays the UI's however far it is dragged.
-func _fire(character: CharacterBody2D) -> void:
+## over. A press that began on the UI stays the UI's however far it is dragged. A click that comes
+## while the body rises over its cover to fire waits for the rise (`_click_pending`) and is void
+## if the rise is dropped first.
+func _fire(character: Node2D) -> void:
 	var over_ui: bool = character.get_viewport().gui_get_hovered_control() != null
 	if Keybinds.is_fire_just_pressed():
 		_fire_press_on_ui = over_ui
 	if over_ui or _fire_press_on_ui:
 		return
-	if (Keybinds.is_fire_just_pressed()
-			or (Keybinds.is_fire_pressed() and character.weapon.is_automatic())):
-		character.weapon.shoot()
+	var clicked := Keybinds.is_fire_just_pressed()
+	var held: bool = Keybinds.is_fire_pressed() and character.weapon.is_automatic()
+	var rising: bool = character.weapon.rise.rising()
+	# The rise dropped (stood up, changed posture) before the body could fire: the click is void.
+	if _click_pending and character.weapon.rise.pose() == BodyHeights.NONE:
+		_click_pending = false
+	if clicked or held or (_click_pending and not rising):
+		# The click that came while the body rose is taken once, as it has risen.
+		var fired: bool = character.weapon.shoot()
+		var waits: bool = character.weapon.rise.rising() and not fired
+		_click_pending = (clicked or _click_pending) and waits

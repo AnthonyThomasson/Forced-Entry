@@ -10,9 +10,6 @@ var style := ""
 var color := Color.GRAY
 ## The panes are shattered: the frame stays, the glass is gone.
 var broken := false
-## The door lies knocked down mirrored across the leaf's length (its hinge edge toward `+y`): the
-## 3D slab is laid the same way.
-var flipped := false
 
 
 ## The surface finish the leaf is drawn in (`PixelCanvas.surface`): metal for steel, else wood (a
@@ -21,11 +18,10 @@ func finish() -> String:
 	return "metal" if material == "steel" else "wood"
 
 
-## The options the door painter is handed for the leaf standing (`fallen` false) or lying knocked
-## down.
-func art_opts(fallen: bool) -> Dictionary:
+## The options the door painter is handed for the leaf.
+func art_opts() -> Dictionary:
 	return {
-		"part": "fallen" if fallen else "leaf",
+		"part": "leaf",
 		"style": style,
 		"door_material": material,
 		"broken": broken,

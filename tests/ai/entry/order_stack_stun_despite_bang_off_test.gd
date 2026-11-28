@@ -33,7 +33,6 @@ func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	s.von_down()
 	s.switch(&"ai.hostile_on_trespass", false)
-	s.switch(&"projectile.flyover", false)
 	Bang.stack(s)
 	s.actor(&"mate", &"puppet", Vector2(1000, 330), { "faction": &"invader" })
 	s.actor(&"lead", &"puppet", Vector2(1250, 600), { "faction": &"invader" })

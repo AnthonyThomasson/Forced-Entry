@@ -7,8 +7,8 @@ extends GameTest
 
 const OutfitProbe := preload("res://tests/_outfit/outfit_probe.gd")
 const HELMET := { "head": &"helmet" }
-const HEAD := 55.0
-const TORSO := 40.0
+const HEAD := 70.0
+const TORSO := 50.0
 const LANES := [
 	{ "id": &"helmet_pistol", "outfit": HELMET, "gun": &"pistol", "height": HEAD },
 	{ "id": &"helmet_smg", "outfit": HELMET, "gun": &"smg", "height": HEAD },
@@ -35,7 +35,6 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 900, 500))
 	s.switch(&"nav.rebake", false)
 	s.switch(&"physics.debris", false)
-	OutfitProbe.pin_height(s)
 	OutfitProbe.lay_lanes(s, LANES)
 
 

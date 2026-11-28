@@ -18,7 +18,6 @@ func configure(s: TestSetup) -> void:
 	s.von_script([{ "pick": "combat" }])
 	s.switch(&"ai.callouts", true)
 	s.switch(&"ai.hostile_on_trespass", false)
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"defender", &"defender", Vector2(650, 300))
 	s.actor(
 		&"attacker",

@@ -1,8 +1,8 @@
 # Meshes: how a domain gives its things a 3D mesh (`scenes/art/mesh/`, interface 12 and 27)
 
-The 3D render (#193, ADR 0013) shows every 2D body by a proxy box until its domain gives it a mesh. Each domain owns its meshes, as it
+The 3D render (ADR 0015) shows each body by the mesh its domain gives it, carried on its twin; with none, nothing. Each domain owns its meshes, as it
 owns its painters: the builders live **beside the painters** (`scenes/objects/art/table_mesh.gd`), built from Art's **mesh kit**, and the
-domain plugs them into the mirror's hook. The pattern, proved on the table (`ObjectMeshes`, `TableMesh`, `ObjectMeshConfig`, `tests/objects/table_mesh_test.gd`), every job copies; the building's structure (`StructureMeshes`: walls as one instance per segment, a door that follows its body and lies down by `mirror_update`, floors, the street) shows a kind's hook and a node that keeps itself in step (`domain-objects/art.md`). The domestic furniture (rig, cache-key suite, windowed pictures): `domain-objects/meshes.md`. A piece with moving parts (doors that swing, wheels that steer, lamps that glow, dents) is Vehicles' `VehicleMeshRig` (`domain-vehicle/art.md`): a cached hull, parts on child nodes and a `mirror_update` that sets their transforms.
+domain plugs them into the carrier's hook. The pattern, proved on the table (`ObjectMeshes`, `TableMesh`, `ObjectMeshConfig`, `tests/objects/table_mesh_test.gd`), every job copies; the building's structure (`StructureMeshes`: walls as one instance per segment, a door that follows its body and lies down by `mirror_update`, floors, the street) shows a kind's hook and a node that keeps itself in step (`domain-objects/art.md`). The domestic furniture (rig, cache-key suite, windowed pictures): `domain-objects/meshes.md`. A piece with moving parts (doors that swing, wheels that steer, lamps that glow, dents) is Vehicles' `VehicleMeshRig` (`domain-vehicle/art.md`): a cached hull, parts on child nodes and a `mirror_update` that sets their transforms.
 
 ## The parts
 
@@ -20,7 +20,7 @@ A builder works in the art's own units and **never multiplies by `RenderConfig.u
 `decal` convert. A footprint is in 2D px (`x`, `y` of the piece's frame, `y` down the screen) and a height in px above the ground:
 `MeshKit.volume(footprint, base, height)` is the box `(x, base, y)` to `(x + w, base + height, y + d)`; 2D `(x, y)` is 3D `(x, height, y)`.
 A builder's node is in the **body's frame**: its origin is the body's origin (a footprint is centred on it: `Rect2(-size / 2, size)`),
-and the mirror turns it with the body (a 2D turn clockwise is `-angle` about +y; the mirror does it).
+and the carrier hangs it on the body's twin (a 2D turn clockwise is `-angle` about +y; a character's mesh is turned by it).
 
 ## Colour: a tone from the ramp, banded by the material
 
@@ -35,27 +35,28 @@ sides a darker tone, its legs the shadow tone. A face's colour is the painter's,
    through `MeshCache.fetch` (key = id + footprint + colour + the options that change the shape; a furniture piece: `FurnitureSpec.of(piece)` and `FurnitureMesh.fetch(art, spec, tuning, ...)`), and return `FurnitureMesh.show(piece, mesh)`: the rig wearing the painter's flat art (a bare `MeshNodes.instance(mesh)` is a plain slab).
 2. List it in the domain's registry (`ObjectMeshes.BUILDERS`: art id -> script) whose `register(builders)` puts each under its hook key.
 3. Main's `main_view3d.gd` `_register_meshes()` calls the domain's `register(mirror.builders)` (Main knows every domain; Art never imports
-   one). Nothing else changes: a body with no builder keeps its proxy, and the builder returning null does too.
+   one). Nothing else changes: a body with no builder, or whose builder returns null, has no mesh.
 
 **The hook keys, floors, drawn things that are no physics body** (`track`, `track_group`: a domain's spawner only `add_to_group`s and Main's `_register_meshes()` tracks the group) and
-the rules the mirror follows: `mesh-hook.md`. A finer key is for one art id (`MirrorProxy.furniture_key("table")`) and wins over the `FURNITURE` kind.
-A mesh whose parts move with a pose is the character's: `CharacterMeshes.register` plugs `BodyMesh`, which `mirror_update` places between the 2D rig's joints (`domain-character`).
+the carrier's rules: `mesh-hook.md`. A finer key is for one art id (`MeshKinds.furniture_key("table")`) and wins over the `FURNITURE` kind.
+A posed mesh is the character's: `CharacterMeshes.register` plugs `BodyMesh`, which `mirror_update` places on the rig (`domain-character`).
+Posed parts, one draw: `part-skin.md`.
 
-## Heights (px; a standing character is 74, a wall 96: `MirrorConfig`)
+## Heights (px; 42.3 a metre, a character 74, a wall 96: `BodyHeights`, `ObjectStructureMeshConfig`)
 
-Plausible, not exact; one number per class, in the domain's own holder (`ObjectMeshConfig`).
+Real sizes (`docs/research/3d-cover-heights.md`), one number per class in its domain's holder; `PieceHeights` (28) reads them back.
 
 | Class | Height | Class | Height |
 |---|---|---|---|
-| Wall | 96 (`MirrorConfig.wall_height`) | Door leaf | 84 |
-| Character standing | 74 | Character crouched | `CharacterPostureConfig`'s crouch `height` times standing (`docs/cover-and-stance.md`) |
-| Table, desk, bench top | 30 (top 4 thick) | Coffee table, side table | 18 to 22 |
-| Chair seat / back | 18 / 36 | Sofa seat / back | 18 / 38 |
-| Bed frame / mattress top | 14 / 22 | Counter, island | 34 |
-| Shelf, cabinet, wardrobe | 70 to 80 | Fridge, vending machine | 70 |
-| Toilet, bath rim | 20 | Plant | 30 to 40 |
-| Streetlight post | 130 | Car body / roof | 36 / 52 (a van 46 / 78) |
-| Rug, mat, floor stencil | 0.5 (a decal, not a solid) | Dropped item, casing | 2 to 6 |
+| Wall | 96 (`ObjectStructureMeshConfig.wall_height`) | Door leaf | 84 |
+| Character standing | 74 (`BodyHeights`) | Character ducked | head top 36 |
+| Table, desk top | 31 | Coffee table, side table | 18 / 22 |
+| Chair seat / back | 18 / 38 | Sofa seat / arm / back | 18 / 28 / 38 |
+| Bed mattress / headboard | 22 / 34 | Counter, dresser, cabinet | 38 (+ backsplash 6) |
+| Bookshelf, fridge | 77, 74 | Vending machine | 78 |
+| Toilet cistern, bath rim | 30, 20 | Plant | 40 |
+| Streetlight post | 130 | Car prop body / roof | 40 / 60 (drivable: `VehicleMeshConfig`) |
+| Rug, mat, stencil | 0.5 (a decal) | Dropped item, casing | 2 to 6 |
 
 A tall solid (a wall, a wardrobe) hides what is behind it: the wall-fade job (rule 9) fades those near the player (`MeshNodes.fade`), so a mesh job does not shorten a
 wall to keep the view clear, and a wall is its own instance, never merged with its neighbours.
@@ -63,7 +64,7 @@ wall to keep the view clear, and a wall is its own instance, never merged with i
 ## Tests
 
 A pure builder question (a solid's size, a face's colour and winding) is a native suite on the kit (`tests/art/mesh_kit_suite.gd`); a domain's mesh is a
-`GameTest` that mirrors a body with `ObjectMeshes.register(mirror.builders)` and asserts the mesh the body is shown by: its size from the piece's own data
+`GameTest` that carries a body with `ObjectMeshes.register(carrier.builders)` and asserts its mesh: its size from the piece's own data
 and the how-to's height (a copy of the spec's number, as `table_mesh_test.gd` keeps), its colour, that two pieces alike share one `Mesh`, and half the size at
 `RenderConfig.unit = 0.5`. What the picture looks like is only judged in a window: `tests/objects/table_mesh_windowed_test.gd` (`MESHKIT_SHOT=<png>` saves it)
 is the one to copy; shaders compile only windowed (`art/toon_vision_hook_windowed`).

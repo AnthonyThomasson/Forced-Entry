@@ -47,7 +47,6 @@ func configure(s: TestSetup) -> void:
 	# premise).
 	s.set_static(DecisionStub, "fail", false)
 	s.switch(&"ai.hostile_on_trespass", false)
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"i", &"invader", I_AT, { "facing": (H_AT - I_AT).normalized() })
 	GrenadeAi.hostile(s, &"h", H_AT, Maps.DOOR_BACK)
 
@@ -81,7 +80,7 @@ func run(t: TestContext) -> void:
 func _move_behind(t: TestContext, inv: Node, brain: Node) -> bool:
 	DecisionStub.fail = true
 	inv.global_position = BEHIND
-	inv.velocity = Vector2.ZERO
+	inv.movement.velocity = Vector2.ZERO
 	var failed := await t.until(
 		func(): return not brain.debug_state().get("decision", {}).get("pending", false),
 		5.0,

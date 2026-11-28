@@ -121,7 +121,7 @@ func _walk(t: TestContext, world: Node2D, viewed: bool) -> Dictionary:
 		await t.frames(1)
 		if viewed and not views.is_empty():
 			_track_age(out, npc, views[0])
-	_route = NavBuilder.route(world.get_world_2d().navigation_map, npc.global_position, LEAD)
+	_route = NavBuilder.route(NavWorld.map_of(world), npc.global_position, LEAD)
 	out["route_points"] = _route.size()
 	Hall.gunfire(LEAD)
 	var last_facing: Vector2 = npc.get("facing")

@@ -88,7 +88,7 @@ func run(t: TestContext) -> void:
 ## The set-up: the plain route crosses the store room doorway's view, and the way round below its
 ## far end is within the cap. False when one does not hold.
 func _set_up_holds(t: TestContext) -> bool:
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	var plain := NavBuilder.route(map, START, GUNFIRE)
 	var plain_len := NavBuilder.path_length(plain)
 	var crosses := false

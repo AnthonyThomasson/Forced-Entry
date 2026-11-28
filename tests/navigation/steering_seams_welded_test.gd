@@ -37,21 +37,30 @@ func _seed() -> int:
 	return SEED
 
 
+## Which tiles' corners the character stops on, as fractions of the grid.
+func _stops() -> Array:
+	return STOPS
+
+
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)
-	var region := t.world.find_children("NavRegion", "NavigationRegion2D", true, false)[0]
-	var tiles := NavBuilder.steering_regions(region as NavigationRegion2D)
+	var region := t.world.find_children("NavRegion", "NavigationRegion3D", true, false)[0]
+	var tiles := NavBuilder.steering_regions(region as NavigationRegion3D)
 	if not t.require(Seams.pairs(tiles).size() > 20, "premise: the steering map is tiles"):
 		return
 	_expect_welded(t, tiles, "as built")
-	for fraction: float in STOPS:
-		var tile: NavigationRegion2D = tiles[int(tiles.size() * fraction)]
+	for fraction: float in _stops():
+		var tile: NavigationRegion3D = tiles[int(tiles.size() * fraction)]
 		var rect: Rect2 = tile.get_meta(NavTiles.RECT_META)
 		var baked := NavTiles.baked_total
-		t.actor(&"p").global_position = tile.to_global(rect.end)
+		t.actor(&"p").global_position = NavPlan.global_of(tile, rect.end)
 		await t.seconds(LANDS_WITHIN)
 		t.check(NavTiles.baked_total > baked, "premise: the character's stop re-baked tiles")
-		_expect_welded(t, tiles, "after a character stopped at %s" % tile.to_global(rect.end))
+		_expect_welded(
+			t,
+			tiles,
+			"after a character stopped at %s" % NavPlan.global_of(tile, rect.end),
+		)
 
 
 ## The borders of `tiles` are welded (`what` names the moment).
@@ -62,3 +71,5 @@ func _expect_welded(t: TestContext, tiles: Array, what: String) -> void:
 		"every shared border is welded %s; not: %s" % [what, faults.slice(0, 6)],
 	)
 	t.expect_eq(NavSeams.unsplit_total, 0, "no edge of a real bake was left uncut %s" % what)
+	t.expect_eq(
+		NavSeams.rounds_exhausted_total, 0, "no weld ran out of rounds agreeing borders %s" % what)

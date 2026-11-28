@@ -23,6 +23,8 @@ var _followed: Array[Node2D] = []
 var _frame_mode: bool = false
 ## The nodes to keep framed (the match combatants).
 var _frame_targets: Array[Node2D] = []
+## The ground the framing keeps to (world px; empty = anywhere): a target outside it is not framed.
+var _frame_within := Rect2()
 ## Framing mode only: the viewer has taken over the position.
 var _manual: bool = false
 ## Seconds since the last pan while `_manual`.
@@ -33,10 +35,9 @@ var _base_zoom: float = 1.0
 var _zoom_bias: float = 1.0
 ## The 3D render's zoom in whole steps and the wheel's place in them.
 var _steps := ZoomSteps.new()
-## Last mouse position seen over the window.
-var _mouse_pos := Vector2.ZERO
-## Edge panning needs a live pointer: not yet seen, or left, = off.
-var _mouse_in_window: bool = false
+## Last mouse position seen over the window; `Vector2.INF` while there is none (not yet seen, or
+## the pointer left): edge panning needs a live pointer.
+var _mouse_pos := Vector2.INF
 ## 0..1, how much the camera is shaking now.
 var _trauma: float = 0.0
 ## Phase (rad) of the shake's wobbles, advanced at `CameraShakeConfig.speed` while shaking.
@@ -58,13 +59,12 @@ func _ready() -> void:
 ## it stops counting as an edge pan.
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_MOUSE_EXIT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
-		_mouse_in_window = false
+		_mouse_pos = Vector2.INF
 
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		_mouse_pos = event.position
-		_mouse_in_window = true
 
 
 ## The mouse wheel (or whatever ZOOM_IN / ZOOM_OUT are bound to) and a trackpad's two-finger scroll
@@ -130,8 +130,11 @@ func focus_targets() -> Array[Node2D]:
 
 ## Switch to framing mode: ease to keep every live node in `targets` on screen (used by the
 ## spectator match view and the test runner's shared camera, whose zoom then starts afresh). A
-## General observer: reads only Node2D positions and the `is_dead` property.
-func frame(targets: Array) -> void:
+## General observer: reads only Node2D positions and the `is_dead` property. `within` is the ground
+## the world covers (empty: anywhere): a target standing outside it (an actor parked off the stage)
+## is not framed, so the view does not zoom out to empty ground for it.
+func frame(targets: Array, within := Rect2()) -> void:
+	_frame_within = within
 	_frame_targets.clear()
 	for t in targets:
 		if t is Node2D:
@@ -189,7 +192,7 @@ func _ease_zoom(out_scale := 1.0) -> void:
 
 ## Pan direction from the mouse pushing against a screen edge: each axis -1, 0 or 1.
 func _edge_pan() -> Vector2:
-	if CameraConfig.edge_pan_margin <= 0.0 or not _mouse_in_window:
+	if CameraConfig.edge_pan_margin <= 0.0 or _mouse_pos == Vector2.INF:
 		return Vector2.ZERO
 	var size := get_viewport_rect().size
 	return Vector2(
@@ -200,16 +203,16 @@ func _edge_pan() -> Vector2:
 
 
 ## Centre on the midpoint of the live framed targets (unless the viewer holds the position) and zoom
-## to fit them plus `CameraConfig.frame_margin`. A downed combatant drops out of the framing; once
-## all are down it holds on the last positions.
+## to fit them plus `CameraConfig.frame_margin`. A downed combatant drops out of the framing, and so
+## does one outside the `within` ground; once all are down it holds on the last positions.
 func _frame_combatants() -> void:
 	var live: Array[Node2D] = []
 	for t in _frame_targets:
-		if is_instance_valid(t) and t.get("is_dead") != true:
+		if is_instance_valid(t) and t.get("is_dead") != true and _framed(t):
 			live.append(t)
 	if live.is_empty():
 		for t in _frame_targets:
-			if is_instance_valid(t):
+			if is_instance_valid(t) and _framed(t):
 				live.append(t)
 	if live.is_empty():
 		return
@@ -229,6 +232,11 @@ func _frame_combatants() -> void:
 	for t in live:
 		out = maxf(out, _drive_zoom_out(t))
 	_ease_zoom(1.0 - out)
+
+
+## Whether `who` stands on the ground the framing keeps to (`frame`'s `within`).
+func _framed(who: Node2D) -> bool:
+	return _frame_within.size == Vector2.ZERO or _frame_within.has_point(who.global_position)
 
 
 ## The space the framing measures the combatants in: the screen at zoom 1 (the ground's
@@ -252,13 +260,20 @@ func _drive_zoom_out(who: Node) -> float:
 	return clampf(float(ride.call("view_zoom_out")), 0.0, 0.9)
 
 
+## Where the followed character is: its own place. A vehicle it rides is written from its twin in
+## the same physics frame the drawn mesh stands at (`TwinSpace`), and the seat is placed from that,
+## so the place followed is the drawn seat.
+func follow_point() -> Vector2:
+	return _player.global_position
+
+
 ## The point the camera eases toward: the target, led toward the mouse. On each screen axis the lead
 ## eases from nothing inside `CameraConfig.look_ahead_dead_zone` to its full reach at
 ## `look_ahead_full_at`, and the full reach leaves the target `look_ahead_edge_margin` screen pixels
 ## in from the opposite edge, so the view looks as far as it can without losing the character. Read
 ## in screen space, so the camera's own move never feeds back into it.
 func _calculate_target_position() -> Vector2:
-	var player_pos := _player.global_position
+	var player_pos := follow_point()
 	var half := get_viewport_rect().size * 0.5
 	if half.x <= 0.0 or half.y <= 0.0:
 		return player_pos

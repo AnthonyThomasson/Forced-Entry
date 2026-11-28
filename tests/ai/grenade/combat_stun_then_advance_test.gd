@@ -12,9 +12,10 @@ extends GameTest
 ## shoots; the invader is armed with one stun here because the test world keeps the default
 ## inventory, the way Main arms a spawn.
 
+const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
-const INVADER_AT := Vector2(450, 31)
+const INVADER_AT := Vector2(350, 31)
 const HOSTILE_AT := Vector2(800, 31)
 
 
@@ -31,12 +32,15 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	Hiding.von_out(s)
 	s.layout(
 		[{ "key": "hall", "type": "hallway", "rect": Rect2(0, 0, 900, 140) }],
 		[{ "pos": Vector2(0, 70), "width": 80.0 }],
 	)
-	s.object(&"sofa", "sofa", Vector2(700, 31))
+	s.object(&"sofa", Hiding.low_cover("sofa"), Vector2(690, 31))
 	s.actor(&"i", &"invader", INVADER_AT, { "facing": Vector2.RIGHT })
+	# Standing, the hostile is seen and shot over the sofa; the run has it duck once it is seen, and
+	# the invader then knows it behind cover it cannot shoot through (`docs/grenades.md` G17).
 	GrenadeAi.hostile(s, &"h", HOSTILE_AT, INVADER_AT)
 
 
@@ -44,11 +48,9 @@ func run(t: TestContext) -> void:
 	var inv := t.actor(&"i")
 	var hostile := t.actor(&"h")
 	Probe.arm(inv, 1, 0)
-	if not t.require(
-			Probe.count(inv, Probe.STUN) == 1,
-			"the invader carries a stun grenade (Character.inventory.item_count(7) = %d)"
-				% Probe.count(inv, Probe.STUN),
-	):
+	if not await Hiding.duck_after_seen(t, &"h", &"i"):
+		return
+	if not t.require(Probe.count(inv, Probe.STUN) == 1, "the invader carries a stun grenade"):
 		return
 	var seen: Array = []
 	if not t.require(

@@ -15,6 +15,8 @@ const OPTIONS := [
 ## How far the tube and the strokes stand proud of the blade's face, and how thick a stroke is.
 const PROUD := 0.5
 const STROKE := 1.6
+## How tall a glyph on the sign stands, px (the blade is a little taller).
+const GLYPH := 16.0
 
 
 ## The node an awning `piece` is shown by, in 3D units with its origin at the piece's origin.
@@ -231,7 +233,7 @@ static func _ink(spec: FurnitureSpec, i: int) -> Mesh:
 	var colour: Color = _inks(spec)[i % _inks(spec).size()]
 	var along := spec.overhang.position.y + 10.0 + float(i) * 30.0
 	var top := ObjectMeshOverheadConfig.hanging_rod - 4.0
-	for at in FurnitureGlyphs.strokes(_characters(spec)[i], 18.0, STROKE):
+	for at in FurnitureGlyphs.strokes(_characters(spec)[i], GLYPH, STROKE):
 		for face in _faces(blade):
 			kit.box(
 				MeshKit.volume(

@@ -22,20 +22,37 @@ extends GameTest
 ## the test is neither skipped nor tagged.
 ## #203: the numbers above are seed 7's fight, another fight than this guard plays now (not a
 ## baseline to read a change by, nor a sign of the guard getting faster or slower). The match plays
-## one fight per seed, seed 2 now (`perf_probe.gd`).
+## one fight per seed, seed 23 now (`perf_probe.gd`).
 ## Where the viewed invader stands decides what the window shows of it, and the guard means the
 ## view of an invader while it fights, alive (the premise below). The match's nine invaders start
 ## in a pack in the street, the defenders in the house to the south. Placed 40 px east of each:
 ## beside the first, second, third, fourth, sixth or eighth the viewed invader is shot dead;
 ## beside the fifth and the ninth it lives but never fights (retreat, evade and investigate acts,
 ## never nearer than 255 px to a defender); beside the seventh the sides make no contact in 30 s.
-## Beside the fourth, 40 px west, it lives through the window (health 26.7 of 50), engages in 243
-## of the 300 frames (`engage/fire_east`, then `advance`), knows a hostile in all of them and
-## comes within 97 px of a defender; contact is at 8.2 s, the window 8.2 to 13.2 s. So it stands
-## `BESIDE` the invader `BESIDE_INVADER` of the match. Only where it stands is set here: the seed,
+## Beside the fourth, 40 px west, it lived through the window (health 26.7 of 50), engaged in 243
+## of the 300 frames (`engage/fire_east`, then `advance`), knew a hostile in all of them and came
+## within 97 px of a defender; contact was at 8.2 s, the window 8.2 to 13.2 s. Sight by real heights
+## (#194, eye rays from the postures' eyes) changed the fight: beside the fourth it is shot dead
+## now, and beside the first, 40 px west, it lives (full health), holds, moves, enters and engages.
+## So it stands `BESIDE` the invader `BESIDE_INVADER` of the match. Only where it stands is set
+## here: the seed,
 ## `Perf.configure_match` and the budgets are those of every match guard.
 ## Three `--quiet` runs (load 3.7 to 4.4): avg 20.06, 20.06 and 20.11, p95 26.73, 26.74 and 26.62,
 ## max 33.86, 32.71 and 33.14 ms. The budgets stay red (accepted, #223).
+## AI cover on real heights (#194), 2026-11-18, not `--quiet`: the commit
+## before it (`aa484b5c`) in plain runs p95 22.24 and 20.27 ms (contact at 13.1 s of sim); with it
+## p95 27.3, 26.7, 27.8 and 27.2, max 34 to 37 ms (contact at 17.9 s: the fight differs from frame
+## 206). `perf_ab.sh --different-fights`, four rounds, medians avg / p95 / max: 16.41 / 21.86 /
+## 26.23 then 16.09 / 27.38 / 35.80 ms. The average is not worse (-2.0%); the tail is a different
+## fight's (the viewer's cone rebuilds as it moves), within the spread this guard has had (p95 23 to
+## 28, max 35 to 41 ms), not a cost of the cover rule: the 10v10 and 5v5 stress guards, whose fights
+## the same change leaves alike, moved -2.0% and -2.1% avg.
+## Real-height fragments and escape judgments (#194), `perf_ab.sh --different-fights`, six
+## rounds: this fight is the same on both revisions, avg 17.13 / 17.19 ms (+0.3%), p95 23.41 /
+## 23.88, max 29.54 / 28.80; the 5v5, grenade and 10v10 guards +1.5%, -1.7% and +0.3% avg. Still
+## over budget (accepted, #223). A seed re-pick (1 to 28) found none that holds every guard and
+## replay: `perf_probe.gd` has the sweep (seed 5 holds this guard at avg 13.0 to 13.3, p95 17.9 to
+## 18.9 ms).
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const Probe := preload("res://tests/_vision/vision_probe.gd")
@@ -44,8 +61,8 @@ const MEASURE_FRAMES := 300
 const NODE_GROWTH := 5000
 ## The viewed invader stands this far (px) beside the invader `BESIDE_INVADER` of the match.
 const BESIDE := Vector2(-40.0, 0.0)
-## Which of the match's nine invaders (spawn order, from 0) it stands beside: the fourth.
-const BESIDE_INVADER := 3
+## Which of the match's nine invaders (spawn order, from 0) it stands beside: the first.
+const BESIDE_INVADER := 0
 
 
 func describe() -> Dictionary:

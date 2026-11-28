@@ -13,10 +13,9 @@ const OBJECTS := {
 		"art": "counter",
 		"art_opts": {
 			"basin": "single",
-			"props": [{ "kind": "cutting_board", "at": Vector2(0.22, 0.55) }],
 		},
+		"carries": [{ "key": "cutting_board", "at": Vector2(-26.3, 3.3), "on_top": true }],
 		"weight": 70,
-		"coverage": 55,
 		"penetration": 70,
 		"interactions": [
 			{ "id": "prep", "label": "Prep food" },
@@ -30,8 +29,17 @@ const OBJECTS := {
 		"color": Color(0.3, 0.3, 0.32),
 		"material": "metal",
 		"art": "hotplate",
+		"carries": [
+			{
+				"key": "hob", "at": Vector2(0, 0), "size": Vector2(34, 24), "lift": 12.0,
+				"height": 3.0,
+			},
+			{
+				"key": "pan", "at": Vector2(6.5, 0), "size": Vector2(27, 22), "lift": 15.0,
+				"height": 4.0,
+			},
+		],
 		"weight": 12,
-		"coverage": 40,
 		"penetration": 40,
 		"interactions": [
 			{ "id": "cook", "label": "Cook" },
@@ -47,7 +55,6 @@ const OBJECTS := {
 		"art": "appliance",
 		"art_opts": { "panel": "fridge" },
 		"weight": 40,
-		"coverage": 60,
 		"penetration": 70,
 		"interactions": [
 			{ "id": "open", "label": "Open fridge" },

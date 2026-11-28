@@ -110,7 +110,7 @@ func _shoot_all(t: TestContext, camera: Camera2D, at: Vector2, shot_name: String
 
 ## The room's mesh shows its marks: decals on its floor and on a wall segment.
 func _check_room(t: TestContext, main: Node, room: Dictionary) -> void:
-	var mirror: WorldMirror = main.get_node("View3D").mirror
+	var mirror: MeshCarrier = main.get_node("View3D").carrier
 	var floor_shown := mirror.proxies_of(room["floor"])
 	t.check(
 		not floor_shown.is_empty() and floor_shown[0].get_child_count() > 0,

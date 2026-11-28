@@ -132,7 +132,7 @@ func _place() -> void:
 		Vector3(deg_to_rad(-RenderConfig.pitch_degrees), deg_to_rad(yaw), 0.0)
 	)
 	var focus := _source.get_screen_center_position()
-	var ground := Vector3(focus.x, 0.0, focus.y) * RenderConfig.unit
+	var ground := PlanSpace.lift(focus)
 	var middle := _middle(screen)
 	ground += (turned.x * middle.x - turned.y * middle.y) * _pixel
 	var offset := Vector2(ground.dot(turned.x), ground.dot(turned.y))

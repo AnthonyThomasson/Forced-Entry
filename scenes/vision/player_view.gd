@@ -3,7 +3,7 @@ extends Node2D
 ## The Vision domain's one node: what one character sees, drawn for the player
 ## (`docs/player-vision.md`), a leaf like Lighting. The match builder builds it through
 ## `watch(root, viewer)` for Main's human and the Testing world's viewer (interface 25); it reads
-## the viewer only duck-typed (`facing`, `global_position`, `get_rid()`, `sight()`, `is_dead`, and
+## the viewer only duck-typed (`facing`, `global_position`, `sight()`, `is_dead`, and
 ## its `died` and `tree_exiting` signals, on which the view lifts) and imports nothing but General.
 ##
 ## Each physics frame, after its viewer has moved and turned, it builds the exact polygon of the
@@ -49,7 +49,7 @@ func _notification(what: int) -> void:
 
 
 func _ready() -> void:
-	_watch.attach(get_tree(), [_viewer.get_rid()])
+	_watch.attach(get_tree(), [_viewer.get_instance_id()], TwinSpace.of_world(get_parent()))
 	process_priority = PRIORITY
 	ground = Ground.new()
 	ground.name = "Ground"
@@ -74,8 +74,8 @@ func _physics_process(_delta: float) -> void:
 	var sight: Dictionary = _viewer.sight()
 	# One slice of the cone's job (`ViewPipeline`): held while nothing the polygon is made of has
 	# changed, published when a job completes.
-	var space := get_world_2d().direct_space_state
-	if _pipeline.tick(space, eye, facing, [_viewer.get_rid()], sight):
+	var space := TwinSpace.space_of(self)
+	if _pipeline.tick(space, eye, facing, [], sight):
 		_publish_area()
 
 
@@ -133,6 +133,35 @@ func rebuild_causes() -> Dictionary:
 	return _pipeline.causes.duplicate()
 
 
+## Whether the cone published last is of a settling job: the one built past the restart cap, with
+## blockers that moved under `VisionSliceConfig.settle_px` since its start taken as where they were
+## (a test's read).
+func settled_publish() -> bool:
+	return _pipeline.settled_publish
+
+
+## How many blockers stand off the snapshot of the cone's job by under `ViewWatch.STILL_PX`, and the
+## most any is off it (px): what a cone built from the snapshot differs from the live world by
+## (a test's read).
+func creeping() -> int:
+	return _watch.creeping()
+
+
+## How many of those are within reach of a ray (a creeper behind the viewer is none of them).
+func creeping_in_reach() -> int:
+	return _watch.creeping_in_reach()
+
+
+## Whether the view's watch hears the twin space it was built beside (a test's read).
+func hears_twins() -> bool:
+	return _watch.hears_twins()
+
+
+## The most (px) any blocker stands off the snapshot of the cone's job.
+func creep_lag() -> float:
+	return _watch.lag()
+
+
 ## Whether a rebuild is in flight: the cone published is older than the world and the viewer.
 func building() -> bool:
 	return _pipeline.running()
@@ -176,6 +205,7 @@ func _publish_area() -> void:
 		for corner in polygon:
 			bounds = bounds.expand(corner)
 	SeenArea.set_area(polygons, bounds)
+	SeenArea.set_viewer(_viewer)
 	ground.publish(_cone.cone, _cone.bubble, _cone.eye)
 
 

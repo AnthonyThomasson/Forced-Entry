@@ -8,6 +8,7 @@ extends GameTest
 ## (`cone_units`) and a frame that did none spent none. The spec's numbers are kept here: a restart
 ## cap of two, a jump past 48 px.
 
+const RawTwins := preload("res://tests/_vision/raw_twins.gd")
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const Probe := preload("res://tests/_vision/vision_probe.gd")
 const EYE_AT := Vector2(200, 300)
@@ -86,10 +87,9 @@ func run(t: TestContext) -> void:
 
 ## A solid joins the world in the cone, in a place of its own each time.
 func _join(t: TestContext, i: int) -> void:
-	var body := StaticBody2D.new()
-	body.collision_layer = PhysicsLayers.SOLID
+	var body := RawTwins.Solid.new()
 	body.position = Vector2(450.0 + 12.0 * i, 280.0)
-	var shape := CollisionShape2D.new()
+	var shape := RawTwins.Shape.new()
 	var rect := RectangleShape2D.new()
 	rect.size = SIZE
 	shape.shape = rect

@@ -201,7 +201,7 @@ func flank_group(t: Dictionary, a: Dictionary, rooms: Array) -> Dictionary:
 				_v.room_name(room["type"]) if not room.is_empty() else "outside",
 			],
 			"desc": " — ".join(_flank_parts(s, tpos, room)),
-			"params": { "point": s["point"] },
+			"params": { "point": s["point"], "via": s["via"] },
 			"tags": _geo_tags(
 				s,
 				{

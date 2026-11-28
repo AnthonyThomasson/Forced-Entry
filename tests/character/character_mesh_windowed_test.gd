@@ -10,6 +10,7 @@ extends GameTest
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const CameraScript := preload("res://scenes/general/camera_controller.gd")
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const SCRATCH := "user://settings_character_mesh_windowed_test.json"
 const SIZE := Vector2i(1152, 648)
 const SPEC := {
@@ -23,7 +24,7 @@ const ZOOMS := [3.0, 1.0]
 ## What a shot is taken with: the window, the match's root and the character (set by `run`).
 var _window: SubViewport
 var _main: Node
-var _character: CharacterBody2D
+var _character: Node2D
 
 
 func describe() -> Dictionary:
@@ -58,7 +59,7 @@ func run(t: TestContext) -> void:
 	if built.is_empty():
 		return
 	_send_others_away(built["world"], _character)
-	var mirror: WorldMirror = _main.get_node("View3D").mirror
+	var mirror: MeshCarrier = _main.get_node("View3D").carrier
 	_hide_walls(built["world"], mirror)  # full-height walls would stand between the camera and it
 	var shown := mirror.proxies_of(_character)
 	t.check(
@@ -189,23 +190,23 @@ func _shoot(t: TestContext, name: String, zoom: float) -> void:
 
 ## Hide the proxies of every wall, so the picture shows what stands inside the rooms (the walls
 ## fade round the player only in the wall-fade job).
-func _hide_walls(world: Node, mirror: WorldMirror) -> void:
-	for body: Node in world.find_children("*", "PhysicsBody2D", true, false):
-		if MirrorProxy.kind_of(body) in [MirrorProxy.WALL, MirrorProxy.DOOR]:
+func _hide_walls(world: Node, mirror: MeshCarrier) -> void:
+	for body: Node in PlanProbe.bodies_under(world):
+		if MeshKinds.kind_of(body) in [MeshKinds.WALL, MeshKinds.DOOR]:
 			for proxy in mirror.proxies_of(body):
 				proxy.visible = false
 
 
 ## The first living character the match built.
-func _first_character(world: Node) -> CharacterBody2D:
-	for body: Node in world.find_children("*", "CharacterBody2D", true, false):
+func _first_character(world: Node) -> Node2D:
+	for body: Node in PlanProbe.characters_under(world):
 		if not body.get("is_dead"):
-			return body as CharacterBody2D
+			return body as Node2D
 	return null
 
 
 ## The other characters moved far off, so a picture of `character` shows it alone.
 func _send_others_away(world: Node, character: Node2D) -> void:
-	for body: Node in world.find_children("*", "CharacterBody2D", true, false):
+	for body: Node in PlanProbe.characters_under(world):
 		if body != character:
 			(body as Node2D).global_position = Vector2(-6000.0, -6000.0)

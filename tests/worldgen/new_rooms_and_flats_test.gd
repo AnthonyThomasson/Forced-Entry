@@ -212,11 +212,10 @@ func _check_pieces(t: TestContext, own: Dictionary) -> void:
 
 
 ## Catalogue piece `key`'s definition `def` is sane: named, shaped, sized, of a known material,
-## with coverage, penetration and weight, and drawn by a painter.
+## with penetration and weight, and drawn by a painter.
 func _check_definition(t: TestContext, key: String, def: Dictionary) -> void:
 	var size: Vector2 = def.get("size", Vector2.ZERO)
 	var solid: bool = def.get("solid", true)
-	var coverage: float = def.get("coverage", 0.0)
 	var penetration: float = def.get("penetration", 0.0)
 	t.check(String(def.get("name", "")) != "", "%s has a display name" % key)
 	t.check(
@@ -235,16 +234,12 @@ func _check_definition(t: TestContext, key: String, def: Dictionary) -> void:
 		"%s has a known material (%s)" % [key, def.get("material", "")],
 	)
 	t.check(
-		coverage >= 0.0
-			and coverage <= 100.0
-			and penetration >= 0.0
-			and penetration <= 100.0,
-		"%s has coverage and penetration within 0-100 (%s, %s)"
-			% [key, coverage, penetration],
+		penetration >= 0.0 and penetration <= 100.0,
+		"%s has a penetration within 0-100 (%s)" % [key, penetration],
 	)
 	t.check(
-		not solid or coverage > 0.0,
-		"%s is solid, so it covers something (coverage %s)" % [key, coverage],
+		not solid or PieceHeights.top_of(def) > 0.0,
+		"%s is solid, so it stands above the floor (top %s)" % [key, PieceHeights.top_of(def)],
 	)
 	t.check(float(def.get("weight", 0.0)) > 0.0, "%s has a weight" % key)
 	t.check(String(def.get("art", "")) != "", "%s is drawn by a painter (art)" % key)
@@ -252,14 +247,12 @@ func _check_definition(t: TestContext, key: String, def: Dictionary) -> void:
 
 ## Piece `key` spawns through ObjectFactory into a piece reporting its definition `def`'s surface.
 func _check_spawned(t: TestContext, key: String, def: Dictionary) -> void:
-	var coverage: float = def.get("coverage", 0.0)
 	var penetration: float = def.get("penetration", 0.0)
 	var piece := ObjectFactory.spawn(def, FAR, t.world)
 	if t.check(piece != null, "%s spawns through ObjectFactory" % key):
 		var surface: Dictionary = piece.get_surface()
 		t.check(
 			surface["material"] == def.get("material", "")
-				and is_equal_approx(surface["coverage"], coverage)
 				and is_equal_approx(surface["penetration"], penetration),
 			"a spawned %s reports its surface (%s)" % [key, surface],
 		)

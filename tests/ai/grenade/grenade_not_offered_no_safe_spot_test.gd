@@ -1,101 +1,95 @@
 extends GameTest
-## G17 (amended): GRENADE is dropped when the thrower itself would be inside the grenade's danger
-## zone and has no way to get safe before the fuse is out: no cover that shields a crouched body
-## from the landing spot (G7), and no spot out of the blast's line of sight within reach. It is
-## offered when it does. Two walled rooms, the same layout in each: an invader with a frag, a
-## hostile 260 px away (inside a frag's 370 px zone) hidden by a piece of furniture across the line.
-## In one room the piece is a coffee table (coverage 30, below a crouched body's 35: it hides the
-## hostile from a bullet and lets a lob over, but shields nobody) and the room has nothing else: no
-## GRENADE. In the other it is a couch (45) a few steps away: GRENADE is offered. Scripted Von; the
-## NPCs walk (they are not held) because "in time" depends on being able to move.
+## G17, the dropping rule for the thrower (tag `no_safe_spot`, in the tactic's `drop_tags`):
+## GRENADE is not offered when the thrower would itself be inside the zone and has no way to get
+## safe before the fuse runs out: no piece of furniture to shield it (G7, the real 3D line: a
+## ducked hostile's cover shadows a thrower, so such a case is rare), no spot out of the burst's
+## line within reach. A householder stands in the kitchen, in the open, in line with the back
+## doorway; an invader with a frag stands in the garden in line with the doorway, 280 px from the
+## burst (inside a frag's 370 px zone), with nothing to hide behind and held in place (`movement:
+## speed` 0: it cannot walk to the wall beside the doorway, which would shield it). GRENADE is not
+## offered, the option is tagged `no_safe_spot` and nothing is thrown. Given its legs back, the
+## same invader has the wall to reach in the 3 s of the fuse: the option is not tagged and GRENADE
+## is offered. Scripted Von; the householder is a puppet that cannot be killed and never shoots.
 
+const Maps := preload("res://tests/_ai/flank_maps.gd")
+const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
+const Spot := preload("res://tests/_ai/throw_spot_probe.gd")
 const Flank := preload("res://tests/_ai/flank_probe.gd")
-const BARE_N := Vector2(100, 150)
-const BARE_H := Vector2(360, 150)
-const COVER_N := Vector2(100, 450)
-const COVER_H := Vector2(360, 450)
+const INVADER_AT := Vector2(980, 190)
+const HOSTILE_AT := Vector2(700, 190)
+## The invader's walking speed when it has its legs back.
+const SPEED := 200.0
 
 
 func describe() -> Dictionary:
 	return {
-		"name": "A grenade is not offered when the thrower could not get safe from it",
-		"description": "An invader 260 px from a hidden hostile with only a coffee table (no "
-			+ "shield) near gets no GRENADE; the same invader with a couch a few steps away, "
-			+ "behind which it can crouch, does.",
-		"tags": ["ai", "grenade", "combat", "cover", "scripted"],
-		"timeout": 30.0,
+		"name": "A grenade is not offered when the thrower has no way to get safe",
+		"description": "An invader with a frag, held in the open in line with a doorway 280 px "
+			+ "from a householder inside, has no safe place before the fuse is out: GRENADE is "
+			+ "dropped and the option tagged no_safe_spot; free to walk to the wall beside the "
+			+ "doorway, it is offered.",
+		"tags": ["ai", "grenade", "combat", "scripted"],
+		"timeout": 40.0,
 	}
 
 
 func configure(s: TestSetup) -> void:
-	# Two rooms with a wall between and no door, one outer door each at the far end (over 600 px
-	# from the invaders: out of reach in a fuse).
-	s.layout([
-		{ "key": "north", "type": "living_room", "rect": Rect2(0, 0, 900, 300) },
-		{ "key": "south", "type": "kitchen", "rect": Rect2(0, 300, 900, 300) },
-	], [{ "pos": Vector2(880, 0), "width": 60.0 }, { "pos": Vector2(880, 600), "width": 60.0 }])
-	s.object(&"table", "coffee_table", Vector2(230, 150))
-	s.object(&"couch", "sofa", Vector2(230, 450))
+	Hiding.von_out(s)
+	Maps.house(s, false)
 	Flank.rules(
 		s,
 		[{ "pick": "combat" }, { "pick": "engage" }, { "pick": "advance" }, { "pick": "retreat" }],
 	)
-	for pair in [
-			[&"bare_n", BARE_N, BARE_H, &"bare_h"],
-			[&"cover_n", COVER_N, COVER_H, &"cover_h"],
-	]:
-		s.actor(pair[0], &"invader", pair[1], { "facing": Vector2.RIGHT })
-		s.set_props(
-			pair[0],
-			"GoalController",
-			{
-				"tuning:decision:max_commit_time": 0.4,
-				"tuning:decision:tactic_interval": 0.4,
-				"tuning:decision:decide_interval": 0.4,
-			},
-		)
-		GrenadeAi.hostile(s, pair[3], pair[2], pair[1])
+	Flank.npc(s, &"n", INVADER_AT, {}, { "look_at": HOSTILE_AT })
+	GrenadeAi.hostile(s, &"h", HOSTILE_AT, INVADER_AT)
 
 
 func run(t: TestContext) -> void:
-	for id in [&"bare_n", &"cover_n"]:
-		Probe.arm(t.actor(id), 0, 1)
+	var n := t.actor(&"n")
+	Probe.arm(n, 0, 1)
 	if not t.require(
-			Probe.count(t.actor(&"bare_n"), Probe.FRAG) == 1
-				and Probe.count(t.actor(&"cover_n"), Probe.FRAG) == 1,
-			"both invaders carry a frag grenade",
+			Probe.count(n, Probe.FRAG) == 1,
+			"the invader carries a frag grenade",
 	):
 		return
-	# the tactic level offered at each frame the invader was inside the zone
-	var seen := { &"bare": [], &"cover": [] }
-	var pairs := { &"bare": [&"bare_n", &"bare_h"], &"cover": [&"cover_n", &"cover_h"] }
-	var end := t.time + 8.0
-	while t.time < end:
-		for key in pairs:
-			var n := t.actor(pairs[key][0])
-			var h := t.actor(pairs[key][1])
-			var offered := GrenadeAi.offered(t.controller(pairs[key][0], &"current_act"))
-			if (not offered.is_empty()
-					and n.global_position.distance_to(h.global_position) <= Probe.FRAG_ZONE - 20.0):
-				seen[key].append(offered)
-		await t.frames(1)
-	var real := func(key: StringName) -> Array:
-		return seen[key].filter(func(o): return o.has("engage") or o.has("advance"))
+	var brain := t.controller(&"n", &"current_act")
+	if not t.require(await Flank.settle(t, brain), "the invader decides"):
+		return
+	var zone := _throw_zone(brain)
 	if not t.require(
-			real.call(&"bare").size() >= 30 and real.call(&"cover").size() >= 30,
-			"set-up: both invaders were deciding inside the zone (%d and %d frames)"
-				% [real.call(&"bare").size(), real.call(&"cover").size()],
+			not zone.is_empty() and n.global_position.distance_to(HOSTILE_AT) < Probe.FRAG_ZONE,
+			"set-up: a frag option against the householder exists, the invader inside its zone",
 	):
 		return
 	t.check(
-		seen[&"cover"].any(func(o): return o.has("grenade")),
-		"the invader with a couch at hand is offered GRENADE",
+		zone["tags"].get("no_safe_spot", false),
+		"the option is tagged no_safe_spot (tags %s)" % str(zone["tags"]),
 	)
 	t.check(
-		not seen[&"bare"].any(func(o): return o.has("grenade")),
-		"the invader with only a coffee table (and no way out of line) is never offered it, though "
-			+ "the hostile is hidden and in range",
+		not GrenadeAi.offered(brain).has("grenade"),
+		"GRENADE is not offered (offered %s)" % str(GrenadeAi.offered(brain)),
 	)
 	t.check(not t.happened(&"throw"), "and nothing was thrown")
+
+	# Its legs back: the wall beside the doorway is within the fuse's reach.
+	n.movement.speed = SPEED
+	await Flank.settle(t, brain)
+	zone = _throw_zone(brain)
+	t.check(
+		not zone.is_empty() and not zone["tags"].get("no_safe_spot", false),
+		"free to walk the option is not tagged (tags %s)" % str(zone.get("tags")),
+	)
+	t.check(
+		GrenadeAi.offered(brain).has("grenade"),
+		"and GRENADE is offered (offered %s)" % str(GrenadeAi.offered(brain)),
+	)
+
+
+## The frag's option against the householder in the last snapshot, or {}.
+func _throw_zone(brain: Node) -> Dictionary:
+	for z: Dictionary in Spot.throws(brain):
+		if z.get("kind", &"frag") == &"frag":
+			return z
+	return {}

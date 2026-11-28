@@ -2,7 +2,8 @@
 
 Every match and test world is lit at **dusk** with real lights and shadows: no light is baked into any art. The game is drawn in 3D
 and these are its lights. Behaviours L1 to L11 are the spec, each with its tests named under it, following the convention of
-`docs/grenades.md`. (The "2D" this file compares with is the look of the earlier 2D render, which the 3D one matches.) The tests are
+`docs/grenades.md`. (The "2D" this file compares with is the look of the earlier 2D render, which no longer exists: the 3D one was tuned to match it, and the
+numbers say what it does now.) The tests are
 in `tests/lighting/` (`tools/run_tests.sh --domain=lighting`), through `tests/_lighting/lighting_3d_probe.gd` and the data reads of
 `tests/_lighting/lighting_probe.gd`, which keep the plan's numbers as their own consts and read the game only through the published
 names below, so a test checks this file and not the code. The code is the Lighting domain (`scenes/lighting/`, skill
@@ -15,8 +16,8 @@ All distances are px and times seconds. The numbers are the Lighting holders' (`
 
 The game is drawn in 3D (`architecture` interface 27, #193): a near top-down orthographic camera over meshes that wear the
 2D painters' flat art, shaded by Art's toon light (`toon_common.gdshaderinc`). The Lighting domain's 3D side is
-`WorldLighting3D` (`scenes/lighting/world_lighting_3d.gd`), which Main builds under the 3D view's own world after it mirrors the
-match (`Main._view3d.light_world`): it reads the 2D world the sim runs in, duck-typed (Objects' floors
+`WorldLighting3D` (`scenes/lighting/world_lighting_3d.gd`), which Main builds in the 3D view's world (the twins', interface 29) once the
+match is built (`Main._view3d.light_world`): it reads the 2D world the sim runs in, duck-typed (Objects' floors
 (`is_street()`, `size`), a piece's `get_lights()`, the rooms), and builds the lights of the 3D world. Its numbers are
 `Lighting3DConfig` (the sun, the heights, the pools) and `LightingCostConfig` (the cost caps), over the dusk's colours and energies
 in `LightingConfig`.
@@ -43,8 +44,10 @@ like the 2D drop shadow, not the streak of a low sun (a character casts none of 
 sky mask) is white on every street floor and black under every house and tower floor and the walls round them
 (`floor_reach`), so a tower is lit from within as in 2D (a house or the arena, with no street floor, gets no sky), and the
 tower's shadow on the street is the wall's, short and hard. A street floor is one that says `is_street()` (Objects' `Floor`). With `lighting.enabled` off no light is built: the ambient is
-white and the one sun too dim to show, so the art is as painted.
-Tests: `lighting/light_3d_dusk_and_sky` (the ambient, the sun's colour, energy, direction, elevation and shadows, a wall's shadow
+white and the one sun too dim to show, so the art is as painted. Since the sun reaches only the street, its shadow pass draws only the
+meshes whose shadow can fall there (the rest are on a layer it does not cast from); the picture is the same as with all of them.
+Tests: `lighting/sun_casts_only_what_reaches_the_street`, `lighting/sun_casters_same_picture_windowed`,
+`lighting/light_3d_dusk_and_sky` (the ambient, the sun's colour, energy, direction, elevation and shadows, a wall's shadow
 short, the sky on every point of street ground out of a tower and in none), `lighting/light_3d_look_windowed` (windowed: the
 street warm and bright, the house the art times the ambient, the wall's shadow dark behind it and gone past its reach),
 `general/render_light_top_in_base_band` (the sun puts a flat top in the top band; the camera is near top-down),
@@ -53,7 +56,7 @@ street warm and bright, the house the art times the ambient, the wall's shadow d
 **L2-3D. A light per light-giving piece.** Every light a piece declares (`get_lights()`: `offset`, `colour`, `energy`,
 `radius`, `rhythm`, `room_light`, `street`, `height`) becomes an `OmniLight3D` at the piece's place, in its colour at its
 energy, hung where the glowing part of the piece is: the declaration's `lift` (px above the floor, `ObjectArtLightConfig.specs`, one row per kind:
-a lamp's bulb at its shade 50, a TV's face 16, a desk monitor's and a monitor wall's 39, a rack's LEDs 72, a rig's and a surgical lamp's 70,
+a lamp's bulb at its shade 50, a TV's face 16, a monitor item's 8 over its own base (a desk's top or the floor: it rides the item, `rides`) and a monitor wall's 39, a rack's LEDs 72, a rig's and a surgical lamp's 70,
 a tool cart's 34, a scanner's 60, a fridge's glass 42, a menu board's 63, a hotplate's 15, a neon tube's 3, a neon trim's 14, a street
 lamp's head and a sign at the top of its pole 124), else its kind's `height` (`overhead_height` 60, `street_height` 70, `low_height` 22),
 over the declared place on the floor (the piece's own centre, a lamp's and a street lamp's included: it stands on its pole), and

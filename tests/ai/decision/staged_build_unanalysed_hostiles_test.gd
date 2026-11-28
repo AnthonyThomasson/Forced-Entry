@@ -10,17 +10,15 @@ extends GameTest
 const NPC := Vector2(150, 250)
 ## Nearest first, left to right.
 const SPOTS := [Vector2(300, 100), Vector2(400, 100), Vector2(500, 100), Vector2(600, 100)]
-const START := 0
-const HOSTILE := 1
-const FINISH := 2
+const Piece := preload("res://scenes/ai/perception/snapshot/snapshot_build.gd").Piece
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "A staged snapshot analyses the engaged and nearest hostiles and lists the rest",
 		"description": "With four hostiles known and the third engaged, the build runs a start, "
-			+ "a piece for the nearest and one for the engaged hostile, and a finish; all four "
-			+ "are listed with their line; the snapshot equals the one-shot build's.",
+			+ "a run of pieces for the nearest and one for the engaged hostile, and a finish; all "
+			+ "four are listed with their line; the snapshot equals the one-shot build's.",
 		"tags": ["ai", "decision", "snapshot", "scripted"],
 		"timeout": 10.0,
 	}
@@ -57,9 +55,7 @@ func run(t: TestContext) -> void:
 	while not staged.done():
 		kinds.append(staged.next_piece())
 		staged.step()
-	t.expect_eq(
-		kinds, [START, HOSTILE, HOSTILE, FINISH], "a piece for each of the two analysed hostiles"
-	)
+	_check_pieces(t, kinds)
 	var stepped: Dictionary = staged.result()
 	_check_analysed(t, whole, [ids[0], ids[2]])
 	_check_analysed(t, stepped, [ids[0], ids[2]])
@@ -68,6 +64,18 @@ func run(t: TestContext) -> void:
 	stepped["demand"].complete()
 	for key in ["facts", "sections", "options", "sections_per_target", "gun"]:
 		t.expect_eq(stepped[key], whole[key], "the snapshot's %s" % key)
+
+
+## The pieces a build of two analysed hostiles runs: a start, then for each hostile its rings, its
+## spots, a flank piece for each side it is tried on (two of the target's three) and its rest, then
+## the retreat spots and the finish; none for the two that are only listed.
+func _check_pieces(t: TestContext, kinds: Array) -> void:
+	var hostile := [Piece.HOSTILE, Piece.SPOTS, Piece.FLANKS, Piece.FLANKS, Piece.REST]
+	t.expect_eq(
+		kinds,
+		[Piece.START] + hostile + hostile + [Piece.RETREAT, Piece.FINISH],
+		"a run of pieces for each of the two analysed hostiles",
+	)
 
 
 ## Only the `analysed` hostiles have sections of their own and are kept for what the walk builds

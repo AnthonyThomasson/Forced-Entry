@@ -5,7 +5,9 @@ extends GameTest
 ## 12 ms whatever the count. So the tick bakes the first due tile and the updater's physics step
 ## one more a frame, the tiles holding a moving walker first, nearest first, then the grid's order
 ## (`NavTiles.due_tiles`), the polygons held until the last is baked and landed in that frame
-## (`NavTiles.prepare`, `land`): one synchronisation a tick, and the baking spread.
+## (`NavTiles.prepare`, `land`): one synchronisation a tick, and the baking spread. Each tile's
+## bake runs on a worker thread and the burst lands on a fixed frame, `NavBakeConfig.tile_frames`
+## after the last tile was started (the tick found the main thread paying ~4 ms a tile).
 ## Three puppets stop in three tiles of a row and a fourth, that stood in a tile of its own, walks
 ## off: five to seven tiles go due in one tick.
 
@@ -19,7 +21,7 @@ const STEP := 700.0
 const WAIT_FRAMES := 60
 const AFTER_FRAMES := 20
 
-var _tiles: Array[NavigationRegion2D] = []
+var _tiles: Array[NavigationRegion3D] = []
 var _seen: Array[NavigationPolygon] = []
 
 
@@ -46,8 +48,8 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)
 	var district := t.world.get("district") as Node2D
-	var region := t.world.find_children("NavRegion", "NavigationRegion2D", true, false)[0]
-	_tiles = NavBuilder.steering_regions(region as NavigationRegion2D)
+	var region := t.world.find_children("NavRegion", "NavigationRegion3D", true, false)[0]
+	_tiles = NavBuilder.steering_regions(region as NavigationRegion3D)
 	var front := WorldGen.district_bounds(district).position + Vector2(CORNER_IN, CORNER_IN)
 	var stopped: Array[Node2D] = [t.actor(&"a"), t.actor(&"b"), t.actor(&"c")]
 	for i in stopped.size():
@@ -96,6 +98,7 @@ func _judge(t: TestContext, frames: Array) -> void:
 	var baked := 0
 	var worst := 0
 	var first_baked := -1
+	var last_baked := -1
 	var landing_frames := []
 	var landed := 0
 	for i in frames.size():
@@ -104,6 +107,8 @@ func _judge(t: TestContext, frames: Array) -> void:
 		worst = maxi(worst, entry["prepared"])
 		if entry["prepared"] > 0 and first_baked < 0:
 			first_baked = i
+		if entry["prepared"] > 0:
+			last_baked = i
 		if not (entry["landed"] as Array).is_empty():
 			landing_frames.append(i)
 			landed += (entry["landed"] as Array).size()
@@ -117,9 +122,16 @@ func _judge(t: TestContext, frames: Array) -> void:
 	)
 	t.expect_eq(landed, baked, "every tile baked landed")
 	t.check(
-		landing_frames.size() == 1 and landing_frames[0] - first_baked <= baked - 1,
+		landing_frames.size() == 1
+		and landing_frames[0] - first_baked <= baked - 1 + NavBakeConfig.tile_frames,
 		"the burst of %d tiles landed within %d frames of its first bake (first %d, landed %s)"
-			% [baked, baked, first_baked, str(landing_frames)],
+			% [baked, baked - 1 + NavBakeConfig.tile_frames, first_baked, str(landing_frames)],
+	)
+	t.check(
+		landing_frames.size() == 1
+		and landing_frames[0] - last_baked == NavBakeConfig.tile_frames,
+		"the burst landed %d frames after its last tile was started, on a fixed frame (last %d,"
+			% [NavBakeConfig.tile_frames, last_baked] + " landed %s)" % str(landing_frames),
 	)
 
 
@@ -127,20 +139,20 @@ func _judge(t: TestContext, frames: Array) -> void:
 func _remember() -> void:
 	_seen.clear()
 	for tile in _tiles:
-		_seen.append(tile.navigation_polygon)
+		_seen.append(NavPlan.polygon_of(tile))
 
 
 ## The indices of the tiles whose polygon is another than the one remembered.
 func _changed_since_remembered() -> Array:
 	var out := []
 	for i in _tiles.size():
-		if _tiles[i].navigation_polygon != _seen[i]:
+		if NavPlan.polygon_of(_tiles[i]) != _seen[i]:
 			out.append(i)
 	return out
 
 
 ## The tile whose rect holds `point` (a world point of `district`'s frame).
-func _tile_at(district: Node2D, point: Vector2) -> NavigationRegion2D:
+func _tile_at(district: Node2D, point: Vector2) -> NavigationRegion3D:
 	var local := district.to_local(point)
 	for tile in _tiles:
 		if (tile.get_meta(NavTiles.RECT_META) as Rect2).has_point(local):
@@ -149,7 +161,7 @@ func _tile_at(district: Node2D, point: Vector2) -> NavigationRegion2D:
 
 
 ## The tile one row below `tile`'s, in its column; null at the grid's bottom.
-func _tile_below(tile: NavigationRegion2D) -> NavigationRegion2D:
+func _tile_below(tile: NavigationRegion3D) -> NavigationRegion3D:
 	if tile == null:
 		return null
 	var rect: Rect2 = tile.get_meta(NavTiles.RECT_META)

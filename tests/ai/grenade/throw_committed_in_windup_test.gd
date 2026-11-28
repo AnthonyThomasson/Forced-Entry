@@ -3,8 +3,10 @@ extends GameTest
 ## back and the grenade will leave it; a lob that is blocked from then on (a wardrobe shoved in
 ## front) does not undo the order, so the grenade that leaves the hand is also radioed (`frag_out`)
 ## like any other. One mechanism, scripted Von: the invader throws a frag onto a hostile hidden
-## behind a desk, and a wardrobe (coverage 95) is put across the line the moment the wind-up begins.
+## behind a desk, and a wardrobe (78 px, over what a lob under the room's roof clears there) is put
+## across the line the moment the wind-up begins.
 
+const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const START := Vector2(100, 150)
@@ -25,11 +27,12 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	Hiding.von_out(s)
 	s.layout(
 		[{ "key": "hall", "type": "living_room", "rect": Rect2(0, 0, 900, 300) }],
 		[{ "pos": Vector2(880, 0), "width": 60.0 }],
 	)
-	s.object(&"desk", "desk", Vector2(330, 150))
+	s.object(&"desk", Hiding.low_cover("desk"), Vector2(330, 150))
 	s.object(&"wardrobe", "wardrobe", ASIDE)
 	s.von_script([
 		{ "pick": "combat" },
@@ -39,7 +42,6 @@ func configure(s: TestSetup) -> void:
 		{ "pick": "retreat" },
 	])
 	s.switch(&"ai.hostile_on_trespass", false)
-	s.switch(&"projectile.flyover", false)
 	s.actor(&"i", &"invader", START, { "facing": Vector2.RIGHT })
 	GrenadeAi.hostile(s, &"h", HOSTILE, START)
 
@@ -47,6 +49,8 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var inv := t.actor(&"i")
 	Probe.arm(inv, 0, 1)
+	if not await Hiding.duck_after_seen(t, &"h", &"i"):
+		return
 	if not t.require(
 			Probe.count(inv, Probe.FRAG) == 1,
 			"the invader carries a frag (item_count(8) = %d)" % Probe.count(inv, Probe.FRAG),
@@ -60,9 +64,7 @@ func run(t: TestContext) -> void:
 	if not t.require(await t.until(winding, 10.0), "the invader began its wind-up"):
 		return
 	var wardrobe := t.object(&"wardrobe")
-	# a frozen body takes a teleport (a free one is put back by the physics step)
-	wardrobe.freeze = true
-	await t.frames(1)
+	# a script's teleport of a free piece is adopted by its 3D body
 	wardrobe.global_position = ON_THE_LINE
 	await t.frames(1)
 	t.check(

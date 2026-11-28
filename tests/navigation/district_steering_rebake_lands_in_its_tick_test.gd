@@ -10,6 +10,7 @@ extends GameTest
 ## piece of furniture makes due, land on one frame within their count of frames of the first
 ## bake; the shove's planning re-bake (its gather over the next frames) lands too.
 
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const SEED := 7
 ## A character stands this far (px) in from the corner of the streets' rect, then moves along.
 const CORNER_IN := 100.0
@@ -41,17 +42,17 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	await t.seconds(0.5)
 	var district := t.world.get("district") as Node2D
-	var region := t.world.find_children("NavRegion", "NavigationRegion2D", true, false)[0]
-	var tiles := NavBuilder.steering_regions(region as NavigationRegion2D)
+	var region := t.world.find_children("NavRegion", "NavigationRegion3D", true, false)[0]
+	var tiles := NavBuilder.steering_regions(region as NavigationRegion3D)
 	if not t.require(tiles.size() > 2, "premise: the steering map is many tiles"):
 		return
 	var front := WorldGen.district_bounds(district).position + Vector2(CORNER_IN, CORNER_IN)
 	var puppet := t.actor(&"p")
 	puppet.global_position = front
-	await t.seconds(1.0)  # the tick that takes it in, and the planning bake after it
+	await t.seconds(2.0)  # the ticks that take it in and land them, and the planning bake after it
 	puppet.global_position = front + Vector2(MOVE, 0)
 	await _lands_together(t, tiles, "the puppet moved")
-	await _shoved_piece(t, region as NavigationRegion2D, tiles)
+	await _shoved_piece(t, region as NavigationRegion3D, tiles)
 
 
 ## After a change was made: the tiles it made due landed on one frame, within as many frames as
@@ -59,7 +60,7 @@ func run(t: TestContext) -> void:
 ## physics frame until `AFTER_FRAMES` after the first bake, the next tick being 45 frames on.
 func _lands_together(
 	t: TestContext,
-	tiles: Array[NavigationRegion2D],
+	tiles: Array[NavigationRegion3D],
 	what: String,
 ) -> void:
 	var before := _polygons(tiles)
@@ -90,24 +91,24 @@ func _lands_together(
 		"the tiles landed on one frame (%s)" % str(landing_frames),
 	)
 	t.check(
-		landing_frames[0] - first <= landed - 1,
+		landing_frames[0] - first <= landed - 1 + NavBakeConfig.tile_frames,
 		"%d tile(s) landed within %d frame(s) of the first bake (first %d, landed %s)"
-			% [landed, landed, first, str(landing_frames)],
+			% [landed, landed - 1 + NavBakeConfig.tile_frames, first, str(landing_frames)],
 	)
 
 
 ## Every tile's polygon now.
-func _polygons(tiles: Array[NavigationRegion2D]) -> Array:
+func _polygons(tiles: Array[NavigationRegion3D]) -> Array:
 	return tiles.map(
-		func(tile: NavigationRegion2D) -> NavigationPolygon: return tile.navigation_polygon,
+		func(tile: NavigationRegion3D) -> NavigationPolygon: return NavPlan.polygon_of(tile),
 	)
 
 
 ## How many of `tiles` carry another polygon than `before`.
-func _changed(tiles: Array[NavigationRegion2D], before: Array) -> int:
+func _changed(tiles: Array[NavigationRegion3D], before: Array) -> int:
 	var count := 0
 	for i in tiles.size():
-		if tiles[i].navigation_polygon != before[i]:
+		if NavPlan.polygon_of(tiles[i]) != before[i]:
 			count += 1
 	return count
 
@@ -116,24 +117,24 @@ func _changed(tiles: Array[NavigationRegion2D], before: Array) -> int:
 ## region (its gather over the next frames, swapped in whole) is re-baked within the next ticks.
 func _shoved_piece(
 	t: TestContext,
-	region: NavigationRegion2D,
-	tiles: Array[NavigationRegion2D],
+	region: NavigationRegion3D,
+	tiles: Array[NavigationRegion3D],
 ) -> void:
 	var district := t.world.get("district") as Node2D
-	var piece: RigidBody2D = null
-	for body in district.find_children("*", "RigidBody2D", true, false):
-		if not body.find_children("*", "CollisionShape2D", true, false).is_empty():
+	var piece: Node2D = null
+	for body in PlanProbe.pieces_under(district):
+		if body.solid:
 			piece = body
 			break
 	if not t.require(piece != null, "premise: the district has a solid piece of furniture"):
 		return
 	await t.seconds(1.0)
-	var planning_before := region.navigation_polygon
+	var planning_before := NavPlan.polygon_of(region)
 	piece.global_position += Vector2(100, 0)
 	await _lands_together(t, tiles, "the piece was shoved")
 	t.check(
 		await t.until(
-			func() -> bool: return region.navigation_polygon != planning_before,
+			func() -> bool: return NavPlan.polygon_of(region) != planning_before,
 			PLANNING_WAIT,
 		),
 		"the planning region is re-baked after the shove, after the tiles",

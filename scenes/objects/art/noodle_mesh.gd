@@ -1,19 +1,17 @@
 extends RefCounted
 ## Objects domain, the 3D mesh of the noodle bar's pieces (the pattern is
 ## `table_mesh.gd`, `domain-art/meshes.md`): at the piece's own footprint and `noodle_painter.gd`'s
-## proportions, in grimy steel, by `kind`. `bar` is a long counter with steaming pots along it and
-## bowls at one end; `stool` a round seat on a post; `booth` a bench along each long side with a
-## back, a table between them and a bowl at each seat; `menu` a board hung thin against the wall at
+## proportions, in grimy steel, by `kind`. `bar` is a long counter (its pots and bowls are items:
+## `docs/stacked-items.md` SI16); `stool` a round seat on a post; `booth` a bench along each long
+## side with a back and a table between them; `menu` a board hung thin against the wall at
 ## the back of its footprint, its lines of text and its three characters, each lit pixel a glowing
 ## block (two glow nodes: the first and the second line's colours, no real light).
 
 const OPTIONS := [
-	"kind", "top_color", "accent_color", "wood_color", "broth_color", "bowl_color", "menu_color",
-	"menu_color_2", "height",
+	"kind", "top_color", "accent_color", "wood_color", "menu_color", "menu_color_2", "height",
 ]
 const COLOURS := [
-	"top_color", "accent_color", "wood_color", "broth_color", "bowl_color", "menu_color",
-	"menu_color_2",
+	"top_color", "accent_color", "wood_color", "menu_color", "menu_color_2",
 ]
 const HANZI := ["大", "中", "王"]
 ## How far a feature stands proud of the face it is laid on, and how big one lit pixel of text is
@@ -51,8 +49,6 @@ static func _colour(spec: FurnitureSpec, name: String) -> Color:
 		"top_color": ObjectArtShopConfig.noodle_top_color,
 		"accent_color": ObjectArtShopConfig.noodle_accent_color,
 		"wood_color": ObjectArtShopConfig.noodle_wood_color,
-		"broth_color": ObjectArtShopConfig.noodle_broth_color,
-		"bowl_color": ObjectArtShopConfig.noodle_bowl_color,
 		"menu_color": colours[0],
 		"menu_color_2": colours[1],
 	}
@@ -112,36 +108,17 @@ static func _mesh(spec: FurnitureSpec) -> Mesh:
 	return kit.build()
 
 
-## The bar: the steel body and top, the lip, three pots with their broth and three bowls.
+## The bar: the steel body and top and the lip.
 static func _bar(spec: FurnitureSpec, kit: MeshKit) -> void:
 	var w := spec.size.x
 	var d := spec.size.y
 	var height := height_of(spec)
 	var base := spec.color
-	var broth := _colour(spec, "broth_color")
 	kit.box(MeshKit.volume(spec.area(0, 0, w, d), 0.0, height), base, _colour(spec, "top_color"))
 	kit.box(
 		MeshKit.volume(spec.area(3, d - 6.0, w - 6.0, 2), height, 1.0),
 		_colour(spec, "accent_color"),
 	)
-	for x: float in [18.0, 52.0, 86.0]:
-		if x + 8.0 > w:
-			continue
-		var at := Vector2(x, minf(12.0, d - 9.0)) - spec.half()
-		kit.cylinder(
-			Vector3(at.x, height, at.y),
-			8.0,
-			11.0,
-			base.darkened(0.4),
-			Color(0.55, 0.56, 0.58),
-		)
-		kit.cylinder(Vector3(at.x, height + 10.8, at.y), 4.0, 0.4, broth.darkened(0.2))
-	for x: float in [112.0, 124.0, 136.0]:
-		if x + 5.0 > w:
-			continue
-		var at := Vector2(x, minf(20.0, d - 6.0)) - spec.half()
-		kit.cylinder(Vector3(at.x, height, at.y), 5.0, 5.0, _colour(spec, "bowl_color"))
-		kit.cylinder(Vector3(at.x, height + 4.8, at.y), 3.0, 0.4, broth)
 
 
 ## The stool: a disc foot, a post and a seat of wood in a steel rim.
@@ -161,8 +138,7 @@ static func _stool(spec: FurnitureSpec, kit: MeshKit) -> void:
 	kit.cylinder(Vector3(0, height - 3.5, 0), radius - 2.0, 3.8, _colour(spec, "wood_color"))
 
 
-## The booth: a bench along each long side with a back at the outer edge, the table between, a bowl
-## in front of each seat.
+## The booth: a bench along each long side with a back at the outer edge, the table between.
 static func _booth(spec: FurnitureSpec, kit: MeshKit) -> void:
 	var w := spec.size.x
 	var d := spec.size.y
@@ -190,15 +166,8 @@ static func _booth(spec: FurnitureSpec, kit: MeshKit) -> void:
 		base.darkened(0.2),
 		_colour(spec, "top_color"),
 	)
-	var mid := table.position.y + table.size.y / 2.0
 	var post := Vector2(w / 2.0, d / 2.0) - spec.half()
 	kit.cylinder(Vector3(post.x, 0, post.y), 3.0, top_at - 3.0, base.darkened(0.4))
-	for x: float in [30.0, 70.0]:
-		if x + 6.0 > w:
-			continue
-		var at := Vector2(x, mid) - spec.half()
-		kit.cylinder(Vector3(at.x, top_at, at.y), 6.0, 3.0, _colour(spec, "bowl_color"))
-		kit.cylinder(Vector3(at.x, top_at + 2.8, at.y), 4.0, 0.4, _colour(spec, "broth_color"))
 
 
 ## The menu board: a thin slab at the back of the footprint, dark, framed with a lit border.

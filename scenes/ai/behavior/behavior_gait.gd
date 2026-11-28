@@ -7,6 +7,8 @@ extends RefCounted
 
 ## The running leaf's data (the behaviour's `task`).
 const RunningLeaf := preload("res://scenes/ai/behavior/running_leaf.gd")
+## Distance (px) from its doorway under which an entry approach runs every frame.
+const ENTRY_FAR := 200.0
 
 ## The behaviour it belongs to.
 var behavior: Node
@@ -137,3 +139,39 @@ func _travelling() -> bool:
 		&"melee":
 			return true
 	return false
+
+
+## Whether this frame must run the beat's whole tick whatever the NPC's turn (`npc_pace.gd`, the
+## rule in `beat.md`): a shot, a door or a grenade a frame late would look wrong. A tactical entry
+## (the primitive: its approach with the guard's and the secure's reads against the walk they
+## cover, the stack, the pie, the crossing), a throw (every stage), a door being worked or
+## detoured, a grenade run, a primed ambusher (its trigger is read the frame it is due), a
+## flash-blinded NPC.
+func needs_every_frame() -> bool:
+	return (behavior.committed()
+			or _entry_close()
+			or behavior.task.primitive == &"throw"
+			or behavior._loco.leaves.working()
+			or behavior._loco.leaves.detouring()
+			or behavior.grenades.evading()
+			or behavior.orders.primed()
+			or behavior._character.stun.is_blind())
+
+
+## Whether the NPC is at a tactical entry that a frame late would show: not its approach while it
+## is still far from the doorway (`ENTRY_FAR`), whose walk a beat carries as well as any, and whose
+## guard reads a beat apart move a covering by a few pixels only.
+func _entry_close() -> bool:
+	if behavior.task.primitive != &"entry":
+		return false
+	var state: RefCounted = behavior._entry.state
+	if state.phase != "approach" or not behavior.entries.resume.is_empty() or state.geo.is_empty():
+		return true
+	var here: Vector2 = behavior._character.global_position
+	return here.distance_to(state.geo["pos"]) < ENTRY_FAR
+
+
+## A frame between the NPC's beats: the shot already decided is fired (an automatic gun's burst
+## owes a round whenever the gun allows one); nothing else runs.
+func coast() -> void:
+	behavior._combat.continue_burst()

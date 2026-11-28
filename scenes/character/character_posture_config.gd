@@ -1,19 +1,18 @@
 class_name CharacterPostureConfig
-## Stand or crouch (scenes/character/): the posture table (speed, turn, coverage, height), the
+## Stand or crouch (scenes/character/): the posture table (speed, turn), the
 ## change cooldown and ease, and the crouched body's stance (pitch, narrowed hips and feet, stagger,
 ## shorter stride, hands further ahead). A `class_name` holder of `static var`s, read as
 ## `CharacterPostureConfig.<name>`; there is no instance and no autoload.
 
 ## Not to be confused with `CharacterStanceConfig.stances` (how a hand is held). A posture trades
 ## speed for a smaller target: `speed` multiplies the walk speed; `turn` is the fastest the body
-## swings round to the aim (rad/s, 0 = at once); `coverage` is the body's height on the same 0–100
-## scale as an object's coverage (a bullet carries one height, and strikes whatever is taller than
-## it), so a lower posture is struck by fewer shots and hides behind lower cover; `height` scales
-## the drawn body's standing heights. Keep `crouch` coverage at or below the AI's `cover_min` (40),
-## so everything it treats as cover hides a crouch.
+## swings round to the aim (rad/s, 0 = at once). The body's height is not a column here: what a
+## bullet, a burst and the AI's cover judgement meet is the real height (the body's twin,
+## `BodyHeights`, `docs/cover-and-stance.md`), and the drawn body's is the duck's head top over the
+## stature (`BodyHeights.height_share`).
 static var postures: Dictionary = {
-	&"stand": { "speed": 1.0, "turn": 0.0, "coverage": 60.0, "height": 1.0 },
-	&"crouch": { "speed": 0.6, "turn": 5.0, "coverage": 35.0, "height": 0.62 },
+	&"stand": { "speed": 1.0, "turn": 0.0 },
+	&"crouch": { "speed": 0.6, "turn": 5.0 },
 }
 ## Seconds after a posture change before the next one is allowed, so a controller can't flicker
 ## between them.

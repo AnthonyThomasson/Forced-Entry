@@ -18,7 +18,10 @@ const TARGET_RADIUS := 8.0
 
 ## Whether to draw the coverage overlay. Off by default; in spectator mode the inspector turns it on
 ## only for the selected NPC (like the tactics overlay).
-@export var show_search: bool = false
+@export var show_search: bool = false:
+	set(value):
+		show_search = value
+		_sync_processing()
 
 
 ## Whether this overlay's toggle is on.

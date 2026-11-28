@@ -1,7 +1,9 @@
 extends Node2D
-## A bullet: the control layer of the Projectile System. Each physics frame it sweeps
-## forward along `direction` with a raycast and resolves every collider it crosses against
-## that object's surface, so it may fly over cover, ricochet, penetrate, or embed. It frees
+## A bullet: the control layer of the Projectile System. It is a 3D ray in the twin space
+## (`TwinSpace`, interface 29): each physics frame it sweeps forward along its 3D travel (the plan
+## `direction` and the `rise` that tilts it) from the muzzle's height, and resolves every twin it
+## crosses against its 2D owner's surface, so it clears what stands lower than its line and
+## ricochets, penetrates or embeds in what it meets (`docs/cover-and-stance.md` H1, H2). It frees
 ## itself once spent or past `max_distance`. The 3D `ShotLayer` shows it.
 
 ## Emitted for each damaging interaction with the dealt damage. A fly-over emits nothing.
@@ -18,8 +20,9 @@ const SPENT_SLACK := 0.01
 @export var max_distance: float = 2000.0
 ## Base damage, before the firing item's damage and the per-hit squareness/speed scaling.
 @export var damage: float = 10.0
-## Physics layers the bullet can hit.
-@export_flags_2d_physics var collision_mask: int = PhysicsLayers.SOLID
+## The twin layers the bullet can hit (`PhysicsLayers.TWIN_*`): walls, furniture, doors, vehicles
+## and the living.
+@export_flags_3d_physics var collision_mask: int = PhysicsLayers.TWIN_ALL
 
 ## The speed it left the muzzle at (px/s): the reference its damage and impact scale against, so a
 ## weapon's damage is what it deals at full speed, head-on. The spawner sets it with `speed`.
@@ -27,22 +30,24 @@ var muzzle_speed: float = BallisticsFlightConfig.projectile_speed
 ## Power to punch through what it hits (1 = a pistol round): it divides the speed lost to a surface
 ## and the deflection, and lowers the speed it needs to get through at all.
 var penetration_power: float = 1.0
-## How high the bullet flies, 0..100: the same scale as an object's `coverage` (its height). One
-## number for the whole flight, drawn once at spawn (see `BallisticsFlightConfig.bullet_height`), so
-## it clears or meets everything it crosses consistently: cover that stands taller than it is
-## struck, anything lower is flown over.
+## How high the bullet is now, px above the floor (`BodyHeights`): the muzzle's at the start, then
+## what its line gives. It changes as it flies; what stands lower than it clears.
 var height := 0.0
-## Unit travel vector; reassigned on ricochet / penetration deflection.
+## The plan part of its travel, a unit vector (the floor-plan heading); reassigned on ricochet /
+## penetration deflection.
 var direction := Vector2.RIGHT
+## How steeply it climbs: px of height per px of plan travel (negative falls, 0 is level). The 3D
+## travel is `(direction, rise)` normalised.
+var rise := 0.0
 ## Body to skip in the sweep (the shooter), and the `attacker` of the hits it posts.
 var ignore: Node
 ## True when the shooter is struck like anyone else (a grenade's fragments hurt its thrower:
 ## `docs/grenades.md` G9).
 var strikes_shooter := false
-## Distance travelled so far.
+## Distance travelled so far (3D, px).
 var _traveled := 0.0
-## Ray query reuse and colliders excluded from further sweeps (flown over or penetrated), so the
-## bullet does not re-hit them. Ricochets are not added — a bounced bullet may strike the same
+## Ray query reuse and colliders excluded from further sweeps (penetrated, or the shooter's own),
+## so the bullet does not re-hit them. Ricochets are not added: a bounced bullet may strike the same
 ## surface again.
 var _ray := RayQuery.new()
 ## `_traveled` at the moment the bullet left a body carrying
@@ -53,11 +58,6 @@ var _blood_from := -1.0
 
 func _ready() -> void:
 	rotation = direction.angle()
-	height = (BallisticsFlightConfig.bullet_height
-			if BallisticsFlightConfig.bullet_height >= 0.0
-			else WorldRng.of(self).randf() * 100.0)
-	if ignore is CollisionObject2D and not strikes_shooter:
-		_ray.exclude.append(ignore.get_rid())
 
 
 ## Advance one frame's travel, resolving each collider crossed. Loops rather than casting
@@ -73,21 +73,22 @@ func _physics_process(delta: float) -> void:
 		if guard > 16:
 			return
 
-		var target := position + direction * remaining
-		var result := _sweep(target)
+		var from := _point()
+		var target := from + _travel() * remaining
+		var result := _sweep(from, target)
 		if result.is_empty():
-			position = target
+			_place(target)
 			_traveled += remaining
 			remaining = 0.0
 		else:
-			var advanced := position.distance_to(result.position)
-			position = result.position  # Snap to the contact point.
+			var advanced := from.distance_to(result.position)
+			_place(result.position)  # Snap to the contact point.
 			_traveled += advanced
 			remaining = maxf(remaining - advanced, 0.0)
 			_resolve(result)
 			# Nudge just past the contact (along the possibly-new direction) so the
 			# next sweep starts clear of this surface.
-			position += direction * 0.5
+			_place(_point() + _travel() * 0.5)
 			if speed < BallisticsFlightConfig.projectile_min_speed:
 				queue_free()
 				return
@@ -123,44 +124,85 @@ static func post_hit(
 		"attacker": attacker,
 		"outcome": outcome, "material": String(surface.get("material", "")),
 		"speed_factor": info.speed_factor, "power": float(power) if power != null else 1.0,
+		"height": info.height,
 	})
 
 
-## Raycast from the current position to `to`, skipping already-handled colliders.
-func _sweep(to: Vector2) -> Dictionary:
-	var space := get_world_2d().direct_space_state
-	return _ray.sweep(space, position, to, collision_mask)
+## The bullet's place in the twin space: its plan position at its height.
+func _point() -> Vector3:
+	return PlanSpace.lift(position, height)
 
 
-## Pick one outcome for a hit and, when it deals damage, hand the object a HitInfo (the
-## object owns the shove/deform/debris). Mutates direction/speed/_ray.exclude and re-emits
-## `hit`.
+## Put the bullet at twin-space point `at`.
+func _place(at: Vector3) -> void:
+	position = PlanSpace.plan_of(at)
+	height = PlanSpace.height_of(at)
+
+
+## The unit 3D vector it travels along.
+func _travel() -> Vector3:
+	return Vector3(direction.x, rise, direction.y).normalized()
+
+
+## Turn the bullet to travel along unit 3D vector `to` (a ricochet, a deflection): the plan heading
+## and the rise follow. A line straight up or down keeps the heading it had.
+func _turn_to(to: Vector3) -> void:
+	var flat := Vector2(to.x, to.z)
+	if flat.length() > 0.0001:
+		direction = flat.normalized()
+		rise = to.y / flat.length()
+	else:
+		rise = signf(to.y) * 1.0e4
+	rotation = direction.angle()
+
+
+## Raycast from `from` to `to` through the twin space, skipping the colliders already handled and
+## the shooter's own twin. A twin whose body is gone, or the shooter's (unless a fragment may strike
+## its thrower), is skipped for good and the cast goes on from the same place.
+func _sweep(from: Vector3, to: Vector3) -> Dictionary:
+	var space := TwinSpace.space_of(self)
+	for _i in 8:
+		var result := _ray.sweep(space, from, to, collision_mask)
+		if result.is_empty():
+			return result
+		var body := TwinSpace.owner_of(result.collider)
+		if body == null or (body == ignore and not strikes_shooter):
+			_ray.exclude.append(result.rid)
+			continue
+		result["body"] = body
+		return result
+	return {}
+
+
+## Pick one outcome for a hit and, when it deals damage, hand the object a HitInfo (the object owns
+## the shove/deform/debris). Mutates direction/speed/_ray.exclude and re-emits `hit`. What the line
+## meets it strikes, whatever its height: a table under the line is never reached, a wall over it
+## is, so cover shelters by being tall enough, not by chance (H1, H2). The ground a falling line
+## reaches (a floor has no body) spends it.
 func _resolve(result: Dictionary) -> void:
-	var body: Node = result.collider
+	var body: Node = result.body
+	if not body.is_in_group(TwinSpace.BODIES):
+		speed = 0.0
+		return
 	# Captured before the ricochet branch reassigns `direction`; the shove follows the shot in.
 	var incoming := direction
-	var surface := _surface_for(body, incoming)
-
-	# 1. Fly over cover: the bullet is higher than the object stands. No damage, exclude the body,
-	#    keep flying.
-	# Coverage is the object's height, so a body behind cover that is taller than the bullet is
-	# flown over too: cover 50 and a body of 60 -> a shot lower than 50 meets the cover (and may
-	# punch through to the body), one between 50 and 60 clears the cover and strikes only the body,
-	# and a higher one misses both.
-	if height >= _flyover_height(surface["coverage"]):
-		_ray.exclude.append(result.rid)
-		GameLog.say("Shot flew over %s" % body.name)
-		return
-
+	var travel := _travel()
+	var surface := _surface_for(
+			body, incoming, PlanSpace.height_of(result.position), PlanSpace.plan_of(result.position)
+	)
 	var info := _hit_info(result, incoming)
-	# Squareness: |travel · normal|, 1 = head-on. A degenerate normal counts as square.
-	var n: Vector2 = result.normal
-	var squareness := 1.0 if n.length() < 0.001 else absf(direction.dot(n))
+	# Squareness: |travel · normal|, 1 = head-on. A degenerate normal counts as square. A body's
+	# wall is straight up, so a character is met on the plan heading alone: pitch does not glance
+	# it.
+	var n: Vector3 = result.normal
+	var squareness := 1.0 if n.length() < 0.001 else absf(travel.dot(n))
+	if n.length() >= 0.001 and body.is_in_group(&"characters"):
+		squareness = absf(incoming.dot(_plan_normal(n, incoming)))
 	# 2. Ricochet off hard material at a glancing angle: reflect at reduced speed/damage.
 	# Not excluded — a bounced bullet can strike the same surface again.
 	if (float(surface["penetration"]) >= BallisticsRicochetConfig.penetration_bounce_min
 			and squareness < BallisticsRicochetConfig.bounce_square_max):
-		_ricochet(body, info, squareness, surface)
+		_ricochet(body, info, squareness, surface, n)
 		return
 
 	info.damage = damage * squareness * info.speed_factor
@@ -186,13 +228,18 @@ func _resolve(result: Dictionary) -> void:
 	_penetrate(result, info, squareness, surface)
 
 
-## 2. Glance off `body`'s hard `surface`, `squareness` square, the round reflected at reduced speed
-## and dealing a share of its damage through `info`.
-func _ricochet(body: Node, info: HitInfo, squareness: float, surface: Dictionary) -> void:
+## 2. Glance off `body`'s hard `surface`, `squareness` square, off the face `normal` (3D), the round
+## reflected at reduced speed and dealing a share of its damage through `info`.
+func _ricochet(
+	body: Node,
+	info: HitInfo,
+	squareness: float,
+	surface: Dictionary,
+	normal: Vector3,
+) -> void:
 	info.damage = (damage * squareness * info.speed_factor
 			* BallisticsRicochetConfig.bounce_damage_retention)
-	direction = direction.bounce(info.normal).normalized()
-	rotation = direction.angle()
+	_turn_to(_travel().bounce(normal.normalized()).normalized())
 	speed *= BallisticsRicochetConfig.bounce_speed_retention
 	GameLog.say("Shot ricocheted off %s for %.0f damage (%.0f%% square)"
 			% [body.name, info.damage, squareness * 100.0])
@@ -213,7 +260,7 @@ func _embed(body: Node, info: HitInfo, said: String, surface: Dictionary) -> voi
 ## glancing, `squareness`, or hard, the `surface`'s penetration), deflect slightly; leaving a body
 ## (flesh) it carries that body's blood on from the exit.
 func _penetrate(result: Dictionary, info: HitInfo, squareness: float, surface: Dictionary) -> void:
-	var body: Node = result.collider
+	var body: Node = result.body
 	var penetration: float = surface["penetration"]
 	var loss := clampf(
 		(
@@ -228,58 +275,67 @@ func _penetrate(result: Dictionary, info: HitInfo, squareness: float, surface: D
 	speed *= (1.0 - loss)
 	var j := deg_to_rad(BallisticsPenetrationConfig.penetrate_deflect_max_deg * penetration / 100.0
 			/ penetration_power)
-	direction = direction.rotated(WorldRng.of(self).randf_range(-j, j))
-	rotation = direction.angle()
+	var incoming := _travel()
+	var rng := WorldRng.of(self)
+	_deflect(rng.randf_range(-j, j), rng.randf_range(-j, j))
 	_ray.exclude.append(result.rid)
 	GameLog.say("Shot penetrated %s for %.0f damage (%.0f%% square)"
 			% [body.name, info.damage, squareness * 100.0])
 	info.penetrated = true
 	info.blood = _take_blood(surface)
-	_find_exit(info, result.position, result.rid, info.direction)
+	_find_exit(info, result.position, result.rid, incoming)
 	_deal(body, info, &"penetrate", surface)
 	if StringName(surface.get("material", "")) == BallisticsPenetrationConfig.blood_material:
 		_blood_from = (_traveled
-				+ (info.exit_position.distance_to(result.position) if info.has_exit else 0.0))
+				+ (info.exit_position.distance_to(info.position) if info.has_exit else 0.0))
 
 
-## The bullet height at and above which a collider of this `coverage` is flown over: its coverage,
-## pushed toward "never" by a `cover_flyover_scale` below 1 (0 = never fly over) and toward "always"
-## above it. Coverage 100 stands taller than any bullet.
-func _flyover_height(coverage: float) -> float:
-	return clampf(
-		100.0 - (100.0 - coverage) * BallisticsFlightConfig.cover_flyover_scale,
-		0.0,
-		100.0,
-	)
+## Swing the travel `side` rad about up and `lift` rad about the axis across it (a penetration's
+## scatter, in both axes).
+func _deflect(side: float, lift: float) -> void:
+	var to := _travel().rotated(Vector3.UP, side)
+	var across := to.cross(Vector3.UP)
+	if across.length() > 0.0001:
+		to = to.rotated(across.normalized(), lift)
+	_turn_to(to.normalized())
 
 
 ## The struck object's surface: where the round meets it (`get_surface_at(height, direction)`, a
-## character's armour) when it can say, else via get_surface(), or the wall-rating fallback for a
-## collider that exposes none.
-func _surface_for(body: Node, travel: Vector2) -> Dictionary:
+## character's armour, `at` px up; `get_surface_at_point(height, point)`, a piece's glass, `point`
+## the plan point struck) when it can say, else via get_surface(), or the wall-rating fallback for a
+## body that exposes none.
+func _surface_for(body: Node, travel: Vector2, at: float, point: Vector2) -> Dictionary:
+	if body.has_method("get_surface_at_point"):
+		return body.get_surface_at_point(at, point)
 	if body.has_method("get_surface_at"):
-		return body.get_surface_at(height, travel)
+		return body.get_surface_at(at, travel)
 	if body.has_method("get_surface"):
 		return body.get_surface()
-	return {
-		"coverage": BallisticsFlightConfig.wall_coverage,
-		"penetration": BallisticsFlightConfig.wall_penetration,
-	}
+	return { "penetration": BallisticsFlightConfig.wall_penetration }
 
 
 ## Build the HitInfo handed to the struck object for one damaging interaction, from the ray
-## `result` and the `incoming` travel: its speed factor (the incoming speed relative to this round's
-## own muzzle speed: a fast shot hits harder) taken now; the outcome fills in the damage, whether it
-## penetrated and the blood.
+## `result` and the `incoming` heading: its speed factor (the incoming speed relative to this
+## round's own muzzle speed: a fast shot hits harder) taken now, and the height it struck at (what
+## a body turns into a hit zone); the outcome fills in the damage, whether it penetrated and the
+## blood. The contact and the normal are the plan's (the normal's floor part, none for a face that
+## looks straight up or down).
 func _hit_info(result: Dictionary, incoming: Vector2) -> HitInfo:
 	var info := HitInfo.new()
-	info.position = result.position
-	info.normal = result.normal
+	info.position = PlanSpace.plan_of(result.position)
+	info.normal = _plan_normal(result.normal, -direction)
 	info.direction = incoming
 	info.speed_factor = speed / muzzle_speed if muzzle_speed > 0.0 else 1.0
-	info.height = height
+	info.height = PlanSpace.height_of(result.position)
 	info.source = self
 	return info
+
+
+## The floor part of the 3D face normal `n`, unit; `fallback` (a unit heading) for a face that looks
+## straight up or down, which has none.
+static func _plan_normal(n: Vector3, fallback: Vector2) -> Vector2:
+	var flat := Vector2(n.x, n.z)
+	return flat.normalized() if flat.length() > 0.001 else fallback
 
 
 ## Blood this bullet hands to a non-flesh surface it strikes (0..1, fading with the distance since
@@ -295,15 +351,16 @@ func _take_blood(surface: Dictionary) -> float:
 	return clampf(1.0 - dist / reach, 0.0, 1.0) if reach > 0.0 and dist <= reach else 0.0
 
 
-## Fill `info`'s exit fields for a bullet that just penetrated `rid` at `entry`: cast a ray back
+## Fill `info`'s exit fields for a bullet that just penetrated `rid` at `entry` travelling along
+## `incoming` (the line it came in on, not the one a deflection turned it onto): cast a ray back
 ## from `exit_probe_distance` px ahead toward the entry, skipping anything else in between, until it
 ## meets the penetrated collider's far face. Leaves `has_exit` false for a body thicker than the
 ## probe.
-func _find_exit(info: HitInfo, entry: Vector2, rid: RID, travel: Vector2) -> void:
+func _find_exit(info: HitInfo, entry: Vector3, rid: RID, incoming: Vector3) -> void:
 	if BallisticsPenetrationConfig.exit_probe_distance <= 0.0:
 		return
-	var space := get_world_2d().direct_space_state
-	var from := entry + travel * BallisticsPenetrationConfig.exit_probe_distance
+	var space := TwinSpace.space_of(self)
+	var from := entry + incoming * BallisticsPenetrationConfig.exit_probe_distance
 	var skip := _ray.exclude.duplicate()
 	skip.erase(rid)
 	for _i in 4:
@@ -312,8 +369,8 @@ func _find_exit(info: HitInfo, entry: Vector2, rid: RID, travel: Vector2) -> voi
 			return
 		if found.rid == rid:
 			info.has_exit = true
-			info.exit_position = found.position
-			info.exit_normal = found.normal
+			info.exit_position = PlanSpace.plan_of(found.position)
+			info.exit_normal = _plan_normal(found.normal, direction)
 			return
 		skip.append(found.rid)
 
@@ -335,7 +392,7 @@ class RayQuery extends RefCounted:
 	## Colliders the forward sweep no longer hits.
 	var exclude: Array[RID] = []
 	## The reused ray, with the bullet's always-on inside-hit behavior set once.
-	var _ray := PhysicsRayQueryParameters2D.new()
+	var _ray := PhysicsRayQueryParameters3D.new()
 
 
 	func _init() -> void:
@@ -344,9 +401,9 @@ class RayQuery extends RefCounted:
 
 	## Cast the forward sweep with the bullet's exclusions.
 	func sweep(
-		space: PhysicsDirectSpaceState2D,
-		from: Vector2,
-		to: Vector2,
+		space: PhysicsDirectSpaceState3D,
+		from: Vector3,
+		to: Vector3,
 		mask: int,
 	) -> Dictionary:
 		return _cast(space, from, to, mask, exclude)
@@ -354,9 +411,9 @@ class RayQuery extends RefCounted:
 
 	## Cast an exit probe with its own evolving exclusion list.
 	func probe(
-		space: PhysicsDirectSpaceState2D,
-		from: Vector2,
-		to: Vector2,
+		space: PhysicsDirectSpaceState3D,
+		from: Vector3,
+		to: Vector3,
 		mask: int,
 		exclusions: Array[RID],
 	) -> Dictionary:
@@ -365,9 +422,9 @@ class RayQuery extends RefCounted:
 
 	## Reuse the ray for one cast with the supplied exclusions.
 	func _cast(
-		space: PhysicsDirectSpaceState2D,
-		from: Vector2,
-		to: Vector2,
+		space: PhysicsDirectSpaceState3D,
+		from: Vector3,
+		to: Vector3,
 		mask: int,
 		exclusions: Array[RID],
 	) -> Dictionary:

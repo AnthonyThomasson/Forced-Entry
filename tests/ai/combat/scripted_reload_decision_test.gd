@@ -19,7 +19,6 @@ func configure(s: TestSetup) -> void:
 	s.von_script([{ "pick": "combat" }, { "pick": "reload" }])
 	s.switch(&"ai.callouts", true)
 	s.switch(&"ai.hostile_on_sight", true)
-	s.switch(&"projectile.flyover", false)
 	# The defender faces east at spawn, toward the (unarmed) stranger standing in plain sight.
 	s.actor(
 		&"defender",

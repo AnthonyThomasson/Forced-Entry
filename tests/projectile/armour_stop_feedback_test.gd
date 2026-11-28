@@ -8,8 +8,8 @@ extends GameTest
 
 const OutfitProbe := preload("res://tests/_outfit/outfit_probe.gd")
 const SoundProbe := preload("res://tests/_audio/sound_probe.gd")
-const TORSO := 40.0
-const HEAD := 55.0
+const TORSO := 50.0
+const HEAD := 70.0
 ## Each lane: what the target wears, the round, its height, and the material the stopped round's hit
 ## carries ("" = any but flesh: the soft vest's material is its own to name).
 const LANES := [
@@ -64,7 +64,6 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"physics.blood", true)
 	s.switch(&"audio.sound", true)
 	s.set_static(SoundConfig, &"category_range", SoundProbe.EVERYWHERE)
-	OutfitProbe.pin_height(s)
 	OutfitProbe.lay_lanes(s, LANES)
 
 

@@ -24,6 +24,12 @@ static func ordered(b: Node) -> bool:
 			else false)
 
 
+## The order the NPC holds now (its perception's, whatever its running leaf is: a reaction in
+## between leaves it held), `{}` with none.
+static func held(b: Node) -> Dictionary:
+	return (b.get("_perception").orders.current() as Dictionary) if b != null else {}
+
+
 ## How many decision walks the NPC has started.
 static func decisions(b: Node) -> int:
 	return int(b.debug_state().get("decisions", 0)) if b != null else 0

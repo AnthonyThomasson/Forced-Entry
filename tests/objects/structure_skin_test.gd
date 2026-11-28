@@ -53,10 +53,10 @@ func run(t: TestContext) -> void:
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	t.world.add_child(view)
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	view.add_child(mirror)
 	ObjectMeshes.register(mirror.builders)
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	_walls(t, mirror)
 	_floors(t, mirror)
@@ -81,10 +81,10 @@ func _wall_painter(t: TestContext) -> void:
 
 ## Every wall segment wears the cap tile, along its length: a wall along z the tile turned a
 ## quarter; the segments of a direction share one material.
-func _walls(t: TestContext, mirror: WorldMirror) -> void:
+func _walls(t: TestContext, mirror: MeshCarrier) -> void:
 	var materials := {}
 	var checked := 0
-	for wall in t.world.find_children("*", "StaticBody2D", true, false):
+	for wall in NavTwins.walls_under(t.world):
 		if not wall.has_method(&"segment_shapes"):
 			continue
 		var node := mirror.proxies_of(wall)[0] as WallMesh
@@ -112,7 +112,7 @@ func _segment(
 	var material := part.material_override as ShaderMaterial
 	if not t.require(material != null, "%s is textured" % part.name):
 		return null
-	var tile := material.get_shader_parameter(&"albedo_texture") as Texture2D
+	var tile := MeshNodes.shown_texture(part)
 	var along_x := absf(seg[1].x - seg[0].x) >= absf(seg[1].y - seg[0].y)
 	var along := Vector2(ObjectArtWallConfig.tile_px, THICKNESS)
 	var wanted := along if along_x else Vector2(along.y, along.x)
@@ -182,7 +182,7 @@ func _oriented(
 
 ## A floor wears its painter's flat tile repeated from its `tile_offset`; floors of one look
 ## share the material.
-func _floors(t: TestContext, mirror: WorldMirror) -> void:
+func _floors(t: TestContext, mirror: MeshCarrier) -> void:
 	var materials := {}
 	for floor_node in t.world.get_tree().get_nodes_in_group(&"floors"):
 		if not t.world.is_ancestor_of(floor_node):
@@ -193,7 +193,7 @@ func _floors(t: TestContext, mirror: WorldMirror) -> void:
 			floor_node.art, floor_node.color, floor_node.floor_material, floor_node.art_opts
 		)
 		t.check(
-			material.get_shader_parameter(&"albedo_texture") == tile,
+			MeshNodes.shown_texture(node) == tile,
 			"%s wears its flat tile" % floor_node.name,
 		)
 		var rect: Vector4 = node.get_instance_shader_parameter(&"uv_rect")
@@ -215,15 +215,15 @@ func _floors(t: TestContext, mirror: WorldMirror) -> void:
 
 
 ## The door's leaf wears the door painter's flat art over the leaf; the handle is a plain mesh.
-func _door(t: TestContext, mirror: WorldMirror) -> void:
+func _door(t: TestContext, mirror: MeshCarrier) -> void:
 	var door := t.object(&"front")
 	var node := mirror.proxies_of(door)[0] as DoorMesh
 	var leaf := node.get_child(0) as MeshInstance3D
 	var size: Vector2 = door.leaf_size()
-	var art := ObjectArt.flat("door", size, door.look.color, door.look.art_opts(false))
+	var art := ObjectArt.flat("door", size, door.look.color, door.look.art_opts())
 	var material := leaf.material_override as ShaderMaterial
 	t.check(
-		material != null and material.get_shader_parameter(&"albedo_texture") == art,
+		material != null and MeshNodes.shown_texture(leaf) == art,
 		"the leaf wears the flat door art",
 	)
 	var rect: Vector4 = leaf.get_instance_shader_parameter(&"uv_rect")

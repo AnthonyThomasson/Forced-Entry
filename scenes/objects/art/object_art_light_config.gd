@@ -14,12 +14,14 @@ class_name ObjectArtLightConfig
 ## `low` when absent: shadowed by the walls and the tall pieces) and `lift` (px above the floor:
 ## where the glowing part is in the piece's 3D mesh, a lamp's bulb over its shade, a screen's face,
 ## a street lamp's head at the top of its post, a neon tube on the floor; the 3D render hangs the
-## light there). Its colour is what the piece draws
+## light there) and `rides` (a free item's: its `lift` is over the item's own base, so the light
+## hangs that far over where the item rests, on a desk or the floor, and comes down with it when it
+## is knocked off: `docs/stacked-items.md` SI13). Its colour is what the piece draws
 ## glowing (its neon, its screen, its bulb). `trim` is a piece's neon trim or under-glow; a tube's
 ## `radius` is its length × `tube_reach`.
 static var specs: Dictionary = {
 	"lamp": {
-		"lift": 50.0,
+		"lift": 57.0,
 		"energy": 0.95, "radius": 160.0, "shape": &"round", "height": &"overhead",
 		"rhythm": [[&"steady", 6.0], [&"buzz", 1.5], [&"pulse", 1.0], [&"failing", 1.5]],
 		"room_light": true,
@@ -32,12 +34,13 @@ static var specs: Dictionary = {
 		"ahead": 26.0,
 		"rhythm": [[&"shimmer", 1.0]],
 	},
-	"desk": {
-		"lift": 39.0,
+	"monitor": {
+		"lift": 8.0,
+		"rides": true,
 		"energy": 0.6,
 		"radius": 105.0,
 		"shape": &"wide",
-		"ahead": -12.0,
+		"ahead": 22.0,
 		"rhythm": [[&"shimmer", 1.0]],
 	},
 	"monitor_wall": {
@@ -132,7 +135,8 @@ static var decay_screen_color: Color = Color(0.45, 0.95, 0.42)
 static var neon_cyan: Color = Color(0.15, 0.92, 1.0)
 static var neon_magenta: Color = Color(1.0, 0.2, 0.72)
 ## The share of each kind of light-giving piece that takes a neon trim or screen
-## (`ObjectArt.neon_for`): `tv` an appliance with a TV panel, `desk` a table with a monitor on it,
+## (`ObjectArt.neon_for`): `tv` an appliance with a TV panel, `desk` a table that names it (its
+## `neon_as` option: its trim strip is what a desk's neon is, the monitor item on it has none),
 ## the new rooms' pieces by their `kind` (`monitor_wall`, `server_rack`, `rig`, `tool_cart`), the
 ## rest by their painter id. A kind not listed never does.
 static var neon_share: Dictionary = {

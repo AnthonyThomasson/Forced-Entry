@@ -27,21 +27,21 @@ func run(t: TestContext) -> void:
 		_path_length(t) > 520.0,
 		"the first bake already carves the shelf out (%.1f px; 480 is straight)" % _path_length(t),
 	)
-	var region: NavigationRegion2D = t.world.find_children(
-		"*", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"*", "NavigationRegion3D", true, false,
 	)[0]
-	var before: NavigationPolygon = region.navigation_polygon
+	var before: NavigationPolygon = NavPlan.polygon_of(region)
 	var landed := [false]  # a lambda captures a bool by value
 	NavBuilder.rebake_async(region, t.world.house, t.rooms, 14.0, func() -> void: landed[0] = true)
 	t.check(
-		region.navigation_polygon == before,
+		NavPlan.polygon_of(region) == before,
 		"rebake_async returns before the region's polygon changes",
 	)
 	t.check(not landed[0], "its callback has not run yet when it returns")
 	if not t.require(await t.until(func(): return landed[0], 5.0), "the bake lands and calls back"):
 		return
 	t.check(
-		region.navigation_polygon != before,
+		NavPlan.polygon_of(region) != before,
 		"the region holds the new polygon once the callback runs",
 	)
 
@@ -62,8 +62,8 @@ func run(t: TestContext) -> void:
 
 ## The navigated length of a path straight across the arena.
 func _path_length(t: TestContext) -> float:
-	var map := t.world.get_world_2d().navigation_map
-	var path := NavigationServer2D.map_get_path(map, Vector2(60, 150), Vector2(540, 150), false)
+	var map := NavWorld.map_of(t.world)
+	var path := NavPlan.path(map, Vector2(60, 150), Vector2(540, 150), false)
 	var length := 0.0
 	for i in range(1, path.size()):
 		length += path[i - 1].distance_to(path[i])

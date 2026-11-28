@@ -4,17 +4,14 @@ extends GameTest
 ## squads, scripted Von), but its window opens at the fight's first sign, the first shot or the
 ## first NPC knowing a hostile, whichever comes first, and runs `Perf.OPENING_FRAMES` (300, five
 ## seconds) from there. The stress guard opens its window only once a shot has been fired AND some
-## NPC knows a hostile, 6 s of warm-up and the wait for contact in: at 8.8 s of test time in this
-## match, where the first sighting comes at 4.2 s, so the first sightings, the first decisions of
-## the NPCs that met, the first throws and the first escape searches were never in a window, and a
-## player feels those as the stutter at a fight's start. This window ends at 9.2 s, so it overlaps
-## the start of the stress window and nothing between them goes unmeasured. The frames are held to
-## the same standard, with no looser tail: `Perf.within_frames` (avg 16.7, p95 20, max 33.4 ms). On
-## a red run `--verbose` names the worst frames and what ran in each (`perf-opening.md`).
+## NPC knows a hostile, after 6 s of warm-up: at 6.0 s of test time in this match, where the first
+## sighting comes at 0.55 s, so a fight's first sightings, the first decisions of the NPCs that met,
+## the first throws and the first escape searches are before that window, and a player feels those
+## as the stutter at a fight's start. This window is about 0.5 to 5.5 s. The frames are held to the
+## same standard, with no looser tail: `Perf.within_frames` (avg 16.7, p95 20, max 33.4 ms). On a
+## red run `--verbose` names the worst frames and what ran in each (`perf-opening.md`).
 ## The premises: the window opens at the first contact (at most `MOST_SHOTS_BEFORE` shots before
 ## it) and holds a shot and decisions asked.
-## With the decisions sliced it still read red on p95 (22 to 24 ms against 20) at the last
-## measurement: the worst frames and what ran in them are in `perf-opening.md`.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const PER_SIDE := 10

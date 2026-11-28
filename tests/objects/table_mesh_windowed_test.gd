@@ -9,6 +9,7 @@ extends GameTest
 
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const CameraScript := preload("res://scenes/general/camera_controller.gd")
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const SCRATCH := "user://settings_table_mesh_windowed_test.json"
 const SIZE := Vector2i(1152, 648)
 const SPEC := {
@@ -68,7 +69,7 @@ func run(t: TestContext) -> void:
 	camera.global_position = table.global_position
 	await t.frames(40)
 	var view: Node = main.get_node("View3D")
-	var mirror: WorldMirror = view.mirror
+	var mirror: MeshCarrier = view.carrier
 	_hide_walls(built["world"], mirror)  # full-height walls would stand between the camera and it
 	var shown := mirror.proxies_of(table)
 	var kit_mesh: bool = shown.size() == 1 and shown[0] is FurnitureRig
@@ -84,16 +85,16 @@ func run(t: TestContext) -> void:
 
 ## Hide the proxies of every wall, so the picture shows what stands inside the rooms (the walls
 ## fade round the player only in the wall-fade job).
-func _hide_walls(world: Node, mirror: WorldMirror) -> void:
-	for body: Node in world.find_children("*", "PhysicsBody2D", true, false):
-		if MirrorProxy.kind_of(body) == MirrorProxy.WALL:
+func _hide_walls(world: Node, mirror: MeshCarrier) -> void:
+	for body: Node in PlanProbe.bodies_under(world):
+		if MeshKinds.kind_of(body) == MeshKinds.WALL:
 			for proxy in mirror.proxies_of(body):
 				proxy.visible = false
 
 
 ## The first piece the match built that is painted as a table.
 func _first_table(world: Node) -> Node2D:
-	for body: Node in world.find_children("*", "RigidBody2D", true, false):
+	for body: Node in PlanProbe.pieces_under(world):
 		var look: Variant = body.get("look")
 		if look is Object and (look as Object).get("art") == "table":
 			return body as Node2D

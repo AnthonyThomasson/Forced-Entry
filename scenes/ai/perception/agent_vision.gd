@@ -1,4 +1,5 @@
 extends RefCounted
+
 ## AI domain: the SIGHT sense for a goal-driven NPC. Pure, stateless geometry — "can this agent see
 ## that point right now?" — governed by tunable parameters (field of view, range, a close-range
 ## 360° awareness bubble, and line of sight). It holds NO policy: it never decides, remembers or
@@ -9,21 +10,33 @@ extends RefCounted
 ## A point is visible when it is (a) within `view_distance`, AND (b) either within
 ## `awareness_radius` of the agent — a near bubble you sense regardless of which way you face — or
 ## inside the forward cone of half-angle `fov_degrees / 2` around the agent's facing, AND (c)
-## reachable by a clear straight line on the physics query layer. For SIGHT that line is forgiving:
-## a standing agent looks OVER low furniture (a collider whose `coverage` is at or below
-## `see_over_coverage` — tables, beds, islands, counters), so only walls and tall furniture
-## (cabinets, wardrobes, fridges) break the line. Set `enabled` to false to make everything visible
-## (omniscient), for debugging.
+## reachable by a clear line. For SIGHT that line is a 3D eye ray (General's `SightRay`):
+## from the agent's eye, at the height of its posture (a standing eye looks over a table and a
+## sofa, a ducked one does not), to a few points on the target (the head, chest and hips at the
+## target's posture), seen if any one is clear. Only what stands in the way at that height blocks
+## it: walls, doors, furniture and vehicles; a body is never in the way. Set `enabled` to false to
+## make everything visible (omniscient), for debugging.
 ##
-## This "look over low cover" rule is SIGHT-only: `blocked()` / `raycast()` below stay fully
-## physical (every solid collider counts) because they serve line-of-fire and cover, where a bullet
-## is still stopped by a table even though an agent can see across it.
-
-## Physics layer walls + solid furniture live on (General's `PhysicsLayers.SOLID`, also used by
-## CharacterInteraction). This module is the sub-domain's single owner of the solid-geometry ray
-## query: the perception runs its line-of-fire and cover tests through `blocked()` / `raycast()`
-## below rather than repeating it.
-const QUERY_MASK := PhysicsLayers.SOLID
+## This is SIGHT-only: `blocked()` / `raycast()` below stay fully physical (every solid thing
+## counts) because they serve line-of-fire, cover and where a walk may go, where a bullet is still
+## stopped by a table even though an agent can see across it. They are 3D rays at the height of a
+## walker's ankle (`WALK_PART`: every piece stands on the floor, so one that a foot meets is hit),
+## and `wall_hit` a 3D ray at a standing eye's height that only a wall or a door stops.
+##
+## Every ray is cast in the twin space (interface 29) the callers hand in as `space`
+## (`TwinSpace.space_of` a body, `space_in` a `World2D`); a caller that holds none (null: a world
+## with no twin space, a node outside the tree) gets the neutral answer, nothing in the way. The
+## `exclude` rids the callers hand in are the bodies' twin rids (`SightRay.exclude_of`): a sight ray
+## never reads them (a body never blocks an eye ray), a plan line looks through the bodies they
+## name. This module is the sub-domain's single owner of the solid-geometry ray query: the
+## perception runs its line-of-fire and cover tests through `blocked()` / `raycast()` below rather
+## than repeating it.
+## The part of a standing body a plan line is cast at (`BodyHeights.contact`): its ankle, where a
+## foot meets what it walks into.
+const WALK_PART := &"ankle"
+## How many bodies on a round's line `body_in_fire_line` looks through (the welcome ones) before it
+## calls the line open.
+const BODIES_ON_LINE := 4
 
 ## Whether vision is gated at all; false = the agent sees everything (omniscient fallback).
 var enabled: bool = true
@@ -36,38 +49,42 @@ var fov_degrees: float = 110.0:
 		_half_fov = deg_to_rad(value) * 0.5
 ## Radius (px) of the 360° near-awareness bubble: things this close are sensed regardless of facing.
 var awareness_radius: float = 48.0
-## Coverage rating (0–100 height proxy) at or below which furniture is low enough to see OVER: sight
-## passes through it. Above this it blocks the line like a wall (which rates 100). Sight-only; cover
-## and line-of-fire ignore it.
-var see_over_coverage: float = 60.0
+## The character this sense belongs to: whose posture sets the height of its eye. None (a sense a
+## stack or a door view holds for the standing person it plans for): a standing eye.
+var viewer: Object = null
 ## Half the view cone's width in radians, kept with `fov_degrees`.
 var _half_fov := deg_to_rad(110.0) * 0.5
-## The ray every cast reuses: the solid layer, nothing else configured.
-var _query := _solid_query()
-
-
-## A ray query on the solid layer, for `_query` to refill on each cast.
-static func _solid_query() -> PhysicsRayQueryParameters2D:
-	var q := PhysicsRayQueryParameters2D.new()
-	q.collision_mask = QUERY_MASK
-	return q
+## The 3D ray every `fire_line_clear` refills.
+var _fire_ray := PhysicsRayQueryParameters3D.new()
+## The 3D ray every plan line (`raycast`, `wall_hit`) refills.
+var _plan_ray := PhysicsRayQueryParameters3D.new()
+## What `fire_line_clear` answered this physics frame, by shooter, posture, target and point.
+var _memo := {}
+var _memo_frame := -1
 
 
 ## Whether `point` is visible to an agent at `from_pos` facing `facing`, given a physics space state
-## and the rids to exclude from the sight raycast (typically the agent itself). See the class note
-## for the full rule. `space` may be null (treated as an unobstructed line) for geometry-only tests.
+## (a body is never an obstacle to sight, so the exclude rids the callers hand in are not read). See
+## the class note for the full rule. `space` may be null (treated as an unobstructed line) for
+## geometry-only tests.
 func can_see(
 	from_pos: Vector2,
 	facing: Vector2,
 	point: Vector2,
-	space: PhysicsDirectSpaceState2D,
-	exclude: Array,
+	space: PhysicsDirectSpaceState3D,
+	_exclude: Array,
 ) -> bool:
 	if not enabled:
 		return true
 	if not _in_view(from_pos, facing, point):
 		return false
-	return space == null or not _sight_blocked(space, from_pos, point, exclude)
+	return space == null or _sees(
+		space,
+		from_pos,
+		point,
+		BodyHeights.sight_points(BodyHeights.STAND),
+		[],
+	)
 
 
 ## Whether `point` is inside the geometry of sight (view distance and the near bubble or the forward
@@ -75,6 +92,12 @@ func can_see(
 ## the cast of `can_see` is the costly half.
 func in_view(from_pos: Vector2, facing: Vector2, point: Vector2) -> bool:
 	return not enabled or _in_view(from_pos, facing, point)
+
+
+## Half the view cone's width in radians (`fov_degrees` / 2), what `_in_view` tests the angle by;
+## the sight pass (`PerceptionSight.see`) tests the same cone itself, a pair at a time, from this.
+func half_fov() -> float:
+	return _half_fov
 
 
 ## The geometry half of sight: `point` is within view distance and either inside the near bubble or
@@ -94,15 +117,27 @@ func _in_view(from_pos: Vector2, facing: Vector2, point: Vector2) -> bool:
 
 
 ## Whether `node` (a Node2D) is visible — convenience wrapper over can_see using its global
-## position. The node itself is excluded from the sight ray (it is the endpoint, so its own collider
-## must not count as something blocking the line to it); the line is clear when nothing ELSE is
-## between.
+## position, and the points of its own body (a character's at its posture, a piece's middle). The
+## node's own twin is left out of the rays (it is the endpoint, so it must not count as something
+## blocking the line to it); the line is clear when nothing ELSE is between.
 func can_see_node(
 	node: Node2D,
 	from_pos: Vector2,
 	facing: Vector2,
-	space: PhysicsDirectSpaceState2D,
-	exclude: Array,
+	space: PhysicsDirectSpaceState3D,
+	_exclude: Array,
+) -> bool:
+	return can_see_node_at(node, from_pos, facing, space, _eye())
+
+
+## `can_see_node` with the height (px) of this agent's eye given: a caller that asks of many nodes
+## in a row reads it once (`eye_height`).
+func can_see_node_at(
+	node: Node2D,
+	from_pos: Vector2,
+	facing: Vector2,
+	space: PhysicsDirectSpaceState3D,
+	eye: float,
 ) -> bool:
 	if node == null or not is_instance_valid(node):
 		return false
@@ -110,75 +145,364 @@ func can_see_node(
 		return true
 	var point := node.global_position
 	if not _in_view(from_pos, facing, point):
-		# Out of view whatever stands between: no need to build the ray's exclude list.
+		# Out of view whatever stands between: no need to cast.
 		return false
-	if space == null:
+	return sees_in_view(node, point, from_pos, space, eye)
+
+
+## The cast half of `can_see_node_at`, for a caller that has already found `node` (standing at plan
+## point `point`) in view (`in_view`): whether a clear line runs from the eye at `from_pos`, `eye`
+## px up, to any point of its body. True with sight disabled or no space.
+func sees_in_view(
+	node: Node2D,
+	point: Vector2,
+	from_pos: Vector2,
+	space: PhysicsDirectSpaceState3D,
+	eye: float,
+) -> bool:
+	if not enabled or space == null:
 		return true
-	var ex: Array = exclude.duplicate()
-	if node.has_method("get_rid"):
-		ex.append(node.get_rid())
-	return not _sight_blocked(space, from_pos, point, ex)
+	return SightRay.sees(
+		space,
+		PlanSpace.lift(from_pos, eye),
+		point,
+		SightRay.target_heights(node),
+		SightRay.exclude_shared(node),
+	)
 
 
-## The first hit that blocks SIGHT along `from`→`to`, or {} when the line reaches `to`. Unlike
-## `blocked()` (physical: any solid collider stops it), this looks OVER low cover — it walks the
-## line, skipping each collider whose coverage is at or below `see_over_coverage` and casting again
-## past it, until it reaches `to` or hits something tall enough to block (a wall or tall furniture).
-## A surface that is `transparent` (a glass-panel door) is looked through however tall.
-## A collider with no readable coverage is treated as a full blocker. The exclude list grows by one
-## skipped collider each pass, so the walk always terminates (there are finitely many colliders on
-## the line). Ignores `enabled`: it answers what the line is, the callers decide whether sight is
-## gated.
+## The height (px) of this agent's eye: its posture's, a standing one with no viewer.
+func eye_height() -> float:
+	return _eye()
+
+
+## The first hit that blocks SIGHT along `from`→`to` (plan points, a standing body at `to`), or {}
+## when any of its points is seen. The hit is `{ position: Vector2 (plan), height: float (px),
+## collider: the 2D body }` of the line to its head. Unlike `blocked() ` (physical: any solid
+## collider
+## stops it), this is the eye ray of the class note. Ignores `enabled`: it answers what the line
+## is, the callers decide whether sight is gated. The `exclude` rids are not read: a body is no
+## obstacle to sight.
 func sight_hit(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	from: Vector2,
 	to: Vector2,
-	exclude: Array,
+	_exclude: Array,
 ) -> Dictionary:
-	return SightRay.hit(space, from, to, exclude, see_over_coverage)
+	if space == null:
+		return {}
+	var origin := PlanSpace.lift(from, _eye())
+	var first := {}
+	for height in BodyHeights.sight_points(BodyHeights.STAND):
+		var found := SightRay.hit(space, origin, PlanSpace.lift(to, height))
+		if found.is_empty():
+			return {}
+		if first.is_empty():
+			first = found
+	return {
+		"position": PlanSpace.plan_of(first["position"]),
+		"height": PlanSpace.height_of(first["position"]),
+		"collider": TwinSpace.owner_of(first["collider"]),
+	}
 
 
-## Whether the straight line `from`→`to` is broken for SIGHT (`sight_hit`).
-func _sight_blocked(
-	space: PhysicsDirectSpaceState2D,
+## Whether the eye at plan point `from` sees any of `heights` over plan point `to`, leaving the
+## twin rids `exclude` out of the rays.
+func _sees(
+	space: PhysicsDirectSpaceState3D,
 	from: Vector2,
 	to: Vector2,
+	heights: PackedFloat32Array,
 	exclude: Array,
 ) -> bool:
-	return not sight_hit(space, from, to, exclude).is_empty()
+	return space == null or SightRay.sees(space, PlanSpace.lift(from, _eye()), to, heights, exclude)
+
+
+## The height (px) of this agent's eye: its posture's, a standing one with no viewer.
+func _eye() -> float:
+	if is_instance_valid(viewer):
+		return SightRay.eye_of(viewer)
+	return BodyHeights.eye(BodyHeights.STAND)
 
 
 ## Whether the straight segment `from`→`to` hits a wall or solid object on the query layer. A pure
 ## geometry test — it ignores `enabled`, so line-of-fire and cover stay physical even when sight is
 ## disabled (vision gates what the agent KNOWS; this gates what a straight line can reach).
-func blocked(space: PhysicsDirectSpaceState2D, from: Vector2, to: Vector2, exclude: Array) -> bool:
+func blocked(space: PhysicsDirectSpaceState3D, from: Vector2, to: Vector2, exclude: Array) -> bool:
 	return not raycast(space, from, to, exclude).is_empty()
 
 
-## The first solid hit along `from`→`to` on the query layer, or an empty dict when the line is
-## clear. Callers that need the blocking collider itself (e.g. a cover test) use this instead of
-## `blocked()`.
+## Whether `shooter` can fire at `target` (a body, or null for a plain point) standing at plan point
+## `to`: the 3D line of a round from its muzzle to where it aims, clear of every wall, door, piece
+## and vehicle (a body is no obstacle to sight; a glass pane stops a bullet) and of any living body
+## but a `welcome` one (`body_in_fire_line`). The muzzle is that of the posture it fires in: the one
+## it is in, or, ducked, the pose its shot would rise to (`CharacterRise.pose_along`, near cover or
+## far, so what the AI gates its trigger on and what the body does when it pulls it are one rule,
+## `docs/cover-and-stance.md` P6): no pose clears cover too tall to fire over, so none. It aims
+## where its shot would, from the eye of the pose it fires in and at `to`, where it last knew the
+## target (`SightRay.aim_at`: the middle of the part of it that shows, else of its torso; a plain
+## point is a standing body's torso), so a piece the round clears at a standing body's torso may
+## stop it at a ducked one's head.
+## Asked again for the same shooter, posture, `welcome` and points in one physics frame (the watch
+## and the combat both gate on it), it answers from its memo.
+func fire_line_clear(
+	shooter: Node2D,
+	target: Node2D,
+	to: Vector2,
+	welcome: Callable = Callable(),
+) -> bool:
+	var space := TwinSpace.space_of(shooter)
+	if space == null:
+		return true  # outside the tree: no world, nothing in the way
+	var frame := Engine.get_physics_frames()
+	if frame != _memo_frame:
+		_memo.clear()
+		_memo_frame = frame
+	var key := [
+		shooter.global_position,
+		SightRay.posture_of(shooter),
+		shooter.movement.posture(),
+		welcome,
+		target.get_instance_id() if is_instance_valid(target) else 0,
+		SightRay.posture_of(target) if is_instance_valid(target) else &"",
+		to,
+	]
+	if not _memo.has(key):
+		_memo[key] = _fire_clear(space, shooter, target, to, welcome)
+	return _memo[key]
+
+
+## `fire_line_clear` worked out: the 3D line against the world, then against bodies.
+func _fire_clear(
+	space: PhysicsDirectSpaceState3D,
+	shooter: Node2D,
+	target: Node2D,
+	to: Vector2,
+	welcome: Callable,
+) -> bool:
+	var line := _fire_line(shooter, target, to)
+	if line.is_empty():
+		return false  # standing on the point, or no pose clears the cover
+	_fire_ray.from = line["from"]
+	_fire_ray.to = line["to"]
+	_fire_ray.collision_mask = SightRay.MASK
+	if not space.intersect_ray(_fire_ray).is_empty():
+		return false
+	return _body_on(space, line, shooter, target, welcome) == null
+
+
+## The living body other than `shooter` and `target` a round on `fire_line_clear`'s line would meet
+## (a body is no obstacle to sight, but a round hits it: whoever stands in the way holds the shot,
+## an ally, a bystander or the human player), null when none; a crouched body under the line is
+## shot over. `welcome` (a `Callable(body) -> bool`, none by default) names the bodies the round may
+## hit and so do not hold it: the known hostiles.
+func body_in_fire_line(
+	shooter: Node2D,
+	target: Node2D,
+	to: Vector2,
+	welcome: Callable = Callable(),
+) -> Node2D:
+	var space := TwinSpace.space_of(shooter)
+	var line := _fire_line(shooter, target, to) if space != null else {}
+	return _body_on(space, line, shooter, target, welcome) if not line.is_empty() else null
+
+
+## The first living body on `line` that is not `shooter`, `target` or `welcome`, null for none.
+func _body_on(
+	space: PhysicsDirectSpaceState3D,
+	line: Dictionary,
+	shooter: Node2D,
+	target: Node2D,
+	welcome: Callable,
+) -> Node2D:
+	_fire_ray.from = line["from"]
+	_fire_ray.to = line["to"]
+	_fire_ray.collision_mask = PhysicsLayers.TWIN_CHARACTER
+	var skip := SightRay.exclude_of(shooter) + SightRay.exclude_of(target)
+	var found: Node2D = null
+	for _pass in BODIES_ON_LINE:
+		_fire_ray.exclude = skip
+		var hit := space.intersect_ray(_fire_ray)
+		if hit.is_empty():
+			return _end_body_ray(null)
+		var body := TwinSpace.owner_of(hit["collider"])
+		if body == null:
+			return _end_body_ray(null)  # A twin whose owner is gone is no body.
+		found = body
+		if not (welcome.is_valid() and welcome.call(body)):
+			return _end_body_ray(body)
+		skip = skip + [hit["rid"]]
+	return _end_body_ray(found)  # Past the cap every body met was welcome: the last holds the shot.
+
+
+## Clear the body ray's exclusions and answer `body`.
+func _end_body_ray(body: Node2D) -> Node2D:
+	_fire_ray.exclude = []
+	return body
+
+
+## The 3D line `shooter`'s round flies to `to`, `{ from, to }` as points of the twin space: from its
+## muzzle at the posture it fires in to the height it aims at; {} when it stands on the point or,
+## ducked, no pose clears the cover on the way. The pose is the one the shot asks of the rise rule,
+## from the aim of the eye it has ducked (`CharacterWeapon.aim_height_from`); the round then flies
+## to the aim of the eye of the pose it has risen to, as the shot's does.
+func _fire_line(shooter: Node2D, target: Node2D, to: Vector2) -> Dictionary:
+	var offset: Vector2 = to - shooter.global_position
+	if offset.length() < 1.0:
+		return {}
+	var run := offset.length()
+	var pose: StringName = SightRay.posture_of(shooter)
+	var height := _aim_from(shooter, pose, target, to)
+	if shooter.movement.posture() == &"crouch":
+		var risen: StringName = shooter.weapon.rise.pose_along(offset / run, run, height)
+		if risen == BodyHeights.NONE:
+			return {}
+		if BodyHeights.muzzle(risen) > BodyHeights.muzzle(pose):
+			pose = risen
+			height = _aim_from(shooter, pose, target, to)
+	return {
+		"from": PlanSpace.lift(shooter.global_position, BodyHeights.muzzle(pose)),
+		"to": PlanSpace.lift(to, height),
+	}
+
+
+## The height (px) `shooter` aims at on `target` standing at `to`, its eye in `pose`: where it last
+## knew the target (not where it is), a standing body's torso for a plain point.
+func _aim_from(shooter: Node2D, pose: StringName, target: Node2D, to: Vector2) -> float:
+	if is_instance_valid(target) and target.get("movement") != null:
+		return SightRay.aim_at(shooter, BodyHeights.eye(pose), target, to)
+	return BodyHeights.sight_points(BodyHeights.STAND)[1]
+
+
+## The piece that hides a body ducked at plan point `p` from the eye of a threat at `threat` (`eye`
+## px up, a standing body's when negative): the first thing the lines from that eye to the ducked
+## body's head, chest and hips meet when each one is stopped, null when any one is clear. The real
+## 3D lines, so a sofa hides a ducked head from a threat near it or itself low but not from a
+## standing one far off, whose eye looks down over its back, nor from the side of its arm or seat.
+func hiding_piece(
+	space: PhysicsDirectSpaceState3D,
+	p: Vector2,
+	threat: Vector2,
+	eye := -1.0,
+	_exclude: Array = [],
+) -> Object:
+	if space == null:
+		return null
+	var origin := PlanSpace.lift(threat, eye if eye >= 0.0 else BodyHeights.eye(BodyHeights.STAND))
+	var first := {}
+	for height in BodyHeights.sight_points(BodyHeights.DUCK):
+		var found := SightRay.hit(space, origin, PlanSpace.lift(p, height))
+		if found.is_empty():
+			return null
+		if first.is_empty():
+			first = found
+	return TwinSpace.owner_of(first["collider"])
+
+
+## What stops a round from a body standing at plan point `from` on its way to the one at plan point
+## `to` (`target`, or a standing body's for null; `posture` overrides the body's posture, a ducked
+## one for the spot an NPC will take cover at): `{ body: the 2D piece, wall, door or vehicle it
+## meets }`, {} when it is clear. The 3D line runs from a standing muzzle to the middle of the
+## target's torso, or, when a piece stops that, to its head (a head that shows over what hides the
+## rest is what an NPC aims at, `SightRay.aim_height`); the stop is the torso line's. The line of
+## fire of a spot the NPC could stand at, where no shooter is to ask `fire_line_clear` of: a
+## standing muzzle is the highest it fires from, and a ducked body rises as high as it needs
+## (`CharacterRise.pose_along`, no reach limit), so what a standing muzzle clears a rise clears
+## too (`tests/ai/perception/rise_line_matches_rise`). A body in the way is not looked for: it
+## moves, the trigger's gate holds the shot for it.
+func fire_stop_from(
+	space: PhysicsDirectSpaceState3D,
+	from: Vector2,
+	to: Vector2,
+	target: Node2D = null,
+	posture: StringName = BodyHeights.NONE,
+) -> Dictionary:
+	if space == null:
+		return {}
+	var body_posture := posture
+	if body_posture == BodyHeights.NONE:
+		body_posture = BodyHeights.STAND
+		if target != null and is_instance_valid(target) and target.get("movement") != null:
+			body_posture = SightRay.posture_of(target)
+	var points := BodyHeights.sight_points(body_posture)
+	_fire_ray.from = PlanSpace.lift(from, BodyHeights.muzzle(BodyHeights.STAND))
+	_fire_ray.collision_mask = SightRay.MASK
+	var stop := {}
+	for height: float in [points[1], points[0]]:
+		_fire_ray.to = PlanSpace.lift(to, height)
+		var found := space.intersect_ray(_fire_ray)
+		if found.is_empty():
+			return {}
+		if stop.is_empty():
+			stop = { "body": TwinSpace.owner_of(found["collider"]) }
+	return stop
+
+
+## The first solid hit along `from`→`to` (plan points) that is not one of `exclude` (twin rids), or
+## an empty dict when the line is clear: a wall, a door, a piece, a vehicle or a character, found by
+## a 3D ray `height` px above the floor (a walker's ankle when none is given) in the twin space, as
+## `{ position, normal (plan), collider (the 2D body), collider_id, rid (its twin's rid) }`. Callers
+## that need the blocking body itself (e.g. a cover test) use this instead of `blocked()`.
 func raycast(
-	space: PhysicsDirectSpaceState2D,
+	space: PhysicsDirectSpaceState3D,
 	from: Vector2,
 	to: Vector2,
 	exclude: Array,
+	height := -1.0,
 ) -> Dictionary:
-	_query.from = from  # One query object, refilled: a snapshot casts thousands of rays.
-	_query.to = to
-	_query.exclude = exclude
-	return space.intersect_ray(_query)
-
-
-## The first WALL along `from`→`to` (a static body: furniture, which is a rigid body, and characters
-## are looked through), or {} when the line reaches `to`. What bounds a doorway's view
-## (`AgentDoorViews.door_view`).
-func wall_hit(space: PhysicsDirectSpaceState2D, from: Vector2, to: Vector2) -> Dictionary:
-	var ex: Array = []
+	if space == null:
+		return {}
+	_aim_plan_ray(from, to, height if height >= 0.0 else BodyHeights.contact(WALK_PART))
+	_plan_ray.collision_mask = PhysicsLayers.TWIN_ALL
+	var skipped: Array[RID] = []
 	while true:
-		var hit := raycast(space, from, to, ex)
-		if hit.is_empty() or hit.get("collider") is StaticBody2D:
-			return hit
-		ex = ex.duplicate()
-		ex.append(hit.get("rid"))
+		_plan_ray.exclude = skipped
+		var found := space.intersect_ray(_plan_ray)
+		if found.is_empty():
+			return {}
+		if exclude.has(found["rid"]):
+			skipped.append(found["rid"])
+			continue
+		return _plan_hit(found, TwinSpace.owner_of(found["collider"]))
 	return {}  # unreachable; satisfies the parser
+
+
+## The first WALL along `from`→`to` (a static body: a wall or a door; furniture, which is a rigid
+## body, and characters are looked through), or {} when the line reaches `to`: a 3D ray at a
+## standing eye's height, so a line through a doorway under its lintel is clear. What bounds a
+## doorway's view (`AgentDoorViews.door_view`).
+func wall_hit(space: PhysicsDirectSpaceState3D, from: Vector2, to: Vector2) -> Dictionary:
+	if space == null:
+		return {}
+	_aim_plan_ray(from, to, BodyHeights.eye(BodyHeights.STAND))
+	_plan_ray.collision_mask = PhysicsLayers.TWIN_WORLD
+	var skipped: Array[RID] = []
+	while true:
+		_plan_ray.exclude = skipped
+		var found := space.intersect_ray(_plan_ray)
+		if found.is_empty():
+			return {}
+		var body := TwinSpace.owner_of(found["collider"])
+		if body != null and body.is_in_group(TwinSpace.HARD):
+			return _plan_hit(found, body)
+		skipped.append(found["rid"])
+	return {}  # unreachable; satisfies the parser
+
+
+## Point the plan ray at the plan line `from`→`to`, `height` px up.
+func _aim_plan_ray(from: Vector2, to: Vector2, height: float) -> void:
+	_plan_ray.from = PlanSpace.lift(from, height)
+	_plan_ray.to = PlanSpace.lift(to, height)
+
+
+## The plan line's hit for the 3D ray's `found`, whose twin stands for the 2D `body` (null for a
+## twin with no owner): `intersect_ray`'s keys, in plan space.
+func _plan_hit(found: Dictionary, body: Node2D) -> Dictionary:
+	var normal: Vector3 = found["normal"]
+	return {
+		"position": PlanSpace.plan_of(found["position"]),
+		"normal": Vector2(normal.x, normal.z),
+		"collider": body,
+		"collider_id": body.get_instance_id() if body != null else 0,
+		"rid": found["rid"],
+	}

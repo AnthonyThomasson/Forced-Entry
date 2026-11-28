@@ -2,10 +2,10 @@ class_name BodyTextures
 extends RefCounted
 ## Character body, the 2D art on the 3D body (`body_mesh.gd`): the flat render of
 ## each painter (`PixelArt.render_flat`: the art with no light of its own, the toon bands light it)
-## mapped onto the part the 2D draws it for, with `MeshNodes.textured`. The art is angle-free, so it
-## is one texture per part per look (`PixelArt` caches it), set when the look changes and never per
-## frame; the parts turn and stretch with the pose and the art stays put on them (the textured toon
-## projects in the part's own model space).
+## mapped onto the part the 2D draws it for (`MeshPart`, read as the textured toon reads it). The
+## art is angle-free, so it is one texture per part per look (`PixelArt` caches it), set when the
+## look changes and never per frame; the parts turn and stretch with the pose and the art stays put
+## on them (the textured toon projects in the part's own model space).
 ##
 ## What goes where:
 ## - the shoulders (`BodyPainter`: the shirt's collar, sleeve ends, vest top, plates, the pack's
@@ -44,7 +44,7 @@ static var _shins := {}
 ## Put the look `dress` resolved on the `parts` of a body of radius `r` whose fists are
 ## `hand_radius` px (`BodyMesh`'s indices).
 static func apply(
-	parts: Array[MeshInstance3D],
+	parts: Array[MeshPart],
 	dress: BodyDress,
 	r: float,
 	hand_radius: float,
@@ -81,7 +81,7 @@ static func apply(
 
 ## The shoulders' art on the trunk and the vest (the same texture over the trunk's and the vest's
 ## own scale), and the pack's rectangle of it on the pack's box.
-static func _trunk(parts: Array[MeshInstance3D], dress: BodyDress, r: float) -> void:
+static func _trunk(parts: Array[MeshPart], dress: BodyDress, r: float) -> void:
 	var size := Vector2(r * 2.0, r * 2.0)
 	var tex := PixelArt.render_flat(BodyPainter, size, dress.shirt, dress.shoulder_opts)
 	var half := BodyMesh.trunk_half(r)
@@ -98,7 +98,7 @@ static func _trunk(parts: Array[MeshInstance3D], dress: BodyDress, r: float) -> 
 
 ## The head's art on the head's dome, and on the hair's and the headwear's over it (one rect: the
 ## art's disc is each dome's equator), and the whole canvas on the sprite over the crown.
-static func _head(parts: Array[MeshInstance3D], dress: BodyDress, r: float) -> void:
+static func _head(parts: Array[MeshPart], dress: BodyDress, r: float) -> void:
 	var px := ArtCanvasConfig.pixel_size
 	var disc := HeadPainter.radius_for(roundi(r * 2.0 / px))
 	var side := head_side(r)
@@ -118,7 +118,7 @@ static func head_side(r: float) -> float:
 
 
 ## Each fist's art on its ball: the art's disc is the ball's equator.
-static func _hands(parts: Array[MeshInstance3D], dress: BodyDress, hand_radius: float) -> void:
+static func _hands(parts: Array[MeshPart], dress: BodyDress, hand_radius: float) -> void:
 	var diameter := hand_radius * 2.0 + 2.0
 	var size := Vector2(diameter, diameter)
 	var disc := HandPainter.fist_radius(int(diameter), int(diameter))
@@ -129,7 +129,7 @@ static func _hands(parts: Array[MeshInstance3D], dress: BodyDress, hand_radius: 
 
 
 ## Side `i`'s shin: the knee's strip over the shin's, as one texture along the shin's solid.
-static func _shin(node: MeshInstance3D, dress: BodyDress, i: int, r: float) -> void:
+static func _shin(node: MeshPart, dress: BodyDress, i: int, r: float) -> void:
 	var leg: Array = CharacterArtConfig.body_leg_widths
 	var opts: Dictionary = dress.leg_opts[i]
 	var shin := CharacterBodyConfig.shin * r
@@ -147,7 +147,7 @@ static func _shin(node: MeshInstance3D, dress: BodyDress, i: int, r: float) -> v
 
 
 ## Side `i`'s boot's shaft on its straight solid (the shaft's strip, in the shoes' colour).
-static func _boot(node: MeshInstance3D, dress: BodyDress, i: int, r: float) -> void:
+static func _boot(node: MeshPart, dress: BodyDress, i: int, r: float) -> void:
 	var leg: Array = CharacterArtConfig.body_leg_widths
 	var opts: Dictionary = dress.leg_opts[i]
 	var top := lerpf(leg[2], leg[3], (BOOT_TOP - 0.35) / 0.65) + BOOT_GROW
@@ -163,7 +163,7 @@ static func _boot(node: MeshInstance3D, dress: BodyDress, i: int, r: float) -> v
 
 ## Side `i`'s shoe (a boot's a little wider): its strip over the footprint of its solid, the toe
 ## along its +z.
-static func _foot(node: MeshInstance3D, dress: BodyDress, i: int, r: float) -> void:
+static func _foot(node: MeshPart, dress: BodyDress, i: int, r: float) -> void:
 	var shoe: Array = CharacterArtConfig.body_shoe_widths
 	var grow := BOOT_GROW if dress.boots else 0.0
 	var strip := _strip(
@@ -199,7 +199,7 @@ static func _part(color: Color, opts: Dictionary) -> Dictionary:
 
 ## `strip` (`_strip`) on a limb's node whose solid is `across` px per unit wide (the limb's own
 ## thickness by default): across the strip is across the limb, its length is the limb's.
-static func _limb(node: MeshInstance3D, strip: Dictionary, r: float, across := 0.0) -> void:
+static func _limb(node: MeshPart, strip: Dictionary, r: float, across := 0.0) -> void:
 	var per := across if across > 0.0 else BodyMesh.limb_thick(r)
 	var size: Vector2 = strip["size"]
 	var length: float = strip["length"]
@@ -239,11 +239,13 @@ static func _core(strip: Dictionary, tex: Texture2D) -> Rect2i:
 	return Rect2i(0, from, tex.get_width(), rows)
 
 
-## `tex` over a node in `rect` (model units), tinted white so the art shows as painted; `cutout`
+## `tex` over a part in `rect` (model units), tinted white so the art shows as painted; `cutout`
 ## draws nothing where it is clear.
-static func _put(node: MeshInstance3D, tex: Texture2D, rect: Rect2, cutout := false) -> void:
-	var model := Rect2(rect.position / RenderConfig.unit, rect.size / RenderConfig.unit)
-	MeshNodes.textured(node, tex, model, { "tint": Color.WHITE, "cutout": cutout })
+static func _put(node: MeshPart, tex: Texture2D, rect: Rect2, cutout := false) -> void:
+	node.texture = tex
+	node.rect = rect
+	node.cutout = cutout
+	node.tint = Color.WHITE
 
 
 ## The rect of an art canvas `size` px, centred on the part's axis, for a part whose model unit is

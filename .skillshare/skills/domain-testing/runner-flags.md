@@ -36,9 +36,7 @@ The header lists every flag; this file holds the rules and the reasons behind th
   runs anyway and marks that process's results `loaded`: a `loaded` result is no evidence of a regression. An unreadable
   `perf_quiet.conf` ends the run with exit 2. The wrapper appends `(load <x>, <n> busy Godot)` to every `PERF` line.
 - **Von tests:** a `requires_von` test runs in every normal run (`--changed`, the pre-commit hook, `--base`) from `<name>_test.von.json` beside it (`VonRecording`, keyed as `domain-ai` (`decision-von.md`) says). Each answer lands 12 physics frames after its ask in replay, live and
-  record alike. No server or pacing; sharded as any test. An ask the recording lacks, or
-  a missing or unreadable file, FAILs naming the question and `tools/run_tests.sh --record-von --id=<id>` (a snapshot or
-  question wording change stales recordings): run it against a live Von on :8000 and commit the diff.
+  record alike. No server or pacing; sharded as any test. An ask the recording lacks, or a missing or unreadable file, FAILs naming the question and `tools/run_tests.sh --record-von --id=<id>` (a snapshot or question wording change stales recordings): run it against a live Von on :8000, commit the diff. A replay miss: `von-determinism.md`.
   - `--record-von` runs the selected Von tests live and writes each passing test's recording whole (unused entries drop);
     FAILs with no server, like `--require-von`. `--include-von` / `--require-von` run live and touch no recording. Live
     and record runs are paced in real time, in shard 0.

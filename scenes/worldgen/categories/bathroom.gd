@@ -11,7 +11,6 @@ const OBJECTS := {
 		"material": "ceramic",
 		"art": "toilet",
 		"weight": 35,
-		"coverage": 40,
 		"penetration": 55,
 	},
 	"bathtub": {
@@ -23,7 +22,6 @@ const OBJECTS := {
 		"art": "bath",
 		"art_opts": { "style": "tub" },
 		"weight": 120,
-		"coverage": 45,
 		"penetration": 60,
 	},
 	"shower": {
@@ -35,7 +33,6 @@ const OBJECTS := {
 		"art": "bath",
 		"art_opts": { "style": "shower" },
 		"weight": 80,
-		"coverage": 95,
 		"penetration": 25,
 	},
 	"towel_rack": {
@@ -47,7 +44,6 @@ const OBJECTS := {
 		"art": "fixture",
 		"art_opts": { "kind": "towels" },
 		"weight": 4,
-		"coverage": 25,
 		"penetration": 30,
 	},
 	"linen_shelf": {
@@ -57,9 +53,8 @@ const OBJECTS := {
 		"color": Color(0.55, 0.55, 0.58),
 		"material": "wood",
 		"art": "shelf",
-		"art_opts": { "contents": "boxes" },
+		"art_opts": { "contents": "boxes", "loose": true },
 		"weight": 10,
-		"coverage": 40,
 		"penetration": 35,
 	},
 	"bath_mat": {
@@ -72,7 +67,6 @@ const OBJECTS := {
 		"art_opts": { "pattern": "plush" },
 		"weight": 2,
 		"solid": false,
-		"coverage": 0,
 		"penetration": 5,
 	},
 }

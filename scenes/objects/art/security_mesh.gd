@@ -2,12 +2,17 @@ extends RefCounted
 ## Objects domain, the 3D mesh of the security vestibule's steel (the pattern is
 ## `table_mesh.gd`, `domain-art/meshes.md`): at the piece's own footprint and
 ## `security_painter.gd`'s proportions, by `kind`. `barricade` is a heavy slab across the room, its
-## back edge hazard-striped, propped by a stack of sandbags at both ends; `scanner` is one post of
+## back edge hazard-striped (the sandbags at both ends are loose items it carries: `sandbag`,
+## `docs/stacked-items.md` SI15); `scanner` is one post of
 ## the scanner arch, tall, with a dark lens on top and the emitter strip down the face toward the
 ## other post glowing red (a glow node of the rig); `lockers` is a row of tall steel lockers, every
 ## other one a shade darker, each with vent slots and a number plate on its front.
 
 const OPTIONS := ["kind", "height"]
+## How far (px) in from its end the barricade's slab starts: 12 % of its width plus 4 px, where the
+## stacks of sandbags it carries end (the second bag of a stack is set 3 px in and they are 15
+## wide), so no bag starts inside the slab's body.
+const BAG_OVERLAP := 4.0
 ## How far a feature stands proud of the face it is laid on.
 const PROUD := 0.6
 
@@ -54,10 +59,8 @@ static func _tuning(spec: FurnitureSpec) -> Dictionary:
 	return {
 		"opts": spec.read(OPTIONS),
 		"height": height_of(spec),
-		"bag": ObjectMeshTechConfig.bag_height,
 		"dark": ObjectArtTechConfig.tech_dark_color,
 		"hazard": ObjectArtTechConfig.security_hazard_color,
-		"sandbag": ObjectArtTechConfig.security_sandbag_color,
 		"number": ObjectArtTechConfig.security_number_color,
 		"beam": ObjectArtTechConfig.security_beam_color,
 	}
@@ -78,8 +81,7 @@ static func _mesh(spec: FurnitureSpec) -> Mesh:
 
 ## The slab with its hazard stripe along the back and a stack of sandbags at each end.
 static func _barricade(spec: FurnitureSpec, kit: MeshKit) -> void:
-	var edge := floorf(spec.size.x * 0.12)
-	var slab := Rect2(edge, 2, spec.size.x - edge * 2.0, spec.size.y - 4.0)
+	var slab := slab_of(spec)
 	var height := height_of(spec)
 	kit.box(
 		MeshKit.volume(spec.within(slab), 0.0, height),
@@ -97,31 +99,13 @@ static func _barricade(spec: FurnitureSpec, kit: MeshKit) -> void:
 		)
 		x += 4.0
 		k += 1
-	_bags(spec, kit)
 
 
-## A stack of three sandbags at each end of the slab, the middle one with a smaller bag on it.
-static func _bags(spec: FurnitureSpec, kit: MeshKit) -> void:
-	var bag_d := floorf((spec.size.y - 2.0) / 3.0)
-	var whole := Rect2(Vector2.ZERO, spec.size)
-	var bag := ObjectArtTechConfig.security_sandbag_color
-	var stack := ObjectMeshTechConfig.bag_height
-	for at: float in [0.0, spec.size.x - floorf(spec.size.x * 0.14)]:
-		for n in 3:
-			var rect := Rect2(
-				at + (n % 2) * 3.0,
-				1.0 + n * bag_d,
-				floorf(spec.size.x * 0.13),
-				bag_d,
-			)
-			rect = rect.intersection(whole)
-			kit.box(MeshKit.volume(spec.within(rect), 0.0, stack), MeshKit.tone(bag, &"dark"), bag)
-			if n == 1:
-				kit.box(
-					MeshKit.volume(spec.within(rect.grow(-2.0)), stack, stack * 0.6),
-					bag,
-					bag.lightened(0.08),
-				)
+## The barricade's slab in the piece's frame (px from its back-left corner): between the two
+## places the sandbags it carries stand (`BAG_OVERLAP`).
+static func slab_of(spec: FurnitureSpec) -> Rect2:
+	var edge := floorf(spec.size.x * 0.12) + BAG_OVERLAP
+	return Rect2(edge, 2, spec.size.x - edge * 2.0, spec.size.y - 4.0)
 
 
 ## A post: a rounded body, the dark lens on its top.

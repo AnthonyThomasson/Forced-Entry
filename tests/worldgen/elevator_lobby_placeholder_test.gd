@@ -6,6 +6,7 @@ extends GameTest
 ## laid: `{ room, rect, node, text }`, one per lobby. Nothing else in the building carries a
 ## stencil.
 
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const FAR_AWAY := Vector2(5000, 5000)
 const SEEDS := [1, 2]
 const TEXT := "WIP ELEVATOR LOBBY"
@@ -117,7 +118,7 @@ func _check_empty(t: TestContext, label: String, house: Node2D, lobby: Dictionar
 		),
 		"%s: the lobby has clutter" % label,
 	)
-	for body in house.find_children("*", "RigidBody2D", true, false):
+	for body in PlanProbe.pieces_under(house):
 		t.check(not (lobby["rect"] as Rect2).has_point((body as Node2D).global_position),
 			"%s: %s stands in the lobby" % [label, body.name])
 

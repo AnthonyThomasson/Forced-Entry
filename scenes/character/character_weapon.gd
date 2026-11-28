@@ -5,7 +5,10 @@ class_name CharacterWeapon extends RefCounted
 ## (`update_raise`, after the facing is set) and hands the pose its stances.
 
 ## The character holding the item.
-var character: CharacterBody2D
+var character: Node2D
+## A ducked body's rise over its cover to fire (`character_rise.gd`): the weapon asks it before a
+## gun leaves the barrel, `movement.body_posture()` reads the pose it holds.
+var rise: CharacterRise
 ## The held weapon's barrel is against a wall or object (only a weapon that `raises_at_contact`): it
 ## is held pointing up and cannot shoot. Set at once; `_raise` eases toward it (0 = held to the aim
 ## .. 1 = fully up).
@@ -15,8 +18,9 @@ var _raise := 0.0
 
 
 ## The weapon use of `host`.
-func _init(host: CharacterBody2D) -> void:
+func _init(host: Node2D) -> void:
 	character = host
+	rise = CharacterRise.new(host)
 
 
 ## Melee with the held item (F): runs its primary action. Ignored while locked in an interaction.
@@ -43,6 +47,13 @@ func shoot() -> bool:
 	# gun fired point-blank into a wall would leave through it.
 	update_raise(0.0)
 	if _blocked:
+		return false
+	# A ducked gun behind cover rises over it first (it holds its fire while it does), but only a
+	# gun that could fire now: an empty or cooling one neither rises nor renews the rise.
+	if (character.movement.posture() == &"crouch"
+			and item.gun_id() != &""
+			and item.can_fire()
+			and not rise.rise_to(rise.pose_needed(item.weapon_hand()), item.fire_interval())):
 		return false
 	return item.secondary(character)
 
@@ -91,6 +102,43 @@ func muzzle_origin(hand: int) -> Vector2:
 	return character.anatomy.hands.world(hand) + character.facing * _muzzle_ahead(item)
 
 
+## How high (px above the floor) a round leaves the muzzle: the bore line of the posture the body is
+## in (`movement.body_posture()`): standing, ducked, or risen over its cover to fire (`rise_to`).
+func muzzle_height() -> float:
+	return BodyHeights.muzzle(character.movement.body_posture())
+
+
+## How high (px above the floor) the shot is aimed at `movement.aim_point`: the height the
+## controller set; for `AIM_AUTO` (an AI aiming at where a body is) the middle of the part of the
+## living character standing there that this one sees (`SightRay.aim_height`: the head when only the
+## head shows over cover, else its torso, in its posture); else level, the muzzle's own height.
+func aim_height() -> float:
+	return aim_height_from(muzzle_height())
+
+
+## `aim_height` for a muzzle at `level` px: the same unless the shot is level (a controller's
+## `AIM_LEVEL`, or an `AIM_AUTO` with no body at the aim), which flies level at `level`.
+func aim_height_from(level: float) -> float:
+	var wanted: float = character.movement.aim_height
+	if wanted >= 0.0:
+		return wanted
+	if wanted == CharacterMovement.AIM_AUTO:
+		var target := _target_at(character.movement.aim_point)
+		if target != null:
+			return SightRay.aim_height(character, target)
+	return level
+
+
+## The plan direction a round leaves the muzzle of the weapon in `hand` in before its spread: toward
+## the point `GunConfig.zero_range` ahead of the body along its facing (so a gun held off the line
+## still shoots where the character points), turned by the stun's sway.
+func shot_direction(hand: int) -> Vector2:
+	var muzzle := muzzle_origin(hand)
+	var direction: Vector2 = (character.global_position
+			+ character.facing * GunConfig.zero_range - muzzle).normalized()
+	return direction.rotated(aim_sway())
+
+
 ## The point the character is aiming at, as an item reads it (a grenade is thrown to it): the aim
 ## point, swayed about the body by `aim_sway()`.
 func aim_target() -> Vector2:
@@ -107,6 +155,15 @@ func aim_sway() -> float:
 	return (0.0
 			if level <= 0.0
 			else deg_to_rad(CharacterStunConfig.sway) * level * stun.wander(0.0))
+
+
+## How far (rad) the aim has swayed up or down: the stun's sway, in the other axis.
+func aim_sway_lift() -> float:
+	var stun: CharacterStun = character.stun
+	var level := stun.level()
+	return (0.0
+			if level <= 0.0
+			else deg_to_rad(CharacterStunConfig.sway) * level * stun.wander(1.7))
 
 
 ## Whether the held gun is held in one hand: the free hand is over the eyes (blind, `_covers_eyes`).
@@ -197,3 +254,18 @@ func _covers_eyes(item: Item) -> bool:
 static func _muzzle_ahead(item: Item) -> float:
 	var ahead := item.muzzle_ahead() if item != null else -1.0
 	return ahead if ahead >= 0.0 else CharacterStanceConfig.muzzle_ahead
+
+
+## The living character other than this one standing at `at` (within `CharacterHitConfig.aim_reach`
+## body radii), the nearest to it; null for none.
+func _target_at(at: Vector2) -> Node2D:
+	var best: Node2D = null
+	var best_gap := INF
+	for other: Node in character.get_tree().get_nodes_in_group(&"characters"):
+		if other == character or other.is_dead or not character.get_parent().is_ancestor_of(other):
+			continue
+		var gap := (other as Node2D).global_position.distance_to(at)
+		if gap <= other.radius * CharacterHitConfig.aim_reach and gap < best_gap:
+			best = other
+			best_gap = gap
+	return best

@@ -1,10 +1,11 @@
 extends GameTest
-## What the wall fade is given by the mirror (#193 rule 9, interface 27): `WorldMirror.built(body,
+## What the wall fade is given by the mirror (#193 rule 9, interface 27): `MeshCarrier.built(body,
 ## mesh)` says each mesh a builder made for a body, and the fade (`WallFade.listen`) looks after the
 ## walls', doors' and furniture's, so a builder registered after the fade started still fades, and a
 ## character's, a vehicle's or a body that got no mesh is left alone. A shoved piece (not a
-## `StaticBody2D`) is movable for the fade's grid, a wall is not.
+## wall) is movable for the fade's grid, a wall is not.
 
+const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 const SIZE := Vector3(40, 70, 40)
 
 var _built: Array = []
@@ -31,7 +32,7 @@ func run(t: TestContext) -> void:
 	view.own_world_3d = true
 	t.world.add_child(view)
 	t.world.find_child("Arena Walls", true, false).free()  # only the bodies below are mirrored
-	var mirror := WorldMirror.new()
+	var mirror := MeshCarrier.new()
 	var fade := WallFade.new()
 	view.add_child(mirror)
 	view.add_child(fade)
@@ -40,18 +41,18 @@ func run(t: TestContext) -> void:
 	fade.listen(mirror)  # twice is once
 	mirror.built.connect(func(body: Node, mesh: Node3D) -> void: _built.append([body, mesh]))
 	# every builder is registered after the fade started listening
-	mirror.builders[MirrorProxy.FURNITURE] = _builder
-	mirror.builders[MirrorProxy.WALL] = _builder
-	mirror.builders[MirrorProxy.DOOR] = _builder
+	mirror.builders[MeshKinds.FURNITURE] = _builder
+	mirror.builders[MeshKinds.WALL] = _builder
+	mirror.builders[MeshKinds.DOOR] = _builder
 	var bodies := {
-		"piece": _body(t, StaticBody2D.new(), "piece", Vector2(0, 24)),
-		"shoved": _body(t, RigidBody2D.new(), "shoved", Vector2(2000, 40)),
+		"piece": _body(t, PlanProbe.handle(), "piece", Vector2(0, 24)),
+		"shoved": _body(t, PlanProbe.handle(), "shoved", Vector2(2000, 40)),
 		"wall": _body(t, StandInWall.new(), "wall", Vector2(0, 400)),
-		"door": _body(t, AnimatableBody2D.new(), "door", Vector2(0, 800)),
-		"bare": _body(t, StaticBody2D.new(), "bare", Vector2(0, 1600)),
+		"door": _body(t, PlanProbe.handle(), "door", Vector2(0, 800)),
+		"bare": _body(t, PlanProbe.handle(), "bare", Vector2(0, 1600)),
 	}
 	bodies["door"].add_to_group(&"doors")
-	mirror.mirror(t.world)
+	mirror.carry(t.world)
 	await t.frames(3)
 	fade.step(0.0, 0.0, PackedVector2Array())
 	_kept(t, fade, bodies)
@@ -69,8 +70,8 @@ func _kept(t: TestContext, fade: WallFade, bodies: Dictionary) -> void:
 	t.expect_eq(fade.count(), 4, "the furniture, shoved piece, wall and door are kept")
 	for key: String in ["piece", "shoved", "wall", "door"]:
 		t.check(fade.unit_of(bodies[key].get_instance_id()) != null, "%s is kept" % key)
-	t.check(not fade.unit_of(bodies["piece"].get_instance_id()).movable, "a StaticBody2D is fixed")
-	t.check(fade.unit_of(bodies["shoved"].get_instance_id()).movable, "a RigidBody2D is movable")
+	t.check(not fade.unit_of(bodies["wall"].get_instance_id()).movable, "a wall is fixed")
+	t.check(fade.unit_of(bodies["shoved"].get_instance_id()).movable, "a piece is movable")
 	t.check(fade.unit_of(bodies["door"].get_instance_id()).movable, "a door is movable")
 	t.check(fade.unit_of(bodies["bare"].get_instance_id()) == null, "a body with no mesh is not")
 	var walker := Node2D.new()
@@ -99,14 +100,9 @@ func _builder(body: Node2D) -> Node3D:
 	return mesh
 
 
-func _body(t: TestContext, body: PhysicsBody2D, body_name: String, at: Vector2) -> PhysicsBody2D:
+func _body(t: TestContext, body: Node2D, body_name: String, at: Vector2) -> Node2D:
 	body.name = body_name
 	body.position = at
-	var shape := CollisionShape2D.new()
-	var rect := RectangleShape2D.new()
-	rect.size = Vector2(SIZE.x, SIZE.z)
-	shape.shape = rect
-	body.add_child(shape)
 	t.world.add_child(body)
 	return body
 
@@ -116,5 +112,9 @@ func _made_for(body: Node) -> bool:
 
 
 ## A body the mirror reads as a wall (it has a `wall_thickness`).
-class StandInWall extends StaticBody2D:
+class StandInWall extends Node2D:
 	var wall_thickness := 8.0
+
+	func _enter_tree() -> void:
+		add_to_group(&"walls")
+		add_to_group(TwinSpace.BODIES)

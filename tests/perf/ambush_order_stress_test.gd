@@ -40,6 +40,13 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	# A planning bake lands `district_frames` game frames after its start and its thread takes 120
+	# to 140 ms. This guard's headless frames are about 3 ms, so the game's 36 frames are about 110
+	# ms here, under the thread, and every landing would hold a frame for the rest of the thread's
+	# run (max 35 to 38 ms against 33). In play a frame is 16.7 ms and 36 of them are about 600 ms.
+	# So the guard counts 50 frames (about 150 ms) for itself; the harness restores the game's count
+	# after. Open work: a faster planning bake, after which this override goes.
+	s.set_static(NavBakeConfig, &"district_frames", 50)
 	s.district(Perf.MATCH_SEED, Perf.MATCH_PLAN)
 	s.von_script([])
 	s.switch(&"audio.sound", false)

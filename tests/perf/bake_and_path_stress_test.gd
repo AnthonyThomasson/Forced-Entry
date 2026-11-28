@@ -22,6 +22,11 @@ extends GameTest
 ## 2.52 and 2.58 ms a steering re-bake, 23.3 and 22.9 ms for the 300 queries. The steering re-bake
 ## moved from about 5.5 to about 2.5 ms (a tick cuts only the pieces that moved), so its budget is
 ## set again at about 4x: 10 ms. The other three read within 15 % of the base and keep theirs.
+## 2026-11-20, #194 (the nav bake reads the twins; three runs each, load 7 to 17, the base
+## commit alternating, in brackets): 2.6, 2.6 and 2.6 ms a steering re-bake [2.4, 2.3, 2.4]; a
+## district's walls read from the twins take 1.8 ms where the engine's parse of the colliders took
+## 3.6. Under load 20 to 40 (other workers) the steering re-bake read 7 to 10 ms on the base and on
+## the new alike: measure it on a quiet machine.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const REBAKES := 10
@@ -54,8 +59,8 @@ func run(t: TestContext) -> void:
 	var rooms := WorldGen.district_rooms(district)
 	if not t.require(rooms.size() >= 2, "the district has rooms to path between"):
 		return
-	var region: NavigationRegion2D = t.world.find_children(
-		"NavRegion", "NavigationRegion2D", true, false,
+	var region: NavigationRegion3D = t.world.find_children(
+		"NavRegion", "NavigationRegion3D", true, false,
 	)[0]
 	var rebake_ms := Perf.time_ms(func():
 		for i in REBAKES:
@@ -75,7 +80,7 @@ func run(t: TestContext) -> void:
 ## re-bake tick costs a frame while the characters are about.
 func _steering(
 	t: TestContext,
-	region: NavigationRegion2D,
+	region: NavigationRegion3D,
 	district: Node2D,
 	rooms: Array,
 ) -> void:
@@ -91,13 +96,13 @@ func _steering(
 
 ## `QUERIES` path queries between the district's rooms: their total time and how many found a path.
 func _queries(t: TestContext, rooms: Array) -> void:
-	var map := t.world.get_world_2d().navigation_map
+	var map := NavWorld.map_of(t.world)
 	var found := [0]  # a lambda captures ints by value
 	var query_ms := Perf.time_ms(func():
 		for i in QUERIES:
 			var a: Rect2 = rooms[i % rooms.size()]["rect"]
 			var b: Rect2 = rooms[(i * 7 + 3) % rooms.size()]["rect"]
-			var path := NavigationServer2D.map_get_path(map, a.get_center(), b.get_center(), true)
+			var path := NavPlan.path(map, a.get_center(), b.get_center())
 			if not path.is_empty():
 				found[0] += 1)
 	Perf.within(t, "nav %d path queries total ms" % QUERIES, query_ms, QUERY_BUDGET_MS)

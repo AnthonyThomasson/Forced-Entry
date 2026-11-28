@@ -12,7 +12,6 @@ const OBJECTS := {
 		"art": "counter",
 		"art_opts": { "basin": "deep" },
 		"weight": 25,
-		"coverage": 45,
 		"penetration": 45,
 	},
 }

@@ -3,9 +3,10 @@ extends GameTest
 ## that grenade's danger zone at the landing spot (the option's `ally_in_blast` tag is in the
 ## tactic's `drop_tags`). One mechanism: an invader with a frag, a hostile behind a desk 420 px off
 ## (outside the invader's own zone, so only the ally matters; the thrower's own zone is
-## `grenade_not_offered_no_safe_spot`). Scripted Von; the same scene is read twice: nobody in the
-## way (GRENADE is offered), then an ally beside the hostile (dropped).
+## `grenade_offered_when_cover_shadows_thrower`). Scripted Von; the same scene is read twice: nobody
+## in the way (GRENADE is offered), then an ally beside the hostile (dropped).
 
+const Hiding := preload("res://tests/_ai/hiding_piece.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Flank := preload("res://tests/_ai/flank_probe.gd")
@@ -28,8 +29,9 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	Hiding.von_out(s)
 	s.arena(Rect2(0, 0, 900, 500))
-	s.object(&"desk", "desk", DESK)
+	s.object(&"desk", Hiding.low_cover("desk"), DESK)
 	Flank.rules(
 		s,
 		[{ "pick": "combat" }, { "pick": "engage" }, { "pick": "advance" }, { "pick": "retreat" }],
@@ -42,6 +44,8 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var n := t.actor(&"n")
 	Probe.arm(n, 0, 1)
+	if not await Hiding.duck_after_seen(t, &"h", &"n"):
+		return
 	if not t.require(
 			Probe.count(n, Probe.FRAG) == 1,
 			"the invader carries a frag grenade (Character.inventory.item_count(8) = %d)"

@@ -37,7 +37,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var walker := t.actor(&"walker")
-	var agent: NavigationAgent2D = walker.get_node("NavigationAgent2D")
+	var agent: NavigationAgent3D = walker.get_node("NavAnchor/NavigationAgent3D")
 	var brain := t.controller(&"walker", &"current_act")
 	if not t.require(
 			await t.until(func(): return String(brain.current_act()).contains("advance"), 10.0),

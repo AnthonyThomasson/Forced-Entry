@@ -5,16 +5,15 @@ class_name ObjectMeshShopConfig
 ## units: the mesh kit converts them to 3D units in one place. A piece's own `art_opts.height`
 ## overrides its kind's.
 
-## The shop: the counter and the till on it, the shelf aisle and how many tiers a run has, the
+## The shop: the counter, the shelf aisle and how many tiers a run has, the
 ## drinks fridge and the snack machine.
-static var counter_height: float = 36.0
-static var till_height: float = 12.0
+static var counter_height: float = 40.0
 static var aisle_height: float = 58.0
 static var aisle_tiers: int = 3
-static var fridge_height: float = 70.0
-static var snack_height: float = 66.0
-## The stockroom: one crate of a stack, a pallet's slats and a wrapped box on it, the safe.
-static var crate_height: float = 18.0
-static var pallet_height: float = 5.0
-static var pallet_box_height: float = 26.0
+static var fridge_height: float = 80.0
+static var snack_height: float = 76.0
+## The stockroom's safe (its crates and pallet are loose items: `ObjectMeshStockItemConfig`).
 static var safe_height: float = 40.0
+## What a round meets in a fridge's or a snack machine's glass front (`ShopHollow.surface_at`):
+## its penetration, as a jar's (a pistol round goes through it and on to the stock).
+static var glass_penetration: float = 6.0

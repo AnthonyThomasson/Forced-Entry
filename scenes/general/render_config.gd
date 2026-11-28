@@ -1,5 +1,5 @@
 class_name RenderConfig
-## The 3D render's shared tuning (General domain; `camera_rig.gd`, Art's `WorldMirror` and Main's 3D
+## The 3D render's shared tuning (General domain; `camera_rig.gd`, Art's `MeshCarrier` and Main's 3D
 ## view read it, `docs/adr/0013-the-3d-render-mirrors-the-2d-sim.md`). A `class_name` holder of
 ## `static var`s, read as `RenderConfig.<name>`, so a test or tool can change them (tests restore
 ## them with `set_static`). The one scale between the 2D sim and the 3D mirror lives here, with the

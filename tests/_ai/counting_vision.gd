@@ -8,7 +8,19 @@ var rays := 0
 
 ## The ray, counted.
 func raycast(
-	space: PhysicsDirectSpaceState2D, from: Vector2, to: Vector2, exclude: Array,
+	space: PhysicsDirectSpaceState3D, from: Vector2, to: Vector2, exclude: Array, height := -1.0,
 ) -> Dictionary:
 	rays += 1
-	return super.raycast(space, from, to, exclude)
+	return super.raycast(space, from, to, exclude, height)
+
+
+## The line of fire from a spot, counted as one ray.
+func fire_stop_from(
+	space: PhysicsDirectSpaceState3D,
+	from: Vector2,
+	to: Vector2,
+	target: Node2D = null,
+	posture: StringName = BodyHeights.NONE,
+) -> Dictionary:
+	rays += 1
+	return super.fire_stop_from(space, from, to, target, posture)
