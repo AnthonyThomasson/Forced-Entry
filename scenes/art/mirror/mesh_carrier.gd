@@ -72,6 +72,7 @@ var _off_camera: Array[Dictionary] = []
 
 
 func _init() -> void:
+	ToonMaterial.refresh_all()  # one carrier a view: a retuned holder reaches the next match
 	add_child(merge, false, Node.INTERNAL_MODE_BACK)
 	var after := AfterCamera.new()
 	after.look = _catch_up

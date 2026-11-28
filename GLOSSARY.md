@@ -450,8 +450,8 @@ _Avoid_: plugin, mesh registry
 
 **Pixel post**:
 What makes the 3D picture read as pixel art (`PixelPostConfig`, Art): the scene is drawn at a low internal resolution (a picture pixel is one art pixel,
-`round(zoom)` screen pixels wide, `RenderConfig.texel_match`; at most `max_lines` rows) and shown with nearest filtering, through one toon material that steps
-the light into bands of `ArtSurfaceConfig`'s tones and an outline pass under the camera.
+`round(zoom)` screen pixels wide, `RenderConfig.texel_match`; at most `max_lines` rows) and shown with nearest filtering, through toon materials that share
+one light (the sun stepped into `PixelPostConfig.bands` bands, a lamp's pool shaded by `ToonLightConfig.pool_levels`) and an outline pass under the camera.
 _Avoid_: shader (it is the material, the outline and the resolution together), filter
 
 **Flat paint**:

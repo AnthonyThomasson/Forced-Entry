@@ -221,8 +221,8 @@ two textures the 3D scene's shaders read by a surface's own ground position (`xz
 cone and the bubble, V1's polygon, are drawn into a **live mask**, a square window of the world about the camera
 (`VisionGroundConfig.live_side` texels whatever the zoom, so a texel is a few world px, more of them zoomed out; the edge feathered
 `feather` screen px as V4's is, laid inside the edge) and into a **seen mask** over the floors' bounds (`seen_scale`, at most
-`seen_max_side` texels a side, never cleared) that only gains: where the player has seen. The toon shaders (`toon`, `toon_tex`, the
-kit's decal) and the outline pass read them (`ToonMask`'s global uniforms, `toon_vision.gdshaderinc`), so every floor, wall, piece of
+`seen_max_side` texels a side, never cleared) that only gains: where the player has seen. Every toon shader (`toon`, `toon_tex`,
+`toon_merged`, `toon_parts`, the kit's decal), the drop shadow (`shade`) and the outline pass read them (`ToonMask`'s global uniforms, `toon_vision.gdshaderinc`), so every floor, wall, piece of
 furniture and character is shaded by them with no per-mesh work: in the cone it is lit as it is; where it is only remembered it is
 **the current static world** (its doors, its furniture where they stand now, the light now: not a picture from when it was seen)
 greyed (`grey`), with `contrast` about `pivot`, tinted (`tint`) and keeping `brightness` of its light, as V4's look; where nothing was

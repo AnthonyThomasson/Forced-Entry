@@ -47,7 +47,7 @@ in 6.7 s against 30 of 40 awake after 8 s) and casts rays in about half the time
 **What a twin is not yet.** A twin is built once from the shapes its body had: a dent that reshapes a piece's or a vehicle's 2D
 collider does not reshape its twin (a dent is a few px; a wall's twin is cut again, see below); a vehicle's body is the outline to the belt plus the cabin to the roof (its tapered glass is a box); a
 non-solid piece (a rug) has none. A seated character's cylinder is off, a dead one's is on no layer (a knocked-down door is a free body, D18: `DoorSlab`, #194, on the world layer, or on `TWIN_WALKOVER` once it lies flat within a step over: D19, no walker or vehicle meets it, a line and what lands on it do)
-(`PhysicsLayers.TWIN_*`: world, vehicle, character), as their 2D bodies' are. The jobs that read the twins decide what they need of these.
+(`PhysicsLayers.TWIN_*`: world, vehicle, character), as their 2D bodies' are. The systems that read the twins (bullets, sight lines, bursts, the nav bake) decide what they need of these.
 
 ## Furniture flips first: the direction reverses for a free piece (D13, D14, #194)
 

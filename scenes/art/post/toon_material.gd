@@ -18,8 +18,8 @@ const SHADE_PRIORITY := 100
 const SHADE_TEXELS := 32
 
 ## The material every untextured mesh shares (`MeshNodes.instance`, `batch`). Made on first use; a
-## new carrier pushes the holders into it again (`refresh`), so a tuning change applies from the
-## next match.
+## new `MeshCarrier` pushes the holders into it again (`refresh_all`), so a tuning change applies
+## from the next match.
 static var _shared: ShaderMaterial
 ## The mesh kit's live decal materials, one per texture, by the texture's instance id, held weakly:
 ## a decal's texture is a uniform of its own (the shared material cannot carry it) and a material
@@ -168,8 +168,8 @@ static func decal_count() -> int:
 	return _decals.size()
 
 
-## Push the holders into the shared material and every live decal and textured material (a new
-## mirror does it, so a tuning change applies from the next match).
+## Push the holders into the shared material and every live decal, textured and following material
+## (a new `MeshCarrier` does it, so a tuning change applies from the next match).
 static func refresh_all() -> void:
 	refresh(shared())
 	_forget_freed()
