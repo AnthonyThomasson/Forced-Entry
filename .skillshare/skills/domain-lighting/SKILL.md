@@ -10,8 +10,8 @@ The world's dusk lighting. The spec is `docs/lighting.md`: the 3D lighting, each
 live in the holders and the spec, not here. Interfaces: 10 (the `shot` / `explosion` topics), 20 (Main / Testing → Lighting; a piece's
 `get_lights()`; the 3D lights), 27 (the 3D render).
 
-A **near-leaf**: it imports General (`EventBus`, `WeightedPick`, `RenderConfig`), Art's `ToonLight` (the 3D dusk's shader globals) and
-Godot, and reads the world duck-typed (`get_lights()`, the groups `floors` and `characters`; the sun's casters a mesh's `proxies_of` ancestor). Its caller is Main (`main_view3d.gd`
+A **near-leaf**: it imports General (`EventBus`, `WeightedPick`, `RenderConfig`), Art's `ToonLight` (the 3D dusk's shader globals) and `MeshNodes` (a
+fixture's bulb: `instance`, `glow`; `changed` after the sun casters write a mesh's layers) and Godot, and reads the world duck-typed (`get_lights()`, the groups `floors` and `characters`; the sun's casters a mesh's `proxies_of` ancestor). Its caller is Main (`main_view3d.gd`
 `light_world` → `WorldLighting3D.light`); Testing's `lighting.enabled` switch and the probes read `lights()` / `fixtures()`. The
 lights and shadows of the world's things are declared by their own domains.
 

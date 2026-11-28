@@ -1,5 +1,5 @@
 extends GameTest
-## DR11 (D18, #194 doors3d): at 0 HP a door comes off its hinges as a free 3D body driven by the
+## DR11 (D18, #194): at 0 HP a door comes off its hinges as a free 3D body driven by the
 ## blow and lies where physics lets it, here flat on the far side of the blow that felled it: four
 ## kicks from the pull side (a hollow door's 80 HP) throw it into the room the kicker faces; four
 ## rounds from the west throw it east. Lying flat it is walk-over (a puppet crosses it and the

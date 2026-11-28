@@ -1,5 +1,5 @@
 extends GameTest
-## A character is a 3D body that walks in the twin space (#194 chars3d-a, D13, interface 29): its
+## A character is a 3D body that walks in the twin space (#194, D13, interface 29): its
 ## `CharacterBody3D` is the truth of where it stands and its 2D body the footprint written from it.
 ## What the 3D space holds stops it, at the heights it stands in: a block that only the 3D space
 ## has (a wall of the twin world) stops a walker and the 2D body is found beside it; a handle with

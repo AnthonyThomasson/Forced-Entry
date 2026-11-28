@@ -9,7 +9,7 @@ extends GameTest
 ## the kitchen. (An unordered defender may go out to it: that is the contrast, not asserted, since
 ## "may" is Von's call.)
 ##
-## Recording note (#194 pool6, a live trace of both versions): the first ask moved from
+## Recording note (#194, a live trace of both versions): the first ask moved from
 ## "holding the room, for 2s" to "on the way to its post, for 0s". The defender reaches its post
 ## at 2.55 s (frame 153), where the intruder comes into sight: claim 2 (hostile belief changed).
 ## The intruder shoots at frame 156 (t 2.617): claim 3 (attacked), the first that asks Von. At

@@ -1,5 +1,5 @@
 extends GameTest
-## A sandbag stops a pistol round (#194 unbake-d, D21, `docs/stacked-items.md` SI15): the barricade
+## A sandbag stops a pistol round (#194, D21, `docs/stacked-items.md` SI15): the barricade
 ## gave up its sandbags as loose items and a bag of sand stops a round as the barricade it flanked
 ## did (`penetration` 90). A bag is shot from the front, level with its middle, a dummy a step
 ## behind it: the round hits the bag and the dummy is not hit. The mutant that gives the bag a

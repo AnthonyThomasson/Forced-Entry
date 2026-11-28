@@ -1,5 +1,5 @@
 extends GameTest
-## Performance guard (#194 del2d-b3b, del2d-b3c): the follower of the drawn things that are no body
+## Performance guard (#194): the follower of the drawn things that are no body
 ## costs a frame what it did when the mirror it replaced was measured beside it. 300 plain nodes of
 ## a group (a floor of stencils, with 40 lying items that are moved every frame) are shown by a
 ## `MeshFollower`; each frame it updates, timed beside a fixed reference loop

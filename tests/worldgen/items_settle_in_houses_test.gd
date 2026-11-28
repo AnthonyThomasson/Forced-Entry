@@ -1,5 +1,5 @@
 extends GameTest
-## D20 / SI9 (#194 stack-b review M1): the small items of generated houses settle where they were
+## D20 / SI9 (#194): the small items of generated houses settle where they were
 ## set (seed 16 had a desk lamp topple off a cabinet). Over a sample of floorplans and seeds, one
 ## house at a time in an arena: every item is asleep within a few px and degrees after two seconds.
 

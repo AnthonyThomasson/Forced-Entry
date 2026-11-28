@@ -1,7 +1,7 @@
 extends GameTest
 ## The debris of a 3D match (#193 phase 2, Physics): a chip `DebrisSpawner` throws is one part of a
 ## batch in the colour, size and shape of its 2D chip. It leaves the surface at the hit's height
-## and follows its 2D node, which flies in the twin 3D space (#194 ragdoll3d: real gravity, so it
+## and follows its 2D node, which flies in the twin 3D space (#194: real gravity, so it
 ## falls at its own height, not along a fixed arc), then lies where its node came to rest,
 ## written once and never again; what lies is kept up to the `Despawner`'s cap as `DebrisLayer`
 ## keeps it, so sustained fire is bounded and makes no new mesh. Asserted at the seams: the layer

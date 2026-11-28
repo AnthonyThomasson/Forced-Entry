@@ -1,5 +1,5 @@
 extends GameTest
-## #194 stack-b, D20 / SI4: a car drives over what lies within a step and shoves what is taller. A
+## #194, D20 / SI4: a car drives over what lies within a step and shoves what is taller. A
 ## row of plates on its path is driven over: they keep their places, the car loses no speed and no
 ## crash is posted (a flat item is on `TWIN_WALKOVER` and its mask leaves out `TWIN_VEHICLE`, so
 ## the car's body neither strikes nor flicks it). A stack of three boxes farther on is struck and

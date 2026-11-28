@@ -1,5 +1,5 @@
 extends GameTest
-## D19 (#194 flatdoor): in the gun range sandbox a door shot flat could not be walked on: the human
+## D19 (#194): in the gun range sandbox a door shot flat could not be walked on: the human
 ## shoved the leaf along ahead of it. A door lying flat (its top within a step over) is walk-over
 ## (`docs/doors.md` DR11): in the range's own layout and arming the human shoots each door that can
 ## fall (the flush hollow one, the glass one: the steel one stops rounds, the solid one is ajar)

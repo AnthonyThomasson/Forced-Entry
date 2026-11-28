@@ -1,5 +1,5 @@
 extends GameTest
-## A character is a plain `Node2D` plan handle (#194 del2d-c5, ADR 0014): it has no engine body of
+## A character is a plain `Node2D` plan handle (#194, ADR 0014): it has no engine body of
 ## its own and no 2D shape, so a scan by `PhysicsBody2D` / `CollisionShape2D` / `CharacterBody2D`
 ## type never meets it. It is in the groups `TwinSpace.BODIES` and `characters`; its 3D twin is the
 ## truth of where it stands and the handle is written from it; a dead one's twin leaves its layer

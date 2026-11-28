@@ -1,5 +1,5 @@
 extends GameTest
-## D21 unbake (#194 17g, `docs/stacked-items.md` SI13): a desk lost its monitor prop but not its
+## D21 unbake (#194, `docs/stacked-items.md` SI13): a desk lost its monitor prop but not its
 ## neon trim. About half the desks (`ObjectArtLightConfig.neon_share["desk"]`, asked by the desk's
 ## own `neon_as` option, so no other table takes one) get a cyan or magenta strip round the edge,
 ## and the strip gives its light (the `trim` row). The monitor item draws no neon of its own, but

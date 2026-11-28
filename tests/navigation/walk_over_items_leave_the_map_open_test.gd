@@ -1,5 +1,5 @@
 extends GameTest
-## A small item lying within a step (#194 stack-a, D20, `docs/stacked-items.md`) is walked over, so
+## A small item lying within a step (#194, D20, `docs/stacked-items.md`) is walked over, so
 ## it is no hole in the nav bake: a plate, a cup and a book on the floor leave the baked map open
 ## under them, while a crate and a box (taller than a step) are carved like any piece.
 

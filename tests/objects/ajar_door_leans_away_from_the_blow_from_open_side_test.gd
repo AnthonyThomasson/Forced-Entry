@@ -1,5 +1,5 @@
 extends GameTest
-## D18 / DR11 (#194 ajarfall): Four ajar hollow doors (20 and 85 degrees among them) kicked from
+## D18 / DR11 (#194): Four ajar hollow doors (20 and 85 degrees among them) kicked from
 ## their open side: the top of each leaf lies toward the blow's side of its face.
 
 const AjarFall := preload("res://tests/_objects/ajar_fall_probe.gd")

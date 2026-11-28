@@ -1,7 +1,7 @@
 extends GameTest
 ## A shop or special-room item reads as bright and as colourful as the drawing it replaced in the
-## lit 3D picture, in a real window (windowed only: the headless renderer draws nothing; #194
-## unbake-c, D21 "the old look kept", `docs/stacked-items.md` SI16). A played 3D match (garage_home,
+## lit 3D picture, in a real window (windowed only: the headless renderer draws nothing; #194,
+## D21 "the old look kept", `docs/stacked-items.md` SI16). A played 3D match (garage_home,
 ## seed 2); for each of the till, jar, pack, pot, bowl, instruments, syringe and the cyberware (the
 ## bottles and snacks are lit by the glow of the fridge or machine they stand in, so one alone is
 ## no fair pair), the OLD drawing (`tests/_art/old_shop_look.gd`, the painters' code of 08f43a10 on

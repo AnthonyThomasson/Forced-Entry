@@ -1,6 +1,6 @@
 extends GameTest
 ## A carried push (a walk into a piece, a leg press: `CharacterPush.shove`) slides a piece and never
-## turns it over (#194 furn3d review, interface 5): it is held to the piece's centre of mass, the
+## turns it over (#194, interface 5): it is held to the piece's centre of mass, the
 ## height read in the world (the 3D body's centre of mass is an offset from its origin, which stands
 ## off the floor for a piece that lies on its side). A bookshelf lying on its side is walked into
 ## and stays lying; an upright wardrobe pressed at the knee for seconds (below its centre of mass,

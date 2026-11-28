@@ -1,5 +1,5 @@
 extends GameTest
-## The shop's drinks fridge and snack machine hold their stock behind glass (#194 unbake-c, D21,
+## The shop's drinks fridge and snack machine hold their stock behind glass (#194, D21,
 ## rule 9, `docs/stacked-items.md` SI16): the piece is a hollow body with a glass front, the
 ## bottles and snack packs are free items on its shelves. Shoved along, the stock stays inside (the
 ## glass holds it in when the piece lurches back from it); laid on its side, the piece spills it.

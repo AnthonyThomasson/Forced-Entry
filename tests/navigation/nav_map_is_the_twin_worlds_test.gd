@@ -1,5 +1,5 @@
 extends GameTest
-## The nav's map is the navigation map of the twin space's `World3D` (#194 nav3d-b, interface 9 /
+## The nav's map is the navigation map of the twin space's `World3D` (#194, interface 9 /
 ## 29): `TwinWorlds.world_in` finds that world from the sim's `World2D`, `NavWorld.map_of` (a node)
 ## and `NavWorld.map_in` (the `World2D`) answer its map. A map the nav builds on takes the bake's
 ## cell size and height whatever it was made with (the server refuses a mesh of another cell).

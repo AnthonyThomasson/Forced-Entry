@@ -218,7 +218,7 @@ leaves it where it stood), `objects/door_push_open_limit` (a leaf shoved as hard
 
 ## DR11. Knocked down
 
-At 0 HP the leaf comes off its hinges and becomes a free `RigidBody3D` (D18, #194 doors3d), a real object like a tipped
+At 0 HP the leaf comes off its hinges and becomes a free `RigidBody3D` (D18, #194), a real object like a tipped
 piece of furniture (`docs/adr/0014-twin-staging-and-plan-space.md`, D13, D14): the standing leaf's 3D leader (`DoorBody`, an
 `AnimatableBody3D`) is swapped for a `DoorSlab` (a `PieceBody`, `TwinSpace.retwin`), so it falls as physics decides and lies
 where it lands, with no scripted fall. The blow gives it its impulse at the real point: a blast's `shove`

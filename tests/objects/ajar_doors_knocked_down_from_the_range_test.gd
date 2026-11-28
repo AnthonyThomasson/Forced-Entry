@@ -1,5 +1,5 @@
 extends GameTest
-## D18 / DR11 (#194 flatdoor): once a door is down its doorway is clear, whichever way an ajar leaf
+## D18 / DR11 (#194): once a door is down its doorway is clear, whichever way an ajar leaf
 ## stood. Four solid doors in the gun range's doorways, ajar from 20 to 85 degrees, hinged on
 ## either jamb and swinging out onto the range or into their rooms, are kicked down along
 ## `Vector2.UP` (from the range): each leaf settles clear of its frame (it may lean on a wall

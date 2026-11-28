@@ -1,5 +1,5 @@
 extends GameTest
-## D18 / DR11 (#194 ajarfall): a door knocked down while AJAR falls with the blow, away from whoever
+## D18 / DR11 (#194): a door knocked down while AJAR falls with the blow, away from whoever
 ## struck it. The same with the hinges flipped.
 
 const AjarFall := preload("res://tests/_objects/ajar_fall_probe.gd")

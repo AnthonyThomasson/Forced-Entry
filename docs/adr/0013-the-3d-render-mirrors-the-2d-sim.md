@@ -1,6 +1,6 @@
 # The 3D render mirrors the 2D sim; it does not replace it
 
-**Superseded by [ADR 0015](0015-the-view-draws-the-twins-world-each-body-carries-its-mesh.md)** (#194 del2d): the mirror (`WorldMirror`) is deleted; the view draws the twin space's world and each body carries its mesh on its twin. What follows is the history of #193.
+**Superseded by [ADR 0015](0015-the-view-draws-the-twins-world-each-body-carries-its-mesh.md)** (#194): the mirror (`WorldMirror`) is deleted; the view draws the twin space's world and each body carries its mesh on its twin. What follows is the history of #193.
 
 The isometric 3D render (issue #193) is a second way to draw the match, not a second simulation. The sim (physics, collision, navigation,
 AI, bullets, grenades, the view cone) stays 2D and untouched; in the 3D render mode a **3D mirror** (`WorldMirror`, interface 27) follows

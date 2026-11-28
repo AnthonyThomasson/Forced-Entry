@@ -1,8 +1,8 @@
 extends GameTest
 ## A house door's 3D leaf wears the door painter's flat art as the 2D door shows it (#193 phase 2b):
 ## a shattered glass door is its two stiles alone (the floor shows through the empty panes, as in
-## 2D, not a white sill), a knocked-down door is the same leaf, lying as its free body does (#194
-## doors3d, D18), and the art is laid again when the panes shatter on a door that already lies. The
+## 2D, not a white sill), a knocked-down door is the same leaf, lying as its free body does (#194,
+## D18), and the art is laid again when the panes shatter on a door that already lies. The
 ## painted handle of the flat leaf is dropped (the 3D leaf has a handle mesh of its own).
 
 const ObjectArt := preload("res://scenes/objects/art/object_art.gd")

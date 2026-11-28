@@ -1,5 +1,5 @@
 extends GameTest
-## D18 / DR11 (#194 ajarfall): Four ajar hollow doors kicked from their closed side with a desk 25
+## D18 / DR11 (#194): Four ajar hollow doors kicked from their closed side with a desk 25
 ## px past each wall line on the landing side: each leaf leans on the desk or leaves the doorway
 ## clear, and the desk is not bulldozed.
 

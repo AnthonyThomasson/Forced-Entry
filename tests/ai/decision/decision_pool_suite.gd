@@ -65,7 +65,7 @@ func _new_job() -> RefCounted:
 	return job
 
 
-## The pool a frame's decision work is held to (#194 pool6): six units, about three milliseconds,
+## The pool a frame's decision work is held to (#194): six units, about three milliseconds,
 ## and no decision with a hostile (a start, the hostile's five pieces, the retreat spots, a finish)
 ## fits one frame, so the first frames of a fight spread their builds instead of holding one lump;
 ## no piece is dearer than the pool less the start's unit, so a start and the dearest piece fit one
@@ -86,7 +86,7 @@ func test_the_shipped_pool_never_lets_one_frame_run_a_whole_decision() -> void:
 
 
 ## What a throw search worked is a difference of the planner's and the scan's own counts, so it is
-## the same whatever the process counted before it (#194 replfix): `tested` is a total that runs
+## the same whatever the process counted before it (#194): `tested` is a total that runs
 ## on through every play and test of a process, and the search's block ends at a work cap, so a
 ## floor of that total (a quarter of it, as an integer) made a block's end follow the total's
 ## residue: the same match, one play later or one frame off, cut its blocks elsewhere and decided
@@ -104,7 +104,7 @@ func test_the_throw_works_difference_does_not_follow_what_the_process_counted_be
 		assert_int(one).is_equal(worked[0])
 
 
-## One block of the throw search ends where its work says (#194 replfix, the case the difference
+## One block of the throw search ends where its work says (#194, the case the difference
 ## test above stands for, run through `scan_step`): a raw candidate is a quarter-unit and one of
 ## `GrenadeArc.work` four (the lob test, stubbed here to count one and refuse), so the block cut at
 ## 80 quarters ends after 16 candidates and has charged exactly 80, whatever `tested` and the

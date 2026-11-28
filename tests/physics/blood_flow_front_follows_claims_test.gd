@@ -1,5 +1,5 @@
 extends GameTest
-## A bleed-out pool's front sweeps while its cells are still being claimed (#194 perf-spike), but
+## A bleed-out pool's front sweeps while its cells are still being claimed (#194), but
 ## never past the cheapest cell not yet claimed: no cell is claimed already filled, the claimed
 ## cells and the fills after the sweep are exactly what claiming everything first gives, and the
 ## first blood shows within a couple of frames whatever the claim rate.

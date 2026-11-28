@@ -1,5 +1,5 @@
 extends GameTest
-## A fridge's and a snack machine's lit front has a window for each bottle or pack (#194 unbake-c,
+## A fridge's and a snack machine's lit front has a window for each bottle or pack (#194,
 ## D21 "the old look kept", `docs/stacked-items.md` SI16): the stock stands against the glass, and
 ## the pane it stands behind is cut away where each item is, so the free stock shows against the
 ## glow and not behind a blank pane. The front's area is its rectangle less its windows; a window

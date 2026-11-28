@@ -8,7 +8,7 @@ extends GameTest
 ## their cadence (the starts are still one a frame, whatever the pool holds).
 
 const COUNT := 8
-## The frame the k-th decision lands on, counted from the first frame (#194 pool6, measured
+## The frame the k-th decision lands on, counted from the first frame (#194, measured
 ## at the shipped pool and prices, twice the same: the frames are a count, not a time, so nothing
 ## varies run to run). Eight invaders with one hostile each: a decision is 14 units (start 1, rings
 ## 2, spots 3, two flanks 2, rest 2, retreat 3, finish 1) on a pool of 6, so about two and a half

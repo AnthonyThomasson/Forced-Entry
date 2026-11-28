@@ -3,8 +3,8 @@
 Small pieces that rest on any flat top and on each other: tableware on tables, books, lamps and monitors on shelves and
 desks, boxes and crates stacked two or three high. Decision D20 of #194 (rule 9, the phase-3 gate). Rules SI1 to SI16; each is
 enforced by the tests named under it (`tools/run_tests.sh <id>`), following the convention of `docs/doors.md`. This is the
-**piece** half (job `stack-a`): the catalogue rows, the bodies, the walk-over rule and the bullets; SI9 to SI12 are the **world**
-half (job `stack-b`): placing them in houses and districts, the AI's cover by the stack's height, a car among them and their cost.
+**piece** half: the catalogue rows, the bodies, the walk-over rule and the bullets; SI9 to SI12 are the **world**
+half: placing them in houses and districts, the AI's cover by the stack's height, a car among them and their cost.
 
 An item is a free piece (`docs/adr/0014-twin-staging-and-plan-space.md`): the 3D body in the twin space is the truth, its 2D
 node a footprint. Scale: 1 px a 3D unit, 42.3 px a metre.
@@ -146,11 +146,11 @@ Items add bodies to a district, and Jolt's cap is 10240: a build that nears it a
 stack, so items change a fight; the match guards play seed 23 (`perf_probe.gd`, `MATCH_SEED`), and no budget was loosened
 for them. The measurements are in ADR 0017.
 
-## SI13. Unbake: what a piece built in is loose items (job `unbake-b`, shelves and stock; D21)
+## SI13. Unbake: what a piece built in is loose items (shelves and stock; D21)
 
 A piece whose look or mesh would build loose things in gives them up as separate items (rule 9), set where its rows name,
 and is drawn without them: its mesh, its painter and its `PieceHeights` leave them out. This part is the shelves and the stock;
-the home tops (`unbake-a`) and the shops and special rooms (`unbake-c`) follow the same rule. **The unbake rule:** an emptied
+the home tops (SI14) and the shops and special rooms (SI16) follow the same rule. **The unbake rule:** an emptied
 piece says what it carries as **data** (`PieceCarries`, Objects: a catalogue row's `carries`, rows of `{ key, at, size, lift, height,
 color, weight, maybe, on_top }`, `at` from the piece's centre in the painter's canonical frame, or, for a shelf, `art_opts.loose` and the generator
 `ShelfLoose` that walks the boards the old mesh walked, with the same seed); `RoomItems.carry` sets each item with
@@ -178,7 +178,7 @@ empty.
 - **Hotplate** (`KitchenetteCatalog`): the piece is the crate (12 px, still giving the ring's light); the plate (`hob`, with its
   hot ring glowing) and the pan stand on it.
 - New kinds (`LooseStockCatalog`; `item_stock_mesh.gd`, `item_stock_painter.gd`, heights in `ObjectMeshStockItemConfig`): `pallet`,
-  `wrapped_box`, `book_stood`, `shoes`, `paint_tin` (the old painter's odd tin on a shelf of boxes: 30 % of the places on a board, at most 5 px a radius, 8 high), `hob`, `pan`, `pot` (the noodle bar's, unused by this job). An item's flat art is painted
+  `wrapped_box`, `book_stood`, `shoes`, `paint_tin` (the old painter's odd tin on a shelf of boxes: 30 % of the places on a board, at most 5 px a radius, 8 high), `hob`, `pan`, `pot` (the noodle bar's). An item's flat art is painted
   by its `kind` alone (`ObjectArt._art_opts`) and `DistrictPrewarm` warms every carried item at its size.
 
 Tests: `objects/emptied_shelving_carries_its_boxes`, `objects/bookshelf_tips_and_spills_its_books` (the books stand asleep at the
@@ -190,7 +190,7 @@ hysteresis tests (`vehicle/car_tips_a_bookshelf_but_slides_a_sofa`, `objects/tip
 the real bookshelf, `worldgen/old_looks_keep_their_items` (stockrooms, kitchenettes, shelves), and the settle and fit tests
 (`worldgen/items_settle_in_*`, `items_fit_what_they_stand_on`) over the carried items.
 
-## SI14. Unbake: the home tops carry their props as items (job `unbake-a`; D21)
+## SI14. Unbake: the home tops carry their props as items (D21)
 
 A piece's top shows small props (a desk's monitor, keyboard, mug and papers). Painted into the piece they would show in 3D only as a flat
 texture, so each is a free item (`props.gd` keeps the painter these are measured against). The unbake rule of SI13 holds: a loose thing a piece's look builds in is a separate item. For the home tops each painted prop is now an item, set
@@ -250,7 +250,7 @@ Tests: `objects/emptied_desk_carries_its_items` (four items, each asleep on the 
 carries (SI13, SI14) takes no top roll: a room's floor stacks are what the draws after its carrying pieces give. A mesh lit on a top is judged
 against the old prop by `art/home_items_lit_windowed` (windowed).
 
-## SI15. Unbake: sandbags, a hat, and what hangs stays drawn (job `unbake-d`; D21)
+## SI15. Unbake: sandbags, a hat, and what hangs stays drawn (D21)
 
 - **Sandbags.** The security barricade (`SecurityVestibuleCatalog`) is the bare slab; its sandbags are eight `sandbag` items (`LooseStockCatalog`: 15 by 8
   px, 10 high, `fabric`, penetration 90: a bag of sand stops a round as the barricade it flanked did) set by its `carries` rows where the painter drew
@@ -276,7 +276,7 @@ against the old prop by `art/home_items_lit_windowed` (windowed).
 - Tests: `objects/emptied_barricade_and_coat_rack_carry_items` (no sandbag or hat in the meshes, eight bags at the drawn points asleep, the hat on the top, a
   shove moves one bag alone), `worldgen/old_looks_keep_their_items` (a district's barricades and racks).
 
-## SI16. Unbake: the shops and special rooms carry what they drew as items (job `unbake-c`; D21)
+## SI16. Unbake: the shops and special rooms carry what they drew as items (D21)
 
 The unbake rule of SI13 and the `on_top` rows of SI14 hold for the commercial and special pieces: what their painter and mesh drew
 loose is a free item set where it was drawn, and the piece is drawn bare (`PieceCarries`, one `RoomItems.carry`). `ShopItemsCatalog`

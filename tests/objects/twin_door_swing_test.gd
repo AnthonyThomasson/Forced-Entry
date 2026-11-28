@@ -1,5 +1,5 @@
 extends GameTest
-## A door's 3D leader (`DoorBody`, interface 24 and 29, #194 doors3d): a leaf 84 px tall, an
+## A door's 3D leader (`DoorBody`, interface 24 and 29, #194): a leaf 84 px tall, an
 ## `AnimatableBody3D` the swing turns about the hinge, locked upright; its 2D door is its follower.
 ## A door swung open is the leaf's pose in both spaces every frame of the swing (the leader is
 ## turned, and the 2D body written from it, in the one step: no frame between them), a ray dropped

@@ -1,5 +1,5 @@
 extends GameTest
-## A walker pushes a light free piece and is stopped by a heavy one (#194 chars3d-a, interface 5):
+## A walker pushes a light free piece and is stopped by a heavy one (#194, interface 5):
 ## the 3D body slides along a chair and a sofa it walks into (the piece is shoved at the contact,
 ## Jolt contacts), and a sofa as heavy as a vault door does not give: the walker is held at its face
 ## while the same walk carried the light pieces along.

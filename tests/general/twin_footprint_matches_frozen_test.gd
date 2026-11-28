@@ -1,5 +1,5 @@
 extends GameTest
-## `TwinShapes.footprint_of` was made cheaper (#194 fixes3: the extreme points built in one array
+## `TwinShapes.footprint_of` was made cheaper (#194: the extreme points built in one array
 ## and moved in one product, the rings from a table): its output must be the old one's to the bit,
 ## since the navigation bake and the player's view read corners from it. Every shape of every
 ## twin of the match district (`Perf.configure_match`, seed 23, garage_home), at the pose it

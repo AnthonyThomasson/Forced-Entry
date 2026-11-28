@@ -1,7 +1,7 @@
 extends RefCounted
 ## Test data (not a test): what the nav bake read of two worlds, the old way (the 2D colliders, as
 ## the engine's parse and the colliders' hulls gave it) recorded at b2777f4b, the commit before the
-## 2D colliders of the walls went (#194 del2d-c2). The walls, holes, navmesh and routes baked from
+## 2D colliders of the walls went (#194). The walls, holes, navmesh and routes baked from
 ## the twins are measured against these figures by `navigation/bake_matches_recorded_colliders`
 ## (`tests/navigation/bake_matches_recorded_colliders_test.gd`; the house is its subclass).
 ##
@@ -12,7 +12,7 @@ extends RefCounted
 ## bake read then. A world whose generation changed (a seed's layout, a catalogue) changes these
 ## figures: re-record them from a commit whose reference still reads the colliders.
 ##
-## Re-recorded for #194 unbake-b (D21): the district's crate stacks and pallets are no solid piece
+## Re-recorded for #194 (D21): the district's crate stacks and pallets are no solid piece
 ## any more (bare places that carry loose items, off in this bare world), so 15 holes (341 to 326)
 ## and their 72,082 px² are gone from the district's `holes`: the record's hole figures are the old
 ## colliders' for the world without them (the recorded area less those pieces', the hung pieces'

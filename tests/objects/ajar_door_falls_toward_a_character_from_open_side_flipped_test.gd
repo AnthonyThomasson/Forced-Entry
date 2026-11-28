@@ -1,5 +1,5 @@
 extends GameTest
-## D18 / DR11 (#194 ajarfall): Four ajar hollow doors kicked from their open side with a character
+## D18 / DR11 (#194): Four ajar hollow doors kicked from their open side with a character
 ## 14 px past each wall line on the landing side: no leaf rests overlapping the character.
 
 const AjarFall := preload("res://tests/_objects/ajar_fall_probe.gd")

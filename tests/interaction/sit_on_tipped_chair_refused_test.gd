@@ -1,5 +1,5 @@
 extends GameTest
-## A tipped piece is not sat on (#194 furn3d, D14): a chair knocked onto its side offers no `sit`
+## A tipped piece is not sat on (#194, D14): a chair knocked onto its side offers no `sit`
 ## (the interaction is refused and the character stays free), while one that stands is sat on.
 
 const Probe := preload("res://tests/_objects/piece_probe.gd")

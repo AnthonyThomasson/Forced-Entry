@@ -1,6 +1,6 @@
 extends GameTest
 ## The real bookshelf of a built house, hollow since D21, lies down and is carved like the solid one
-## (#194 unbake-b, `docs/stacked-items.md` SI13): two bookshelves, one hollow (the catalogue's) and
+## (#194, `docs/stacked-items.md` SI13): two bookshelves, one hollow (the catalogue's) and
 ## one built solid as before the unbake, stand on clear floor of two rooms of a house and take the
 ## same shove. Both lie on their sides and the nav holes of each (the footprint hull of what lies)
 ## cover the same area. A room's middle is not clear floor (a bed may stand there: a shelf set on

@@ -46,7 +46,7 @@ const SMOOTH_MAX_MS := 33.4
 ## whatever the numbers, while a single frag and stun burst is cheaper than the base's
 ## (`perf/grenade_burst_stress` 2.7 against 2.9 ms avg, max 12 against 15): the guard reads the
 ## fight it plays, not the code.
-## Accepted drift (#194 furn3d, 2026-11-19): furniture is a free 3D body led through Jolt, with a
+## Accepted drift (#194, 2026-11-19): furniture is a free 3D body led through Jolt, with a
 ## frozen 2D footprint twin (D13), and the 10v10 guards play another fight from frame 59: `perf/
 ## match_10v10_stress` first contact at 12.9 s (6.0 s at the base) with 21 shots in its window (4),
 ## avg 16.1 to 17.0 ms (11.1 to 11.7 at the base), p95 20.7 to 22.3 (14 to 16), max 95 to 104 (20);
@@ -61,11 +61,11 @@ const SMOOTH_MAX_MS := 33.4
 ## pieces free `PieceBody`s in Jolt's tree and 1.7 to 2.0 us with them `StaticBody3D`s (the house
 ## alone, 8 pieces: 1.2 against 1.2 us). The fight, not the pieces. No surviving 2D consumer showed
 ## as the cost (nav bakes 86 of 86 in time against 70 at the base). The twin bookkeeping and the 2D
-## footprint go with del2d; the budgets are for perf3d.
+## footprint go with the 2D space; the budgets are left to the performance work.
 ## A/B (`tools/perf_ab.sh eb62a885 09478516 --different-fights`): `match_5v5_stress` +2.5%,
 ## `grenade_match_stress` -12.3%, `match_10v10_opening` -2.5%, `match_npc_vision` -21.9%,
 ## `match_10v10_stress` +54.7% (avg; the fight above).
-## Accepted drift (#194 stack-b, 2026-11-21): the houses and the district tower rooms are built with
+## Accepted drift (#194, 2026-11-21): the houses and the district tower rooms are built with
 ## small items on their flat tops and boxes and crates stacked on a storage floor (`RoomItems`,
 ## `docs/stacked-items.md` SI9: the district of seed 2 holds 785 twin bodies, 729 before, 56 of them
 ## `ItemBody`; Jolt's cap is 10240). The items change the fights (a bullet meets a plate, a monitor,
@@ -80,18 +80,18 @@ const SMOOTH_MAX_MS := 33.4
 ## living, fails at the base too). Two more guards miss their budgets with the items, and are left
 ## so (two runs each, a quiet machine): `match_10v10_opening` p95 21.8 and 22.4 ms (20.2 and 20.8 at
 ## the base, over its 20 already), `match_npc_vision` max 34.6 ms over its 33.4 (and the premise).
-## Not tuned, no standard loosened: stack-b moved the fight and
-## perf3d re-picks (the 10v10 guards over at least 24 seeds a side on a quiet machine, the
-## `match_npc_vision` premise and seed).
-## Accepted drift (#194 unbake-b, 2026-11-21): the shelves and the stock give up what they built
+## Not tuned, no standard loosened: the items moved the fight and the seed pick was left open (the
+## 10v10 guards over at least 24 seeds a side on a quiet machine, the `match_npc_vision` premise
+## and seed).
+## Accepted drift (#194, 2026-11-21): the shelves and the stock give up what they built
 ## in (`docs/stacked-items.md` SI13: books in runs of up to six, shelf boxes, shoes, two or three
 ## loose crates a stack, a pallet with four wrapped boxes, the hotplate's plate and pan are items;
 ## the crate stacks and pallets are non-solid places, and the stockroom's floor is strewn with
 ## stacks of boxes and crates around them again).
 ## Twin bodies, counted one way: `TwinSpace.bodies()` 120 frames after `s.district(MATCH_SEED,
 ## "garage_home")` is built (the bodies that have a twin; the plan is named with every count, since
-## another plan is another count): seed 2 holds 881 and seed 13 1031 at unbake-d (eaf06c4f), and
-## 1165 and 1410 with the shops' items at unbake-c (the shop, noodle, clinic and ripperdoc pieces
+## another plan is another count): seed 2 holds 881 and seed 13 1031 at eaf06c4f, and
+## 1165 and 1410 with the shops' items (the shop, noodle, clinic and ripperdoc pieces
 ## carry what they drew, `docs/stacked-items.md` SI16), against Jolt's 10240. The figures given
 ## earlier (865 and 984, then 731 and 895) were counted another way or not reproduced.
 ##
@@ -104,9 +104,9 @@ const SMOOTH_MAX_MS := 33.4
 ## 23.4 and 20.6 in that run). `match_npc_vision` fails at both: at the base its premise (the
 ## viewed invader lives) and a 35.8 max, at the tip the invader lives the whole window (the fight
 ## moved) and the window reads avg 18.4 / p95 27.9 / max 34.0 over 16.7 / 20 / 33.4. Not tuned, no
-## standard loosened: `perf3d` re-picks the seed and the premise.
-## Red at the tip, owned by perf3d (#194 unbake-a, 2026-11-21; measured at e9156c56, before the
-## unbake-b merge: not again after it, the home tops add 7 bodies to a 691-body district;
+## standard loosened: the seed and premise were left to the re-pick below.
+## Red at the tip, left to the re-pick below (#194, 2026-11-21; measured at e9156c56, before the
+## shelves' items merge: not again after it, the home tops add 7 bodies to a 691-body district;
 ## `match_10v10_stress` max 39 against its 33.4 budget, passed at the base; not accepted, not
 ## tuned): the painted props of the desk,
 ## side table, console, nightstand, dresser, counters, island and workbench are items now
@@ -123,12 +123,12 @@ const SMOOTH_MAX_MS := 33.4
 ## fixed 6 s warm-up and 300 frames in that district (no wait for contact), avg / p95 / max in ms
 ## read 14.4 to 15.0 / 19.6 to 20.7 / 23.3 to 31.0 at the base and 10.7 to 11.3 / 12.8 to 13.7 /
 ## 15.2 to 22.3 at the tip, with at most 3 rigid bodies awake after it at the base and none at the
-## tip. Not tuned, no budget loosened: perf3d re-picks the 10v10 seeds (at least 24 a side) and the
-## `match_npc_vision` premise.
-## #194 perf3d re-pick (2026-11-24, was 2): at the 3D tip the first contact comes in the match's
+## tip. Not tuned, no budget loosened: the 10v10 seeds (at least 24 a side) and the
+## `match_npc_vision` premise were left to the re-pick below.
+## #194 re-pick (2026-11-24, was 2): at the 3D tip the first contact comes in the match's
 ## first second (a sighting through a window over real heights; seed 2 contacted at 7.1 s before
 ## the 3D world, 3.1 s with it). Over seeds 1 to 32 (one play each, load 3 to 6, alone, at
-## b3ca278b; `perf3d-sweep/`) the first contact reads 0 to 0.5 s on 15 seeds, 0.5 to 1 s on 7, 1 to
+## b3ca278b) the first contact reads 0 to 0.5 s on 15 seeds, 0.5 to 1 s on 7, 1 to
 ## 3 s on 3, 3 to 6 s on 3, 6 to 10 s on 3 and 17 s on one: the median is 0.525 s. The rule that
 ## picks the seed: the contact time nearest that median, the viewed invader living through the
 ## `match_npc_vision` window, the contact inside the opening window: seed 23 (contact 0.50 s).

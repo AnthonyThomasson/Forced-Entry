@@ -1,5 +1,5 @@
 extends GameTest
-## D18 / DR11 (#194 flatdoor): a blast that fells an ajar door leaves its doorway clear, whichever
+## D18 / DR11 (#194): a blast that fells an ajar door leaves its doorway clear, whichever
 ## way the leaf stood and whichever side of the wall the frag went off: four hollow doors in the gun
 ## range's doorways, ajar from 20 to 85 degrees, either hinge, swinging out or into their rooms,
 ## each blown down in turn by a frag, from the range's side or the room's.

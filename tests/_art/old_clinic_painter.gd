@@ -1,5 +1,5 @@
 extends RefCounted
-## (An oracle: `clinic_painter.gd` of commit 08f43a10, the old look #194 unbake-c keeps.
+## (An oracle: `clinic_painter.gd` of commit 08f43a10, the old look #194 keeps.
 ## Only tests read it (`old_shop_pieces.gd`); nothing in scenes/ does.)
 ## Top-down pixel-art CLINIC painter (Objects domain, private): the ripperdoc's steel furniture,
 ## `kind` in the options.

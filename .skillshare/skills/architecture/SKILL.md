@@ -32,7 +32,7 @@ A folded sub-domain is a side file `<skill>/<name>.md`.
 | Testing | `testing/` | `domain-testing` | Game tests: a second composition root that builds a declared world and asserts on it; the test browser and runner; gdUnit4 suites. Cases live in `tests/<domain>/`, sandboxes in `sandboxes/`. |
 | Main | `main.gd`, `match_builder.gd`, `match_spawner.gd` | `domain-main` | The composition root, no domain: it builds a match. |
 
-**Composition root.** `scenes/main.gd` (`main.tscn`) and the Testing runner (interface 13) are the only code that knows every domain. A match is built by `MatchBuilder` (`scenes/match_builder.gd`, 23) with its helper `match_spawner.gd`: a match spec in (`Main.start_match(spec)`), a handle out. Main's flow and the endless run: `domain-main`. Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock` (General) and `Sound` (Audio); `GameLog` and the other General helpers are `class_name` statics.
+**Composition root.** `scenes/main.gd` (`main.tscn`) and the Testing runner (interface 13) are the only code that knows every domain. A match is built by `MatchBuilder` (`scenes/match_builder.gd`, 23): a match spec in (`Main.start_match(spec)`), a handle out. Main's flow and the endless run: `domain-main`. Autoloads (`project.godot`): `Keybinds`, `Despawner`, `EventBus`, `GameClock` (General) and `Sound` (Audio); `GameLog` and the other General helpers are `class_name` statics.
 
 ## The cross-domain interfaces
 
@@ -64,7 +64,7 @@ Everything not listed here is private to its domain. A signature lives only in i
 24. **Objects' `Door` ↔ Character, AI, Testing: the door contract.** Read to open, turn, hit or walk through a house door: `interfaces/24-door-contract.md`
 25. **Main / Testing → Vision: the player's view.** Read to build or read a view: `interfaces/25-vision.md`
 26. **Any domain → General: `Pointer`.** Read to convert a screen point to a world point (and back), read the mouse's world point or the visible rect, or inject one: `interfaces/26-pointer.md`
-27. **Main → Art: `MeshCarrier`, `MeshFollower`, `CameraRig`: the 3D render.** Read for the 3D render (carried meshes, the hook) and the camera rig: `interfaces/27-render-3d.md`
+27. **Main → Art: `MeshCarrier`, `MeshFollower`, `CameraRig`: the 3D render.** Read for carried meshes, the hook and the camera rig: `interfaces/27-render-3d.md`
 28. **Objects ↔ World Generation: `PieceHeights`, `PieceCarries`.** Read for a piece's top, parts, carries: `interfaces/28-piece-heights.md`
 29. **Main → General, Objects, Vehicle, Character: `TwinSpace`.** Read for the twin 3D space: `interfaces/29-twin-space.md`
 
@@ -85,7 +85,7 @@ character ──▶ items, interaction, vehicle (CharacterVehicleUse), physics, 
 items ──▶ projectile, art    projectile ──▶ physics, art    vehicle ──▶ physics, art    physics ──▶ art (12)
 ai ──▶ navigation, items (slot ids, GrenadeConfig, GrenadeArc), projectile (CoverRule, Explosion), character (CharacterMovement)   (a house door, duck-typed: 24)
 ui ──▶ items   (plain dicts in, signals out; never calls Main)
-art ──▶ general (RenderConfig, CameraRig, TwinSpace)   lighting ──▶ art (3D: ToonLight, 20)    vision ──▶ art (ToonMask, 3D: 25)
+art ──▶ general (RenderConfig, CameraRig, TwinSpace, PlanSpace, ViewLayers, FadedTwins, SeenArea)   lighting ──▶ art (ToonLight, MeshNodes: 20)   vision ──▶ art (ToonMask: 25)
 every domain ──▶ general
 ```
 

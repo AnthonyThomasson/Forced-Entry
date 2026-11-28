@@ -1,5 +1,5 @@
 extends GameTest
-## Rounds go by the material of what they meet, at its real height (#194 stack-a, D20,
+## Rounds go by the material of what they meet, at its real height (#194, D20,
 ## `docs/stacked-items.md` SI7): three books stacked on a crate are shot one by one, each at its own
 ## height (2.5 px apart): a round at one goes through that book alone (paper), the others are over
 ## or under its line; a round at a monitor on a crate goes through it (electronics, 14 px).

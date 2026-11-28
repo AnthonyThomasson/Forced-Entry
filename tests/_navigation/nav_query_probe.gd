@@ -1,6 +1,6 @@
 class_name NavQueryProbe
 extends RefCounted
-## #194 nav3d-b: the same plan polygon on two scratch maps, one through the 2D API (a
+## #194: the same plan polygon on two scratch maps, one through the 2D API (a
 ## `NavigationServer2D` region on map A) and one through the nav's own path (`NavPlan.assign` on a
 ## `NavigationRegion3D` on map B, queried through `NavPlan`), and their closest points and routes
 ## compared (`navigation/nav3d_plan_polygon_matches_2d*`). The two servers share an engine

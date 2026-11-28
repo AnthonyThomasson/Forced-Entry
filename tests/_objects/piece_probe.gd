@@ -1,5 +1,5 @@
 extends RefCounted
-## Helper of the free-furniture tests (#194 furn3d): reads a piece's 3D body (the truth once the
+## Helper of the free-furniture tests (#194): reads a piece's 3D body (the truth once the
 ## twin space has taken the piece over: interface 29) and what became of it, in terms a test can
 ## state from the world alone (how far the piece leans, how high its top is, whether it sleeps).
 

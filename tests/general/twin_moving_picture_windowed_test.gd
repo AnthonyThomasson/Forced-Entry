@@ -1,6 +1,6 @@
 extends GameTest
 ## The picture is the same when the bodies that move carry their meshes on their twins as when each
-## mesh is placed by hand (#194 del2d-b2b, windowed only: the headless renderer draws nothing). A
+## mesh is placed by hand (#194, windowed only: the headless renderer draws nothing). A
 ## furnished house shown by Main's `View3D` with its lights: a piece knocked over and lying on its
 ## side, a door swung open and a door knocked off its hinges (a slab lying where it fell) are drawn
 ## carried by their twins and the picture is read back; then those three are shown by

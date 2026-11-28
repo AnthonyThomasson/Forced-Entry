@@ -37,7 +37,7 @@ extends GameTest
 ## #203: the numbers above are seed 7's fight, another fight than this guard plays now (not a
 ## baseline to read a change by, nor a sign of the guard getting faster or slower). The match plays
 ## one fight per seed, seed 23 now (`perf_probe.gd`), contact at 6.0 s every
-## run; two runs alone at #194 perf-final (load 4 to 6, not `--quiet`): avg 12.26 and 13.20, p95
+## run; two runs alone at #194 (load 4 to 6, not `--quiet`): avg 12.26 and 13.20, p95
 ## 18.12 and 19.62, max 30.29 and 28.56 ms.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")

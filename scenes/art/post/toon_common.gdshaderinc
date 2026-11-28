@@ -1,5 +1,5 @@
 // The toon light, shared (Art, `toon_material.gd`): the ONE source of what the toon
-// shaders (`toon.gdshader`, `toon_tex.gdshader` and the kit's `decal.gdshader`) share, so they
+// shaders (`toon`, `toon_tex`, `toon_merged`, `toon_parts` and the kit's `decal`) share, so they
 // cannot drift apart. It holds the vision hook's globals (`toon_mask.gd`), the dusk's
 // (`toon_light.gd`), the band uniforms, the fade's dither, the vision-mask read and `light()`: a
 // pixel is lit by the dusk's ambient plus every light that reaches it, each light's amount (N.L

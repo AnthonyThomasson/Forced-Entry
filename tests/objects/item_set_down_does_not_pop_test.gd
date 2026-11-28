@@ -1,5 +1,5 @@
 extends GameTest
-## An item set on a top is set down, not dropped or thrown (#194 stack-a, D20,
+## An item set on a top is set down, not dropped or thrown (#194, D20,
 ## `docs/stacked-items.md` SI2): from the first frame it stands a hair (under a px) over its top,
 ## its fall is slow (it lands at well under 40 px/s), and it never rises above where it started.
 

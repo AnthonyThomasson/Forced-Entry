@@ -1,5 +1,5 @@
 extends GameTest
-## D18 / DR11 (#194 ajarfall, review 3, `docs/twins.md`): a felled leaf that lands on a character
+## D18 / DR11 (#194, `docs/twins.md`): a felled leaf that lands on a character
 ## who cannot be bowled away (a low post holds them) rests on them, asleep within 4 s and moving
 ## them no further. When the character then walks off, dies or is moved, the leaf is not left
 ## hanging in the air asleep: it falls and lies flat, the doorway clear.

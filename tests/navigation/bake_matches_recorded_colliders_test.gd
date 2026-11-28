@@ -1,7 +1,7 @@
 extends GameTest
-## The nav bake reads the 3D twins (#194 del2d-c, ADR 0014: the floor-plan polygons their shapes
+## The nav bake reads the 3D twins (#194, ADR 0014: the floor-plan polygons their shapes
 ## stand on, `NavTwins`), where it read the 2D colliders, and the 2D colliders of the walls are gone
-## (del2d-c2), so the old bake can no longer be run beside the new. What it read then was recorded
+## (#194), so the old bake can no longer be run beside the new. What it read then was recorded
 ## at b2777f4b, where both could (`tests/_navigation/bake_baseline.gd`: the district of seed 7 and
 ## the house of seed 1, plan `garage_home`, with their tolerances), and this measures the bake from
 ## the twins against that record, and against the walls' own outlines, which need no record.
@@ -30,7 +30,7 @@ const RADIUS := NavBuilder.AGENT_RADIUS
 ## rounding and the 1 px grid.
 const WALL_GRID := 1.0
 ## The most the holes' area may differ (share of the recorded one's) and the most the navmesh's
-## area may differ (share). The mesh is baked on a 4 px grid (#194 nav3d-a, D16): a cell is held or
+## area may differ (share). The mesh is baked on a 4 px grid (#194, D16): a cell is held or
 ## walkable by where its centre lies and the contours are simplified to 0.8 cells, so its edges
 ## stand up to a cell off the 1 px record's: measured +0.7% (district), +1.9% (house).
 const AREA_SHARE := 0.02

@@ -1,5 +1,5 @@
 extends GameTest
-## The reach of an interaction is asked of the 3D twin space, not the 2D footprint (#194 chars3d-b):
+## The reach of an interaction is asked of the 3D twin space, not the 2D footprint (#194):
 ## with the footprint's own shapes off (what the 2D space's deletion leaves), a chair a character
 ## stands beside is still the thing in reach, the gap from the mouse to it is the plan distance to
 ## its 3D shapes, and a chair out of reach is still out of it.

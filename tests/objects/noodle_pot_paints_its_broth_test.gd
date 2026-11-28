@@ -1,5 +1,5 @@
 extends GameTest
-## A noodle bar's pot carries its broth in the flat art too (#194 unbake-c, D21 "the old look
+## A noodle bar's pot carries its broth in the flat art too (#194, D21 "the old look
 ## kept", `docs/stacked-items.md` SI16): the flat top the 3D picture draws over the pot's mesh is
 ## the old painter's pot (a dark rim, a ring of steel, the broth inside), not a steel disc with a
 ## dark middle, so the lit picture shows a brown broth. A pot with no `well` (the stockroom's) is

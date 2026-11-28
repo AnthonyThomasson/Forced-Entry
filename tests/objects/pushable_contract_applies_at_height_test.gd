@@ -1,5 +1,5 @@
 extends GameTest
-## The pushable contract takes a height (#194 furn3d, D13; interface 5): `Knockback.push` shoves a
+## The pushable contract takes a height (#194, D13; interface 5): `Knockback.push` shoves a
 ## free piece at its real 3D point. The same shove that leaves a low heavy sofa sliding upright lays
 ## a tall thin bookshelf on its side when it lands high on it, and only slides it when it lands at
 ## its middle (its centre of mass); a shove given no height only slides a piece, as it did in 2D.

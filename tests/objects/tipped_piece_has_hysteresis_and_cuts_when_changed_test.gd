@@ -2,7 +2,7 @@ extends GameTest
 ## A piece is tipped past `PieceBodyConfig.tipped_degrees` (25) and upright again only under
 ## `upright_degrees` (15): one leaning on a wall's skirting at 24.9 and 25.1 degrees does not toggle
 ## sit and lie on and off. Its footprint hull (and the nav hole cut from it) is cut again only when
-## the hull really changed, not on every frame a lying piece slides (#194 furn3d review).
+## the hull really changed, not on every frame a lying piece slides (#194).
 
 const Probe := preload("res://tests/_objects/piece_probe.gd")
 const CHAIR_AT := Vector2(150, 150)

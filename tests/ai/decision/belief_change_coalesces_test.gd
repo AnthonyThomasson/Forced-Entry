@@ -7,7 +7,7 @@ extends GameTest
 ## makes a hidden hostile leave the known set quickly; the defender and puppets cannot move or die,
 ## so only the second hostile's sightings change the salient key.
 ##
-## The end does not lean on the legs' last change (#194 pool6). The first fixture hid and showed
+## The end does not lean on the legs' last change (#194). The first fixture hid and showed
 ## the mover once more after the legs and waited for the decision that fired the window's end; at
 ## a pool of 6 (decisions land sooner) the legs' last change had already been decided, and it
 ## failed with "the coalesced change fired when its window ended": no belief decision came within

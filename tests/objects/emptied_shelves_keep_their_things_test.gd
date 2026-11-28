@@ -1,5 +1,5 @@
 extends GameTest
-## An emptied shelf keeps what it carries (#194 unbake-b, D21, rule 9, `docs/stacked-items.md`
+## An emptied shelf keeps what it carries (#194, D21, rule 9, `docs/stacked-items.md`
 ## SI13): the emptied pieces of `SHELVES` set side by side, every
 ## carried thing is asleep over its own piece a second after the start: none is thrown out of a
 ## compartment where it overlaps a side or a board, so nothing lies on the floor between pieces.

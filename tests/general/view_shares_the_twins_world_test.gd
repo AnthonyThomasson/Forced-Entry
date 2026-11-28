@@ -1,5 +1,5 @@
 extends GameTest
-## The 3D view draws the twins' own world (#194 del2d-b,
+## The 3D view draws the twins' own world (#194,
 ## `docs/adr/0014-twin-staging-and-plan-space.md`, interface 27): once Main's `View3D` is told of a
 ## staged world (`mirror_world`) its picture's viewport shares the 3D `World3D` of that world's
 ## `TwinSpace`, so the meshes and the lights stand in the world the bodies are in and the meshes can

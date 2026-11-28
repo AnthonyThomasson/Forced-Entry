@@ -1,5 +1,5 @@
 extends GameTest
-## D20 / SI9 (#194 unbake-b review): no two small items of a generated house start inside each
+## D20 / SI9 (#194): no two small items of a generated house start inside each
 ## other. Over every floorplan and three seeds (garage_home seed 7 among them, where a box stands on
 ## a box at one point), each pair of items whose footprints overlap in the plan is apart in height:
 ## one rests on the top of the other, never through it.

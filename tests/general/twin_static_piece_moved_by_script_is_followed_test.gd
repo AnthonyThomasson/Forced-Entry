@@ -1,6 +1,6 @@
 extends GameTest
 ## A piece that stays where it is when it is twinned is followed once a script moves it (interface
-## 29: the note of the twins job, kept by #194 furn3d and del2d-c4): an anchored post (a plan handle
+## 29's note on the twins, kept by #194): an anchored post (a plan handle
 ## with a static twin that is not read each frame, only looked at slowly) is later moved along by a
 ## script (no 2D physics step moves it: it has no 2D body); its twin follows it where it goes.
 

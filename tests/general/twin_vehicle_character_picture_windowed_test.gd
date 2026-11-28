@@ -1,6 +1,6 @@
 extends GameTest
 ## The picture is the same when a vehicle and the characters carry their meshes on their twins as
-## when each mesh is placed by hand (#194 del2d-b3, windowed only: the headless renderer draws
+## when each mesh is placed by hand (#194, windowed only: the headless renderer draws
 ## nothing). An arena shown by Main's `View3D`: a car driven round and left at rest, a character
 ## that walked and stopped, one crouched and one fallen (a ragdoll) are drawn carried by their twins
 ## and the picture is read back; then those five are shown by `FollowedBaseline` (the same meshes

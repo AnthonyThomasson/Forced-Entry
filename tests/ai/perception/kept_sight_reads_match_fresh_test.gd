@@ -1,5 +1,5 @@
 extends GameTest
-## The reads sight and the claim ledger keep (#194 perf3d) answer as a fresh read would, in a built
+## The reads sight and the claim ledger keep (#194) answer as a fresh read would, in a built
 ## match, every frame: each sight ask an NPC makes (`AgentVision.can_see_node_at`, which reads the
 ## kept posture points, exclude rids and looks-through of `SightRay`) is checked against a recompute
 ## that keeps nothing (`tests/_ai/fresh_sight_vision.gd`), and each frame every NPC's

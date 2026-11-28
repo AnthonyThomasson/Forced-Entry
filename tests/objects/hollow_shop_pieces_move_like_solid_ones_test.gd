@@ -1,5 +1,5 @@
 extends GameTest
-## A shop's hollow pieces move as the solid boxes of their extent (#194 unbake-c, D21, rule 9,
+## A shop's hollow pieces move as the solid boxes of their extent (#194, D21, rule 9,
 ## `docs/stacked-items.md` SI16): the drinks fridge, the snack machine, the shelf aisle and the
 ## cyberware shelf are thin parts round empty compartments, but their body has the centre of mass
 ## and the yaw inertia of the solid box a block of their footprint and height would be (as the

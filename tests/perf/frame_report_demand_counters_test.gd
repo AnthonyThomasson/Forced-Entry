@@ -49,7 +49,7 @@ func run(t: TestContext) -> void:
 	if not t.require(await t.until(seen, 3.0), "set-up: the defender sees the hostile"):
 		return
 	# The fact is counted when its search is built, and an NPC that carries no grenade builds none
-	# (it can make no throw: `SnapshotDemand.throw_search`, perf-decide2): arm it with one frag.
+	# (it can make no throw: `SnapshotDemand.throw_search`): arm it with one frag.
 	Grenades.arm(t.actor(&"d"), 0, 1)
 	if not t.require(
 		Grenades.count(t.actor(&"d"), Grenades.FRAG) == 1,

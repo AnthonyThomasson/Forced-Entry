@@ -1,5 +1,5 @@
 extends GameTest
-## Whether a car's door can open is asked of the twin space (#194 chars3d-b, interface 29): an
+## Whether a car's door can open is asked of the twin space (#194, interface 29): an
 ## armchair in the rear-left door's swing blocks it by its 3D body, and so does another car in the
 ## swing; a person standing at the door's stand point blocks it
 ## (a character's 3D body is a solid like any other); the rider at its own stand point does not.

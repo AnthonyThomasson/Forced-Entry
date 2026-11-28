@@ -1,5 +1,5 @@
 extends GameTest
-## D18 / D14 (#194 doors3d, `docs/doors.md` DR11, DR14): a door that fell and rests leaning across
+## D18 / D14 (#194, `docs/doors.md` DR11, DR14): a door that fell and rests leaning across
 ## its doorway (propped on a wardrobe close beyond it) is an obstacle like a tipped piece, and the
 ## AI's read of the door agrees with the nav map's and the body's: `gap()` is what the slab leaves
 ## of the doorway (not the whole width), the nav map has no way through, a walker sent past it

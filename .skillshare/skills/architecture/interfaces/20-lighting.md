@@ -1,5 +1,6 @@
 20. **Main / Testing (through `MatchBuilder`) → Lighting, and the world's lights and shadows** (`scenes/lighting/`; spec `docs/lighting.md`;
-    Lighting imports only General and Art's `ToonLight` (the dusk's shader globals) and reads the world duck-typed)
+    Lighting imports only General and Art's `ToonLight` (the dusk's shader globals) and `MeshNodes`
+    (`instance` and `glow` for a fixture's bulb, `changed`: 12) and reads the world duck-typed)
     - **The 3D render's lights** (the lights of the game): `WorldLighting3D.light(parent: Node, world: Node2D, seed_value: int, rooms: Array = [], focus := Callable()) -> WorldLighting3D`
       builds the dusk under `parent` (a node of the 3D view's world, 27): the toon ambient (`ToonLight`), a `DirectionalLight3D` sky that reaches only the street's floors (an Objects `Floor`'s `is_street()` and `size`, read duck-typed: no 2D light layer), an `OmniLight3D` per light a piece declares
       (`get_lights()`, below) and per room fixture, each clipped to its room (the room map, `rooms` = `WorldGen.get_rooms` / `district_rooms`; none: no clipping), and a cost cap chosen from `focus` (`Callable() -> Vector2`, the view's centre in px: at most

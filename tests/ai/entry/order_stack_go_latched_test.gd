@@ -11,8 +11,8 @@ extends GameTest
 ##
 ## Scripted Von, down: the members' own decisions hold steady, so what they do is the order's alone.
 ##
-## The going in is read unfiltered (any `going_in` callout). #194 perf-cadence narrowed it to the
-## back door, on a failure it did not keep; #194 cadence-tidy printed every `going_in` of the run on
+## The going in is read unfiltered (any `going_in` callout). #194 once narrowed it to the
+## back door, on a failure it did not keep; every `going_in` of the run was then printed on
 ## the code before the beat (cdf8b659) and on the beat's tip: both members radio it at the back
 ## door alone, nothing at another door (before the beat at 23.63 s with ready at 23.62 s, on the
 ## beat at 24.18 s with ready at 24.17 s; six runs on the tip identical). The beat posts no other

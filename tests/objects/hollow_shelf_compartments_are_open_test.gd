@@ -1,5 +1,5 @@
 extends GameTest
-## An emptied shelf is hollow (#194 unbake-b, D21, `docs/stacked-items.md` SI13): a ray flown level
+## An emptied shelf is hollow (#194, D21, `docs/stacked-items.md` SI13): a ray flown level
 ## from the front of a bare shelving between its boards gets in and meets its back (a round and a
 ## line of sight go into the compartment), at a board's height it meets the board's front lip, and
 ## over the boards of its top compartment (it has no top board) it meets the back; the same

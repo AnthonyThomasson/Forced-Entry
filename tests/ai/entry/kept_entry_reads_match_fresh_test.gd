@@ -1,5 +1,5 @@
 extends GameTest
-## The reads an entry keeps (#194 perf3d) answer as a fresh one would, every frame of a team's
+## The reads an entry keeps (#194) answer as a fresh one would, every frame of a team's
 ## entry: each NPC's own claim (`EntryClaim.me`, kept while the member's fields and terms stand)
 ## against one a brand-new claim part builds with nothing kept, and each read its doorway stack
 ## keeps for it (`DoorStack.mode`, `hold`, `held`, `order_claim`, `points`, `crossing`, `thrower`)

@@ -1,5 +1,5 @@
 extends GameTest
-## Each twin space is a Jolt space of its own (#194 furn3d review, interface 29): Jolt solves its
+## Each twin space is a Jolt space of its own (#194, interface 29): Jolt solves its
 ## contacts in the order of the slots its bodies hold and reuses a freed body's slot, so worlds that
 ## shared one space (the main window's `World3D`) gave different results for the same scene
 ## depending on what ran in the process before (a Von replay then missed at the last float bit).

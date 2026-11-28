@@ -3,7 +3,7 @@ extends GameTest
 ## up (`TwinSpace.plan_transform`). A piece turned over about a horizontal axis (a wardrobe on its
 ## back, 180 degrees) has no twist: the quaternion's up and scalar parts both vanish and the angle
 ## is noise, so the footprint's rotation, and the art, blood and decals on it, would jump every
-## frame (#194 furn3d review). The footprint then holds the heading it had.
+## frame (#194). The footprint then holds the heading it had.
 
 
 func describe() -> Dictionary:

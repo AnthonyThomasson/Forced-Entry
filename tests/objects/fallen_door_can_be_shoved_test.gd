@@ -1,5 +1,5 @@
 extends GameTest
-## D18 (#194 doors3d): a door that lies on the floor is a free body, shovable as a light piece: a
+## D18 (#194): a door that lies on the floor is a free body, shovable as a light piece: a
 ## push through the pushable contract (`Knockback.push`) slides it, and a blast (`Explosion`, which
 ## finds a body by its footprint) slides it, and its 2D door follows it. A character's strike
 ## barely reaches it: a fist passes above a leaf 6 px thick and a kick only grazes it.

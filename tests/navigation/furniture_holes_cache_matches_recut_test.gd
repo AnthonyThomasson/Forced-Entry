@@ -2,7 +2,7 @@ extends GameTest
 ## The furniture holes are cut again only for the pieces moved, destroyed or added since the last
 ## tick (#192, rule 27): a tick where nothing changed walks no tree and cuts no hull, a moved piece
 ## costs one cut (a dented one the cut of the shove that dents it, and none for the dent: its twin,
-## the holes' source since #194 del2d-c, keeps its outline) and a destroyed or added one a
+## the holes' source since #194, keeps its outline) and a destroyed or added one a
 ## re-listing of the pieces, and
 ## after each of those the holes are exactly what a full re-cut of every piece gives
 ## (`NavHoles.plain`, the reference). `NavHoles.walks` counts the tree walks that find the pieces

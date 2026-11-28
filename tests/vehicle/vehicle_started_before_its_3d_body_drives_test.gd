@@ -1,5 +1,5 @@
 extends GameTest
-## V5 (#194 vehicles3d, D13): a vehicle whose engine is already running when its 3D body is built
+## V5 (#194, D13): a vehicle whose engine is already running when its 3D body is built
 ## (the 3D body is made a frame after the vehicle enters the tree, and a parked one is put to sleep
 ## then) must not be put to sleep: it drives at once, and it may not sleep while the engine runs.
 

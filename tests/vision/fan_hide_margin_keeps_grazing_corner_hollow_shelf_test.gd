@@ -1,6 +1,6 @@
 extends "res://tests/vision/fan_hide_margin_keeps_grazing_corner_test.gd"
 ## `vision/fan_hide_margin_keeps_grazing_corner` with the catalogue's bookshelf, hollow since the
-## unbake (#194 unbake-b, D21, `docs/player-vision.md` V1): the same shelf, now its boards, sides
+## unbake (#194, D21, `docs/player-vision.md` V1): the same shelf, now its boards, sides
 ## and back, stands where the solid one did, anchored. The fan's corner rule is about the shapes
 ## the eye sees: the corner at the shelf's east end is a hair off the centre ray and is still cast,
 ## and the fan casts at least the corners in plain sight.

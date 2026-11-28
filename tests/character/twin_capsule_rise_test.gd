@@ -1,6 +1,6 @@
 extends GameTest
 ## A ducked character that rises over its cover to fire (`CharacterRise`, D7) is as tall in the twin
-## space (`CharacterTwin`, #194 chars3d-a) as the pose it rose to: crouched 36 px, risen to the
+## space (`CharacterTwin`, #194) as the pose it rose to: crouched 36 px, risen to the
 ## fire-over pose that pose's head top, dropped back 36 again.
 
 const Probe := preload("res://tests/_general/twin_probe.gd")

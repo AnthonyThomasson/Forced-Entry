@@ -1,5 +1,5 @@
 extends GameTest
-## The follower and the viewport's layers draw the loose things (#194 del2d-b3c, windowed only: the
+## The follower and the viewport's layers draw the loose things (#194, windowed only: the
 ## headless renderer draws nothing). A furnished house shown by Main's `View3D` with its lights held
 ## still; the picture is read back, then a floor stencil, a rifle lying near the camera and blood on
 ## the floor are added one by one, and each changes the picture: some pixels differ from the picture

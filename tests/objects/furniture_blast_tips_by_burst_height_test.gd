@@ -1,5 +1,5 @@
 extends GameTest
-## A blast shoves a free piece at its burst's height (#194 furn3d, D13): the same burst, up at chest
+## A blast shoves a free piece at its burst's height (#194, D13): the same burst, up at chest
 ## height, lays a tall thin bookshelf on its side and only slides a low heavy sofa, which stays
 ## upright. The frag's fragments are left out (`fragments` 0): what lays the shelf down is the
 ## blast's own push, applied at the burst's height, not a fragment's hit.

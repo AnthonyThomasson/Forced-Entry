@@ -1,5 +1,5 @@
 extends GameTest
-## A swinging door goes over what a walker goes over (#194 stack-a, D20, `docs/stacked-items.md`
+## A swinging door goes over what a walker goes over (#194, D20, `docs/stacked-items.md`
 ## SI4): a door opened wide shuts over a plate lying in its way (a walk-over item is no obstacle to
 ## the leaf, which is not scraped to a stop by it), still stops at a crate in its way, and still
 ## stops at a fallen door's leaf lying in its way (a leaf on the walk-over layer too, but a door,

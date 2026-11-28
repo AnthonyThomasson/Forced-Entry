@@ -1,5 +1,5 @@
 extends GameTest
-## D19 (#194 flatdoor, `docs/doors.md` DR11): a free piece meets what lies flat: a chair shoved at a
+## D19 (#194, `docs/doors.md` DR11): a free piece meets what lies flat: a chair shoved at a
 ## door lying on the floor bumps the leaf (and shoves it along); it does not slide over it or come
 ## to rest under it. The leaf is on `TWIN_WALKOVER`, which a walker and a car pass; a free piece is
 ## no walker.

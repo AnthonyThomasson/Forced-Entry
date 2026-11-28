@@ -1,5 +1,5 @@
 extends GameTest
-## A shoved piece and its footprint (`TwinSpace`, interface 29; #194 furn3d reversed the direction:
+## A shoved piece and its footprint (`TwinSpace`, interface 29; #194 reversed the direction:
 ## the free 3D body is the truth of a piece of furniture and its 2D body follows it): a coffee
 ## table, asleep, struck off centre slides and spins in 3D; every frame its 2D body stands where the
 ## 3D body did this frame or the one before (the engine moves a rigid body in its step, after the

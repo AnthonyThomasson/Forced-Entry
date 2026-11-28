@@ -1,5 +1,5 @@
 extends GameTest
-## D18 (#194 doors3d, `docs/doors.md` DR11): a door that falls onto something does not lie flat:
+## D18 (#194, `docs/doors.md` DR11): a door that falls onto something does not lie flat:
 ## a hollow door kicked down toward a wardrobe standing close beyond the doorway tops over onto it
 ## and rests leaning, higher than a step over (`DoorFallConfig.step_over`): its footprint is a solid
 ## collider (an obstacle), and the nav map, re-baked, has a hole where it leans.

@@ -1,5 +1,5 @@
 extends GameTest
-## V6 (#194 vehicles3d, D13): a vehicle strikes furniture through the physics of two free bodies,
+## V6 (#194, D13): a vehicle strikes furniture through the physics of two free bodies,
 ## at the height its bumper meets it. A car rolling at a bookshelf (tall, thin, light) catches it
 ## low and over it goes; the same car at a sofa (low, wide, heavy) only slides it, upright.
 

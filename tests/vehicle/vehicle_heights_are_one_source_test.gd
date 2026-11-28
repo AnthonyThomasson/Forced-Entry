@@ -1,5 +1,5 @@
 extends GameTest
-## D5 (#194 vehicles3d): one source for a vehicle's heights, `VehicleMeshConfig.heights`: the garage
+## D5 (#194): one source for a vehicle's heights, `VehicleMeshConfig.heights`: the garage
 ## prop car's mesh reads it, and the vehicle's 3D body is the real shape:
 ## the whole body to the belt, the cabin on to the roof over its own footprint (the glass and roof a
 ## grenade can rest on, a bullet can strike, a sight line is stopped by).

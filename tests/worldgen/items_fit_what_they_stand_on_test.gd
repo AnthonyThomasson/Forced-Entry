@@ -1,5 +1,5 @@
 extends GameTest
-## D20 / SI9 (#194 stack-b review M1): an item is placed only where its whole footprint fits. On a
+## D20 / SI9 (#194): an item is placed only where its whole footprint fits. On a
 ## floor stack each item lies inside the footprint of the one under it (a crate stands on a crate,
 ## a box on a box or a crate, never a crate on a box) and on a flat top it lies inside the piece's
 ## main top and clear of any part that rises over it (a counter's backsplash). Over a sample of

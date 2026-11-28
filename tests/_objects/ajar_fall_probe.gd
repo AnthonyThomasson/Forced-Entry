@@ -1,5 +1,5 @@
 extends RefCounted
-## Helper of the ajar-door fall tests (#194 flatdoor, `docs/doors.md` DR11): the gun range's four
+## Helper of the ajar-door fall tests (#194, `docs/doors.md` DR11): the gun range's four
 ## doorways onto the range fitted with a solid door each, ajar at the angle, hinge side and swing
 ## the test names, knocked down by a kick, and what each leaves of its doorway once it has settled.
 

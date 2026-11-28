@@ -1,5 +1,5 @@
 extends GameTest
-## D20 / SI9 (#194 stack-b review M1): the small items of a generated district settle where they
+## D20 / SI9 (#194): the small items of a generated district settle where they
 ## were set. A bigger item stacked on a smaller one overhangs it and toppled at the start
 ## (district 11's stockroom: two crates on a box ended lying 17 and 37 px away); an item goes only
 ## on a top at least as big as its base.

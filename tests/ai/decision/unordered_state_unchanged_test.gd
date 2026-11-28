@@ -35,7 +35,7 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"d", &"defender", Vector2(300, 415))
 	# The fighting pair stands in the living room's south-west, out of the other two's sight (a seen
 	# ally's track would make the text depend on the frame its sighting was renewed on). `c` stands
-	# clear of the armchair at (80, 310) (a free 3D body since #194 furn3d: what spawns on it is
+	# clear of the armchair at (80, 310) (a free 3D body since #194: what spawns on it is
 	# settled out by the 3D physics, not by the 2D solver the first capture was taken under); the
 	# capture itself is unchanged.
 	s.actor(

@@ -1,5 +1,5 @@
 extends GameTest
-## Performance guard (#194 del2d-b3, del2d-b3c): a car's and a character's mesh carried by its twin
+## Performance guard (#194): a car's and a character's mesh carried by its twin
 ## costs the carrier a frame what it did when the mirror it replaced was measured. A `MeshCarrier`
 ## looks at one yard of 6 cars and 24 characters walking about; each frame it updates, timed beside
 ## a fixed reference loop (`tests/_perf/perf_reference.gd`). Its update stays under `CEILING_RATIO`

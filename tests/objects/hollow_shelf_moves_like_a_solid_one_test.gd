@@ -1,5 +1,5 @@
 extends GameTest
-## An emptied bookshelf moves as the solid one did (#194 unbake-b, D21, `docs/stacked-items.md`
+## An emptied bookshelf moves as the solid one did (#194, D21, `docs/stacked-items.md`
 ## SI13): its thin parts (sides, back, boards) have the centre of mass and the moment of inertia of
 ## the solid box of their extent (`PieceBody`), so the same shove lays it on its side, slides it as
 ## far and turns it as little as the same bookshelf built solid, and a low shove leaves them alike.

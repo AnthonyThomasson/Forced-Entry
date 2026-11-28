@@ -1,6 +1,6 @@
 extends GameTest
 ## A home item reads as bright and as colourful as the prop it replaced in the lit 3D picture, in a
-## real window (windowed only: the headless renderer draws nothing; #194 unbake-a, D21 "the old
+## real window (windowed only: the headless renderer draws nothing; #194, D21 "the old
 ## look kept", `docs/stacked-items.md` SI14). `home_items_keep_the_old_look` compares the painted
 ## canvases only; the mesh is lit and toon-banded, so a fruit bowl can paint as the old prop and
 ## still draw as a small dark blob. A played 3D match (garage_home, seed 2); for each of the fruit
@@ -9,7 +9,7 @@ extends GameTest
 ## carries it) stand at the SAME spot under the same camera, so the same light falls on both. What
 ## each adds to the bare floor must be as bright (pixels over `BRIGHT`) and as saturated (the fruit,
 ## the flowers) as the old, at least `MIN_SHARE` of it. The barricade's sandbag and the coat rack's
-## hat (#194 unbake-d, SI15) are tan and brown, so they are held to the old one's luminance
+## hat (#194, SI15) are tan and brown, so they are held to the old one's luminance
 ## (`MIN_LUMA`) against the old painters' drawing. With `HOME_LIT_SHOT_DIR=<dir>` set it saves
 ## a picture of each. Run: `HOME_LIT_SHOT_DIR=<dir> tools/run_tests.sh --windowed
 ## --id=art/home_items_lit_windowed`.

@@ -39,7 +39,7 @@ extends GameTest
 ## `Perf.configure_match` and the budgets are those of every match guard.
 ## Three `--quiet` runs (load 3.7 to 4.4): avg 20.06, 20.06 and 20.11, p95 26.73, 26.74 and 26.62,
 ## max 33.86, 32.71 and 33.14 ms. The budgets stay red (accepted, #223).
-## AI cover on real heights (job 6 of the 3D-heights work), 2026-11-18, not `--quiet`: the commit
+## AI cover on real heights (#194), 2026-11-18, not `--quiet`: the commit
 ## before it (`aa484b5c`) in plain runs p95 22.24 and 20.27 ms (contact at 13.1 s of sim); with it
 ## p95 27.3, 26.7, 27.8 and 27.2, max 34 to 37 ms (contact at 17.9 s: the fight differs from frame
 ## 206). `perf_ab.sh --different-fights`, four rounds, medians avg / p95 / max: 16.41 / 21.86 /
@@ -47,7 +47,7 @@ extends GameTest
 ## fight's (the viewer's cone rebuilds as it moves), within the spread this guard has had (p95 23 to
 ## 28, max 35 to 41 ms), not a cost of the cover rule: the 10v10 and 5v5 stress guards, whose fights
 ## the same change leaves alike, moved -2.0% and -2.1% avg.
-## Real-height fragments and escape judgments (#194, frags3d), `perf_ab.sh --different-fights`, six
+## Real-height fragments and escape judgments (#194), `perf_ab.sh --different-fights`, six
 ## rounds: this fight is the same on both revisions, avg 17.13 / 17.19 ms (+0.3%), p95 23.41 /
 ## 23.88, max 29.54 / 28.80; the 5v5, grenade and 10v10 guards +1.5%, -1.7% and +0.3% avg. Still
 ## over budget (accepted, #223). A seed re-pick (1 to 28) found none that holds every guard and

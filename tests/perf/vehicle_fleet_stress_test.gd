@@ -1,14 +1,14 @@
 extends GameTest
-## Performance guard (#194 vehicles3d, D13): a fleet of cars and vans on a lot with furniture and a
-## crowd, rolled at staggered speeds so the rear ones run into the front ones and into the
-## furniture, one of them driven by a seated puppet with its engine on. A vehicle is a 3D body (the
-## truth) with a 2D footprint written from it each frame; the footprint goes with the 2D simulation
-## (`del2d`), so what this costs now is the 3D body, its strike queries, plus a temporary follower.
-## The crowd and the furniture cost most of a frame, whatever the vehicles do, so the budget is
-## the vehicles' own: what a frame costs over the same lot standing idle (the fleet asleep), at most
-## `EXTRA_MS` (a quiet machine measures a fraction of it, so several times the fleet's cost fails).
-## It is not an A/B: what the 2D body cost is `tools/perf_ab.sh` against the revision before (this
-## test copied into that tree), when the machine is quiet.
+## Performance guard (#194, D13): a fleet of cars and vans on a lot with furniture and a crowd,
+## rolled at staggered speeds so the rear ones run into the front ones and into the furniture, one
+## of them driven by a seated puppet with its engine on. A vehicle is a 3D body (the truth) with a
+## plan-space handle written from it each frame, so what it costs is the body and its strike
+## queries. The rolling frames hold the frame standard. The crowd and the furniture cost most of a
+## frame, whatever the vehicles do, so the vehicles also have a budget of their own: what a frame
+## costs over the same lot standing idle (the fleet asleep), at most `EXTRA_MS` (a quiet machine
+## measures a fraction of it, so several times the fleet's cost fails). It is not an A/B: a change's
+## cost against the revision before is `tools/perf_ab.sh` (this test copied into that tree), when
+## the machine is quiet.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
@@ -59,6 +59,7 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
+	Perf.warm_sounds()
 	# the crowd's places are the fight's fingerprint (`tools/perf_ab.sh` checks a revision replays
 	# its own run)
 	var crowd: Array = []
@@ -104,13 +105,13 @@ func run(t: TestContext) -> void:
 	t.check(grown <= 2, "a resting fleet neither spawns nor leaks nodes (grew by %d)" % grown)
 
 
-## Report the rolling phase: the lines `tools/perf_ab.sh` reads, held to the smooth-match budgets
-## (the lot is mostly crowd), and what the fleet adds over the idle lot, held to `EXTRA_MS`.
+## Report the rolling phase: the lines `tools/perf_ab.sh` reads, held to the frame standard, and
+## what the fleet adds over the idle lot, held to `EXTRA_MS`.
 func _report_rolling(t: TestContext, moving: Dictionary, idle: Dictionary) -> void:
 	Perf.report_worst("vehicle fleet rolling", moving)
 	Perf.within(t, "vehicle fleet rolling avg ms/frame", moving["avg_ms"], Perf.SMOOTH_AVG_MS)
 	Perf.within(t, "vehicle fleet rolling p95 ms/frame", moving["p95_ms"], Perf.SMOOTH_P95_MS)
-	Perf.within(t, "vehicle fleet rolling max ms/frame", moving["max_ms"], 100.0)
+	Perf.within(t, "vehicle fleet rolling max ms/frame", moving["max_ms"], Perf.SMOOTH_MAX_MS)
 	Perf.within(
 		t,
 		"vehicle fleet rolling avg ms/frame over the idle lot",

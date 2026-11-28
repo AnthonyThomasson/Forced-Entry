@@ -1,5 +1,5 @@
 extends GameTest
-## Small items rest on a flat top and on each other (#194 stack-a, D20, `docs/stacked-items.md`):
+## Small items rest on a flat top and on each other (#194, D20, `docs/stacked-items.md`):
 ## each is its own free 3D body, set down on a table (a plate and a cup) or on a crate (a box on a
 ## crate on the floor, a stack), it falls the last hair and settles asleep with its underside on
 ## the top it stands on and stays where it was put on the plan.

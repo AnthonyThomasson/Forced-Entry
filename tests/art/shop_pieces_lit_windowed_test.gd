@@ -1,7 +1,7 @@
 extends GameTest
 ## A shop or special-room piece reads as bright and as colourful as the piece it replaced in the
-## lit 3D picture, in a real window (windowed only: the headless renderer draws nothing; #194
-## unbake-c, D21 "the old look kept", `docs/stacked-items.md` SI16). A played 3D match (garage_home,
+## lit 3D picture, in a real window (windowed only: the headless renderer draws nothing; #194,
+## D21 "the old look kept", `docs/stacked-items.md` SI16). A played 3D match (garage_home,
 ## seed 2); for each of the shop counter, noodle counter, booth, tool cart, monitor ledge, drinks
 ## fridge, snack machine, shelf aisle and cyberware shelf, the OLD piece
 ## (`tests/_art/old_shop_pieces.gd`: the mesh and painters of commit 08f43a10, the till, bowls,

@@ -1,6 +1,6 @@
 extends GameTest
 ## A car with its engine off that has rolled to a stop goes back to sleep even with people standing
-## against it (#194 chars3d-b): its contacts see to a living character touching it every frame, and
+## against it (#194): its contacts see to a living character touching it every frame, and
 ## what they write to keep the car's speed along the contact must be written only when it changes,
 ## or the engine counts each write as a push and the car never rests.
 

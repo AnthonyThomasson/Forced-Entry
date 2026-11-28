@@ -1,5 +1,5 @@
 extends GameTest
-## The follower hides what the player's view does not show, as the mirror did (#194 del2d-b3b,
+## The follower hides what the player's view does not show, as the mirror did (#194,
 ## `MirrorSight`, `docs/player-vision.md` V5, V6 and V12), on a `MeshFollower` with a view on: a
 ## rifle lying where the cone and the bubble do not reach is hidden, one in the cone is shown; one
 ## seen stays shown where it lies once the cone moves on, one behind is shown when the viewer turns

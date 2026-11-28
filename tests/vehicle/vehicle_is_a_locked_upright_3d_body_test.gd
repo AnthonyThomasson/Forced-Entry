@@ -1,5 +1,5 @@
 extends GameTest
-## V5 (#194 vehicles3d, D13): a vehicle is a free 3D body (`RigidBody3D`) locked upright: it leads
+## V5 (#194, D13): a vehicle is a free 3D body (`RigidBody3D`) locked upright: it leads
 ## (`TwinSpace.leader_of`), its 2D body only the footprint written from it. It cannot roll or
 ## pitch: struck as hard as a round can at its roof, and shoved high at its flank, it turns about
 ## up and slides but stays level, on the floor.

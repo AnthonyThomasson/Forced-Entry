@@ -1,5 +1,5 @@
 extends GameTest
-## Interface 9, #194 nav3d-b: a plan polygon (the planning region of a district) laid on one scratch
+## Interface 9, #194: a plan polygon (the planning region of a district) laid on one scratch
 ## map through the 2D API (`NavigationServer2D`) and on another through the nav's own path
 ## (`NavPlan.assign`, a `NavigationRegion3D`, `NavPlan` queries) gives the same closest points and
 ## routes, to the point: a grid of probes and a stride of ordered pairs of them (`NavQueryProbe`).

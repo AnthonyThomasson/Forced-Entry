@@ -1,5 +1,5 @@
 extends GameTest
-## A noodle bowl is as big as the one it replaced (#194 unbake-c, D21 "the old look kept",
+## A noodle bowl is as big as the one it replaced (#194, D21 "the old look kept",
 ## `docs/stacked-items.md` SI16): the flat art laid over its mesh top is the old painter's bowl, a
 ## pale rim to the edge of its footprint with the broth inside it (two pixels of rim), not a bowl
 ## with a dark outline ring and a dark well that reads a pixel smaller each side. A bowl with no

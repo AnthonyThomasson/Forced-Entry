@@ -1,6 +1,6 @@
 extends GameTest
 ## A vehicle still strikes a standing character (interface 19) now the character's 3D body is the
-## truth (#194 chars3d-a): the knock-back and the harm reach it, and the 3D body takes the place the
+## truth (#194): the knock-back and the harm reach it, and the 3D body takes the place the
 ## 2D body was knocked to, then walks on from there.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")

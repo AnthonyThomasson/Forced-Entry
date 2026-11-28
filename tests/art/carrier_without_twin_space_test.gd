@@ -1,6 +1,6 @@
 extends GameTest
 ## A carrier given a world with no twin space has no twin to carry on: it shows nothing, and a
-## `remirror` of a body asks nothing of a space it never had (#194 del2d-b3c, interface 27).
+## `remirror` of a body asks nothing of a space it never had (#194, interface 27).
 
 
 func describe() -> Dictionary:

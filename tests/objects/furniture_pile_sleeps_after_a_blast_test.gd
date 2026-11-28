@@ -1,5 +1,5 @@
 extends GameTest
-## A house's furniture blasted about settles (#194 furn3d, D13; the phase-1 spike's pile, on the
+## A house's furniture blasted about settles (#194, D13; the phase-1 spike's pile, on the
 ## real catalogue): a few frags go off among a furnished house's pieces; every free piece is asleep
 ## again within `SETTLE` s (Jolt's sleep: a tipped pile that never slept would cost the 3D step a
 ## frame forever), some have tipped, and none has fallen out of the house.

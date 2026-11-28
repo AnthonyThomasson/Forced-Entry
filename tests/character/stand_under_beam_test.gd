@@ -1,5 +1,5 @@
 extends GameTest
-## A body does not grow into what is over it (#194 chars3d-a, D13): crouched under a beam hung at
+## A body does not grow into what is over it (#194, D13): crouched under a beam hung at
 ## 40 to 60 px, a character cannot stand back up (a standing body is 74 px tall), nor rise to fire
 ## over cover (a rise there is refused), and may once it has walked out from under it.
 

@@ -1,5 +1,5 @@
 extends GameTest
-## D18 / DR11 (#194 ajarfall): Four ajar hollow doors kicked from their closed side: no frame moves
+## D18 / DR11 (#194): Four ajar hollow doors kicked from their closed side: no frame moves
 ## a leaf more than 20 px in its first 10 frames.
 
 const AjarFall := preload("res://tests/_objects/ajar_fall_probe.gd")

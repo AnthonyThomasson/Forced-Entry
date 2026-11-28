@@ -1,5 +1,5 @@
 extends GameTest
-## Performance guard (#194 del2d-b2b, del2d-b3c): a piece's mesh carried by its twin costs the
+## Performance guard (#194): a piece's mesh carried by its twin costs the
 ## carrier a frame what it did when the mirror it replaced was measured beside it. A `MeshCarrier`
 ## looks at one pile of 120 pieces shoved all at once; each frame it updates, timed, while the pile
 ## moves and once it rests. Its update, timed beside a fixed reference loop

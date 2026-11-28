@@ -1,5 +1,5 @@
 extends GameTest
-## A character put onto or under a piece it is interacting with does not shove it (#194 furn3d): the
+## A character put onto or under a piece it is interacting with does not shove it (#194): the
 ## interaction's collision exception between the two bodies holds for their 3D bodies too, so a bed
 ## that someone lies on, or hides under, stays where it stands (its free 3D body is not pushed out
 ## from under a body that is snapped onto its centre), and the exception is dropped again once the

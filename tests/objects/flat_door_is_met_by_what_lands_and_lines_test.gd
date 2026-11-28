@@ -1,5 +1,5 @@
 extends GameTest
-## D19 (#194 flatdoor, `docs/doors.md` DR11): a door lying flat is on `TWIN_WALKOVER`: no walker and
+## D19 (#194, `docs/doors.md` DR11): a door lying flat is on `TWIN_WALKOVER`: no walker and
 ## no vehicle meets it, but a line and what lands on it do, where it lies at its lying
 ## height. One probe per reader of the layer: the sight ray, the barrel's ray, a
 ## dropped item, a casing's or a chip's flight (`PhysicsConfig.twin_mask`); and what must NOT meet

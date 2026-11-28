@@ -1,7 +1,7 @@
 class_name ToonMask
 extends RefCounted
 ## Art domain, the pixel post (interface 27): the global shader uniforms the
-## toon shaders (`toon.gdshader`, `toon_tex.gdshader`), the decal's (`decal.gdshader`) and the
+## toon shaders (those that include `toon_common.gdshaderinc`), the drop shadow's and the
 ## outline pass read for the player's view (`toon_vision.gdshaderinc`), so the vision job puts its
 ## masks in place without touching a mesh or a material. Seven globals: the live cone `vision_mask`
 ## (a texture whose red channel is how visible a spot of the ground is, 1 seen to 0 unseen),

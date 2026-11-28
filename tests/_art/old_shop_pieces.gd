@@ -1,6 +1,6 @@
 extends RefCounted
 ## The old look of the shops' and special rooms' whole pieces: the 3D mesh and the flat art each had
-## before #194 unbake-c made their stock free items (commit 08f43a10's `shop_mesh`, `noodle_mesh`,
+## before #194 made their stock free items (commit 08f43a10's `shop_mesh`, `noodle_mesh`,
 ## `clinic_mesh`, `tech_mesh` and their painters, kept beside it as `old_*.gd`), an oracle for the
 ## test that sets the old piece and the new one side by side (`art/shop_pieces_lit_windowed`).
 ## `rig` builds the old piece the way its mesh builder did, wearing the old painter's art (the

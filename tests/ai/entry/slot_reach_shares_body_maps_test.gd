@@ -1,7 +1,7 @@
 extends GameTest
 ## A hold's verdict on its slot (`AgentEntry.slot_reach`) carves the bodies at rest out of the map
 ## it reads, and each distinct set used to bake a map of its own, a district-size bake a hold asked
-## for every frame (#194 perf3d). Now a set of bodies within `EntryBodyMaps.TOLERANCE` of a kept
+## for every frame (#194). Now a set of bodies within `EntryBodyMaps.TOLERANCE` of a kept
 ## one (a body swaying a pixel, one asked twice) is that map, and a body further than
 ## `AgentEntry.BODY_CORRIDOR` off the plain route is not carved at all (the route cannot meet it):
 ## the plain map answers when none is near. A set that differs for real is a map of its own.

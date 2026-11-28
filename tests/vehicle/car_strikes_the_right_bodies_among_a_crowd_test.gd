@@ -1,5 +1,5 @@
 extends GameTest
-## V6 (#194 vehicles3d, D13): what the vehicle touches is read by a shape query of its body in the
+## V6 (#194, D13): what the vehicle touches is read by a shape query of its body in the
 ## twin space, whose hits a floor slab, a wall segment and every piece of furniture beside the
 ## hull share. A car with a ring of chairs against its sides, rolling into four standing characters,
 ## must still find each of them and strike it as an empty road would: killed at this speed, the

@@ -1,5 +1,5 @@
 extends GameTest
-## D18 (#194 doors3d, `docs/doors.md` DR11): a blast that fells a door tears it off its hinges as a
+## D18 (#194, `docs/doors.md` DR11): a blast that fells a door tears it off its hinges as a
 ## free 3D body, a real object: the frag goes off west of a hollow door, close to its middle, and
 ## the leaf is thrown east, topples and lies on the floor as physics decides, asleep, flat (its
 ## 3D body a `PieceBody`, the truth, the door's 2D body its footprint). No fixed fall.

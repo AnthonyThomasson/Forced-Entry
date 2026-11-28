@@ -1,6 +1,6 @@
 extends RefCounted
 ## The old look of the shops' and special rooms' small things: what the shop, noodle, clinic and
-## tech painters drew onto the piece (commit 08f43a10, before #194 unbake-c made each an item), as
+## tech painters drew onto the piece (commit 08f43a10, before #194 made each an item), as
 ## an oracle for tests that put the old drawing and the new item side by side
 ## (`art/shop_items_lit_windowed`). `draw` paints one thing on a canvas of its footprint, as the old
 ## painter did, the thing's colour given (the row that carries it sets the new item's the same).

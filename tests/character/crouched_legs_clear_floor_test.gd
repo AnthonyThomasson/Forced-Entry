@@ -1,5 +1,5 @@
 extends GameTest
-## A crouched character's feet are swept above the floor (#194 chars3d-a): at the duck's ankle
+## A crouched character's feet are swept above the floor (#194): at the duck's ankle
 ## height a foot-sized sphere would reach below the floor slab and be stopped by it, so a crouched
 ## walker in the open would have both feet collapsed on its centre.
 

@@ -1,5 +1,5 @@
 extends GameTest
-## A free item that lands on a plate on the floor rests on it (#194 stack-a, D20,
+## A free item that lands on a plate on the floor rests on it (#194, D20,
 ## `docs/stacked-items.md`): a plate lying on the floor is walk-over (on `TWIN_WALKOVER`, no walker
 ## meets it), and still what falls onto it lands on it: a book set on it stands on its top, and a
 ## book let fall onto a second plate from higher up comes to rest there, asleep, not on the floor

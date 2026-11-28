@@ -145,8 +145,8 @@ func _spectate(t: TestContext, walls: Array) -> void:
 	var back := Probe.back_of(_rig.yaw)
 	var characters: Array[Node2D] = []
 	# The match is played while the camera is set up, and its fight kills now and then (which one
-	# depends on what stands in the way: #194 unbake-b moved it): a dead character is no fade focus,
-	# so the three are living ones (not the player).
+	# depends on what stands in the way: the items of #194 moved it): a dead character is no fade
+	# focus, so the three are living ones (not the player).
 	var living := _world.get_tree().get_nodes_in_group(&"characters").filter(
 		func(node: Node) -> bool: return node != _player and not bool(node.get("is_dead"))
 	)

@@ -1,6 +1,6 @@
 extends GameTest
 ## The twins of a world are made in tree order, pieces and characters together, then the groups'
-## (#194 del2d-c4): the order Jolt meets the bodies in (its solver order) is the order the twins are
+## (#194): the order Jolt meets the bodies in (its solver order) is the order the twins are
 ## made in, so a piece, a plan handle, is twinned where it stands among the characters, not after
 ## them all. A fight is the same fight only while this order is. No builder is
 ## registered here: each body is said `untwinned` as it is looked at, in the order it was.

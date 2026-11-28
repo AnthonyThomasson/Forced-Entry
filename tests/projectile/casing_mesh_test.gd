@@ -1,6 +1,6 @@
 extends GameTest
 ## A spent casing is a tiny mesh on the 3D floor (#193 phase 2, Projectile): tossed out it falls
-## from the port's height on its 2D node's path (#194 ragdoll3d: the node flies in the twin 3D
+## from the port's height on its 2D node's path (#194: the node flies in the twin 3D
 ## space, real gravity, no fixed arc), lying it rests on the floor where its node came to rest,
 ## turned as it is; the batch they share is bounded and shows exactly the casings the 2D world keeps
 ## (the `Despawner`'s cap), a place freed is taken again, and nothing runs once they all lie.

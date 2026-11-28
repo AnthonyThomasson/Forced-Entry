@@ -5,7 +5,7 @@ extends GameTest
 ## is from `ToonLightConfig`. Headless proves the wiring (the shader is compiled windowed only):
 ## each band of the material reads back as the holder's strength (darkest none, brightest the light
 ## whole), a retuned band count reaches a material made after it, and differently named bodies
-## carry different colours. (Before the carrier this was read off the mirror's proxies.)
+## carry different colours.
 
 const AT := Vector2(260, 180)
 const OTHER := Vector2(520, 300)
@@ -14,10 +14,10 @@ const OTHER := Vector2(520, 300)
 func describe() -> Dictionary:
 	return {
 		"name": "Carried meshes share one toon material banded from the toon light's levels",
-		"description": "Every mesh a builder makes has the one toon ShaderMaterial; its bands are "
-			+ "the strengths of ToonLightConfig.levels and its pool's those of pool_levels; a band "
-			+ "count set in PixelPostConfig reaches a new material and is held to 2 to 5; each "
-			+ "body has its own colour.",
+		"description": "Every plain mesh a builder makes has the shared toon ShaderMaterial; its "
+			+ "bands are the strengths of ToonLightConfig.levels and its pool's those of "
+			+ "pool_levels; a band count set in PixelPostConfig reaches a new material and is held "
+			+ "to 2 to 5; each body has its own colour.",
 		"tags": ["carrier", "3d", "render", "pixel"],
 		"timeout": 10.0,
 	}

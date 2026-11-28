@@ -1,5 +1,5 @@
 extends GameTest
-## A grenade at rest on a piece falls when the piece tips (#194 furn3d, D13/D14): the piece is a
+## A grenade at rest on a piece falls when the piece tips (#194, D13/D14): the piece is a
 ## free 3D body, so what rests on it loses its support as it goes over and bursts where it lies, on
 ## the floor, not at the height of the desk it was on.
 

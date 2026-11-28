@@ -1,5 +1,5 @@
 extends GameTest
-## A plate on the floor is walked over (#194 stack-a, D20, `docs/stacked-items.md`): a puppet that
+## A plate on the floor is walked over (#194, D20, `docs/stacked-items.md`): a puppet that
 ## walks straight along a lane over a plate and a cup passes them and they stay where they lay, not
 ## shoved; a crate in the next lane (taller than a step) is shoved by the same walk.
 

@@ -1,5 +1,5 @@
 extends GameTest
-## Rounds go by material and thickness (#194 stack-a, D20, `docs/stacked-items.md`): a pistol round
+## Rounds go by material and thickness (#194, D20, `docs/stacked-items.md`): a pistol round
 ## through a plate on a stack of crates goes through it (a plate is thin ceramic) and knocks it
 ## off; the same round at a crate loses most of its speed in it and is stopped by the crate behind,
 ## so the target behind them is unhurt.

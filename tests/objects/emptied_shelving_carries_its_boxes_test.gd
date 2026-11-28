@@ -1,5 +1,5 @@
 extends GameTest
-## An emptied shelf carries its things as loose items (#194 unbake-b, D21, rule 9,
+## An emptied shelf carries its things as loose items (#194, D21, rule 9,
 ## `docs/stacked-items.md` SI13): the garage shelving no longer builds its cardboard boxes into its
 ## mesh; they are free bodies set on its boards where the old look drew them, each asleep with its
 ## underside on a board's top and inside the shelf's footprint; the shelf is boards, sides and a

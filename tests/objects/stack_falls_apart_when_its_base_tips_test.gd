@@ -1,5 +1,5 @@
 extends GameTest
-## A stack is only as steady as its base (#194 stack-a, D20, `docs/stacked-items.md`): a table
+## A stack is only as steady as its base (#194, D20, `docs/stacked-items.md`): a table
 ## struck high enough to tip drops the plates and the cup on it, each its own body that falls to
 ## the floor and comes to rest there, lower than a step.
 

@@ -1,5 +1,5 @@
 extends GameTest
-## A bullet into the seam of two rooms is deterministic (#194 walls3d): the wall they share is built
+## A bullet into the seam of two rooms is deterministic (#194): the wall they share is built
 ## once, owned by the room built first, so a ray through it meets one 3D wall and the same one from
 ## either side, and rounds fired at it from both rooms all strike that one wall (before, two
 ## coincident colliders tied at the same distance and the tie followed process history).

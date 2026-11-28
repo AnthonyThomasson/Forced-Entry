@@ -1,6 +1,6 @@
 extends GameTest
 ## A change in one tile of a 3x3 block of real baked steering tiles leaves every border agreed
-## (`NavSeams.weld`, review of #194 nav3d-a): a hole that lands on a corner of the centre tile
+## (`NavSeams.weld`, review of #194): a hole that lands on a corner of the centre tile
 ## alone (only its holes change, it alone is baked) can close a border cell there, which opens a
 ## stretch on the border of a tile across the corner that neither the centre nor its edge
 ## neighbours' own re-bake sees. After the weld every pair of neighbouring tiles holds the same

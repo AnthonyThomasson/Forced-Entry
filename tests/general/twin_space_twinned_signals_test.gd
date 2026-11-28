@@ -1,5 +1,5 @@
 extends GameTest
-## `TwinSpace` says what it did with each body (#194 del2d-b3c, interface 27 and 29): `twinned(body,
+## `TwinSpace` says what it did with each body (#194, interface 27 and 29): `twinned(body,
 ## twin)` when a body got a twin, `untwinned(body)` when no builder made one (a non-solid piece),
 ## and `bodies()` / `bodies_without_twin()` list the same for a listener that starts late. A body
 ## that leaves the tree is dropped from the untwinned ones at once (an endless run spawns litter

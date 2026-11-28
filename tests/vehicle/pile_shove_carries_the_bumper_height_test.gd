@@ -1,6 +1,6 @@
 extends GameTest
 ## A vehicle's shove of the bodies it pushes before it (its pile: a person, a piece pressed against
-## one) is given at the real height the bumper meets them (#194 chars3d-b): each member's blow
+## one) is given at the real height the bumper meets them (#194): each member's blow
 ## carries the height the bumper strikes at, never a push at no height (the body's centre), and
 ## still at the member's centre on the plan, so a piece leans by where it is struck and slides where
 ## it is struck low.

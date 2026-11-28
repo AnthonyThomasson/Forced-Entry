@@ -16,11 +16,11 @@ const NODE_BAND := [170, 300]
 # 3652 nodes, now the 2D visual and occluder nodes are gone), the second is the steady cost
 # (~100 ms) that a run after other tests also reads for the first. The time budgets below are from
 # the earlier, slower baseline and stay as headroom; the node band is about +-35%. 2026-11-20,
-# #194 del2d-c5d: 2834 nodes now that no body, shape or layer node stands in a district (every
-# sim root is a plain Node2D plan handle), band 1850 to 3850. 2026-11-21, #194 stack-b: 2949 nodes
+# #194: 2834 nodes now that no body, shape or layer node stands in a district (every
+# sim root is a plain Node2D plan handle), band 1850 to 3850. 2026-11-21, #194: 2949 nodes
 # for this seed (424242) with the small items on the tops and floors (each item is one plan handle;
-# a room that gets none has no `<Room> Items` node either): +115 over del2d-c5d's 2834, the band
-# re-centred on it (+-35%): 1920 to 3980. A house reads 225. #194 unbake-c: the shops and the
+# a room that gets none has no `<Room> Items` node either): +115 over the 2834 above, the band
+# re-centred on it (+-35%): 1920 to 3980. A house reads 225. #194: the shops and the
 # special rooms hand what they drew to free items (a fridge's bottles, a counter's till, a shelf's
 # cyberware: 1165 bodies a district against 881): 3156 nodes before it, 5214 with it (about seven
 # nodes an item, no time cost: the steady build reads 131 ms), the band re-centred on 5214 (+-35%):

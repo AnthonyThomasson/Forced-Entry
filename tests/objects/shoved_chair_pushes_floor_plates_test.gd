@@ -1,5 +1,5 @@
 extends GameTest
-## A shoved piece meets the items lying on the floor (#194 stack-a, D20, `docs/stacked-items.md`
+## A shoved piece meets the items lying on the floor (#194, D20, `docs/stacked-items.md`
 ## SI5): a chair shoved along the floor into a plate pushes it along ahead of it, it does not slide
 ## over or through it (a plate is on `TWIN_WALKOVER`, which a character's walk passes, not a
 ## piece's).

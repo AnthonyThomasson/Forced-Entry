@@ -1,5 +1,5 @@
 extends UnitSuite
-## The 2D physics space is not read (#194 del2d): nothing under `scenes/` asks it a question. The
+## The 2D physics space is not read (#194): nothing under `scenes/` asks it a question. The
 ## sim's truth is the 3D twin space (`TwinSpace`, interface 29), so no script holds a
 ## `PhysicsDirectSpaceState2D`, builds a 2D shape, ray or point query, reads a 2D world's direct
 ## space, casts a 2D ray or shape node, listens to a 2D body's contacts or overlaps, reads a 2D

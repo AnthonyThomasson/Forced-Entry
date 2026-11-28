@@ -1,5 +1,5 @@
 extends GameTest
-## Interface 9, #194 nav3d-b: a `NavigationAgent3D` on a `Node3D` anchor at a plan point (x, 0, y)
+## Interface 9, #194: a `NavigationAgent3D` on a `Node3D` anchor at a plan point (x, 0, y)
 ## (what Locomotion's `NavAnchor` is), its target another plan point, walks the route
 ## `NavPlan.path` answers on the same map: its path is that route, the waypoints
 ## `get_next_path_position` hands out are that route's in turn as the anchor stands on each, and

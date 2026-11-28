@@ -1,5 +1,5 @@
 extends GameTest
-## D20 / SI9 (#194 stack-b): placing small items on tops and floors never moves what was there. A
+## D20 / SI9 (#194): placing small items on tops and floors never moves what was there. A
 ## seeded house's and a district's whole tree (the furniture, clutter, neon, walls, floors and
 ## doors, but the items' own nodes) and the doors' openings, materials and styles are identical with
 ## the items on and off, because the items draw from an RNG stream of their own and run after the

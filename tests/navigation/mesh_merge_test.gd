@@ -1,5 +1,5 @@
 extends GameTest
-## The grid baker's polygons are merged where the union is convex (`NavMerge`, #194 nav3d-a): the
+## The grid baker's polygons are merged where the union is convex (`NavMerge`, #194): the
 ## same floor in fewer polygons, because a path query pays for every polygon it crosses (300
 ## queries across a district: 47 ms on the baker's own polygons, 28 merged, 24 on the 2D baker's).
 ## Pinned on a few hand-made meshes, and on a district's baked mesh: every polygon is convex, none

@@ -1,6 +1,6 @@
 extends GameTest
 ## The AI's plan lines (`AgentVision.raycast`, `blocked`, `wall_hit`) are asked of the twin 3D space
-## (#194 chars3d-b, interface 29), not the 2D footprints: with every footprint shape off, a line
+## (#194, interface 29), not the 2D footprints: with every footprint shape off, a line
 ## along the floor still meets a table and a wall, a line through a doorway at eye height is clear,
 ## and `wall_hit` looks through furniture but not a wall, as it always did. The 2D space the callers
 ## hand in is the handle of the world, not the thing asked. A body is left out of a line by its

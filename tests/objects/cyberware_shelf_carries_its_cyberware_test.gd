@@ -1,5 +1,5 @@
 extends GameTest
-## The cyberware shelf is bare steel with its cyberware as free items (#194 unbake-c, D21, rule 9,
+## The cyberware shelf is bare steel with its cyberware as free items (#194, D21, rule 9,
 ## `docs/stacked-items.md` SI16): hollow (posts and a board per tier, open between, its body moving
 ## as the box of its extent), and its arms, eyes, chips and jars are items standing each on a
 ## board's top, none inside a part, on every tier, seeded by the look (two shelves carry the same),

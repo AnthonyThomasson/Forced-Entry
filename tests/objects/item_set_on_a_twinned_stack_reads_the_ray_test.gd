@@ -1,5 +1,5 @@
 extends GameTest
-## An item set on a base later reads where its top really is (#194 stack-a, D20,
+## An item set on a base later reads where its top really is (#194, D20,
 ## `docs/stacked-items.md` SI2): once the twin space has the base and the box on it, a plate set on
 ## the table a few frames later goes on the box's top (the ray down at that spot sees the box, 43
 ## px), not the table's own (31 px), where the box would have it inside; set at the table's bare

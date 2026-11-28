@@ -1,5 +1,5 @@
 extends GameTest
-## The static classes carry their meshes (#194 del2d-b2, interface 27 and 29): where a body has a
+## The static classes carry their meshes (#194, interface 27 and 29): where a body has a
 ## twin that is a static body (a wall, a floor, an anchored or wall-hung piece), the 3D view's mesh
 ## is a child of that twin, with no transform of its own, so the picture is where the twin is and
 ## the mirror writes nothing for it. A world no view looks at builds no mesh at all. The mirror

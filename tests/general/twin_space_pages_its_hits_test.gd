@@ -1,6 +1,6 @@
 extends GameTest
 ## A shape query of the twin space that more than one page of hits fills still reports every body
-## (#194 chars3d-b review): `TwinSpace.intersecting` pages the query, each page's colliders left out
+## (#194): `TwinSpace.intersecting` pages the query, each page's colliders left out
 ## of the next, so a floor slab or a wall segment under a crowd cannot crowd a body out of the
 ## answer the way a single `intersect_shape` with a cap does; the caller's own exclusions are kept.
 

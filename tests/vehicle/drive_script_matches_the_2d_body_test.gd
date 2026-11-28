@@ -1,5 +1,5 @@
 extends GameTest
-## V5 (#194 vehicles3d, D13): the vehicle is a 3D body now, and it must drive as the 2D body did. A
+## V5 (#194, D13): the vehicle is a 3D body now, and it must drive as the 2D body did. A
 ## fixed input script (full throttle, then full throttle with the wheel hard over, a coast, then the
 ## brakes) is driven by a car and by a van, and the path (position and heading) and the speed are
 ## compared with what the 2D rigid body did on the same script (`EXPECTED`), within

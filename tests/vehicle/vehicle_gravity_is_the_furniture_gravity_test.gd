@@ -1,5 +1,5 @@
 extends GameTest
-## V6 (#194 vehicles3d, D13): a vehicle and a piece of furniture share one 3D space, and one pull
+## V6 (#194, D13): a vehicle and a piece of furniture share one 3D space, and one pull
 ## toward the floor. The Vehicles domain may not read Objects, so its gravity is its own number
 ## (`VehicleCollisionConfig.gravity`); this pins it to `PieceBodyConfig.gravity`, and to the pull
 ## each body really has in its world.

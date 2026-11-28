@@ -1,5 +1,5 @@
 extends GameTest
-## Items set on one spot in one frame stack on each other (#194 stack-a, D20,
+## Items set on one spot in one frame stack on each other (#194, D20,
 ## `docs/stacked-items.md` SI2): a house is built before the twin space takes any piece over, so
 ## `ObjectFactory.spawn_on` cannot ask the twin space what an item set a moment ago is: it keeps the
 ## chain itself. Three plates on one spot of a table start one above the other (not inside each

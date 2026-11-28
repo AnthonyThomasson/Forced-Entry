@@ -1,5 +1,5 @@
 extends GameTest
-## D21 unbake (#194 17i `unbake-d`, `docs/stacked-items.md` SI15): the security barricade gives up
+## D21 unbake (#194, `docs/stacked-items.md` SI15): the security barricade gives up
 ## its sandbags and the coat rack its hat: both are free items (rule 9) set where the old drawing
 ## had them, the piece is left bare (its mesh is the slab, or the post with its coats). The coats
 ## stay drawn on the rack (a coat hangs from a hook: no rest, a pin the twin space does not

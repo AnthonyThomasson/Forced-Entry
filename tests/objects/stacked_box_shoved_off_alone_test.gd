@@ -1,5 +1,5 @@
 extends GameTest
-## An item is its own body (#194 stack-a, D20, `docs/stacked-items.md`): a shove on the box at the
+## An item is its own body (#194, D20, `docs/stacked-items.md`): a shove on the box at the
 ## top of a stack of three moves only that box; the crates under it stay where they are, asleep.
 
 const Probe := preload("res://tests/_objects/piece_probe.gd")

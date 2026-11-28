@@ -1,5 +1,5 @@
 extends GameTest
-## A kick lands at the shin, a punch up at the fist (#194 chars3d-a, interface 5): the blows reach
+## A kick lands at the shin, a punch up at the fist (#194, interface 5): the blows reach
 ## into the twin space at their real heights. A menu board stands on legs with its sign from 46 px
 ## up to 80: a punch (the fist is up at 49 px) lands on it; a kick (the foot is at 17 px, reaching
 ## to about 23) passes under it and lands on nothing. A bookshelf, which stands on the floor, is

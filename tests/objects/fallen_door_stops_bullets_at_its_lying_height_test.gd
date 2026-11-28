@@ -1,5 +1,5 @@
 extends GameTest
-## D18 (#194 doors3d): a door that lies on the floor is a real object at its lying height: a level
+## D18 (#194): a door that lies on the floor is a real object at its lying height: a level
 ## line at a leaf's thickness meets it (a round is stopped or slowed by its material: the owner of
 ## the hit is the door), one a hand above passes. Kicked down from the west it lies east.
 

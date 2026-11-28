@@ -1,5 +1,5 @@
 extends GameTest
-## A free piece of furniture is a real 3D body (#194 furn3d, D13): a bookshelf struck high by a
+## A free piece of furniture is a real 3D body (#194, D13): a bookshelf struck high by a
 ## round leans over and lies on its side, where a sofa struck as hard low down only slides and stays
 ## upright (physics decides, from mass, footprint and where the push lands).
 

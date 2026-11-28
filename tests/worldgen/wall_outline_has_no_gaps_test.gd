@@ -1,5 +1,5 @@
 extends GameTest
-## Building a wall two rooms share once leaves no hole in any room's outline (#194 walls3d): walk
+## Building a wall two rooms share once leaves no hole in any room's outline (#194): walk
 ## every room's outline 1 px at a time, over the wall's whole thickness (both faces, out to where
 ## the corners and the T-junctions of the wall's neighbours reach), leaving out the doorways, and
 ## every step lies under at least one 3D wall. The walk covers

@@ -1,6 +1,6 @@
 extends GameTest
-## The hole an open leaf leaves in the nav maps is as thick as the leaf (`NavLeaves.hole`, #194
-## nav3d-a). The bake's clearance off the hole is the agent's radius (18 px) where the leaf's faces
+## The hole an open leaf leaves in the nav maps is as thick as the leaf (`NavLeaves.hole`, #194).
+## The bake's clearance off the hole is the agent's radius (18 px) where the leaf's faces
 ## need a body's (14 px) and the half of its thickness (3 px): a hole thinner than the leaf leaves
 ## the margin to the grid. The baker's 4 px cells put a mesh edge up to 3 px nearer than the
 ## clearance, so a hole 2 px thick left the walkers of `ai/movement/door_ajar_opened_fully` pressed

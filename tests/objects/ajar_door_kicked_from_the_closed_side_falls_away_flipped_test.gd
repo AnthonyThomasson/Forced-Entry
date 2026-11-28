@@ -1,5 +1,5 @@
 extends GameTest
-## D18 / DR11 (#194 ajarfall): a door knocked down while AJAR falls with the blow, away from whoever
+## D18 / DR11 (#194): a door knocked down while AJAR falls with the blow, away from whoever
 ## struck it. Four doors, kicked from their closed side.
 ## A guard: it was green on c9ede047 too (a door struck from its closed side already fell the way it
 ## was opened to); it keeps that side from regressing.

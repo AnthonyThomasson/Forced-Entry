@@ -1,5 +1,5 @@
 extends RefCounted
-## (An oracle: `clinic_mesh.gd` of commit 08f43a10, the old look #194 unbake-c keeps.
+## (An oracle: `clinic_mesh.gd` of commit 08f43a10, the old look #194 keeps.
 ## Only tests read it (`old_shop_pieces.gd`); nothing in scenes/ does.)
 ## Objects domain, the 3D mesh of the ripperdoc's steel (the pattern is
 ## `table_mesh.gd`, `domain-art/meshes.md`): at the piece's own footprint and `clinic_painter.gd`'s

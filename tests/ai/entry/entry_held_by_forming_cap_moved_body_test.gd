@@ -1,6 +1,6 @@
 extends "res://tests/ai/entry/entry_held_by_forming_stack_cap_test.gd"
 ## The cap of `entry_held_by_forming_stack_cap` when another body at rest on the walker's way (one
-## that does not hold the walk) shifts a few pixels part-way through the hold (#194 perf-ai2): the
+## that does not hold the walk) shifts a few pixels part-way through the hold (#194): the
 ## map the verdict on the slot is read from (`AgentEntry.slot_reach`, carving the bodies at rest) is
 ## asked for just before each reader needs it, not only before the walk's re-plan
 ## (`EntryApproach.WARM_LEAD`): the reader at the cap (`_end_forming_wait`) too. So the invader

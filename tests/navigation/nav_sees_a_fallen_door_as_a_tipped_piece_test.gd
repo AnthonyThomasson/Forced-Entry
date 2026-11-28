@@ -1,5 +1,5 @@
 extends GameTest
-## A door knocked down is a free body the nav bake sees as a tipped piece (#194 doors3d, D18,
+## A door knocked down is a free body the nav bake sees as a tipped piece (#194, D18,
 ## `docs/doors.md` DR11, interface 9): lying flat it is walk-over and leaves the map open, standing
 ## on its edge (leaning, a footprint over `DoorFallConfig.step_over` high) it is a hole carved
 ## where it stands, which the re-bake lands.

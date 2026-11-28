@@ -1,5 +1,5 @@
 extends GameTest
-## A run of books stops a pistol round and lets a rifle round through (#194 unbake-b, D21,
+## A run of books stops a pistol round and lets a rifle round through (#194, D21,
 ## `docs/stacked-items.md` SI13, SI7): a bookshelf with its books loose on the boards is shot from
 ## the front at the height of a run on its lowest board, with a dummy a step behind it. The pistol's
 ## round goes through the run (a hit, the run's paper) but is spent in it and in the back: the

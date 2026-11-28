@@ -1,5 +1,5 @@
 extends GameTest
-## V5 (#194 vehicles3d, D13): a vehicle with its engine off that has rolled to a stop goes back to
+## V5 (#194, D13): a vehicle with its engine off that has rolled to a stop goes back to
 ## sleep, as a parked one is: a sleeping 3D body costs the physics engine nothing, and a fleet that
 ## never slept would cost every frame (what the vehicle's own step writes each frame must not keep
 ## it awake).

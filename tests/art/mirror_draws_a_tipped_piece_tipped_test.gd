@@ -1,5 +1,5 @@
 extends GameTest
-## The 3D render mirror follows a free piece's 3D body (#194 furn3d): a bookshelf knocked over is
+## The 3D render mirror follows a free piece's 3D body (#194): a bookshelf knocked over is
 ## drawn lying on its side, its mesh turned with the body, not stood upright where its 2D footprint
 ## is (`MeshCarrier`, interface 27).
 

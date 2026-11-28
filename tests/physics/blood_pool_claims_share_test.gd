@@ -1,6 +1,6 @@
 extends GameTest
 ## The bleed-out pools that still have cells to claim share FLOW_CLAIMS_PER_FRAME a physics
-## frame (#194 perf-spike): one pool claims at most 16 a frame and has all 225 within ~16 frames;
+## frame (#194): one pool claims at most 16 a frame and has all 225 within ~16 frames;
 ## k pools together claim at most max(16, k) a frame, the remainder to the first in list order, and
 ## all finish; a pool freed mid-claim raises the others' share; the claimer list empties with its
 ## world; and a pool shows blood within a few frames however many die together.

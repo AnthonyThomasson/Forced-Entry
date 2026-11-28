@@ -2,7 +2,7 @@ extends UnitSuite
 ## Native unit suite for `ViewWatch` and a change of the viewer's eye height (a duck, a rise;
 ## `docs/player-vision.md` V1). The colliders are sorted again by the top each was found with, not
 ## read from the world anew: in the 10v10 district the full read was 16 ms, one frame, after a
-## stretch of frames with no cone work at all (#194 perf-view3). Same seam as `view_watch_suite`.
+## stretch of frames with no cone work at all (#194). Same seam as `view_watch_suite`.
 
 const Watch := preload("res://scenes/vision/view_watch.gd")
 const RawTwins := preload("res://tests/_vision/raw_twins.gd")

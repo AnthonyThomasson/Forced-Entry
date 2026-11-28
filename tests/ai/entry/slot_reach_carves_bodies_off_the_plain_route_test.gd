@@ -1,7 +1,7 @@
 extends GameTest
 ## A hold's verdict on its slot (`AgentEntry.slot_reach`) carves the bodies near the plain route
 ## first (`AgentEntry.BODY_CORRIDOR`), and then, when the way round leaves that corridor, the
-## bodies it passes (#194 perf-ai2). Two rooms are joined by two doorways: the walk's plain route
+## bodies it passes (#194). Two rooms are joined by two doorways: the walk's plain route
 ## goes through the near one; a body stands in the far one, more than the corridor from the plain
 ## route. A body in the near doorway alone leaves the far one, and the slot is reached (1); one in
 ## each shuts both ways, and the slot is not (0), which a verdict that never carved the far body

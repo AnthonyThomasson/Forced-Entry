@@ -1,5 +1,5 @@
 extends GameTest
-## The bodies that move carry their meshes too (#194 del2d-b2b, interface 27 and 29): a free piece's
+## The bodies that move carry their meshes too (#194, interface 27 and 29): a free piece's
 ## mesh is a child of its `PieceBody`, a standing door's of its `DoorBody`, and a door knocked down
 ## takes it to the `DoorSlab` that replaces the leader, with no transform of its own: the picture is
 ## where the twin is, tilted and swung with it, and the mirror writes nothing for it (`written` is

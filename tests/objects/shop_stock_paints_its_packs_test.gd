@@ -1,5 +1,5 @@
 extends GameTest
-## A run of bottles or snack packs is painted pack by pack (#194 unbake-c, D21 "the old look kept",
+## A run of bottles or snack packs is painted pack by pack (#194, D21 "the old look kept",
 ## `docs/stacked-items.md` SI16): the flat art of a run, the top the 3D picture draws, gives each of
 ## its `spines` its own colour with a dark seam between, as the old fridge, machine and aisle drew
 ## their packs. One colour for the whole run (the catalogue's graded base) read as a dull brown

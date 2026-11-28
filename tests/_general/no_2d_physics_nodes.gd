@@ -1,5 +1,5 @@
 extends RefCounted
-## Shared by the no-2D-physics guard tests (#194 del2d-c5d, ADR 0014): the nodes of a built world
+## Shared by the no-2D-physics guard tests (#194, ADR 0014): the nodes of a built world
 ## that are a 2D physics node. There is none in the game any more: every sim root is a plain
 ## `Node2D` plan handle and the twin space is the only physics space.
 

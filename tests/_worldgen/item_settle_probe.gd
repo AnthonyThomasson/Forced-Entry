@@ -1,5 +1,5 @@
 extends RefCounted
-## Tests: how the small items of a generated world settle (#194 stack-b, D20,
+## Tests: how the small items of a generated world settle (#194, D20,
 ## `docs/stacked-items.md`
 ## SI9). The world places them resting on their base, so none may topple or slide off at the
 ## start: after a short while each is asleep within a few px and a few degrees of where it was set.

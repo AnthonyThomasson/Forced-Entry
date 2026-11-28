@@ -1,6 +1,6 @@
 extends GameTest
 ## A character that gets up from a chair keeps its collision exception with it until its body stands
-## clear of the chair's 3D body (#194 chars3d-b): `CharacterUse` asks the twin space whether the
+## clear of the chair's 3D body (#194): `CharacterUse` asks the twin space whether the
 ## body (its circle plus a margin) still overlaps, not the 2D footprint, so with the footprint's own
 ## shapes off the exception is still held while the character stands on the chair, and dropped once
 ## it has walked off.

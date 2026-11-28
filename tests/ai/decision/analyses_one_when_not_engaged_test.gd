@@ -1,5 +1,5 @@
 extends GameTest
-## An NPC with no engaged contact analyses ONE hostile, the nearest (#194 perf-decide2, "cheaper
+## An NPC with no engaged contact analyses ONE hostile, the nearest (#194, "cheaper
 ## decisions"): the second analysed hostile is for the NPC that is fighting one (its engaged
 ## contact keeps its slot and the nearest other takes the second, `analyses_engaged_and_nearest`).
 ## The one slot goes to the nearest hostile IN SIGHT: a remembered one that is nearer by its last

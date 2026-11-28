@@ -1,5 +1,5 @@
 extends GameTest
-## The camera follows the car as it is drawn (#194 del2d-c5c, interface 27): a car's mesh is carried
+## The camera follows the car as it is drawn (#194, interface 27): a car's mesh is carried
 ## on its 3D twin (`VehicleBody`), whose node pose is the one the engine synced at the start of the
 ## physics frame, the pose the twin space writes the car's handle from in the same frame. So in a
 ## render frame (a `_process` after the camera's) the handle, the seat the driver is placed at and

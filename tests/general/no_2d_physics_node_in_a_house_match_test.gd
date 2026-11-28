@@ -1,5 +1,5 @@
 extends GameTest
-## No 2D physics node in a built house match (#194 del2d-c5d, ADR 0014): the tree of the world
+## No 2D physics node in a built house match (#194, ADR 0014): the tree of the world
 ## (the house, its rooms, its furniture, doors, the characters, the twin space) holds no 2D physics
 ## body, shape, area or ray: every sim root is a plain `Node2D` plan handle and the twin space is
 ## the only physics space. The scan of `scenes/` (`general/no_2d_space_reads_suite`) says no script
@@ -18,7 +18,7 @@ func describe() -> Dictionary:
 		"description": "Walks the whole tree of a house match with defenders and invaders: no "
 			+ "PhysicsBody2D, CollisionObject2D, CollisionShape2D, CollisionPolygon2D, Area2D, "
 			+ "RayCast2D or ShapeCast2D.",
-		"tags": ["general", "house", "twins", "plan-handle", "del2d"],
+		"tags": ["general", "house", "twins", "plan-handle"],
 		"timeout": 40.0,
 	}
 

@@ -1,5 +1,5 @@
 extends GameTest
-## D21 unbake (#194 17g, `docs/stacked-items.md` SI13): the item that replaced a painted prop keeps
+## D21 unbake (#194, `docs/stacked-items.md` SI13): the item that replaced a painted prop keeps
 ## the prop's look: its size and its colours (`props.gd`, the prop palette
 ## `ObjectArtDecorConfig.prop_colors`), not the run-down grade the catalogue colour gets. Each
 ## kind is painted as the old prop was (on a table-brown ground) and as the item (on its own

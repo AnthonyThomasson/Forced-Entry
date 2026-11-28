@@ -12,7 +12,7 @@ The shown rules (the body's `visible`, a riding character's `use.is_riding()`, t
 and the `built` signal a wall fade listens to are the mirror's, kept. What is drawn but is no body (floor stencils, lying items) is shown by a small `MeshFollower` that keeps the
 mirror's `track` / `track_group`; the effects' and shots' layers hang in the view's viewport. `WorldMirror`, `MirrorConfig` and the proxy are deleted.
 
-**Fallbacks, decided.** A body no builder gives a mesh has **none**, not a box: a stand-in would be sized from a 2D collision shape, which the 2D-space deletion (del2d-c)
+**Fallbacks, decided.** A body no builder gives a mesh has **none**, not a box: a stand-in would be sized from a 2D collision shape, which the 2D-space deletion
 removes, and every kind that ships has a builder, so nothing drawn goes missing. A body the space gave no twin (a non-solid piece: a rug, a mat, which never moves) has its
 mesh placed where it stands, once, a child of the carrier (`TwinSpace.untwinned`), never followed.
 

@@ -1,5 +1,5 @@
 extends GameTest
-## A wall two rooms share is built once (#194 walls3d): where two rooms' outlines run along the
+## A wall two rooms share is built once (#194): where two rooms' outlines run along the
 ## same line, the room built first owns the stretch they share and the other builds no collider
 ## there (it keeps the stretch as a segment, so its doorways stay cut where they
 ## are). So every wall segment of a house, and of a district shell with its partitions, has exactly

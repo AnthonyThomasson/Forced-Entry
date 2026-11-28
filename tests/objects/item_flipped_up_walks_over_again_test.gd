@@ -1,5 +1,5 @@
 extends GameTest
-## A walk-over item is an obstacle only while it stands up (#194 stack-a, D20,
+## A walk-over item is an obstacle only while it stands up (#194, D20,
 ## `docs/stacked-items.md` SI4): a plate flicked up at one rim by a real impulse tumbles, and while
 ## it stands taller than a step it is on `TWIN_WORLD` (a walker meets it); once it lies flat again
 ## it is back on `TWIN_WALKOVER` and no walker meets it.

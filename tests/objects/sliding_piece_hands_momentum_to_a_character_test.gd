@@ -1,6 +1,6 @@
 extends GameTest
 ## A sliding piece hands its momentum to the character it strikes (a kinematic body the solver does
-## not move), and does it without reading Jolt's contact events (#194 furn3d review): they are
+## not move), and does it without reading Jolt's contact events (#194): they are
 ## collected on worker threads and arrive in a different count and order run to run, so a
 ## character's velocity differed in the last bits and a recorded fight missed. The piece carries no
 ## contact monitor; a deterministic shape query of the moving piece against the characters, in a

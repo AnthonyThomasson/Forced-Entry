@@ -1,8 +1,9 @@
 class_name ToonMaterial
 extends RefCounted
-## Art domain, the pixel post (`pixel_post_config.gd`): the one toon `ShaderMaterial`
-## the 3D render's meshes share, a colour per instance (`base_color`, an instance uniform). The
-## mirror's proxies use it now and each domain's mesh will; each light's amount is stepped into
+## Art domain, the pixel post (`pixel_post_config.gd`): the 3D render's `ShaderMaterial`s. The
+## shared toon material is the untextured meshes', a colour per instance (`base_color`, an instance
+## uniform); textured meshes, decals, the merged chunks and the drop shadows have their own here,
+## and a `PartSkin`'s own takes the knobs (`follow`). Every toon one steps each light's amount into
 ## `PixelPostConfig.bands` bands (`ToonLightConfig`), the dusk's ambient and the lights added up.
 
 const SHADER := preload("res://scenes/art/post/toon.gdshader")
@@ -16,9 +17,9 @@ const SHADE_PRIORITY := 100
 ## The texels across the drop shadow's disc.
 const SHADE_TEXELS := 32
 
-## The one material every mesh of the 3D view shares: the mirror's proxies and each domain's own
-## mesh (`MeshNodes.instance`). Made on first use; a new mirror pushes the holders into it again
-## (`refresh`), so a tuning change applies from the next match.
+## The material every untextured mesh shares (`MeshNodes.instance`, `batch`). Made on first use; a
+## new carrier pushes the holders into it again (`refresh`), so a tuning change applies from the
+## next match.
 static var _shared: ShaderMaterial
 ## The mesh kit's live decal materials, one per texture, by the texture's instance id, held weakly:
 ## a decal's texture is a uniform of its own (the shared material cannot carry it) and a material

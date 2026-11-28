@@ -1,7 +1,7 @@
 extends GameTest
 ## A body the twin space gave no twin (a non-solid piece: a rug, which never moves) that appears
 ## after the carrier started has its mesh placed where it stands, once, a child of the carrier
-## (#194 del2d-b3c, interface 27): the carrier hears of it through `TwinSpace.untwinned`.
+## (#194, interface 27): the carrier hears of it through `TwinSpace.untwinned`.
 
 const PlanProbe := preload("res://tests/_general/plan_probe.gd")
 

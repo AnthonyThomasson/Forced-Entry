@@ -1,5 +1,5 @@
 extends GameTest
-## D16 (#194 nav3d-a): every doorway of the house and district floorplans admits a route on the
+## D16 (#194): every doorway of the house and district floorplans admits a route on the
 ## 4 px mesh, as it did on the 2D baker's (checked at 4671b7a9 with this probe: every doorway of the
 ## district and of houses 1 to 6 routed, an empty one and one with its door open). A route runs from
 ## `PROBE` px before the doorway's middle to `PROBE` px past it along the wall's normal, on the

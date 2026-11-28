@@ -1,5 +1,5 @@
 extends GameTest
-## A round through a fridge's glass meets what is behind it by material (#194 unbake-c, D21,
+## A round through a fridge's glass meets what is behind it by material (#194, D21,
 ## `docs/stacked-items.md` SI16): shot from the front at a shelf of bottles, the first thing it
 ## meets is the piece's glass (a hit whose material is glass, the round goes on), then the bottles
 ## (a hit on the item); shot from the side at the same height it meets the steel side, not glass.

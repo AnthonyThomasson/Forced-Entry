@@ -1,5 +1,5 @@
 extends GameTest
-## D20 / SI9 (#194 stack-b): a few small items on the flat tops, on about half of them. Over a
+## D20 / SI9 (#194): a few small items on the flat tops, on about half of them. Over a
 ## sample of seeded houses: of the tops that take items (a table, a desk, a counter, a shelf: what
 ## `ItemsCatalog.options_for` says; a piece that carries its own items takes no fill) between 30 and
 ## 70 percent carry any, each carries 1 to `top_max` (a book or a plate may be stacked on one more),

@@ -1,5 +1,5 @@
 extends GameTest
-## A bookshelf's books are free bodies (#194 unbake-b, D21, rule 9, `docs/stacked-items.md` SI13):
+## A bookshelf's books are free bodies (#194, D21, rule 9, `docs/stacked-items.md` SI13):
 ## they stand on the boards asleep at the start (none topples), and a bookshelf knocked over spills
 ## them: it lies on its side and most of the books are no longer where they stood.
 

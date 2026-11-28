@@ -1,6 +1,6 @@
 extends GameTest
 ## A door still nudges a walker clear of its leaf (interface 24, duck-typed) now the walker's 3D
-## body is the truth (#194 chars3d-a): the nudge moves the 2D body and the 3D body takes the new
+## body is the truth (#194): the nudge moves the 2D body and the 3D body takes the new
 ## place (`CharacterTwin.follow`), so it does not snap back, and it walks on from there.
 
 const JAMB := 20.0

@@ -1,5 +1,5 @@
 extends GameTest
-## A blow shoves a free piece at the height it lands (#194 chars3d-a, interface 5): a punch lands at
+## A blow shoves a free piece at the height it lands (#194, interface 5): a punch lands at
 ## fist height, up the body of a tall thin bookshelf, and tips it over; the same punch only slides a
 ## low, wide sofa.
 

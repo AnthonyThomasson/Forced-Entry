@@ -1,6 +1,6 @@
 extends GameTest
 ## A frag dents a room's worth of furniture in one frame. A piece is a plan handle with no collider
-## (#194 del2d-c4): a dent is cut again for what is built from it, so each dented piece says it was
+## (#194): a dent is cut again for what is built from it, so each dented piece says it was
 ## `reshaped` (its mesh is built again) in a deferred call that the hits of one frame share, and its
 ## twin keeps the outline it was built with (a dent is a few px). This checks that after a frag and
 ## its fragments every dented piece was reshaped, once the hits of a frame are done, and that no

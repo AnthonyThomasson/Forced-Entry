@@ -1,5 +1,5 @@
 extends GameTest
-## Carried stock is carved like a piece (#194 unbake-b, D21 decision, `docs/stacked-items.md` SI13):
+## Carried stock is carved like a piece (#194, D21 decision, `docs/stacked-items.md` SI13):
 ## the crates a crate stack carries and the wrapped boxes on a pallet stand taller than a step, so
 ## each is a nav hole as a floor stack is (`navigation/house_items_carve_like_pieces`); the pallet
 ## under them (5 px) is walked over. A room holds a crate stack and a loaded pallet with a lane

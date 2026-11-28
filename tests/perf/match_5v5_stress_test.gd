@@ -20,7 +20,7 @@ extends GameTest
 ## #203: the numbers above are seed 7's fight, another fight than this guard plays now (not a
 ## baseline to read a change by, nor a sign of the guard getting faster or slower). The match plays
 ## one fight per seed, seed 23 now (`perf_probe.gd`), contact at 6.5 s, no late
-## nav bake (one of 20 in one of four plays); two runs alone at #194 perf-final (load 4 to 6, not
+## nav bake (one of 20 in one of four plays); two runs alone at #194 (load 4 to 6, not
 ## `--quiet`): avg 7.73 and 7.00, p95 13.12 and 12.14, max 15.90 and 15.65 ms.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")

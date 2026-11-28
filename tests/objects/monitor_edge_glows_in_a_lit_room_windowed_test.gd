@@ -1,5 +1,5 @@
 extends GameTest
-## The monitor item's lit edge reads in a lit house room (#194 unbake-a, D21 'the old look kept';
+## The monitor item's lit edge reads in a lit house room (#194, D21 'the old look kept';
 ## windowed only: the headless renderer draws nothing). A 3D Watch match in the office loft (seed
 ## 2), the camera close over the monitor on the desk: the room's dusk and fixtures light the scene,
 ## and the screen's front edge must still show its own colour (the cheap screen's green, or the

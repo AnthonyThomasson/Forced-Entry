@@ -1,5 +1,5 @@
 extends GameTest
-## D18 / DR11 (#194 flatdoor): once a door is down its doorway is clear. The gun range's solid
+## D18 / DR11 (#194): once a door is down its doorway is clear. The gun range's solid
 ## panelled door stands ajar 30 degrees out onto the range; the human shoots it down from the range
 ## with the rifle and the leaf falls out of its frame (it may lean on something beyond, it does not
 ## stay wedged in the jambs): the doorway is as wide clear as it is free between the jambs.

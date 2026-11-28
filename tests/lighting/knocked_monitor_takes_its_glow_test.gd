@@ -1,5 +1,5 @@
 extends GameTest
-## D21 unbake (#194 17g, interface 20, `docs/lighting.md`): the desk's light is the monitor
+## D21 unbake (#194, interface 20, `docs/lighting.md`): the desk's light is the monitor
 ## item's, not the desk's. The desk gives none; the monitor on it gives one at its screen; a
 ## monitor knocked off the desk takes its glow with it, to where it lands.
 

@@ -1,5 +1,5 @@
 extends GameTest
-## Art's `MeshFollower` (#194 del2d-b3b): the small follower for drawn things that are no physics
+## Art's `MeshFollower` (#194): the small follower for drawn things that are no physics
 ## body (a floor stencil, a dropped item, a thrown grenade: Node2Ds in a tracked group), which no
 ## twin carries a mesh for. The same `track` / `track_group` API the mirror had, the same rules: a
 ## tracked node's mesh stands where the node is and turns with it, written only when the node's

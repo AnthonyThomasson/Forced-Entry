@@ -14,7 +14,7 @@ frames old (a job of 2 ticks, the median), up to 4 (3 ticks) and at most 8 in th
 - It **never shows a mix of two worlds**: a change of the world between slices (a blocker moved, changed shape, joined or left, a
   blocking character, a changed sight number) drops the job and starts it again from the live pose. After `restart_cap` (2) restarts in
   a row the next is built whole in one frame, so a world that changes every frame still gets a cone, every fourth frame (a whole build a frame was the cost before).
-  Amended (#194 perf-view2): not when the change is slow moves only (every blocker in reach within `settle_px`, 1 px, of the job's snapshot, no signal, no joined blocker, the sight as built): that restart begins a settling job, still a slice a tick, which treats those moves as where they were; the cone it publishes is the world's to that (V1), and a settling job restarted is built whole.
+  Amended (#194): not when the change is slow moves only (every blocker in reach within `settle_px`, 1 px, of the job's snapshot, no signal, no joined blocker, the sight as built): that restart begins a settling job, still a slice a tick, which treats those moves as where they were; the cone it publishes is the world's to that (V1), and a settling job restarted is built whole.
 - It **never extrapolates**: the cone published is a fresh cone of an eye the viewer stood at, so the memory (V4, never cleared)
   never holds area no eye saw. A change of the viewer's pose alone lets the job finish on its start pose (restarting for it would
   mean a moving viewer never publishes).
@@ -28,8 +28,8 @@ turn; in about a tenth of a district's views (a job over 3 ticks) up to 8 frames
 corners' price: they cost about 2 ms, as much as a slice of rays, and priced as one unit they made a start tick of 6 to 7 ms. `cost_shape` was 450, so
 a job was the corners' tick plus its rays' ticks, one more than before (a district job a median 3 ticks, 26 % over 3, the most 6; before a median 2,
 11 % over 3, the most 5). The user accepted the longer lag on 2026-11-12 (#195, the frame tail) over a larger slice or a cheaper price that would fit a start tick
-with some rays. On 2026-11-19 (#194 del2d) the user chose the cheaper price: the corners are a 3D shape query in the twin space now, about 200 to 225 units, so `cost_shape` is 225,
-the start tick holds the corners and the first rays, and a district job is a median 2 ticks (the most 5, 10 % over 3: measured loaded, perf3d re-measures). The user accepted that (issue #195, Agent Brief rule 7) because the alternative is a frame budget the 10v10 cannot meet. It
+with some rays. On 2026-11-19 (#194) the user chose the cheaper price: the corners are a 3D shape query in the twin space now, about 200 to 225 units, so `cost_shape` is 225,
+the start tick holds the corners and the first rays, and a district job is a median 2 ticks (the most 5, 10 % over 3: measured loaded, to be measured again quiet). The user accepted that (issue #195, Agent Brief rule 7) because the alternative is a frame budget the 10v10 cannot meet. It
 replaces the earlier pose lag (`rebuild_gap`: an eye 5 px or a facing 1 degree off waited one frame), which was the same trade at
 one frame, and only for a slow walker: a quick turn (6 degrees a frame) was past its bounds and rebuilt every frame.
 Now the job's length is the lag and a moving viewer's cost is a slice a frame, whatever the pose does. A mover entering or leaving the

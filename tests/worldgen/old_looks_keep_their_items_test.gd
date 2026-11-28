@@ -1,5 +1,5 @@
 extends GameTest
-## The emptied pieces keep their old look as items (#194 unbake-b, D21, rule 9,
+## The emptied pieces keep their old look as items (#194, D21, rule 9,
 ## `docs/stacked-items.md` SI13): a stockroom's crate stack is two or three loose crates (by its
 ## place: a third stands on the pair for about half of them) and no stack piece,
 ## its pallet a pallet item with four wrapped boxes on it, a kitchenette's hotplate a crate piece
@@ -7,7 +7,7 @@ extends GameTest
 ## carries the books, boxes or shoes it drew. The stockroom floor is strewn with stacks of boxes and
 ## crates besides, on free floor: never under a place's crates or pallet; a place keeps its
 ## `examine`.
-## The home tops too (#194 unbake-a, SI14): every desk, side table, console table, nightstand,
+## The home tops too (#194, SI14): every desk, side table, console table, nightstand,
 ## dresser, kitchen and kitchenette counter, island and workbench paints no props and carries
 ## exactly the items its row says (`HOME`), each set where the drawing had it (the row's `at`, px
 ## from the piece's centre in its frame, turned the way it faces), and no item of the random fill.
@@ -68,7 +68,7 @@ const DRAWN_AT := {
 		"vise": Vector2(36.4, -1.9),
 	},
 }
-## The shops' and special rooms' pieces that were emptied (#194 unbake-c, SI16), by the piece's
+## The shops' and special rooms' pieces that were emptied (#194, SI16), by the piece's
 ## name, and the items each carries: the premise, written out here. A fridge's bottles, a machine's
 ## and an aisle's packs are runs (SI16).
 const COMMERCIAL := {

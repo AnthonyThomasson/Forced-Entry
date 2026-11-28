@@ -1,6 +1,6 @@
 extends GameTest
 ## The picture is the same when the static classes carry their meshes on their twins as when each
-## mesh is placed by hand from its 2D body (#194 del2d-b2, windowed only: the headless renderer
+## mesh is placed by hand from its 2D body (#194, windowed only: the headless renderer
 ## draws nothing). A furnished house shown by Main's `View3D` with its lights, the picture read back
 ## (its walls, floors and anchored pieces carried by their twins); then every body and floor is
 ## shown by `FollowedBaseline` instead (the same mesh, off its twin, standing where the 2D body

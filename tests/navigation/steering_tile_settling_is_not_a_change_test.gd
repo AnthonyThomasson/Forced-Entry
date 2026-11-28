@@ -1,7 +1,7 @@
 extends GameTest
 ## A piece settles by a hair after the district is built (its twin comes to rest, a footprint that
 ## was 4 vertices is outlined with 6) and that is not a change: the steering tiles it reaches are
-## not due (#194 nav3d-a). Compared exactly, the first re-bake after a build re-baked 40 of a seed's
+## not due (#194). Compared exactly, the first re-bake after a build re-baked 40 of a seed's
 ## 49 tiles for nothing, and the game's burst did the same once a match started. A tile's holes are
 ## unchanged when every hole outline matches within `NavSettle.TOLERANCE` (0.1 px), compared as
 ## shapes: a re-outline of the same footprint is the same hole. A piece moved half a pixel and a

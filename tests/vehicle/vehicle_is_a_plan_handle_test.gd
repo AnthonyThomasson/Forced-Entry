@@ -1,5 +1,5 @@
 extends GameTest
-## A vehicle is a plan handle (#194 del2d-c3, D4, interface 19): a plain `Node2D` in the groups
+## A vehicle is a plan handle (#194, D4, interface 19): a plain `Node2D` in the groups
 ## `vehicles`, `TwinSpace.BODIES` and `TwinSpace.HARD`, no 2D physics body, shape or layer. Its 3D
 ## `VehicleBody` leads it and is the outline lifted to the belt, the handle follows, and a character
 ## that boards it shares space with it (the contacts leave it out) until it has cleared it.
@@ -14,7 +14,7 @@ func describe() -> Dictionary:
 		"description": "A car is no CollisionObject2D and holds no 2D shape; it is in the groups "
 			+ "of plan bodies and hard bodies, a scan of plan bodies finds it, its twin stands "
 			+ "where it does, and a body it shares space with is left out of its contacts.",
-		"tags": ["vehicle", "car", "twins", "del2d"],
+		"tags": ["vehicle", "car", "twins"],
 		"timeout": 10.0,
 	}
 

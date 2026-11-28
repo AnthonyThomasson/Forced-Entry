@@ -1,5 +1,5 @@
 extends GameTest
-## #194 ajarfall (review 3, `docs/twins.md`: a character that leaves wakes what rested on it): a
+## #194 (`docs/twins.md`: a character that leaves wakes what rested on it): a
 ## bookshelf leaning on a character who cannot be bowled away (held by a low post) is not left
 ## hanging in the air asleep when the character walks off, dies or is moved: it falls and lies on
 ## its side.

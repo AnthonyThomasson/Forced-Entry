@@ -1,5 +1,5 @@
 extends GameTest
-## A dent follows into the wall's 3D body (`WallTwin`, interface 29, #194 walls3d): when hits cut a
+## A dent follows into the wall's 3D body (`WallTwin`, interface 29, #194): when hits cut a
 ## wall segment's 2D collider into the convex pieces of its dented outline, the segment's 3D shapes
 ## are cut again from the same dents, so a ray, a fragment or a lob meets the outline the 2D
 ## footprint has. Both have the same corners; an untouched segment keeps its one box.

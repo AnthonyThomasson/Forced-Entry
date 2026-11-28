@@ -1,6 +1,6 @@
 extends GameTest
 ## An emptied shelf looks as full as the old one from the game camera, in a real window (windowed
-## only: the headless renderer draws nothing; #194 unbake-b, D21 "the old look kept",
+## only: the headless renderer draws nothing; #194, D21 "the old look kept",
 ## `docs/stacked-items.md` SI13). A played 3D match, and beside its district each of the four
 ## shelves twice, the OLD look (`art_opts.loose` off: the books, boxes and shoes built into one
 ## mesh) and the EMPTIED one with the same things loose on its boards (`RoomItems.carry`), the

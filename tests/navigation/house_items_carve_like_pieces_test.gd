@@ -1,5 +1,5 @@
 extends GameTest
-## A built house with its small items (#194 stack-b, D20, `docs/stacked-items.md` SI6): the boxes
+## A built house with its small items (#194, D20, `docs/stacked-items.md` SI6): the boxes
 ## and crates stacked on a garage floor are holes in the nav map like any piece, each stack of
 ## them a closed spot; an item on a table sits in the table's hole, a plate or a cup lying on the
 ## floor (within a step) is none, and the holes the cache keeps equal a full re-cut with all of

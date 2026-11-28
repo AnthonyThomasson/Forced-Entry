@@ -1,5 +1,5 @@
 extends GameTest
-## #194 stack-b, D20 / SI7: a stack of boxes is cover by its real height. The AI reads the twins
+## #194, D20 / SI7: a stack of boxes is cover by its real height. The AI reads the twins
 ## (`AgentTactics.cover_cached`: 3D lines from the threat's eye to a ducked body's head, chest and
 ## hips), so a stack of items on a floor hides a ducked body by the height of the stack, not the
 ## top of the catalogue row of the box that is struck (12 px): one box (12) and two (24) leave a

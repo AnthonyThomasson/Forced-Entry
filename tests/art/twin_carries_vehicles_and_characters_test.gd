@@ -1,5 +1,5 @@
 extends GameTest
-## A vehicle and a character carry their meshes on their twins (#194 del2d-b3, interface 27 and 29):
+## A vehicle and a character carry their meshes on their twins (#194, interface 27 and 29):
 ## a car's mesh is a child of its `VehicleBody` with no transform of its own and a character's a
 ## child of its `CharacterTwin` that holds only the turn of its facing; both stand where the 2D
 ## body stands every frame of a drive and a walk, and the mirror writes nothing for them

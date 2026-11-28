@@ -1,5 +1,5 @@
 extends RefCounted
-## Helper of the tests of a free body resting on a character who leaves (#194 ajarfall, review 3,
+## Helper of the tests of a free body resting on a character who leaves (#194,
 ## `docs/twins.md`): a character held where it stands by a low anchored post (so a body that falls
 ## on it cannot bowl it away) and the three ways it can leave: walk off, die, be moved by a script.
 

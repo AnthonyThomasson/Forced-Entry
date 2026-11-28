@@ -1,5 +1,5 @@
 extends GameTest
-## D21 unbake (#194 17g, `docs/stacked-items.md` SI13): the desk no longer paints its monitor,
+## D21 unbake (#194, `docs/stacked-items.md` SI13): the desk no longer paints its monitor,
 ## keyboard, mug and papers; its catalogue row `carries` them and `RoomItems.carry` sets each one
 ## on it where it was drawn, as a free body of its own. The desk's art holds no props; each item
 ## rests on the desk's top asleep; a shove on the monitor moves only the monitor.

@@ -1,5 +1,5 @@
 extends GameTest
-## A tipped piece is its twin (#194 furn3d, D14): geometry follows. A bookshelf knocked over lies
+## A tipped piece is its twin (#194, D14): geometry follows. A bookshelf knocked over lies
 ## across the floor, so a level round at the height it stood to no longer meets it and a low one
 ## does, where it now lies, not where it stood; and its 2D footprint (what the nav reads) is the
 ## projection of where it lies.

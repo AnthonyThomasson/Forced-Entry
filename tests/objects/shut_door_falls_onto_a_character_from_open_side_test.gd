@@ -1,5 +1,5 @@
 extends GameTest
-## D18 / DR11 (#194 ajarfall): Four shut hollow doors knocked down from their open side with a
+## D18 / DR11 (#194): Four shut hollow doors knocked down from their open side with a
 ## character 14 px past each wall line on the landing side: each leaf lies down clear of its doorway
 ## and goes to sleep, and the character it fell on is shoved clear once, not pushed on while it
 ## rests (a leaf that fell on a character used to lean on them for ever, pushing them 7 px/s).

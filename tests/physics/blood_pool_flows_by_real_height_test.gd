@@ -1,6 +1,6 @@
 extends GameTest
 ## A bleed-out pool lies on the floor, so what blocks it is what stands on the floor in the twin 3D
-## space (#194 del2d): a desk (0 to 31 px) is walked round, a mirror hanging from 46 px is flowed
+## space (#194): a desk (0 to 31 px) is walked round, a mirror hanging from 46 px is flowed
 ## under, and the arena's walls hold it in.
 
 const ORIGIN := Vector2(200, 250)

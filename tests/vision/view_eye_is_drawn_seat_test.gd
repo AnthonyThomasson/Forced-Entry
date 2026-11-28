@@ -1,5 +1,5 @@
 extends GameTest
-## The player's view looks from the seat as the car is drawn (#194 del2d-c5c): a driver's handle is
+## The player's view looks from the seat as the car is drawn (#194): a driver's handle is
 ## placed from the car's handle, which the twin space writes from the pose the drawn mesh stands at
 ## in the same physics frame. So the eye the view takes at its tick (the viewer's place, read after
 ## the viewer's own tick) is the drawn seat of the render frame that follows, with no step between

@@ -1,5 +1,5 @@
 extends GameTest
-## A piece of furniture is a plain `Node2D` plan handle (#194 del2d-c4, ADR 0014): it has no
+## A piece of furniture is a plain `Node2D` plan handle (#194, ADR 0014): it has no
 ## engine body of its own and no 2D shape, so a scan by `PhysicsBody2D` / `CollisionShape2D` type
 ## never meets it. It is in the groups `TwinSpace.BODIES` (twinned, found as a plan body) and
 ## `TwinSpace.PIECES` (a piece, not a wall, a door or a vehicle); a free one is led by its 3D body

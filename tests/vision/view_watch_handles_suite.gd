@@ -1,5 +1,5 @@
 extends UnitSuite
-## Native unit suite for `ViewWatch` and the plan handles (#194 del2d-c3): a `Node2D` of
+## Native unit suite for `ViewWatch` and the plan handles (#194): a `Node2D` of
 ## `TwinSpace.BODIES` (a wall, a door, a vehicle) has no engine body, and a watch that read only
 ## `CollisionObject2D`s would never see a door swing or a car move. The seam is the one of
 ## `view_watch_suite.gd`: bodies in the tree, `stale` asked each frame, the eye still.

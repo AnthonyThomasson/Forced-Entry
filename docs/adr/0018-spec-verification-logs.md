@@ -1,6 +1,6 @@
 # Verification logs the behaviour specs used to carry (#51, #54, #56, outfits)
 
-Recorded for #194 (docs sweep, job 20). `docs/grenades.md`, `docs/outfits.md` and `docs/vehicles.md` opened with a dated **Verification** paragraph each: what a
+Recorded for #194 (a docs sweep). `docs/grenades.md`, `docs/outfits.md` and `docs/vehicles.md` opened with a dated **Verification** paragraph each: what a
 feature's wrap-up ran (lint, the suite, repeats, loads) and read in October 2026. They are history, not behaviour, so they left the specs; they are kept here
 unedited. Every count, test id and number was true of that commit and none is a claim about the code now: `general/fill_batch_matches_draw_calls` and `general/use_vehicle_key`
 no longer exist (the second was renamed `general/space_vehicle_key`), and the perf figures are of the 2D build.

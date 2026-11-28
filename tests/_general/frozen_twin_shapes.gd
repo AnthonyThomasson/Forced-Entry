@@ -1,5 +1,5 @@
 extends RefCounted
-## FROZEN COPY of `TwinShapes.footprint_of` as it was before the cheaper build (#194 fixes3): the
+## FROZEN COPY of `TwinShapes.footprint_of` as it was before the cheaper build (#194): the
 ## oracle `general/twin_footprint_matches_frozen` compares the live one to it bit for bit over every
 ## twin of a real district. Change it never; change the live one only while this test holds.
 

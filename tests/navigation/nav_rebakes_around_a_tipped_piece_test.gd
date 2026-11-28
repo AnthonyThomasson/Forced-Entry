@@ -1,5 +1,5 @@
 extends GameTest
-## A tipped piece is carved where it lies (#194 furn3d, D14): a bookshelf knocked over toward +x
+## A tipped piece is carved where it lies (#194, D14): a bookshelf knocked over toward +x
 ## covers floor that was free; the nav re-bake rule (the holes changed, so the map is baked again)
 ## carves it, and the floor it stood on is floor again.
 

@@ -1,5 +1,5 @@
 extends GameTest
-## D19 (#194 flatdoor, `docs/doors.md` DR11): a leaf is walk-over only while it lies flat (its top
+## D19 (#194, `docs/doors.md` DR11): a leaf is walk-over only while it lies flat (its top
 ## within a step over of the floor). One blown up or propped on its edge past that is a solid again:
 ## a walker meets it. The leaf lies flat in the open room: a line at shin height of the layers a
 ## walker is stopped by passes over it; stood on its edge it is met.

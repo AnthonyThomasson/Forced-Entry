@@ -1,5 +1,5 @@
 extends GameTest
-## A house door is a plan handle (#194 del2d-c3, D4, interface 24): a plain `Node2D` in the groups
+## A house door is a plan handle (#194, D4, interface 24): a plain `Node2D` in the groups
 ## `doors`, `TwinSpace.BODIES` and `TwinSpace.HARD`, with no 2D physics body, shape or layer: its
 ## leaf is the 3D `DoorBody` in the twin space, its footprint when it falls is polygon data on the
 ## door, and a nav bake and a scan by group find it.
@@ -15,7 +15,7 @@ func describe() -> Dictionary:
 		"description": "A door is no CollisionObject2D and has no 2D shape; it is in the groups of "
 			+ "plan bodies, doors and hard bodies, has a twin, is found by a scan of plan "
 			+ "bodies, and a navigation bake lists it.",
-		"tags": ["twins", "3d", "door", "del2d"],
+		"tags": ["twins", "3d", "door"],
 		"timeout": 10.0,
 	}
 
